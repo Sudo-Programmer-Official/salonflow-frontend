@@ -22,6 +22,7 @@ import AdminOnboardingPage from '../pages/admin/Onboarding.vue';
 import MarketingLayout from '../layouts/MarketingLayout.vue';
 import MarketingHome from '../pages/MarketingHome.vue';
 import StartPage from '../pages/Start.vue';
+import LoginPage from '../pages/Login.vue';
 import { fetchOnboardingStatus } from '../api/onboarding';
 
 const routes = [
@@ -40,6 +41,11 @@ const routes = [
         component: StartPage,
       },
     ],
+  },
+  {
+    path: '/login',
+    name: 'login',
+    component: LoginPage,
   },
   {
     path: '/check-in',
@@ -177,15 +183,22 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to, _from, next) => {
+  const token = localStorage.getItem('token');
+  const storedRole = localStorage.getItem('role');
+
+  if (to.name === 'login' && token && storedRole) {
+    if (storedRole === 'SUPER_ADMIN') return next({ name: 'platform-dashboard' });
+    if (storedRole === 'OWNER') return next({ name: 'admin-dashboard' });
+    if (storedRole === 'STAFF') return next({ name: 'staff-queue' });
+  }
+
   if (to.meta.requiresAuth) {
-    const token = localStorage.getItem('token');
     if (!token) {
       return next('/login');
     }
 
     const roles = (to.meta.roles as string[] | undefined) ?? [];
     if (roles.length > 0) {
-      const storedRole = localStorage.getItem('role');
       if (!storedRole || !roles.includes(storedRole)) {
         return next('/login');
       }
