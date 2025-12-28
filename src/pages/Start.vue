@@ -11,6 +11,13 @@ const error = ref('');
 
 const validateEmail = (value: string) => /\S+@\S+\.\S+/.test(value);
 
+const apiBase =
+  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/+$/, '') ||
+  'http://localhost:3000';
+const tenantId =
+  (import.meta.env.VITE_TENANT_ID as string | undefined) ||
+  (typeof window !== 'undefined' ? localStorage.getItem('tenantId') ?? undefined : undefined);
+
 const submit = async () => {
   success.value = '';
   error.value = '';
@@ -23,9 +30,12 @@ const submit = async () => {
     return;
   }
   try {
-    const res = await fetch('/platform/demo-requests', {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (tenantId) headers['x-tenant-id'] = tenantId;
+
+    const res = await fetch(`${apiBase}/api/demo-requests`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         name: name.value.trim(),
         email: email.value.trim(),
@@ -100,9 +110,7 @@ const submit = async () => {
             >
               Submit
             </button>
-            <p class="text-xs text-slate-500">
-              Frontend-only for now. We’ll wire this to backend intake later.
-            </p>
+            <p class="text-xs text-slate-500">We respond within one business day.</p>
           </div>
           <ElAlert v-if="success" :title="success" type="success" :closable="false" />
           <ElAlert v-if="error" :title="error" type="error" :closable="false" />
