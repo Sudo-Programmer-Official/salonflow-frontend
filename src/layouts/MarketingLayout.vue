@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { RouterLink, RouterView } from 'vue-router';
+import logo from '../assets/images/salonflow-logo.png';
 </script>
 
 <template>
   <div class="min-h-screen bg-slate-50 text-slate-900">
     <header class="border-b border-slate-200 bg-white/90 backdrop-blur">
       <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-        <div class="flex items-center gap-2">
-          <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-sky-500 to-indigo-600 shadow-sm"></div>
-          <div class="text-lg font-semibold">SalonFlow</div>
-        </div>
+        <RouterLink to="/" class="flex items-center gap-1.5">
+          <img :src="logo" alt="SalonFlow" class="h-8 w-auto rounded-lg shadow-sm" />
+          <div class="hidden text-lg font-semibold text-slate-900 sm:inline">SalonFlow</div>
+        </RouterLink>
         <nav class="flex items-center gap-4 text-sm font-medium text-slate-700">
           <RouterLink class="hover:text-slate-900 transition-colors" to="/">Home</RouterLink>
           <RouterLink class="hover:text-slate-900 transition-colors" to="/start">Get Started</RouterLink>

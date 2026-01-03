@@ -1,7 +1,16 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
-import { ElCard, ElDescriptions, ElDescriptionsItem, ElAlert } from 'element-plus';
-import { fetchTenantDetail, type TenantOverview, type TenantMetrics } from '../../api/superadmin';
+import { onMounted, ref, computed } from 'vue';
+import {
+  ElCard,
+  ElDescriptions,
+  ElDescriptionsItem,
+  ElAlert,
+  ElTag,
+  ElButton,
+  ElMessage,
+  ElTooltip,
+} from 'element-plus';
+import { fetchTenantDetail, impersonateTenant, type TenantOverview, type TenantMetrics } from '../../api/superadmin';
 import { useRoute } from 'vue-router';
 
 const route = useRoute();
@@ -10,6 +19,8 @@ const tenant = ref<TenantOverview | null>(null);
 const metrics = ref<TenantMetrics | null>(null);
 const loading = ref(false);
 const error = ref('');
+const impersonating = ref(false);
+const statusType = (status: string) => (status === 'active' ? 'success' : 'danger');
 
 const load = async () => {
   loading.value = true;
@@ -25,6 +36,37 @@ const load = async () => {
 };
 
 onMounted(load);
+
+const impersonate = async () => {
+  impersonating.value = true;
+  try {
+    const result = await impersonateTenant(businessId);
+    localStorage.setItem('impersonationOriginalToken', localStorage.getItem('token') || '');
+    localStorage.setItem('impersonationOriginalRole', localStorage.getItem('role') || '');
+    localStorage.setItem('impersonationOriginalTenant', localStorage.getItem('tenantId') || '');
+    localStorage.setItem('impersonationActive', 'true');
+    if (tenant.value?.name) {
+      localStorage.setItem('impersonationBusinessName', tenant.value.name);
+    }
+
+    localStorage.setItem('token', result.token);
+    localStorage.setItem('role', result.role);
+    localStorage.setItem('tenantId', result.businessId);
+    if (result.email) localStorage.setItem('email', result.email);
+
+    const subdomain = tenant.value?.subdomain ?? '';
+    const host = typeof window !== 'undefined' ? window.location.host : '';
+    const baseDomain = host.split('.').slice(1).join('.') || 'localhost:5173';
+    const target = subdomain ? `http://${subdomain}.${baseDomain}/admin` : '/admin';
+    window.location.href = target;
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : 'Failed to impersonate');
+  } finally {
+    impersonating.value = false;
+  }
+};
+
+const isPlatformTenant = computed(() => tenant.value?.subdomain === 'platform');
 </script>
 
 <template>
@@ -40,9 +82,28 @@ onMounted(load);
       <ElDescriptions title="Tenant" :column="2" border>
         <ElDescriptionsItem label="Name">{{ tenant.name }}</ElDescriptionsItem>
         <ElDescriptionsItem label="Subdomain">{{ tenant.subdomain }}</ElDescriptionsItem>
-        <ElDescriptionsItem label="Status">{{ tenant.status }}</ElDescriptionsItem>
+        <ElDescriptionsItem label="Status">
+          <ElTag :type="statusType(tenant.status)" effect="light">{{ tenant.status }}</ElTag>
+        </ElDescriptionsItem>
         <ElDescriptionsItem label="Created">{{ tenant.createdAt }}</ElDescriptionsItem>
       </ElDescriptions>
+      <div class="mt-3">
+        <ElTooltip v-if="isPlatformTenant" content="Platform tenant cannot be impersonated" placement="top">
+          <span>
+            <ElButton type="primary" disabled>
+              Login as tenant
+            </ElButton>
+          </span>
+        </ElTooltip>
+        <ElButton
+          v-else
+          type="primary"
+          :loading="impersonating"
+          @click="impersonate"
+        >
+          Login as tenant
+        </ElButton>
+      </div>
     </ElCard>
 
     <ElCard v-if="metrics" class="bg-white">

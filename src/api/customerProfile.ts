@@ -1,9 +1,6 @@
-export type VipTier = 'NEW' | 'REGULAR' | 'VIP';
+import { apiUrl, buildHeaders } from './client';
 
-const authHeaders = (): Record<string, string> => {
-  const token = localStorage.getItem('token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
+export type VipTier = 'NEW' | 'REGULAR' | 'VIP';
 
 export type CustomerProfile = {
   customer: {
@@ -39,16 +36,16 @@ export type RedemptionRule = {
 };
 
 export async function fetchCustomerProfile(customerId: string): Promise<CustomerProfile> {
-  const res = await fetch(`/api/customers/${customerId}/profile`, {
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+  const res = await fetch(apiUrl(`/customers/${customerId}/profile`), {
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
   });
   if (!res.ok) throw new Error('Failed to load profile');
   return res.json();
 }
 
 export async function fetchCustomerLedger(customerId: string): Promise<LedgerEntry[]> {
-  const res = await fetch(`/api/customers/${customerId}/loyalty-ledger`, {
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+  const res = await fetch(apiUrl(`/customers/${customerId}/loyalty-ledger`), {
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
   });
   if (!res.ok) throw new Error('Failed to load ledger');
   const data = await res.json();
@@ -58,8 +55,8 @@ export async function fetchCustomerLedger(customerId: string): Promise<LedgerEnt
 export async function fetchCustomerRedemptions(
   customerId: string,
 ): Promise<RedemptionEntry[]> {
-  const res = await fetch(`/api/customers/${customerId}/redemptions`, {
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+  const res = await fetch(apiUrl(`/customers/${customerId}/redemptions`), {
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
   });
   if (!res.ok) throw new Error('Failed to load redemptions');
   const data = await res.json();
@@ -67,8 +64,8 @@ export async function fetchCustomerRedemptions(
 }
 
 export async function fetchRedemptionRules(): Promise<RedemptionRule[]> {
-  const res = await fetch('/api/loyalty/redemption-rules', {
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+  const res = await fetch(apiUrl('/loyalty/redemption-rules'), {
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
   });
   if (!res.ok) throw new Error('Failed to load redemption rules');
   const data = await res.json();
@@ -76,9 +73,9 @@ export async function fetchRedemptionRules(): Promise<RedemptionRule[]> {
 }
 
 export async function redeemPoints(customerId: string, ruleId: string) {
-  const res = await fetch('/api/loyalty/redemptions', {
+  const res = await fetch(apiUrl('/loyalty/redemptions'), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
     body: JSON.stringify({ customerId, ruleId }),
   });
   if (!res.ok) {

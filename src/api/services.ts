@@ -1,3 +1,5 @@
+import { apiUrl, buildHeaders } from './client';
+
 export type ServiceItem = {
   id: string;
   name: string;
@@ -6,22 +8,15 @@ export type ServiceItem = {
   isActive: boolean;
 };
 
-const apiBase = '/api/services';
-
-const authHeaders = (): Record<string, string> => {
-  const token = localStorage.getItem('token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
+const apiBase = apiUrl('/services');
 
 export async function fetchServices(): Promise<ServiceItem[]> {
   const res = await fetch(apiBase, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...authHeaders(),
-    },
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
   });
   if (!res.ok) {
-    throw new Error('Failed to load services');
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to load services');
   }
   return res.json();
 }
@@ -33,10 +28,7 @@ export async function createService(input: {
 }): Promise<ServiceItem> {
   const res = await fetch(apiBase, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...authHeaders(),
-    },
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
     body: JSON.stringify(input),
   });
   if (!res.ok) {
@@ -49,10 +41,7 @@ export async function createService(input: {
 export async function updateServiceStatus(serviceId: string, isActive: boolean) {
   const res = await fetch(`${apiBase}/${serviceId}/status`, {
     method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      ...authHeaders(),
-    },
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
     body: JSON.stringify({ isActive }),
   });
   if (!res.ok) {

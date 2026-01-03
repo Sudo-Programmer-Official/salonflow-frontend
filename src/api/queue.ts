@@ -1,3 +1,5 @@
+import { apiUrl, buildHeaders } from './client';
+
 export type QueueItem = {
   id: string;
   customerName: string;
@@ -7,39 +9,25 @@ export type QueueItem = {
   status: 'WAITING' | 'IN_SERVICE' | 'COMPLETED' | 'CANCELED';
 };
 
-const apiBase = '/api';
-
-const authHeaders = (): Record<string, string> => {
-  const token = localStorage.getItem('token');
-  return token
-    ? {
-        Authorization: `Bearer ${token}`,
-      }
-    : {};
-};
+const apiBase = apiUrl('/checkins');
 
 export async function fetchQueue(): Promise<QueueItem[]> {
-  const res = await fetch(`${apiBase}/checkins/queue`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...authHeaders(),
-    },
+  const res = await fetch(`${apiBase}/queue`, {
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
   });
 
   if (!res.ok) {
-    throw new Error('Failed to load queue');
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to load queue');
   }
 
   return res.json();
 }
 
 export async function assignToMe(checkInId: string) {
-  const res = await fetch(`${apiBase}/checkins/${checkInId}/assign`, {
+  const res = await fetch(`${apiBase}/${checkInId}/assign`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...authHeaders(),
-    },
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
   });
 
   if (!res.ok) {
@@ -51,12 +39,9 @@ export async function assignToMe(checkInId: string) {
 }
 
 export async function startCheckIn(checkInId: string) {
-  const res = await fetch(`${apiBase}/checkins/${checkInId}/start`, {
+  const res = await fetch(`${apiBase}/${checkInId}/start`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...authHeaders(),
-    },
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
   });
 
   if (!res.ok) {
@@ -68,12 +53,9 @@ export async function startCheckIn(checkInId: string) {
 }
 
 export async function completeCheckIn(checkInId: string) {
-  const res = await fetch(`${apiBase}/checkins/${checkInId}/complete`, {
+  const res = await fetch(`${apiBase}/${checkInId}/complete`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...authHeaders(),
-    },
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
   });
 
   if (!res.ok) {

@@ -1,3 +1,5 @@
+import { apiUrl, buildHeaders } from './client';
+
 export type StaffMember = {
   id: string;
   name: string;
@@ -5,22 +7,15 @@ export type StaffMember = {
   status: 'active' | 'inactive';
 };
 
-const apiBase = '/api/staff';
-
-const authHeaders = (): Record<string, string> => {
-  const token = localStorage.getItem('token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
+const apiBase = apiUrl('/staff');
 
 export async function fetchStaff(): Promise<StaffMember[]> {
   const res = await fetch(apiBase, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...authHeaders(),
-    },
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
   });
   if (!res.ok) {
-    throw new Error('Failed to load staff');
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to load staff');
   }
   return res.json();
 }
@@ -31,10 +26,7 @@ export async function updateStaffStatus(
 ) {
   const res = await fetch(`${apiBase}/${staffId}/status`, {
     method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      ...authHeaders(),
-    },
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
     body: JSON.stringify({ status }),
   });
   if (!res.ok) {

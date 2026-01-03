@@ -35,6 +35,7 @@ const handleSubmit = async () => {
     });
     localStorage.setItem('token', result.token);
     localStorage.setItem('role', result.user.role);
+    localStorage.setItem('tenantId', result.user.businessId);
     if (result.user.email) {
       localStorage.setItem('email', result.user.email);
     }

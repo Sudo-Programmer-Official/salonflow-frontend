@@ -1,9 +1,6 @@
-const apiBase = '/api/appointment-reminders/settings';
+import { apiUrl, buildHeaders } from './client';
 
-const authHeaders = (): Record<string, string> => {
-  const token = localStorage.getItem('token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
+const apiBase = apiUrl('/appointment-reminders/settings');
 
 export type ReminderSettings = {
   enabled: boolean;
@@ -13,13 +10,11 @@ export type ReminderSettings = {
 
 export async function fetchReminderSettings(): Promise<ReminderSettings> {
   const res = await fetch(apiBase, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...authHeaders(),
-    },
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
   });
   if (!res.ok) {
-    throw new Error('Failed to load reminder settings');
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to load reminder settings');
   }
   return res.json();
 }
@@ -27,10 +22,7 @@ export async function fetchReminderSettings(): Promise<ReminderSettings> {
 export async function updateReminderSettings(settings: ReminderSettings): Promise<ReminderSettings> {
   const res = await fetch(apiBase, {
     method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      ...authHeaders(),
-    },
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
     body: JSON.stringify(settings),
   });
   if (!res.ok) {

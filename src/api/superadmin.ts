@@ -47,3 +47,25 @@ export async function fetchTenantDetail(
   if (!res.ok) throw new Error('Failed to load tenant');
   return res.json();
 }
+
+export async function impersonateTenant(
+  businessId: string,
+): Promise<{
+  token: string;
+  role: string;
+  businessId: string;
+  email?: string | null;
+  impersonated?: boolean;
+  impersonatorUserId?: string;
+  originalRole?: string;
+}> {
+  const res = await fetch(`${apiBase}/tenants/${businessId}/impersonate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to impersonate tenant');
+  }
+  return res.json();
+}

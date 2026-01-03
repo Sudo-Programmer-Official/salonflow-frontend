@@ -1,3 +1,5 @@
+import { apiUrl, buildHeaders } from './client';
+
 export type AppointmentStatus = 'BOOKED' | 'CANCELED' | 'COMPLETED';
 
 export type Appointment = {
@@ -13,12 +15,7 @@ export type Appointment = {
   staffId?: string | null;
 };
 
-const apiBase = '/api/appointments';
-
-const authHeaders = (): Record<string, string> => {
-  const token = localStorage.getItem('token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
+const apiBase = apiUrl('/appointments');
 
 export async function fetchAppointments(params?: {
   date?: string;
@@ -29,13 +26,11 @@ export async function fetchAppointments(params?: {
   if (params?.mine) search.set('mine', 'true');
 
   const res = await fetch(`${apiBase}?${search.toString()}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...authHeaders(),
-    },
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
   });
   if (!res.ok) {
-    throw new Error('Failed to load appointments');
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to load appointments');
   }
   return res.json();
 }
@@ -50,10 +45,7 @@ export async function createAppointment(payload: {
 }): Promise<Appointment> {
   const res = await fetch(apiBase, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...authHeaders(),
-    },
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
@@ -76,10 +68,7 @@ export async function updateAppointment(
 ): Promise<Appointment> {
   const res = await fetch(`${apiBase}/${id}`, {
     method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      ...authHeaders(),
-    },
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
@@ -92,10 +81,7 @@ export async function updateAppointment(
 export async function cancelAppointment(id: string) {
   const res = await fetch(`${apiBase}/${id}/cancel`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...authHeaders(),
-    },
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -107,10 +93,7 @@ export async function cancelAppointment(id: string) {
 export async function completeAppointment(id: string) {
   const res = await fetch(`${apiBase}/${id}/complete`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...authHeaders(),
-    },
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -128,7 +111,7 @@ export async function createPublicAppointment(payload: {
 }) {
   const res = await fetch(`${apiBase}/public`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: buildHeaders({ json: true, tenant: true }),
     body: JSON.stringify(payload),
   });
   if (!res.ok) {

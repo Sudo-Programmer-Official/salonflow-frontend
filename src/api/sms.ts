@@ -1,3 +1,5 @@
+import { apiUrl, buildHeaders } from './client';
+
 export type SmsSegment = 'all' | 'new' | 'regular' | 'vip';
 
 export type CustomerSummary = {
@@ -6,23 +8,16 @@ export type CustomerSummary = {
   phoneE164: string;
 };
 
-const authHeaders = (): Record<string, string> => {
-  const token = localStorage.getItem('token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
-
 export async function fetchCustomersBySegment(
   segment: SmsSegment,
 ): Promise<CustomerSummary[]> {
-  const res = await fetch(`/api/customers?segment=${segment}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...authHeaders(),
-    },
+  const res = await fetch(apiUrl(`/customers?segment=${segment}`), {
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
   });
 
   if (!res.ok) {
-    throw new Error('Failed to load customers');
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to load customers');
   }
 
   return res.json();
@@ -33,12 +28,9 @@ export async function sendSms(payload: {
   message: string;
   consentConfirmed: boolean;
 }) {
-  const res = await fetch('/api/sms/send', {
+  const res = await fetch(apiUrl('/sms/send'), {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...authHeaders(),
-    },
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
     body: JSON.stringify(payload),
   });
 

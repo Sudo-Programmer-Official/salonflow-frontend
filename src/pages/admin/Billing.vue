@@ -10,6 +10,7 @@ import {
   createSmsPackCheckout,
   type SmsCredits,
 } from '../../api/billing';
+import { resetTrialState, setTrialEndsAt } from '../../api/trialBanner';
 
 const status = ref<SubscriptionStatus | null>(null);
 const loading = ref(false);
@@ -21,7 +22,7 @@ const error = ref('');
 
 const query = new URLSearchParams(window.location.search);
 if (query.get('success')) {
-  success.value = 'Subscription checkout completed. It may take a moment to reflect.';
+  success.value = 'Subscription activated. Welcome aboard!';
 }
 if (query.get('canceled')) {
   error.value = 'Subscription checkout was canceled.';
@@ -38,6 +39,10 @@ const loadStatus = async () => {
   try {
     const data = await fetchBillingStatus();
     status.value = data.subscriptionStatus;
+    setTrialEndsAt(data.trialEndsAt);
+    if (data.subscriptionStatus === 'active') {
+      resetTrialState();
+    }
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load billing status';
   } finally {
