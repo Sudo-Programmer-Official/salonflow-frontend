@@ -7,6 +7,10 @@ export type QueueItem = {
   serviceName: string | null;
   staffName: string | null;
   status: 'WAITING' | 'IN_SERVICE' | 'COMPLETED' | 'CANCELED';
+  amountPaid?: number | null;
+  paidAt?: string | null;
+  servedByName?: string | null;
+  pointsBalance?: number | null;
 };
 
 const apiBase = apiUrl('/checkins');
@@ -61,6 +65,29 @@ export async function completeCheckIn(checkInId: string) {
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || 'Failed to complete');
+  }
+
+  return res.json();
+}
+
+export async function checkoutCheckIn(
+  checkInId: string,
+  payload: {
+    amountPaid?: number | null;
+    reviewSmsConsent: boolean;
+    servedByName?: string | null;
+    redeemPoints?: boolean;
+  },
+) {
+  const res = await fetch(`${apiBase}/${checkInId}/checkout`, {
+    method: 'POST',
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to checkout');
   }
 
   return res.json();

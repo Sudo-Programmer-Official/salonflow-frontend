@@ -19,7 +19,7 @@ const redirectByRole = (role: string) => {
     return;
   }
   if (role === 'STAFF') {
-    router.push({ name: 'staff-queue' });
+    router.push({ name: 'admin-queue' });
     return;
   }
   router.push({ name: 'check-in' });

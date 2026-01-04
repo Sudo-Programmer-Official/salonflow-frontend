@@ -21,7 +21,11 @@ const isPlatformHost = () => {
 export async function login(input: { email: string; password: string }): Promise<LoginResponse> {
   const hostname = typeof window !== 'undefined' ? window.location.hostname : undefined;
   const hostnameTenant = hostname ? hostname.split('.')[0] ?? undefined : undefined;
+  const isLocal = hostname ? hostname.includes('localhost') : false;
   const tenantId =
+    (isLocal ? (import.meta.env.VITE_TENANT_ID as string | undefined) : undefined) ||
+    (isLocal ? (typeof window !== 'undefined' ? localStorage.getItem('tenantSubdomain') ?? undefined : undefined) : undefined) ||
+    (isLocal ? (typeof window !== 'undefined' ? localStorage.getItem('tenantId') ?? undefined : undefined) : undefined) ||
     hostnameTenant ||
     (import.meta.env.VITE_TENANT_ID as string | undefined) ||
     (typeof window !== 'undefined' ? localStorage.getItem('tenantSubdomain') ?? undefined : undefined) ||

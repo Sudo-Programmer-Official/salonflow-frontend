@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onBeforeUnmount, ref } from 'vue';
 import { fetchOnboardingStatus } from '../api/onboarding';
 
 const loading = ref(true);
@@ -18,7 +18,32 @@ const load = async () => {
   }
 };
 
-onMounted(load);
+const pollId = ref<number | null>(null);
+
+const startPolling = () => {
+  if (pollId.value !== null) return;
+  pollId.value = window.setInterval(() => {
+    if (document.visibilityState === 'visible') {
+      load();
+    }
+  }, 12000);
+};
+
+const stopPolling = () => {
+  if (pollId.value !== null) {
+    clearInterval(pollId.value);
+    pollId.value = null;
+  }
+};
+
+onMounted(() => {
+  load();
+  startPolling();
+});
+
+onBeforeUnmount(() => {
+  stopPolling();
+});
 
 const steps = computed(() => {
   if (!status.value) return { services: false, staff: false, qrPrinted: false, reviewSmsEnabled: false, billingReady: false };

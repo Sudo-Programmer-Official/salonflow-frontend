@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { ElForm, ElFormItem, ElInput, ElSelect, ElOption, ElButton, ElAlert } from 'element-plus';
+import { useRoute } from 'vue-router';
 import { createPublicCheckIn, fetchServices } from '../../api/checkins';
 import type { ServiceOption } from '../../api/checkins';
 
@@ -16,11 +17,24 @@ const submitting = ref(false);
 const success = ref(false);
 const errorMessage = ref('');
 const businessName = ref<string>('Check In');
+const route = useRoute();
+const tenant = computed(
+  () =>
+    (route.query.tenant as string | undefined) ||
+    (import.meta.env.VITE_TENANT_ID as string | undefined) ||
+    (typeof window !== 'undefined' ? localStorage.getItem('tenantSubdomain') ?? undefined : undefined) ||
+    (typeof window !== 'undefined' ? localStorage.getItem('tenantId') ?? undefined : undefined) ||
+    'demo',
+);
 
 onMounted(async () => {
+  if (tenant.value) {
+    localStorage.setItem('tenantSubdomain', tenant.value);
+    localStorage.setItem('tenantId', tenant.value);
+  }
   loadingServices.value = true;
   try {
-    services.value = await fetchServices();
+    services.value = await fetchServices(tenant.value);
   } catch {
     // leave services empty on failure; page still works
     services.value = [];
@@ -29,7 +43,9 @@ onMounted(async () => {
   }
 
   try {
-    const res = await fetch('/api/public/tenant');
+    const res = await fetch(
+      tenant.value ? `/api/public/tenant?tenant=${encodeURIComponent(tenant.value)}` : '/api/public/tenant',
+    );
     if (res.ok) {
       const data = await res.json();
       businessName.value = data.name || 'Check In';
@@ -46,11 +62,14 @@ const onSubmit = async () => {
   success.value = false;
   submitting.value = true;
   try {
-    await createPublicCheckIn({
-      name: form.name.trim(),
-      phoneE164: form.phoneE164.trim(),
-      serviceId: form.serviceId || undefined,
-    });
+    await createPublicCheckIn(
+      {
+        name: form.name.trim(),
+        phoneE164: form.phoneE164.trim(),
+        serviceId: form.serviceId || undefined,
+      },
+      tenant.value,
+    );
     success.value = true;
     form.name = '';
     form.phoneE164 = '';

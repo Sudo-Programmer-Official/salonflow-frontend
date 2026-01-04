@@ -11,8 +11,20 @@ export type CreateCheckInPayload = {
 
 const apiBase = '/api';
 
-export async function fetchServices(): Promise<ServiceOption[]> {
-  const res = await fetch(`${apiBase}/services`, {
+const resolveTenant = (tenant?: string | null) =>
+  tenant ||
+  (typeof window !== 'undefined' ? (new URLSearchParams(window.location.search)).get('tenant') : null) ||
+  (import.meta.env.VITE_TENANT_ID as string | undefined) ||
+  (typeof window !== 'undefined' ? localStorage.getItem('tenantSubdomain') ?? null : null) ||
+  (typeof window !== 'undefined' ? localStorage.getItem('tenantId') ?? null : null);
+
+export async function fetchServices(tenant?: string): Promise<ServiceOption[]> {
+  const tenantParam = resolveTenant(tenant);
+  const url = tenantParam
+    ? `${apiBase}/public/services?tenant=${encodeURIComponent(tenantParam)}`
+    : `${apiBase}/public/services`;
+
+  const res = await fetch(url, {
     headers: {
       'Content-Type': 'application/json',
     },
@@ -23,13 +35,16 @@ export async function fetchServices(): Promise<ServiceOption[]> {
   }
 
   const data = await res.json();
-  return (data as any[])
-    .filter((s) => s.isActive)
-    .map((s) => ({ id: s.id, name: s.name }));
+  return (data as any[]).map((s) => ({ id: s.id, name: s.name }));
 }
 
-export async function createPublicCheckIn(payload: CreateCheckInPayload) {
-  const res = await fetch(`${apiBase}/checkins/public`, {
+export async function createPublicCheckIn(payload: CreateCheckInPayload, tenant?: string) {
+  const tenantParam = resolveTenant(tenant);
+  const url = tenantParam
+    ? `${apiBase}/checkins/public?tenant=${encodeURIComponent(tenantParam)}`
+    : `${apiBase}/checkins/public`;
+
+  const res = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

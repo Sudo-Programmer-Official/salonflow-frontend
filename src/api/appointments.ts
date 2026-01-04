@@ -8,14 +8,24 @@ export type Appointment = {
   phoneE164: string;
   serviceName: string;
   staffName?: string | null;
+  preferredTech?: string | null;
   scheduledAt: string; // ISO
   status: AppointmentStatus;
   notes?: string | null;
   serviceId?: string;
   staffId?: string | null;
+  videoUrl?: string | null;
 };
 
 const apiBase = apiUrl('/appointments');
+
+export type TodayAppointment = {
+  id: string;
+  customerName: string;
+  phoneE164: string;
+  serviceName: string;
+  scheduledAt: string;
+};
 
 export async function fetchAppointments(params?: {
   date?: string;
@@ -35,6 +45,17 @@ export async function fetchAppointments(params?: {
   return res.json();
 }
 
+export async function fetchTodayAppointments(): Promise<TodayAppointment[]> {
+  const res = await fetch(`${apiBase}/today`, {
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to load today appointments');
+  }
+  return res.json();
+}
+
 export async function createAppointment(payload: {
   customerName: string;
   phoneE164: string;
@@ -42,6 +63,7 @@ export async function createAppointment(payload: {
   staffId?: string | null;
   scheduledAt: string;
   notes?: string;
+  preferredTech?: string | null;
 }): Promise<Appointment> {
   const res = await fetch(apiBase, {
     method: 'POST',
@@ -64,6 +86,7 @@ export async function updateAppointment(
     staffId?: string | null;
     scheduledAt: string;
     notes?: string;
+    preferredTech?: string | null;
   },
 ): Promise<Appointment> {
   const res = await fetch(`${apiBase}/${id}`, {
@@ -108,6 +131,7 @@ export async function createPublicAppointment(payload: {
   serviceId: string;
   scheduledAt: string;
   notes?: string;
+  preferredTech?: string | null;
 }) {
   const res = await fetch(`${apiBase}/public`, {
     method: 'POST',

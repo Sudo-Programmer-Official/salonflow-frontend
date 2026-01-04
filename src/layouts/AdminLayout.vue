@@ -86,9 +86,11 @@ const dismissOnboarding = () => {
 const navItems = computed(() => {
   const items = [
     { label: 'Dashboard', name: 'admin-dashboard', roles: ['OWNER'] },
+    { label: 'Queue', name: 'admin-queue', roles: ['OWNER', 'STAFF'] },
     { label: 'Onboarding', name: 'admin-onboarding', roles: ['OWNER'] },
     { label: 'Services', name: 'admin-services', roles: ['OWNER'] },
     { label: 'Staff', name: 'admin-staff', roles: ['OWNER'] },
+    { label: 'Customers', name: 'admin-customers', roles: ['OWNER'] },
     { label: 'Appointments', name: 'admin-appointments', roles: ['OWNER'] },
     {
       label: 'Appointment Reminders',

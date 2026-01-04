@@ -20,6 +20,24 @@ export async function fetchStaff(): Promise<StaffMember[]> {
   return res.json();
 }
 
+export async function createStaff(input: {
+  name: string;
+  email: string;
+  role?: string;
+  status?: 'active' | 'inactive';
+}): Promise<StaffMember> {
+  const res = await fetch(apiBase, {
+    method: 'POST',
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to create staff');
+  }
+  return res.json();
+}
+
 export async function updateStaffStatus(
   staffId: string,
   status: 'active' | 'inactive',

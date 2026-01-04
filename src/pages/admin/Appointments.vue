@@ -45,6 +45,7 @@ const form = reactive({
   phoneE164: '',
   serviceId: '',
   staffId: '',
+  preferredTech: '',
   date: '',
   time: '',
   notes: '',
@@ -55,6 +56,7 @@ const resetForm = () => {
   form.phoneE164 = '';
   form.serviceId = '';
   form.staffId = '';
+  form.preferredTech = '';
   form.date = formatDate(selectedDate.value);
   form.time = '';
   form.notes = '';
@@ -120,6 +122,7 @@ const openEdit = (appt: Appointment) => {
   form.phoneE164 = appt.phoneE164;
   form.serviceId = appt.serviceId || '';
   form.staffId = appt.staffId || '';
+  form.preferredTech = appt.preferredTech || '';
   form.date = toDate(appt.scheduledAt);
   form.time = toTime(appt.scheduledAt);
   form.notes = appt.notes || '';
@@ -147,6 +150,7 @@ const saveAppointment = async () => {
         staffId: form.staffId || undefined,
         scheduledAt,
         notes: form.notes || undefined,
+        preferredTech: form.preferredTech || undefined,
       });
       ElMessage.success('Appointment created');
     } else if (editingId.value) {
@@ -157,6 +161,7 @@ const saveAppointment = async () => {
         staffId: form.staffId || undefined,
         scheduledAt,
         notes: form.notes || undefined,
+        preferredTech: form.preferredTech || undefined,
       });
       ElMessage.success('Appointment updated');
     }
@@ -187,6 +192,13 @@ const handleComplete = async (id: string) => {
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Complete failed');
   }
+};
+
+const videoUrl = (appt: Appointment) => appt.videoUrl || `https://meet.jit.si/salonflow-${appt.id}`;
+
+const joinVideo = (appt: Appointment) => {
+  const url = videoUrl(appt);
+  window.open(url, '_blank', 'noopener');
 };
 
 const datePickerValue = computed({
@@ -222,18 +234,19 @@ const datePickerValue = computed({
       </div>
 
       <ElTable :data="appointments" :loading="loading" stripe>
-        <ElTableColumn prop="customerName" label="Customer" min-width="140" />
-        <ElTableColumn prop="phoneE164" label="Phone" min-width="120" />
-        <ElTableColumn prop="serviceName" label="Service" min-width="140" />
-        <ElTableColumn prop="staffName" label="Staff" min-width="120" />
-        <ElTableColumn
-          prop="scheduledAt"
-          label="Time"
-          min-width="110"
-          :formatter="(_, __, val) => val.slice(11, 16)"
+      <ElTableColumn prop="customerName" label="Customer" min-width="140" />
+      <ElTableColumn prop="phoneE164" label="Phone" min-width="120" />
+      <ElTableColumn prop="serviceName" label="Service" min-width="140" />
+      <ElTableColumn prop="staffName" label="Staff" min-width="120" />
+      <ElTableColumn prop="preferredTech" label="Preferred Tech" min-width="140" />
+      <ElTableColumn
+        prop="scheduledAt"
+        label="Time"
+        min-width="110"
+        :formatter="(_, __, val) => val.slice(11, 16)"
         />
         <ElTableColumn prop="status" label="Status" width="110" />
-        <ElTableColumn label="Actions" width="220">
+        <ElTableColumn label="Actions" width="280">
           <template #default="{ row }">
             <div class="flex flex-wrap gap-2">
               <ElButton size="small" type="primary" @click="openEdit(row)">Edit</ElButton>
@@ -245,6 +258,9 @@ const datePickerValue = computed({
                 @click="handleComplete(row.id)"
               >
                 Complete
+              </ElButton>
+              <ElButton size="small" type="info" plain @click="joinVideo(row)">
+                Join video call
               </ElButton>
             </div>
           </template>
@@ -285,6 +301,9 @@ const datePickerValue = computed({
             >
               <ElOption v-for="member in staff" :key="member.id" :label="member.name" :value="member.id" />
             </ElSelect>
+          </ElFormItem>
+          <ElFormItem label="Preferred tech (optional)">
+            <ElInput v-model="form.preferredTech" placeholder="e.g. Alex (nails)" />
           </ElFormItem>
           <ElFormItem label="Date" required>
             <ElDatePicker
