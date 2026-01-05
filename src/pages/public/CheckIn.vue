@@ -67,6 +67,10 @@ const onSubmit = async () => {
         name: form.name.trim(),
         phoneE164: form.phoneE164.trim(),
         serviceId: form.serviceId || undefined,
+        serviceName:
+          form.serviceId && services.value.length
+            ? services.value.find((s) => s.id === form.serviceId)?.name
+            : undefined,
       },
       tenant.value,
     );

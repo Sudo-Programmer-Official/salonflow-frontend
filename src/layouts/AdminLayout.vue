@@ -142,13 +142,9 @@ const navItems = computed(() => {
         class="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4"
       >
         <div class="text-sm font-semibold text-slate-900">Admin</div>
-        <button
-          type="button"
-          class="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
-          @click="handleLogout"
-        >
+        <el-button type="danger" plain size="small" @click="handleLogout">
           Logout
-        </button>
+        </el-button>
       </header>
 
       <main class="flex-1 space-y-4 overflow-y-auto px-6 py-5">

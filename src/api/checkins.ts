@@ -7,6 +7,7 @@ export type CreateCheckInPayload = {
   name: string;
   phoneE164: string;
   serviceId?: string | null;
+  serviceName?: string | null;
 };
 
 const apiBase = '/api';
