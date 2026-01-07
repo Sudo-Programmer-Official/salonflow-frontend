@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue';
 import dayjs from 'dayjs';
-import { ElCard, ElButton, ElMessage, ElTag, ElAlert, ElSkeleton } from 'element-plus';
+import { ElCard, ElButton, ElTag, ElAlert, ElSkeleton } from 'element-plus';
 import { fetchQueue, type QueueItem } from '../../api/queue';
 import { fetchTodayAppointments, type TodayAppointment } from '../../api/appointments';
 import { fetchOnboardingStatus } from '../../api/onboarding';

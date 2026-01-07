@@ -1,4 +1,4 @@
-import { apiUrl, buildHeaders } from './client';
+import { apiUrl, buildHeaders } from '@/api/client';
 
 const apiBase = apiUrl('/appointment-reminders/settings');
 

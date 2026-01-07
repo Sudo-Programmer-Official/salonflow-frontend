@@ -95,6 +95,11 @@ const copyLink = async (link: string) => {
   }
 };
 
+const openLink = (link: string) => {
+  if (!link) return;
+  window.open(link, '_blank');
+};
+
 const progress = computed(() => {
   if (!status.value) return 0;
   const steps = [
@@ -279,7 +284,7 @@ const nextStep = computed(() => stepsList.value.find((s) => !s.done));
               <ElButton type="primary" size="small" @click="copyLink(bookingLink)">
                 Copy booking link
               </ElButton>
-              <ElButton size="small" :disabled="!bookingLink" @click="() => window.open(bookingLink, '_blank')">
+              <ElButton size="small" :disabled="!bookingLink" @click="openLink(bookingLink)">
                 Open
               </ElButton>
             </div>
@@ -293,7 +298,7 @@ const nextStep = computed(() => stepsList.value.find((s) => !s.done));
               <ElButton type="primary" size="small" @click="copyLink(checkinLink)">
                 Copy check-in link
               </ElButton>
-              <ElButton size="small" :disabled="!checkinLink" @click="() => window.open(checkinLink, '_blank')">
+              <ElButton size="small" :disabled="!checkinLink" @click="openLink(checkinLink)">
                 Open
               </ElButton>
               <ElButton size="small" @click="quickNav('admin-qr')">Download QR</ElButton>

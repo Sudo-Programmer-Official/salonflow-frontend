@@ -1,4 +1,4 @@
-import { apiUrl, buildHeaders } from './client';
+import { apiUrl, buildHeaders } from '@/api/client';
 
 export type SmsSegment = 'all' | 'new' | 'regular' | 'vip';
 
