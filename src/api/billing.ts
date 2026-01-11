@@ -85,3 +85,24 @@ export async function createSmsPackCheckout(pack: SmsPack) {
   }
   return res.json() as Promise<{ url: string | null }>;
 }
+
+export async function confirmBilling(sessionId: string): Promise<{
+  billing: {
+    status: string;
+    plan: string | null;
+    renewsAt: string | null;
+    billingMode: string;
+    isDemo: boolean;
+  };
+}> {
+  const res = await fetch(`${apiBase}/confirm`, {
+    method: 'POST',
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
+    body: JSON.stringify({ sessionId }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(body.error || 'Failed to confirm billing');
+  }
+  return body;
+}

@@ -21,6 +21,7 @@ import AdminOnboardingPage from "../pages/admin/Onboarding.vue";
 import AdminDemoRequestsPage from "../pages/admin/DemoRequests.vue";
 import AdminCustomersPage from "../pages/admin/Customers.vue";
 import AdminQueuePage from "../pages/admin/Queue.vue";
+import AdminBillingSuccessPage from "../pages/admin/BillingSuccess.vue";
 import MarketingLayout from "../layouts/MarketingLayout.vue";
 import MarketingHome from "../pages/MarketingHome.vue";
 import StartPage from "../pages/Start.vue";
@@ -150,6 +151,12 @@ const routes = [
         path: "billing",
         name: "admin-billing",
         component: AdminBillingPage,
+        meta: { requiresAuth: true, roles: ["OWNER"] },
+      },
+      {
+        path: "billing/success",
+        name: "admin-billing-success",
+        component: AdminBillingSuccessPage,
         meta: { requiresAuth: true, roles: ["OWNER"] },
       },
       {
