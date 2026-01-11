@@ -1,9 +1,4 @@
-const apiBase = '/api/superadmin';
-
-const authHeaders = (): Record<string, string> => {
-  const token = localStorage.getItem('token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
+import { apiUrl, buildHeaders } from './client';
 
 export type TenantOverview = {
   businessId: string;
@@ -31,8 +26,8 @@ export type PlatformAverages = {
 };
 
 export async function fetchTenants(): Promise<{ tenants: TenantOverview[]; averages: PlatformAverages }> {
-  const res = await fetch(`${apiBase}/tenants`, {
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+  const res = await fetch(apiUrl('/superadmin/tenants'), {
+    headers: buildHeaders({ auth: true, json: true }),
   });
   if (!res.ok) throw new Error('Failed to load tenants');
   return res.json();
@@ -41,8 +36,8 @@ export async function fetchTenants(): Promise<{ tenants: TenantOverview[]; avera
 export async function fetchTenantDetail(
   businessId: string,
 ): Promise<{ tenant: TenantOverview; metrics: TenantMetrics }> {
-  const res = await fetch(`${apiBase}/tenants/${businessId}`, {
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+  const res = await fetch(apiUrl(`/superadmin/tenants/${businessId}`), {
+    headers: buildHeaders({ auth: true, json: true }),
   });
   if (!res.ok) throw new Error('Failed to load tenant');
   return res.json();
@@ -59,9 +54,9 @@ export async function impersonateTenant(
   impersonatorUserId?: string;
   originalRole?: string;
 }> {
-  const res = await fetch(`${apiBase}/tenants/${businessId}/impersonate`, {
+  const res = await fetch(apiUrl(`/superadmin/tenants/${businessId}/impersonate`), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    headers: buildHeaders({ auth: true, json: true }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
