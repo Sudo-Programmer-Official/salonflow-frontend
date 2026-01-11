@@ -3,7 +3,11 @@ import { computed, onMounted, onBeforeUnmount, ref, watch, nextTick } from 'vue'
 import { ElCard, ElButton, ElTag, ElMessage, ElDialog, ElSelect, ElOption, ElInput } from 'element-plus';
 import { fetchQueue, startCheckIn, checkoutCheckIn, type QueueItem } from '../../api/queue';
 import { fetchStaff, type StaffMember } from '../../api/staff';
-import { fetchTodayAppointments, type TodayAppointment } from '../../api/appointments';
+import {
+  fetchTodayAppointments,
+  type TodayAppointment,
+  type TodayAppointmentsResponse,
+} from '../../api/appointments';
 import { fetchServices, type ServiceOption, createPublicCheckIn } from '../../api/checkins';
 
 const queue = ref<QueueItem[]>([]);
@@ -24,6 +28,7 @@ const canRedeem = computed(() => (currentCheckoutItem.value?.pointsBalance ?? 0)
 const staff = ref<StaffMember[]>([]);
 const loadingStaff = ref(false);
 const todayAppointments = ref<TodayAppointment[]>([]);
+const todayAppointmentsLocked = ref(false);
 const loadingAppointments = ref(false);
 const services = ref<ServiceOption[]>([]);
 const loadingServices = ref(false);
@@ -113,9 +118,12 @@ const activeStaffNames = computed(() =>
 const loadAppointments = async () => {
   loadingAppointments.value = true;
   try {
-    todayAppointments.value = await fetchTodayAppointments();
+    const res = await fetchTodayAppointments();
+    todayAppointmentsLocked.value = (res as TodayAppointmentsResponse).locked === true;
+    todayAppointments.value = todayAppointmentsLocked.value ? [] : ((res as any).items ?? []);
   } catch {
     todayAppointments.value = [];
+    todayAppointmentsLocked.value = false;
   } finally {
     loadingAppointments.value = false;
   }
@@ -277,7 +285,7 @@ watch(checkoutOpen, async (open) => {
           </div>
         </div>
         <div v-if="!loadingAppointments && todayAppointments.length === 0" class="text-xs text-slate-500">
-          <span v-if="queueLocked">Appointments visible after billing activation.</span>
+          <span v-if="queueLocked || todayAppointmentsLocked">Appointments visible after billing activation.</span>
           <span v-else>No appointments for today.</span>
         </div>
       </div>
