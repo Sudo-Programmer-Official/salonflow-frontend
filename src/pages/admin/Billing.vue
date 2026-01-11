@@ -13,6 +13,7 @@ import {
 import { resetTrialState, setTrialEndsAt } from '../../api/trialBanner';
 
 const status = ref<SubscriptionStatus | null>(null);
+const billing = ref<{ status: string; plan: string | null; renewsAt: string | null; billingMode: string; isDemo: boolean } | null>(null);
 const loading = ref(false);
 const actionLoading = ref<string | null>(null);
 const smsLoading = ref(false);
@@ -38,6 +39,7 @@ const loadStatus = async () => {
   loading.value = true;
   try {
     const data = await fetchBillingStatus();
+    billing.value = data.billing ?? null;
     status.value = data.subscriptionStatus;
     setTrialEndsAt(data.trialEndsAt);
     if (data.subscriptionStatus === 'active') {
@@ -115,6 +117,13 @@ const handleSmsPack = async (pack: 500 | 1500) => {
 };
 
 const statusLabel = (s: SubscriptionStatus | null) => {
+  if (billing.value) {
+    if (billing.value.status === 'active' && billing.value.plan === 'demo') return 'Active (Demo)';
+    if (billing.value.status === 'active') return 'Active';
+    if (billing.value.status === 'past_due') return 'Past Due';
+    if (billing.value.status === 'trial') return 'Trial';
+    if (billing.value.status === 'inactive') return 'Not Subscribed';
+  }
   if (!s) return 'Unknown';
   if (s === 'active') return 'Active';
   if (s === 'trial') return 'Trial';
@@ -137,6 +146,12 @@ const statusLabel = (s: SubscriptionStatus | null) => {
           <div class="text-sm text-slate-600">Subscription Status</div>
           <div class="text-xl font-semibold text-slate-900">
             {{ statusLabel(status) }}
+            <span v-if="billing?.plan && billing.plan !== 'demo'" class="ml-2 text-sm text-slate-500">
+              • {{ billing.plan === 'annual' ? 'Annual' : billing.plan === 'monthly' ? 'Monthly' : '' }}
+            </span>
+          </div>
+          <div v-if="billing?.renewsAt" class="text-xs text-slate-500">
+            Renews at: {{ billing.renewsAt }}
           </div>
         </div>
         <div class="flex flex-col gap-2 sm:flex-row">

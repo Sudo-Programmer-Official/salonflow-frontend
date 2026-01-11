@@ -25,6 +25,13 @@ export async function fetchBillingStatus(): Promise<{
   subscriptionCurrentPeriodEnd: string | null;
   trialEndsAt: string | null;
   graceEndsAt: string | null;
+  billing?: {
+    status: string;
+    plan: string | null;
+    renewsAt: string | null;
+    billingMode: string;
+    isDemo: boolean;
+  };
   smsCredits?: SmsCredits;
 }> {
   const res = await fetch(`${apiBase}/status`, {
