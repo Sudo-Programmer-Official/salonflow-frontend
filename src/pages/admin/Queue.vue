@@ -1,17 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, onBeforeUnmount, ref, watch, nextTick } from 'vue';
 import { ElCard, ElButton, ElTag, ElMessage, ElDialog, ElSelect, ElOption, ElInput } from 'element-plus';
-import {
-  fetchQueue,
-  startCheckIn,
-  checkoutCheckIn,
-  type QueueItem,
-} from '../../api/queue';
+import { fetchQueue, startCheckIn, checkoutCheckIn, type QueueItem } from '../../api/queue';
 import { fetchStaff, type StaffMember } from '../../api/staff';
 import { fetchTodayAppointments, type TodayAppointment } from '../../api/appointments';
 import { fetchServices, type ServiceOption, createPublicCheckIn } from '../../api/checkins';
 
 const queue = ref<QueueItem[]>([]);
+const queueLocked = ref(false);
 const loading = ref(false);
 const actionLoading = ref<string | null>(null);
 const checkoutOpen = ref(false);
@@ -42,7 +38,9 @@ const isOwner = computed(() => role.value === 'OWNER');
 const loadQueue = async () => {
   loading.value = true;
   try {
-    queue.value = await fetchQueue();
+    const res = await fetchQueue();
+    queueLocked.value = (res as any).locked === true;
+    queue.value = queueLocked.value ? [] : ((res as any).items ?? []);
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to load queue');
   } finally {
@@ -245,6 +243,16 @@ watch(checkoutOpen, async (open) => {
       <p class="text-sm text-slate-600">Live queue with quick actions. Staff view is read-only.</p>
     </div>
 
+    <ElCard v-if="queueLocked" class="bg-white border-amber-200">
+      <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div class="text-sm font-semibold text-slate-900">Live queue unlocks after billing is activated.</div>
+          <div class="text-xs text-slate-600">Activate billing to track waiting, in-service, and completed visits.</div>
+        </div>
+        <ElButton type="primary" @click="$router.push({ name: 'admin-billing' })">Go to billing</ElButton>
+      </div>
+    </ElCard>
+
     <ElCard class="bg-white" :loading="loadingAppointments">
       <div class="mb-2 flex items-center justify-between">
         <div>
@@ -269,7 +277,8 @@ watch(checkoutOpen, async (open) => {
           </div>
         </div>
         <div v-if="!loadingAppointments && todayAppointments.length === 0" class="text-xs text-slate-500">
-          No appointments for today.
+          <span v-if="queueLocked">Appointments visible after billing activation.</span>
+          <span v-else>No appointments for today.</span>
         </div>
       </div>
     </ElCard>
@@ -338,7 +347,8 @@ watch(checkoutOpen, async (open) => {
       </ElCard>
 
       <div v-if="!loading && queue.length === 0" class="text-center text-sm text-slate-500">
-        No active check-ins.
+        <span v-if="queueLocked">Queue is locked until billing is activated.</span>
+        <span v-else>No active check-ins.</span>
       </div>
     </div>
 

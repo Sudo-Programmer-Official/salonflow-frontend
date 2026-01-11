@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { ElCard, ElSwitch, ElAlert, ElButton, ElInput, ElDivider } from 'element-plus';
-import { fetchReviewSmsSettings, updateReviewSmsSettings, fetchReviewQr } from '../../api/reviewSms';
+import {
+  fetchReviewSmsSettings,
+  updateReviewSmsSettings,
+  fetchReviewQr,
+  type ReviewSettingsResponse,
+} from '../../api/reviewSms';
 
 const enabled = ref(false);
 const reviewLink = ref('');
@@ -11,6 +16,7 @@ const reviewQr = ref<{ reviewLink: string; qrDataUrl: string } | null>(null);
 const saving = ref(false);
 const success = ref('');
 const error = ref('');
+const locked = ref(false);
 const businessName =
   (typeof window !== 'undefined' ? localStorage.getItem('businessName') : null) || 'your salon';
 
@@ -25,8 +31,9 @@ const loadSettings = async () => {
   loading.value = true;
   try {
     const data = await fetchReviewSmsSettings();
-    enabled.value = data.enabled;
-    reviewLink.value = data.reviewLink || '';
+    locked.value = (data as ReviewSettingsResponse).locked === true;
+    enabled.value = locked.value ? false : data.enabled;
+    reviewLink.value = locked.value ? '' : data.reviewLink || '';
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load settings';
   } finally {
@@ -52,6 +59,7 @@ onMounted(() => {
 });
 
 const handleSave = async () => {
+  if (locked.value) return;
   saving.value = true;
   success.value = '';
   error.value = '';
@@ -104,8 +112,16 @@ const downloadQr = () => {
             Messages are sent only to customers who explicitly consent.
           </div>
         </div>
-        <ElSwitch v-model="enabled" size="large" />
+        <ElSwitch v-model="enabled" size="large" :disabled="locked" />
       </div>
+
+      <ElAlert
+        v-if="locked"
+        title="Available after billing activation."
+        type="warning"
+        :closable="false"
+        class="w-full"
+      />
 
       <ElAlert
         title="When a check-in is marked COMPLETED, a single review SMS is sent (one per visit). No reminders, no automation beyond this trigger."
@@ -120,21 +136,24 @@ const downloadQr = () => {
           v-model="reviewLink"
           placeholder="https://g.page/r/your-link"
           clearable
+          :disabled="locked"
         />
         <div class="text-xs text-slate-600">
           Use your Google “Write a review” link. Leave blank to disable sending.
         </div>
       </div>
 
-      <div class="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
-        <div class="text-sm font-semibold text-slate-900">Preview</div>
-        <div class="text-sm text-slate-800 whitespace-pre-line">
-          {{ previewMessage }}
+        <div class="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <div class="text-sm font-semibold text-slate-900">Preview</div>
+          <div class="text-sm text-slate-800 whitespace-pre-line">
+            {{ previewMessage }}
+          </div>
         </div>
-      </div>
 
         <div class="flex flex-col gap-2 sm:flex-row sm:justify-end">
-          <ElButton type="primary" :loading="saving" @click="handleSave">Save</ElButton>
+          <ElButton type="primary" :loading="saving" :disabled="locked" @click="handleSave">
+            {{ locked ? 'Locked' : 'Save' }}
+          </ElButton>
         </div>
 
       <ElAlert

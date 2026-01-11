@@ -2,18 +2,25 @@
 import { onMounted, ref, computed } from 'vue';
 import dayjs from 'dayjs';
 import { ElCard, ElButton, ElTag, ElAlert, ElSkeleton } from 'element-plus';
-import { fetchQueue, type QueueItem } from '../../api/queue';
-import { fetchTodayAppointments, type TodayAppointment } from '../../api/appointments';
+import { fetchQueue, type QueueItem, type QueueResponse } from '../../api/queue';
+import {
+  fetchTodayAppointments,
+  type TodayAppointment,
+  type TodayAppointmentsResponse,
+} from '../../api/appointments';
 import { fetchOnboardingStatus } from '../../api/onboarding';
-import { fetchReviewSmsSettings } from '../../api/reviewSms';
+import { fetchReviewSmsSettings, type ReviewSettingsResponse } from '../../api/reviewSms';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
 
 const queue = ref<QueueItem[]>([]);
+const queueLocked = ref(false);
 const appointments = ref<TodayAppointment[]>([]);
+const appointmentsLocked = ref(false);
 const onboardingIncomplete = ref(false);
 const reviewSmsEnabled = ref(true);
+const reviewSmsLocked = ref(false);
 
 const loading = ref(true);
 const error = ref('');
@@ -28,10 +35,13 @@ const load = async () => {
       fetchOnboardingStatus(true),
       fetchReviewSmsSettings(),
     ]);
-    queue.value = queueRes;
-    appointments.value = apptRes;
+    queueLocked.value = (queueRes as QueueResponse).locked === true;
+    appointmentsLocked.value = (apptRes as TodayAppointmentsResponse).locked === true;
+    queue.value = queueLocked.value ? [] : (queueRes as any).items ?? [];
+    appointments.value = appointmentsLocked.value ? [] : (apptRes as any).items ?? [];
     onboardingIncomplete.value = !(onboardingRes?.completed ?? false);
-    reviewSmsEnabled.value = reviewRes.enabled;
+    reviewSmsLocked.value = (reviewRes as ReviewSettingsResponse).locked === true;
+    reviewSmsEnabled.value = reviewSmsLocked.value ? false : reviewRes.enabled;
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load dashboard';
   } finally {
@@ -41,10 +51,16 @@ const load = async () => {
 
 onMounted(load);
 
-const waitingCount = computed(() => queue.value.filter((q) => q.status === 'WAITING').length);
-const inServiceCount = computed(() => queue.value.filter((q) => q.status === 'IN_SERVICE').length);
-const completedCount = computed(() => queue.value.filter((q) => q.status === 'COMPLETED').length);
-const appointmentsToday = computed(() => appointments.value.length);
+const waitingCount = computed(() =>
+  queueLocked.value ? 0 : queue.value.filter((q) => q.status === 'WAITING').length,
+);
+const inServiceCount = computed(() =>
+  queueLocked.value ? 0 : queue.value.filter((q) => q.status === 'IN_SERVICE').length,
+);
+const completedCount = computed(() =>
+  queueLocked.value ? 0 : queue.value.filter((q) => q.status === 'COMPLETED').length,
+);
+const appointmentsToday = computed(() => (appointmentsLocked.value ? 0 : appointments.value.length));
 
 const upcomingAppointments = computed(() => {
   const now = dayjs();
@@ -54,9 +70,13 @@ const upcomingAppointments = computed(() => {
   });
 });
 
+const billingLocked = computed(
+  () => queueLocked.value || appointmentsLocked.value || reviewSmsLocked.value,
+);
+
 const needsAttention = computed(() => {
   const items: Array<{ title: string; description: string; action: () => void; type: 'danger' | 'warning' | 'info' }> = [];
-  if (waitingCount.value > 0) {
+  if (!queueLocked.value && waitingCount.value > 0) {
     items.push({
       title: `${waitingCount.value} customer${waitingCount.value === 1 ? '' : 's'} waiting`,
       description: 'View and manage the live queue.',
@@ -64,7 +84,7 @@ const needsAttention = computed(() => {
       type: 'danger',
     });
   }
-  if (upcomingAppointments.value.length > 0) {
+  if (!appointmentsLocked.value && upcomingAppointments.value.length > 0) {
     items.push({
       title: `${upcomingAppointments.value.length} appointment${upcomingAppointments.value.length === 1 ? '' : 's'} in next 30 minutes`,
       description: 'Prep and check in quickly.',
@@ -72,7 +92,7 @@ const needsAttention = computed(() => {
       type: 'warning',
     });
   }
-  if (!reviewSmsEnabled.value) {
+  if (!reviewSmsLocked.value && !reviewSmsEnabled.value) {
     items.push({
       title: 'Review SMS is disabled',
       description: 'Turn on review requests after checkout.',
@@ -103,6 +123,18 @@ const navigate = (name: string) => {
       <p class="mt-1 text-sm text-slate-600">One-glance view of what needs attention.</p>
     </div>
 
+    <ElAlert v-if="billingLocked" type="warning" :closable="false">
+      <template #title>
+        Your trial has ended — activate billing to unlock live queue, SMS, and reminders.
+      </template>
+      <template #default>
+        <div class="flex flex-wrap gap-2">
+          <ElButton size="small" type="primary" @click="navigate('admin-billing')">Go to billing</ElButton>
+          <ElButton size="small" plain @click="navigate('admin-onboarding')">Complete setup</ElButton>
+        </div>
+      </template>
+    </ElAlert>
+
     <ElAlert v-if="error" :title="error" type="error" :closable="false" />
 
     <div v-if="loading" class="space-y-4">
@@ -113,7 +145,13 @@ const navigate = (name: string) => {
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
         <ElCard class="bg-white">
           <div class="text-sm text-slate-500">Appointments today</div>
-          <div class="mt-2 text-3xl font-semibold text-slate-900">{{ appointmentsToday }}</div>
+          <div class="mt-2 text-3xl font-semibold text-slate-900">
+            {{ appointmentsToday }}
+            <span v-if="appointmentsLocked" class="ml-1 text-base text-slate-400">🔒</span>
+          </div>
+          <div v-if="appointmentsLocked" class="text-xs text-slate-500 mt-1">
+            Activate billing to enable live tracking.
+          </div>
         </ElCard>
         <ElCard class="bg-white">
           <div class="text-sm text-slate-500">Checked in today</div>

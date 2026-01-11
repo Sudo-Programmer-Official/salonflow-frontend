@@ -2,10 +2,17 @@ import { apiUrl, buildHeaders } from '@/api/client';
 
 const apiBase = apiUrl('/review-sms');
 
-export async function fetchReviewSmsSettings(): Promise<{ enabled: boolean; reviewLink: string | null }> {
+export type ReviewSettingsResponse =
+  | { locked: true; enabled: false; reviewLink: null }
+  | { locked?: false; enabled: boolean; reviewLink: string | null };
+
+export async function fetchReviewSmsSettings(): Promise<ReviewSettingsResponse> {
   const res = await fetch(`${apiBase}/settings`, {
     headers: buildHeaders({ auth: true, tenant: true, json: true }),
   });
+  if (res.status === 402) {
+    return { locked: true, enabled: false, reviewLink: null };
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || 'Failed to load settings');

@@ -15,17 +15,25 @@ export type QueueItem = {
 
 const apiBase = apiUrl('/checkins');
 
-export async function fetchQueue(): Promise<QueueItem[]> {
+export type QueueResponse =
+  | { locked: true }
+  | { locked?: false; items: QueueItem[] };
+
+export async function fetchQueue(): Promise<QueueResponse> {
   const res = await fetch(`${apiBase}/queue`, {
     headers: buildHeaders({ auth: true, tenant: true, json: true }),
   });
+
+  if (res.status === 402) {
+    return { locked: true };
+  }
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || 'Failed to load queue');
   }
 
-  return res.json();
+  return { items: await res.json() };
 }
 
 export async function assignToMe(checkInId: string) {

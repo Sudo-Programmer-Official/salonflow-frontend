@@ -45,15 +45,22 @@ export async function fetchAppointments(params?: {
   return res.json();
 }
 
-export async function fetchTodayAppointments(): Promise<TodayAppointment[]> {
+export type TodayAppointmentsResponse =
+  | { locked: true }
+  | { locked?: false; items: TodayAppointment[] };
+
+export async function fetchTodayAppointments(): Promise<TodayAppointmentsResponse> {
   const res = await fetch(`${apiBase}/today`, {
     headers: buildHeaders({ auth: true, tenant: true, json: true }),
   });
+  if (res.status === 402) {
+    return { locked: true };
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || 'Failed to load today appointments');
   }
-  return res.json();
+  return { items: await res.json() };
 }
 
 export async function createAppointment(payload: {
