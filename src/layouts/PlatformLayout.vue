@@ -17,6 +17,13 @@ const handleLogout = () => logout('/login');
           >
             Dashboard
           </RouterLink>
+          <RouterLink
+            to="/platform/create-tenant"
+            class="block rounded-md px-3 py-2 transition hover:bg-white hover:text-slate-900"
+            active-class="bg-white text-slate-900 shadow-sm"
+          >
+            Create tenant
+          </RouterLink>
         </nav>
       </aside>
       <main class="flex-1 p-4 sm:p-6">

@@ -25,6 +25,60 @@ export type PlatformAverages = {
   avgSmsPerSalon: number;
 };
 
+export type CreateTenantPayload = {
+  name: string;
+  subdomain: string;
+  ownerName: string;
+  ownerEmail: string;
+  tempPassword?: string;
+};
+
+export async function createTenant(payload: CreateTenantPayload): Promise<{
+  businessId: string;
+  ownerEmail: string;
+  tempPassword: string;
+}> {
+  const res = await fetch(apiUrl('/superadmin/tenants'), {
+    method: 'POST',
+    headers: buildHeaders({ auth: true, json: true }),
+    body: JSON.stringify(payload),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(body.error || 'Failed to create tenant');
+  }
+  return body;
+}
+
+export async function resetOwnerPassword(
+  businessId: string,
+  email: string,
+  newPassword?: string,
+): Promise<{ tempPassword: string }> {
+  const res = await fetch(apiUrl(`/superadmin/tenants/${businessId}/reset-owner-password`), {
+    method: 'POST',
+    headers: buildHeaders({ auth: true, json: true }),
+    body: JSON.stringify({ email, newPassword }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(body.error || 'Failed to reset password');
+  }
+  return body;
+}
+
+export async function seedDemo(businessId: string): Promise<{ seeded: boolean }> {
+  const res = await fetch(apiUrl(`/superadmin/tenants/${businessId}/seed-demo`), {
+    method: 'POST',
+    headers: buildHeaders({ auth: true, json: true }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(body.error || 'Failed to seed demo data');
+  }
+  return body;
+}
+
 export async function fetchTenants(): Promise<{ tenants: TenantOverview[]; averages: PlatformAverages }> {
   const res = await fetch(apiUrl('/superadmin/tenants'), {
     headers: buildHeaders({ auth: true, json: true }),
