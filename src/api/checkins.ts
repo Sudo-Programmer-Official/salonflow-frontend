@@ -1,3 +1,5 @@
+import { apiUrl, buildHeaders } from './client';
+
 export type ServiceOption = {
   id: string;
   name: string;
@@ -10,25 +12,9 @@ export type CreateCheckInPayload = {
   serviceName?: string | null;
 };
 
-const apiBase = '/api';
-
-const resolveTenant = (tenant?: string | null) =>
-  tenant ||
-  (typeof window !== 'undefined' ? (new URLSearchParams(window.location.search)).get('tenant') : null) ||
-  (import.meta.env.VITE_TENANT_ID as string | undefined) ||
-  (typeof window !== 'undefined' ? localStorage.getItem('tenantSubdomain') ?? null : null) ||
-  (typeof window !== 'undefined' ? localStorage.getItem('tenantId') ?? null : null);
-
-export async function fetchServices(tenant?: string): Promise<ServiceOption[]> {
-  const tenantParam = resolveTenant(tenant);
-  const url = tenantParam
-    ? `${apiBase}/public/services?tenant=${encodeURIComponent(tenantParam)}`
-    : `${apiBase}/public/services`;
-
-  const res = await fetch(url, {
-    headers: {
-      'Content-Type': 'application/json',
-    },
+export async function fetchServices(): Promise<ServiceOption[]> {
+  const res = await fetch(apiUrl('/public/services'), {
+    headers: buildHeaders({ json: true, tenant: true }),
   });
 
   if (!res.ok) {
@@ -39,17 +25,10 @@ export async function fetchServices(tenant?: string): Promise<ServiceOption[]> {
   return (data as any[]).map((s) => ({ id: s.id, name: s.name }));
 }
 
-export async function createPublicCheckIn(payload: CreateCheckInPayload, tenant?: string) {
-  const tenantParam = resolveTenant(tenant);
-  const url = tenantParam
-    ? `${apiBase}/checkins/public?tenant=${encodeURIComponent(tenantParam)}`
-    : `${apiBase}/checkins/public`;
-
-  const res = await fetch(url, {
+export async function createPublicCheckIn(payload: CreateCheckInPayload) {
+  const res = await fetch(apiUrl('/checkins/public'), {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: buildHeaders({ json: true, tenant: true }),
     body: JSON.stringify(payload),
   });
 

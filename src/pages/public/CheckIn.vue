@@ -34,7 +34,7 @@ onMounted(async () => {
   }
   loadingServices.value = true;
   try {
-    services.value = await fetchServices(tenant.value);
+    services.value = await fetchServices();
   } catch {
     // leave services empty on failure; page still works
     services.value = [];
@@ -62,18 +62,15 @@ const onSubmit = async () => {
   success.value = false;
   submitting.value = true;
   try {
-    await createPublicCheckIn(
-      {
-        name: form.name.trim(),
-        phoneE164: form.phoneE164.trim(),
-        serviceId: form.serviceId || undefined,
-        serviceName:
-          form.serviceId && services.value.length
-            ? services.value.find((s) => s.id === form.serviceId)?.name
-            : undefined,
-      },
-      tenant.value,
-    );
+    await createPublicCheckIn({
+      name: form.name.trim(),
+      phoneE164: form.phoneE164.trim(),
+      serviceId: form.serviceId || undefined,
+      serviceName:
+        form.serviceId && services.value.length
+          ? services.value.find((s) => s.id === form.serviceId)?.name
+          : undefined,
+    });
     success.value = true;
     form.name = '';
     form.phoneE164 = '';
