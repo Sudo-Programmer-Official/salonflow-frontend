@@ -63,7 +63,11 @@ const resetForm = () => {
   editingId.value = null;
 };
 
-const formatDate = (d: Date) => d.toISOString().slice(0, 10);
+const formatDate = (d: Date | string) => {
+  if (d instanceof Date) return d.toISOString().slice(0, 10);
+  if (typeof d === 'string' && d.length >= 10) return d.slice(0, 10);
+  return '';
+};
 const toDate = (iso: string) => iso.slice(0, 10);
 const toTime = (iso: string) => iso.slice(11, 16);
 
@@ -204,8 +208,8 @@ const joinVideo = (appt: Appointment) => {
 const datePickerValue = computed({
   get: () => selectedDate.value,
   set: (val: Date) => {
-    selectedDate.value = val;
-    form.date = formatDate(val);
+    selectedDate.value = val instanceof Date ? val : new Date(val);
+    form.date = formatDate(selectedDate.value);
     loadAppointments();
   },
 });
