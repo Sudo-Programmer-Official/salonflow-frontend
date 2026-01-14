@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { ElForm, ElFormItem, ElInput, ElSelect, ElOption, ElButton, ElAlert } from 'element-plus';
 import { useRoute } from 'vue-router';
 import { createPublicCheckIn, fetchServices } from '../../api/checkins';
 import type { ServiceOption } from '../../api/checkins';
+import { apiUrl, buildHeaders } from '../../api/client';
+import { startKioskIdleWatchdog } from '../../utils/kioskIdleWatchdog';
 
 const form = reactive({
   name: '',
@@ -17,6 +19,9 @@ const submitting = ref(false);
 const success = ref(false);
 const errorMessage = ref('');
 const businessName = ref<string>('Check In');
+const phoneInputRef = ref<InstanceType<typeof ElInput> | null>(null);
+const resetTimer = ref<number | null>(null);
+const stopWatchdog = ref<(() => void) | null>(null);
 const route = useRoute();
 const tenant = computed(
   () =>
@@ -33,18 +38,12 @@ onMounted(async () => {
     localStorage.setItem('tenantId', tenant.value);
   }
   loadingServices.value = true;
-  try {
-    services.value = await fetchServices();
-  } catch {
-    // leave services empty on failure; page still works
-    services.value = [];
-  } finally {
-    loadingServices.value = false;
-  }
+  await refreshServices();
 
   try {
     const res = await fetch(
-      tenant.value ? `/api/public/tenant?tenant=${encodeURIComponent(tenant.value)}` : '/api/public/tenant',
+      apiUrl(tenant.value ? `/public/tenant?tenant=${encodeURIComponent(tenant.value)}` : '/public/tenant'),
+      { headers: buildHeaders({ tenant: true }) },
     );
     if (res.ok) {
       const data = await res.json();
@@ -55,16 +54,69 @@ onMounted(async () => {
   } catch {
     // ignore
   }
+
+  await nextTick();
+  phoneInputRef.value?.focus();
+
+  stopWatchdog.value = startKioskIdleWatchdog({
+    onSoftReset: async () => {
+      resetForm(true);
+      await refreshServices();
+    },
+  });
 });
+
+onBeforeUnmount(() => {
+  if (resetTimer.value !== null) {
+    clearTimeout(resetTimer.value);
+  }
+});
+
+onUnmounted(() => {
+  stopWatchdog.value?.();
+});
+
+const refreshServices = async () => {
+  loadingServices.value = true;
+  try {
+    services.value = await fetchServices();
+  } catch {
+    services.value = [];
+  } finally {
+    loadingServices.value = false;
+  }
+};
+
+const resetForm = (clearFeedback = false) => {
+  form.name = '';
+  form.phoneE164 = '';
+  form.serviceId = '';
+  if (clearFeedback) {
+    success.value = false;
+    errorMessage.value = '';
+  }
+  nextTick().then(() => phoneInputRef.value?.focus());
+};
+
+const normalizePhone = (raw: string) => {
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  const digits = trimmed.replace(/\D/g, '');
+  if (trimmed.startsWith('+')) return trimmed;
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+  return trimmed;
+};
 
 const onSubmit = async () => {
   errorMessage.value = '';
   success.value = false;
   submitting.value = true;
   try {
+    const normalizedPhone = normalizePhone(form.phoneE164);
     await createPublicCheckIn({
       name: form.name.trim(),
-      phoneE164: form.phoneE164.trim(),
+      phoneE164: normalizedPhone,
       serviceId: form.serviceId || undefined,
       serviceName:
         form.serviceId && services.value.length
@@ -72,9 +124,12 @@ const onSubmit = async () => {
           : undefined,
     });
     success.value = true;
-    form.name = '';
-    form.phoneE164 = '';
-    form.serviceId = '';
+    resetForm();
+    if (resetTimer.value !== null) clearTimeout(resetTimer.value);
+    resetTimer.value = window.setTimeout(() => {
+      success.value = false;
+      nextTick().then(() => phoneInputRef.value?.focus());
+    }, 6000);
   } catch (err) {
     errorMessage.value = err instanceof Error ? err.message : 'Failed to check in';
   } finally {
@@ -106,7 +161,10 @@ const onSubmit = async () => {
             v-model="form.phoneE164"
             placeholder="+1 555 123 4567"
             size="large"
+            type="tel"
+            inputmode="tel"
             autocomplete="tel"
+            ref="phoneInputRef"
           />
         </ElFormItem>
 

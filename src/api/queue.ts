@@ -6,11 +6,15 @@ export type QueueItem = {
   customerPhone: string;
   serviceName: string | null;
   staffName: string | null;
-  status: 'WAITING' | 'IN_SERVICE' | 'COMPLETED' | 'CANCELED';
+  createdAt: string;
+  status: 'WAITING' | 'CALLED' | 'IN_SERVICE' | 'COMPLETED' | 'NO_SHOW' | 'CANCELED';
   amountPaid?: number | null;
   paidAt?: string | null;
   servedByName?: string | null;
   pointsBalance?: number | null;
+  calledAt?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
 };
 
 const apiBase = apiUrl('/checkins');
@@ -34,6 +38,18 @@ export async function fetchQueue(): Promise<QueueResponse> {
   }
 
   return { items: await res.json() };
+}
+
+export async function callCheckIn(checkInId: string) {
+  const res = await fetch(`${apiBase}/${checkInId}/call`, {
+    method: 'POST',
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to call');
+  }
+  return res.json();
 }
 
 export async function assignToMe(checkInId: string) {
@@ -75,6 +91,18 @@ export async function completeCheckIn(checkInId: string) {
     throw new Error(err.error || 'Failed to complete');
   }
 
+  return res.json();
+}
+
+export async function markNoShow(checkInId: string) {
+  const res = await fetch(`${apiBase}/${checkInId}/no-show`, {
+    method: 'POST',
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to mark no-show');
+  }
   return res.json();
 }
 

@@ -7,12 +7,14 @@ import {
   fetchReviewQr,
   type ReviewSettingsResponse,
 } from '../../api/reviewSms';
+import { generateQrPoster } from '../../utils/qrPoster';
 
 const enabled = ref(false);
 const reviewLink = ref('');
 const loading = ref(false);
 const loadingQr = ref(false);
 const reviewQr = ref<{ reviewLink: string; qrDataUrl: string } | null>(null);
+const reviewPoster = ref<string>('');
 const saving = ref(false);
 const success = ref('');
 const error = ref('');
@@ -45,9 +47,20 @@ const loadQr = async () => {
   loadingQr.value = true;
   try {
     reviewQr.value = await fetchReviewQr();
+    if (reviewQr.value?.qrDataUrl) {
+      reviewPoster.value = await generateQrPoster({
+        qrDataUrl: reviewQr.value.qrDataUrl,
+        businessName,
+        caption: 'Scan to leave a review',
+        footer: 'Powered by SalonFlow',
+      });
+    } else {
+      reviewPoster.value = '';
+    }
   } catch (err) {
     // Keep silent if not configured
     reviewQr.value = null;
+    reviewPoster.value = '';
   } finally {
     loadingQr.value = false;
   }
@@ -87,9 +100,10 @@ const copyReviewLink = async () => {
 };
 
 const downloadQr = () => {
-  if (!reviewQr.value?.qrDataUrl) return;
+  const url = reviewPoster.value || reviewQr.value?.qrDataUrl;
+  if (!url) return;
   const a = document.createElement('a');
-  a.href = reviewQr.value.qrDataUrl;
+  a.href = url;
   a.download = 'google-review-qr.png';
   a.click();
 };

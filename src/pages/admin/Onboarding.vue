@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import { computed, onMounted, onBeforeUnmount, ref } from 'vue';
-import { ElCard, ElDivider, ElTag, ElButton, ElMessage } from 'element-plus';
+import { ElCard, ElDivider, ElTag, ElButton, ElMessage, ElInput } from 'element-plus';
 import { useRouter } from 'vue-router';
-import { fetchOnboardingStatus, markQrPrinted } from '../../api/onboarding';
+import { fetchOnboardingStatus, markQrPrinted, updateOnboardingLocation } from '../../api/onboarding';
 
 const router = useRouter();
 const status = ref<Awaited<ReturnType<typeof fetchOnboardingStatus>> | null>(null);
 const loading = ref(false);
 const markingQr = ref(false);
+const savingLocation = ref(false);
+const countryCode = ref('US');
+const postalCode = ref('');
 const liveDomain =
   (import.meta.env.VITE_PUBLIC_APP_DOMAIN as string | undefined)?.replace(/^\s+|\s+$/g, '') ||
   'salonflow.app';
@@ -23,9 +26,8 @@ const load = async () => {
     if (status.value.businessName) {
       localStorage.setItem('businessName', status.value.businessName);
     }
-    if (status.value.completed) {
-      router.replace({ name: 'admin-dashboard' });
-    }
+    countryCode.value = status.value.countryCode?.trim() || 'US';
+    postalCode.value = status.value.postalCode?.trim() || '';
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to load onboarding');
   } finally {
@@ -158,6 +160,33 @@ const stepsList = computed(() => [
 ]);
 
 const nextStep = computed(() => stepsList.value.find((s) => !s.done));
+
+const saveLocation = async () => {
+  const cc = countryCode.value.trim();
+  const zip = postalCode.value.trim();
+  if (!cc || !zip) {
+    ElMessage.error('Country and ZIP / Postal Code are required');
+    return;
+  }
+  if (!/^[a-zA-Z0-9 \-]+$/.test(zip)) {
+    ElMessage.error('ZIP / Postal Code must be letters, numbers, spaces, or dashes');
+    return;
+  }
+  savingLocation.value = true;
+  try {
+    status.value = await updateOnboardingLocation({
+      countryCode: cc,
+      postalCode: zip,
+    });
+    countryCode.value = status.value.countryCode?.trim() || cc;
+    postalCode.value = status.value.postalCode?.trim() || zip;
+    ElMessage.success('Location updated');
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : 'Failed to update location');
+  } finally {
+    savingLocation.value = false;
+  }
+};
 </script>
 
 <template>
@@ -168,14 +197,46 @@ const nextStep = computed(() => stepsList.value.find((s) => !s.done));
           <h1 class="text-2xl font-semibold text-slate-900">Owner Onboarding</h1>
           <ElTag type="success" effect="light" v-if="status?.completed">Completed</ElTag>
         </div>
-        <p class="text-sm text-slate-600">
+        <p class="text-sm text-slate-600" v-if="!status?.completed">
           This checklist updates automatically as you set up your salon. Complete steps in any order.
+        </p>
+        <p class="text-sm text-slate-600" v-else>
+          Onboarding is finished. You can review or update any step at any time.
         </p>
       </div>
       <ElButton plain size="small" @click="quickNav('admin-dashboard')">
-        Skip for now
+        {{ status?.completed ? 'Back to dashboard' : 'Skip for now' }}
       </ElButton>
     </div>
+
+    <ElCard class="bg-white" :loading="loading">
+      <div class="grid gap-4 md:grid-cols-2">
+        <div class="space-y-1">
+          <label class="text-sm font-semibold text-slate-800">Country</label>
+          <ElInput
+            v-model="countryCode"
+            placeholder="US"
+            maxlength="4"
+            clearable
+          />
+          <p class="text-xs text-slate-500">Required. Used for regional settings and messaging.</p>
+        </div>
+        <div class="space-y-1">
+          <label class="text-sm font-semibold text-slate-800">ZIP / Postal Code</label>
+          <ElInput
+            v-model="postalCode"
+            placeholder="e.g., 94103"
+            clearable
+          />
+          <p class="text-xs text-slate-500">Used for regional settings and analytics.</p>
+        </div>
+      </div>
+      <div class="mt-4 flex justify-end">
+        <ElButton type="primary" :loading="savingLocation" @click="saveLocation">
+          Save location
+        </ElButton>
+      </div>
+    </ElCard>
 
     <ElCard class="bg-white" :loading="loading">
       <div class="flex flex-col gap-2">

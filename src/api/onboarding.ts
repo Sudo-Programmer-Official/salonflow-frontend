@@ -1,12 +1,15 @@
 export type OnboardingStatus = {
   businessName: string;
   subdomain: string;
+  countryCode?: string | null;
+  postalCode?: string | null;
   servicesAdded: boolean;
   staffAdded: boolean;
   qrPrinted: boolean;
   reviewSmsEnabled: boolean;
   billingReady: boolean;
   completed: boolean;
+  onboardingBannerDismissed?: boolean;
 };
 
 let cache: OnboardingStatus | null = null;
@@ -80,4 +83,41 @@ export async function markQrPrinted(): Promise<OnboardingStatus> {
 
 export function clearOnboardingCache() {
   cache = null;
+}
+
+export async function dismissOnboardingBanner(): Promise<OnboardingStatus> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...authHeaders(),
+    ...tenantHeader(),
+  };
+  const res = await fetch(`${apiBase}/api/onboarding/dismiss-banner`, {
+    method: 'POST',
+    headers,
+  });
+  if (!res.ok) throw new Error('Failed to dismiss onboarding banner');
+  cache = (await res.json()) as OnboardingStatus;
+  return cache;
+}
+
+export async function updateOnboardingLocation(input: {
+  countryCode: string;
+  postalCode: string;
+}): Promise<OnboardingStatus> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...authHeaders(),
+    ...tenantHeader(),
+  };
+  const res = await fetch(`${apiBase}/api/onboarding/location`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      countryCode: input.countryCode,
+      postalCode: input.postalCode,
+    }),
+  });
+  if (!res.ok) throw new Error('Failed to update location');
+  cache = (await res.json()) as OnboardingStatus;
+  return cache;
 }

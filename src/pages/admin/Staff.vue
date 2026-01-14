@@ -96,18 +96,26 @@ const toggleStatus = async (member: StaffMember) => {
         <div class="text-base font-semibold text-slate-900">Team</div>
         <ElButton type="primary" @click="openDialog">Add Staff</ElButton>
       </div>
-      <ElTable :data="staff" style="width: 100%" :loading="loading" :stripe="true">
-        <ElTableColumn prop="name" label="Name" />
-        <ElTableColumn prop="role" label="Role" width="140" />
-        <ElTableColumn prop="email" label="Email" min-width="180" />
-        <ElTableColumn label="Active" width="140">
+      <ElTable
+        :data="staff"
+        style="width: 100%"
+        :loading="loading"
+        :stripe="true"
+        class="staff-table"
+      >
+        <ElTableColumn prop="name" label="Name" class-name="col-name" />
+        <ElTableColumn prop="role" label="Role" width="140" class-name="col-role" />
+        <ElTableColumn prop="email" label="Email" min-width="200" class-name="col-email" />
+        <ElTableColumn label="Active" width="140" class-name="col-active">
           <template #default="{ row }">
-            <ElSwitch
-              :model-value="row.status === 'active'"
-              active-text="Active"
-              inactive-text="Inactive"
-              @change="() => toggleStatus(row)"
-            />
+            <div class="toggle-wrapper">
+              <ElSwitch
+                :model-value="row.status === 'active'"
+                active-text="Active"
+                inactive-text="Inactive"
+                @change="() => toggleStatus(row)"
+              />
+            </div>
           </template>
         </ElTableColumn>
       </ElTable>
@@ -148,3 +156,34 @@ const toggleStatus = async (member: StaffMember) => {
     </ElDialog>
   </div>
 </template>
+
+<style scoped>
+.staff-table :deep(table) {
+  table-layout: fixed;
+}
+.staff-table :deep(.col-name) {
+  width: auto;
+}
+.staff-table :deep(.col-role) {
+  width: 140px;
+}
+.staff-table :deep(.col-email) {
+  min-width: 200px;
+}
+.staff-table :deep(.col-active) {
+  width: 140px;
+  text-align: center;
+}
+.toggle-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 100px;
+}
+
+@media (max-width: 1024px) {
+  .staff-table :deep(.el-table__body-wrapper) {
+    overflow-x: auto;
+  }
+}
+</style>

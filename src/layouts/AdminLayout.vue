@@ -3,16 +3,14 @@ import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import OnboardingProgress from '../components/OnboardingProgress.vue';
 import { trialExpired, trialEndedAt, trialDaysRemaining, resetTrialState } from '../api/trialBanner';
-import { fetchOnboardingStatus } from '../api/onboarding';
+import { fetchOnboardingStatus, dismissOnboardingBanner } from '../api/onboarding';
 import { logout } from '../utils/auth';
 
 const role = computed(() => localStorage.getItem('role') || '');
 const isOwner = computed(() => role.value === 'OWNER');
 const dismissBanner = ref(false);
-const dismissOnboardingBanner = ref(
-  localStorage.getItem('dismissOnboardingBanner') === 'true',
-);
-const onboardingStatus = ref<{ completed: boolean } | null>(null);
+const onboardingBannerDismissed = ref(false);
+const onboardingStatus = ref<Awaited<ReturnType<typeof fetchOnboardingStatus>> | null>(null);
 const router = useRouter();
 const route = useRoute();
 
@@ -63,6 +61,7 @@ const loadOnboarding = async () => {
   if (!isOwner.value) return;
   try {
     onboardingStatus.value = await fetchOnboardingStatus(true);
+    onboardingBannerDismissed.value = onboardingStatus.value?.onboardingBannerDismissed ?? false;
   } catch (err) {
     // ignore; banner will stay hidden on failure
   }
@@ -71,16 +70,26 @@ const loadOnboarding = async () => {
 onMounted(loadOnboarding);
 
 const showOnboardingBanner = computed(
-  () => isOwner.value && !onboardingStatus.value?.completed && !dismissOnboardingBanner.value,
+  () =>
+    isOwner.value &&
+    !onboardingStatus.value?.completed &&
+    !onboardingBannerDismissed.value &&
+    onboardingStatus.value?.onboardingBannerDismissed !== true,
 );
 
 const goOnboarding = () => {
-  dismissOnboardingBanner.value = false;
+  onboardingBannerDismissed.value = false;
   router.push({ name: 'admin-onboarding' });
 };
 const dismissOnboarding = () => {
-  dismissOnboardingBanner.value = true;
-  localStorage.setItem('dismissOnboardingBanner', 'true');
+  onboardingBannerDismissed.value = true;
+  dismissOnboardingBanner()
+    .then((status) => {
+      onboardingStatus.value = status;
+    })
+    .catch(() => {
+    onboardingBannerDismissed.value = false;
+  });
 };
 
 const navItems = computed(() => {

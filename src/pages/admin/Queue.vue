@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, onBeforeUnmount, ref, watch, nextTick } from 'vue';
 import { ElCard, ElButton, ElTag, ElMessage, ElDialog, ElSelect, ElOption, ElInput } from 'element-plus';
-import { fetchQueue, startCheckIn, checkoutCheckIn, type QueueItem } from '../../api/queue';
+import {
+  fetchQueue,
+  startCheckIn,
+  checkoutCheckIn,
+  callCheckIn,
+  markNoShow,
+  type QueueItem,
+} from '../../api/queue';
 import { fetchStaff, type StaffMember } from '../../api/staff';
 import {
   fetchTodayAppointments,
@@ -37,8 +44,6 @@ const checkinName = ref('');
 const checkinPhone = ref('');
 const checkinServiceId = ref('');
 const checkinPrefillService = ref('');
-const role = computed(() => localStorage.getItem('role') || '');
-const isOwner = computed(() => role.value === 'OWNER');
 
 const loadQueue = async () => {
   loading.value = true;
@@ -59,10 +64,14 @@ onMounted(() => {
   loadAppointments();
   loadServices();
   startPolling();
+  document.addEventListener('visibilitychange', handleVisibility);
+  window.addEventListener('focus', handleFocus);
 });
 
 onBeforeUnmount(() => {
   stopPolling();
+  document.removeEventListener('visibilitychange', handleVisibility);
+  window.removeEventListener('focus', handleFocus);
 });
 
 const handleAction = async (id: string, action: () => Promise<unknown>) => {
@@ -78,17 +87,35 @@ const handleAction = async (id: string, action: () => Promise<unknown>) => {
 };
 
 const statusLabel = (status: QueueItem['status']) => {
+  if (status === 'CALLED') return 'Called';
   if (status === 'IN_SERVICE') return 'In Service';
   if (status === 'WAITING') return 'Waiting';
   if (status === 'COMPLETED') return 'Completed';
-  return 'Canceled';
+  if (status === 'NO_SHOW') return 'No Show';
+  if (status === 'CANCELED') return 'Canceled';
+  return status;
 };
 
 const statusType = (status: QueueItem['status']) => {
+  if (status === 'CALLED') return 'warning';
   if (status === 'IN_SERVICE') return 'warning';
   if (status === 'WAITING') return 'info';
   if (status === 'COMPLETED') return 'success';
-  return 'danger';
+  if (status === 'NO_SHOW') return 'danger';
+  if (status === 'CANCELED') return 'danger';
+  return 'info';
+};
+
+const elapsed = (item: QueueItem) => {
+  const start = item.calledAt || item.createdAt;
+  if (!start) return '';
+  const diffMs = Date.now() - new Date(start).getTime();
+  const minutes = Math.floor(diffMs / (1000 * 60));
+  if (minutes <= 0) return 'Just now';
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  const rem = minutes % 60;
+  return `${hours}h ${rem}m ago`;
 };
 
 const openCheckout = (id: string) => {
@@ -139,21 +166,6 @@ const loadServices = async () => {
     loadingServices.value = false;
   }
 };
-
-const appointmentsByPhone = computed(() => {
-  const map = new Map<string, TodayAppointment[]>();
-  todayAppointments.value.forEach((appt) => {
-    const key = (appt.phoneE164 || '').replace(/\D/g, '');
-    if (!map.has(key)) map.set(key, []);
-    map.get(key)!.push(appt);
-  });
-  return map;
-});
-
-const normalizedPhone = (val: string) => (val || '').replace(/\D/g, '');
-
-const matchingAppointments = (item: QueueItem) =>
-  appointmentsByPhone.value.get(normalizedPhone(item.customerPhone)) || [];
 
 const openCheckinModal = (appt?: TodayAppointment) => {
   checkinName.value = appt?.customerName || '';
@@ -236,6 +248,18 @@ const stopPolling = () => {
   }
 };
 
+const handleVisibility = () => {
+  if (document.visibilityState === 'visible') {
+    loadQueue();
+    loadAppointments();
+  }
+};
+
+const handleFocus = () => {
+  loadQueue();
+  loadAppointments();
+};
+
 watch(checkoutOpen, async (open) => {
   if (open) {
     await nextTick();
@@ -291,73 +315,75 @@ watch(checkoutOpen, async (open) => {
       </div>
     </ElCard>
 
-    <div class="space-y-2 queue-list">
+    <div class="grid gap-3 queue-grid">
       <ElCard
         v-for="item in queue"
         :key="item.id"
         shadow="hover"
         class="border border-slate-100"
       >
-        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div class="space-y-0.5">
+        <div class="flex items-start justify-between gap-2">
+          <div class="space-y-1">
             <div class="text-sm font-semibold text-slate-900">
               {{ item.customerName }}
             </div>
-            <div class="text-xs text-slate-600">{{ item.customerPhone }}</div>
+            <div class="text-xs text-slate-600">•••{{ (item.customerPhone || '').slice(-4) }}</div>
             <div class="text-xs text-slate-600">
-              {{ item.serviceName || (item as any).service_name || 'No service selected' }}
-            </div>
-            <div class="text-xs text-slate-600">
-              Staff: {{ item.servedByName || item.staffName || 'Unassigned' }}
-            </div>
-            <div
-              v-if="matchingAppointments(item).length > 0"
-              class="text-xs text-slate-600 flex items-center gap-1"
-            >
-              <ElTag type="info" size="small" effect="light">
-                📅 Appointment at {{ matchingAppointments(item)[0]?.scheduledAt.slice(11, 16) }}
-              </ElTag>
-              <ElButton size="small" text @click="openCheckinModal(matchingAppointments(item)[0]!)">
-                Check in
-              </ElButton>
+              {{ item.serviceName || 'No service selected' }}
             </div>
           </div>
           <ElTag :type="statusType(item.status)" effect="light">
             {{ statusLabel(item.status) }}
           </ElTag>
         </div>
-
+        <div class="text-xs text-slate-500">
+          {{ elapsed(item) }}
+        </div>
         <div class="mt-2 flex flex-wrap gap-2">
-          <template v-if="item.status === 'WAITING'">
+          <ElButton
+            v-if="item.status === 'WAITING'"
+            size="small"
+            type="primary"
+            :loading="actionLoading === item.id"
+            @click="handleAction(item.id, () => callCheckIn(item.id))"
+          >
+            Call Next
+          </ElButton>
+          <template v-else-if="item.status === 'CALLED'">
             <ElButton
-              v-if="isOwner"
               size="small"
               type="success"
               :loading="actionLoading === item.id"
               @click="handleAction(item.id, () => startCheckIn(item.id))"
             >
-              Start
+              Mark In Service
             </ElButton>
-          </template>
-
-          <template v-else-if="item.status === 'IN_SERVICE'">
             <ElButton
-              v-if="isOwner"
               size="small"
-              type="primary"
-              :loading="actionLoading === item.id"
-              @click="openCheckout(item.id)"
+              type="danger"
+              plain
+              :loading="actionLoading === `${item.id}-no-show`"
+              @click="handleAction(`${item.id}-no-show`, () => markNoShow(item.id))"
             >
-              Checkout
+              No Show
             </ElButton>
           </template>
+          <ElButton
+            v-else-if="item.status === 'IN_SERVICE'"
+            size="small"
+            type="primary"
+            :loading="actionLoading === item.id"
+            @click="openCheckout(item.id)"
+          >
+            Complete
+          </ElButton>
         </div>
       </ElCard>
+    </div>
 
-      <div v-if="!loading && queue.length === 0" class="text-center text-sm text-slate-500">
-        <span v-if="queueLocked">Queue is locked until billing is activated.</span>
-        <span v-else>No active check-ins.</span>
-      </div>
+    <div v-if="!loading && queue.length === 0" class="text-center text-sm text-slate-500">
+      <span v-if="queueLocked">Queue is locked until billing is activated.</span>
+      <span v-else>No active check-ins.</span>
     </div>
 
     <ElDialog v-model="checkoutOpen" title="Checkout" width="360px">
@@ -445,19 +471,7 @@ watch(checkoutOpen, async (open) => {
 </template>
 
 <style scoped>
-.queue-list {
-  margin-top: 8px;
-  max-height: calc(100vh - 380px);
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
-.queue-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.queue-list::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.35);
-  border-radius: 9999px;
+.queue-grid {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
 }
 </style>

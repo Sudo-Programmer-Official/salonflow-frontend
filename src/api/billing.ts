@@ -31,6 +31,9 @@ export async function fetchBillingStatus(): Promise<{
     renewsAt: string | null;
     billingMode: string;
     isDemo: boolean;
+    canSubscribe?: boolean;
+    subscriptionId?: string | null;
+    customerId?: string | null;
   };
   smsCredits?: SmsCredits;
 }> {

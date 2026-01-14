@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-import { ElCard, ElSwitch, ElAlert, ElButton } from 'element-plus';
+import { ElCard, ElSwitch, ElAlert, ElButton, ElCheckbox } from 'element-plus';
 import {
   fetchReminderSettings,
   updateReminderSettings,
@@ -61,20 +61,18 @@ const handleSave = async () => {
     <ElCard class="bg-white space-y-4" :loading="loading">
       <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div class="text-sm font-semibold text-slate-900">Enable reminders</div>
+          <div class="text-sm font-semibold text-slate-900">Enable appointment reminders</div>
           <div class="text-xs text-slate-600">Sends to customers who have consented to SMS.</div>
         </div>
         <ElSwitch v-model="settings.enabled" size="large" />
       </div>
 
-      <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div class="text-sm text-slate-900">Send 24 hours before</div>
-        <ElSwitch v-model="settings.send24h" :disabled="!settings.enabled" />
-      </div>
-
-      <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div class="text-sm text-slate-900">Send 2 hours before</div>
-        <ElSwitch v-model="settings.send2h" :disabled="!settings.enabled" />
+      <div v-if="settings.enabled" class="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3">
+        <div class="text-sm font-semibold text-slate-900">When should reminders be sent?</div>
+        <div class="flex flex-col gap-2">
+          <ElCheckbox v-model="settings.send24h" label="24 hours before appointment" />
+          <ElCheckbox v-model="settings.send2h" label="2 hours before appointment" />
+        </div>
       </div>
 
       <ElAlert

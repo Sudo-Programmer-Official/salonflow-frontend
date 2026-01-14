@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, computed } from 'vue';
 import { ElCard, ElButton, ElAlert, ElMessage, ElDivider, ElSpace } from 'element-plus';
 import {
   fetchBillingStatus,
@@ -13,7 +13,16 @@ import {
 import { resetTrialState, setTrialEndsAt } from '../../api/trialBanner';
 
 const status = ref<SubscriptionStatus | null>(null);
-const billing = ref<{ status: string; plan: string | null; renewsAt: string | null; billingMode: string; isDemo: boolean } | null>(null);
+const billing = ref<{
+  status: string;
+  plan: string | null;
+  renewsAt: string | null;
+  billingMode: string;
+  isDemo: boolean;
+  canSubscribe?: boolean;
+  subscriptionId?: string | null;
+  customerId?: string | null;
+} | null>(null);
 const loading = ref(false);
 const actionLoading = ref<string | null>(null);
 const smsLoading = ref(false);
@@ -131,6 +140,16 @@ const statusLabel = (s: SubscriptionStatus | null) => {
   if (s === 'canceled') return 'Canceled';
   return s;
 };
+
+const renewalText = computed(() => {
+  if (!billing.value?.renewsAt) return null;
+  const renewDate = new Date(billing.value.renewsAt);
+  const days = Math.ceil((renewDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+  if (Number.isNaN(days)) return null;
+  return `${days > 0 ? `Renews in ${days} day${days === 1 ? '' : 's'}` : 'Renewal today'} (${renewDate.toLocaleDateString()})`;
+});
+
+const canSubscribe = computed(() => billing.value?.canSubscribe !== false);
 </script>
 
 <template>
@@ -140,44 +159,79 @@ const statusLabel = (s: SubscriptionStatus | null) => {
       <p class="text-sm text-slate-600">Manage your SalonFlow subscription.</p>
     </div>
 
-    <ElCard class="bg-white">
-      <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div class="text-sm text-slate-600">Subscription Status</div>
-          <div class="text-xl font-semibold text-slate-900">
-            {{ statusLabel(status) }}
-            <span v-if="billing?.plan && billing.plan !== 'demo'" class="ml-2 text-sm text-slate-500">
-              • {{ billing.plan === 'annual' ? 'Annual' : billing.plan === 'monthly' ? 'Monthly' : '' }}
+    <div class="grid gap-4 lg:grid-cols-3">
+      <ElCard class="bg-white lg:col-span-2">
+        <div class="flex flex-col gap-3">
+          <div class="flex items-center gap-3">
+            <span class="rounded-md bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-800">
+              {{ statusLabel(status) }}
+            </span>
+            <span
+              v-if="billing?.plan && billing.plan !== 'demo'"
+              class="rounded-md bg-slate-50 px-2 py-1 text-xs text-slate-600"
+            >
+              {{ billing.plan === 'annual' ? 'Core Annual' : billing.plan === 'monthly' ? 'Core Monthly' : '' }}
+            </span>
+            <span
+              v-if="billing?.isDemo"
+              class="rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-700"
+            >
+              Demo Tenant
+            </span>
+            <span
+              v-if="billing?.billingMode === 'sandbox'"
+              class="rounded-md bg-blue-50 px-2 py-1 text-xs text-blue-700"
+            >
+              Test Mode
             </span>
           </div>
-          <div v-if="billing?.renewsAt" class="text-xs text-slate-500">
-            Renews at: {{ billing.renewsAt }}
+          <div v-if="billing?.renewsAt || renewalText" class="text-sm text-slate-700">
+            {{ renewalText || `Renews at: ${billing?.renewsAt}` }}
+          </div>
+          <div class="text-xs text-slate-500">
+            Subscription ID: {{ billing?.subscriptionId || '—' }} · Customer: {{ billing?.customerId || '—' }}
+          </div>
+          <div>
+            <ElButton
+              :loading="actionLoading === 'portal'"
+              @click="handlePortal"
+            >
+              Manage Billing
+            </ElButton>
           </div>
         </div>
-        <div class="flex flex-col gap-2 sm:flex-row">
-          <ElButton
-            type="primary"
-            :loading="actionLoading === 'monthly'"
-            @click="handleCheckout('monthly')"
-          >
-            Subscribe Monthly
-          </ElButton>
-          <ElButton
-            type="primary"
-            :loading="actionLoading === 'annual'"
-            @click="handleCheckout('annual')"
-          >
-            Subscribe Annual
-          </ElButton>
-          <ElButton
-            :loading="actionLoading === 'portal'"
-            @click="handlePortal"
-          >
-            Manage Billing
-          </ElButton>
+      </ElCard>
+
+      <ElCard class="bg-white">
+        <div class="space-y-2">
+          <div class="text-sm font-semibold text-slate-900">Subscribe</div>
+          <div class="text-xs text-slate-600">
+            You will be redirected to Stripe Checkout.
+          </div>
+          <div v-if="!canSubscribe" class="rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600">
+            Subscription is already active. Use Manage Billing to change or cancel.
+          </div>
+          <div class="flex flex-col gap-2">
+            <ElButton
+              type="primary"
+              :loading="actionLoading === 'monthly'"
+              :disabled="!canSubscribe"
+              @click="handleCheckout('monthly')"
+            >
+              Subscribe Monthly
+            </ElButton>
+            <ElButton
+              type="primary"
+              :loading="actionLoading === 'annual'"
+              :disabled="!canSubscribe"
+              @click="handleCheckout('annual')"
+            >
+              Subscribe Annual
+            </ElButton>
+          </div>
         </div>
-      </div>
-    </ElCard>
+      </ElCard>
+    </div>
 
     <ElAlert
       v-if="success"
