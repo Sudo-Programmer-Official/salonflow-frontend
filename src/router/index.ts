@@ -16,6 +16,7 @@ import AdminAppointmentRemindersPage from "../pages/admin/AppointmentReminders.v
 import PlatformDashboardPage from "../pages/platform/Dashboard.vue";
 import PlatformTenantDetailPage from "../pages/platform/TenantDetail.vue";
 import PlatformCreateTenantPage from "../pages/platform/CreateTenant.vue";
+import PlatformDemoRequestsPage from "../pages/platform/DemoRequests.vue";
 import CustomerProfilePage from "../pages/admin/CustomerProfile.vue";
 import AdminOnboardingPage from "../pages/admin/Onboarding.vue";
 import AdminDemoRequestsPage from "../pages/admin/DemoRequests.vue";
@@ -97,6 +98,12 @@ const routes = [
         path: "create-tenant",
         name: "platform-create-tenant",
         component: PlatformCreateTenantPage,
+        meta: { requiresAuth: true, roles: ["SUPER_ADMIN"] },
+      },
+      {
+        path: "demo-requests",
+        name: "platform-demo-requests",
+        component: PlatformDemoRequestsPage,
         meta: { requiresAuth: true, roles: ["SUPER_ADMIN"] },
       },
       {

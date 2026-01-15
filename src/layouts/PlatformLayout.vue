@@ -11,14 +11,21 @@
           >
             Dashboard
           </RouterLink>
-          <RouterLink
-            to="/platform/create-tenant"
-            class="block rounded-md px-3 py-2 transition hover:bg-white hover:text-slate-900"
-            active-class="bg-white text-slate-900 shadow-sm"
-          >
-            Create tenant
-          </RouterLink>
-        </nav>
+        <RouterLink
+          to="/platform/create-tenant"
+          class="block rounded-md px-3 py-2 transition hover:bg-white hover:text-slate-900"
+          active-class="bg-white text-slate-900 shadow-sm"
+        >
+          Create tenant
+        </RouterLink>
+        <RouterLink
+          to="/platform/demo-requests"
+          class="block rounded-md px-3 py-2 transition hover:bg-white hover:text-slate-900"
+          active-class="bg-white text-slate-900 shadow-sm"
+        >
+          Demo requests
+        </RouterLink>
+      </nav>
       </aside>
       <main class="flex-1 p-4 sm:p-6">
         <div class="mb-4 flex items-center justify-between">
