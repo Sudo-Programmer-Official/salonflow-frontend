@@ -5,6 +5,7 @@ import OnboardingProgress from '../components/OnboardingProgress.vue';
 import { trialExpired, trialEndedAt, trialDaysRemaining, resetTrialState } from '../api/trialBanner';
 import { fetchOnboardingStatus, dismissOnboardingBanner } from '../api/onboarding';
 import { logout } from '../utils/auth';
+import SiteFooter from '../components/SiteFooter.vue';
 
 const role = computed(() => localStorage.getItem('role') || '');
 const isOwner = computed(() => role.value === 'OWNER');
@@ -280,6 +281,7 @@ const navItems = computed(() => {
         <OnboardingProgress v-if="isOwner" />
         <RouterView />
       </main>
+      <SiteFooter />
     </div>
   </div>
 </template>

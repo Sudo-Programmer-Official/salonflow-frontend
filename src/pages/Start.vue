@@ -59,8 +59,8 @@ const submit = async () => {
 
 <template>
   <div class="bg-white">
-    <div class="mx-auto max-w-3xl px-4 py-12">
-      <div class="rounded-2xl border border-slate-200 bg-slate-50 p-8 shadow-sm">
+    <div class="mx-auto max-w-4xl px-4 py-12">
+      <div class="w-full rounded-2xl border border-slate-200 bg-slate-50 p-8 shadow-sm">
         <h1 class="text-2xl font-semibold text-slate-900">Request a Demo / Get Started</h1>
         <p class="mt-2 text-slate-600">
           Tell us a bit about your salon. We’ll reach out to set up a walkthrough and tailor it to your workflow.

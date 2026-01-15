@@ -27,6 +27,8 @@ import MarketingHome from "../pages/MarketingHome.vue";
 import StartPage from "../pages/Start.vue";
 import LoginPage from "../pages/Login.vue";
 import MagicLoginPage from "../pages/MagicLogin.vue";
+import PrivacyPage from "../pages/Privacy.vue";
+import TermsPage from "../pages/Terms.vue";
 
 const routes = [
   {
@@ -49,6 +51,16 @@ const routes = [
     path: "/login",
     name: "login",
     component: LoginPage,
+  },
+  {
+    path: "/privacy",
+    name: "privacy",
+    component: PrivacyPage,
+  },
+  {
+    path: "/terms",
+    name: "terms",
+    component: TermsPage,
   },
   {
     path: "/magic-login",

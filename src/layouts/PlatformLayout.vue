@@ -1,12 +1,6 @@
-<script setup lang="ts">
-import { logout } from '../utils/auth';
-
-const handleLogout = () => logout('/login');
-</script>
-
 <template>
-  <div class="min-h-screen bg-white text-slate-900">
-    <div class="flex min-h-screen">
+  <div class="flex min-h-screen flex-col bg-white text-slate-900">
+    <div class="flex flex-1">
       <aside class="hidden w-64 border-r border-slate-200 bg-slate-50/70 p-4 sm:block">
         <div class="mb-6 text-sm font-semibold text-slate-700">Platform</div>
         <nav class="space-y-2 text-sm font-medium text-slate-700">
@@ -39,6 +33,14 @@ const handleLogout = () => logout('/login');
         </div>
         <RouterView />
       </main>
+      <SiteFooter />
     </div>
   </div>
 </template>
+
+<script setup lang="ts">
+import SiteFooter from '../components/SiteFooter.vue';
+import { logout } from '../utils/auth';
+
+const handleLogout = () => logout('/login');
+</script>

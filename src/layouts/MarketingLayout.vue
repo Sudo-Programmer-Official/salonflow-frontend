@@ -1,10 +1,5 @@
-<script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router';
-import logo from '../assets/images/salonflow-logo.png';
-</script>
-
 <template>
-  <div class="min-h-screen bg-slate-50 text-slate-900">
+  <div class="flex min-h-screen flex-col bg-slate-50 text-slate-900">
     <header class="border-b border-slate-200 bg-white/90 backdrop-blur">
       <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
         <RouterLink to="/" class="flex items-center gap-1.5">
@@ -18,18 +13,15 @@ import logo from '../assets/images/salonflow-logo.png';
         </nav>
       </div>
     </header>
-    <main>
+    <main class="flex-1">
       <RouterView />
     </main>
-    <footer class="border-t border-slate-200 bg-white">
-      <div class="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-6 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
-        <div>SalonFlow by Sudo Programmer, Inc.</div>
-        <div>
-          <a class="hover:text-slate-900 transition-colors" href="https://sudoprogrammer.com" target="_blank" rel="noreferrer">
-            sudoprogrammer.com
-          </a>
-        </div>
-      </div>
-    </footer>
+    <SiteFooter />
   </div>
 </template>
+
+<script setup lang="ts">
+import { RouterLink, RouterView } from 'vue-router';
+import SiteFooter from '../components/SiteFooter.vue';
+import logo from '../assets/images/salonflow-logo.png';
+</script>
