@@ -33,8 +33,8 @@
         </div>
         <RouterView />
       </main>
-      <SiteFooter />
     </div>
+    <SiteFooter />
   </div>
 </template>
 
