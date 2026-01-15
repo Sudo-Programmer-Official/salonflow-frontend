@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref, computed } from 'vue';
+import { onMounted, reactive, ref, watch } from 'vue';
 import {
   ElCard,
   ElTable,
@@ -33,7 +33,7 @@ const loading = ref(false);
 const loadingServices = ref(false);
 const loadingStaff = ref(false);
 
-const selectedDate = ref(new Date());
+const selectedDate = ref(new Date().toISOString().slice(0, 10));
 
 const dialogVisible = ref(false);
 const dialogMode = ref<'create' | 'edit'>('create');
@@ -75,7 +75,7 @@ const loadAppointments = async () => {
   loading.value = true;
   try {
     appointments.value = await fetchAppointments({
-      date: formatDate(selectedDate.value),
+      date: selectedDate.value,
     });
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to load appointments');
@@ -107,10 +107,15 @@ const loadStaff = async () => {
 };
 
 onMounted(() => {
-  form.date = formatDate(selectedDate.value);
+  form.date = selectedDate.value;
   loadAppointments();
   loadServices();
   loadStaff();
+});
+
+watch(selectedDate, () => {
+  form.date = selectedDate.value;
+  loadAppointments();
 });
 
 const openCreate = () => {
@@ -198,21 +203,6 @@ const handleComplete = async (id: string) => {
   }
 };
 
-const videoUrl = (appt: Appointment) => appt.videoUrl || `https://meet.jit.si/salonflow-${appt.id}`;
-
-const joinVideo = (appt: Appointment) => {
-  const url = videoUrl(appt);
-  window.open(url, '_blank', 'noopener');
-};
-
-const datePickerValue = computed({
-  get: () => selectedDate.value,
-  set: (val: Date) => {
-    selectedDate.value = val instanceof Date ? val : new Date(val);
-    form.date = formatDate(selectedDate.value);
-    loadAppointments();
-  },
-});
 </script>
 
 <template>
@@ -229,7 +219,7 @@ const datePickerValue = computed({
       <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div class="text-base font-semibold text-slate-900">Selected Date</div>
         <ElDatePicker
-          v-model="datePickerValue"
+          v-model="selectedDate"
           type="date"
           placeholder="Select date"
           format="YYYY-MM-DD"
@@ -250,7 +240,7 @@ const datePickerValue = computed({
         :formatter="(_, __, val) => val.slice(11, 16)"
         />
         <ElTableColumn prop="status" label="Status" width="110" />
-        <ElTableColumn label="Actions" width="280">
+        <ElTableColumn label="Actions" width="220">
           <template #default="{ row }">
             <div class="flex flex-wrap gap-2">
               <ElButton size="small" type="primary" @click="openEdit(row)">Edit</ElButton>
@@ -262,9 +252,6 @@ const datePickerValue = computed({
                 @click="handleComplete(row.id)"
               >
                 Complete
-              </ElButton>
-              <ElButton size="small" type="info" plain @click="joinVideo(row)">
-                Join video call
               </ElButton>
             </div>
           </template>
