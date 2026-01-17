@@ -29,10 +29,26 @@ export type CustomerTimeline = {
   visits: CustomerTimelineVisit[];
 };
 
-export async function fetchCustomers(segment: 'all' | 'new' | 'regular' | 'vip' = 'all'): Promise<CustomerSearchResult[]> {
+export type CustomersResponse =
+  | CustomerSearchResult[]
+  | {
+      items: CustomerSearchResult[];
+      nextCursor: string | null;
+      hasMore: boolean;
+    };
+
+export async function fetchCustomers(params?: {
+  segment?: 'all' | 'new' | 'regular' | 'vip';
+  limit?: number;
+  cursor?: string | null;
+}): Promise<CustomersResponse> {
   const search = new URLSearchParams();
-  if (segment) search.set('segment', segment);
-  const res = await fetch(apiUrl(`/customers?${search.toString()}`), {
+  if (params?.segment) search.set('segment', params.segment);
+  if (params?.limit) search.set('limit', String(params.limit));
+  if (params?.cursor) search.set('cursor', params.cursor);
+  const query = search.toString();
+  const url = query ? apiUrl(`/customers?${query}`) : apiUrl('/customers');
+  const res = await fetch(url, {
     headers: buildHeaders({ auth: true, tenant: true, json: true }),
   });
   if (!res.ok) {

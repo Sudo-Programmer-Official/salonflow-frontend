@@ -13,6 +13,7 @@ import {
 } from 'element-plus';
 import {
   fetchQueue,
+  fetchQueueSummary,
   startCheckIn,
   checkoutCheckIn,
   callCheckIn,
@@ -26,7 +27,7 @@ import {
   type TodayAppointmentsResponse,
 } from '../../api/appointments';
 import { fetchServices, type ServiceOption, createPublicCheckIn } from '../../api/checkins';
-import { searchCustomers, sendCustomerFeedback, sendCustomerReminder } from '../../api/customers';
+import { searchCustomers, sendCustomerReminder } from '../../api/customers';
 
 const queue = ref<QueueItem[]>([]);
 const queueLocked = ref(false);
@@ -50,6 +51,19 @@ const todayAppointmentsLocked = ref(false);
 const loadingAppointments = ref(false);
 const sendingMap = ref<Record<string, boolean>>({});
 const activeTab = ref<'WAITING' | 'IN_SERVICE' | 'COMPLETED'>('WAITING');
+const queueCounts = ref<{ waiting: number; inService: number; completed: number; noShow: number }>({
+  waiting: 0,
+  inService: 0,
+  completed: 0,
+  noShow: 0,
+});
+const dateFilter = ref<'today' | 'yesterday' | 'last7' | 'last30'>(
+  (localStorage.getItem('queueCompletedRange') as any) || 'today',
+);
+const completedItems = ref<QueueItem[]>([]);
+const completedCursor = ref<string | null>(null);
+const completedHasMore = ref(false);
+const completedLoading = ref(false);
 const services = ref<ServiceOption[]>([]);
 const loadingServices = ref(false);
 const checkinOpen = ref(false);
@@ -59,21 +73,99 @@ const checkinServiceId = ref('');
 const checkinPrefillService = ref('');
 const isOnline = ref(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
-const loadQueue = async () => {
-  loading.value = true;
+const dateRange = computed(() => {
+  const now = new Date();
+  const end = new Date(now);
+  end.setHours(23, 59, 59, 999);
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  switch (dateFilter.value) {
+    case 'yesterday': {
+      start.setDate(start.getDate() - 1);
+      end.setDate(end.getDate() - 1);
+      break;
+    }
+    case 'last7': {
+      start.setDate(start.getDate() - 6);
+      break;
+    }
+    case 'last30': {
+      start.setDate(start.getDate() - 29);
+      break;
+    }
+    default:
+      break;
+  }
+  return {
+    from: start.toISOString(),
+    to: end.toISOString(),
+  };
+});
+
+const loadQueue = async (opts?: { loadMoreCompleted?: boolean }) => {
+  loading.value = !opts?.loadMoreCompleted;
+  if (activeTab.value === 'COMPLETED' && opts?.loadMoreCompleted) {
+    completedLoading.value = true;
+  }
   try {
-    const res = await fetchQueue();
+    const params: any = {};
+    if (activeTab.value === 'WAITING') {
+      params.status = 'WAITING';
+      params.limit = 100;
+    } else if (activeTab.value === 'IN_SERVICE') {
+      params.status = 'IN_SERVICE';
+      params.limit = 100;
+    } else if (activeTab.value === 'COMPLETED') {
+      params.status = 'COMPLETED';
+      params.limit = 20;
+      params.cursor = opts?.loadMoreCompleted ? completedCursor.value : null;
+      params.from = dateRange.value.from;
+      params.to = dateRange.value.to;
+    }
+    const res = await fetchQueue(params);
     queueLocked.value = (res as any).locked === true;
-    queue.value = queueLocked.value ? [] : ((res as any).items ?? []);
+    if (queueLocked.value) {
+      queue.value = [];
+      completedItems.value = [];
+      completedCursor.value = null;
+      completedHasMore.value = false;
+      return;
+    }
+    const items = (res as any).items ?? [];
+    if (activeTab.value === 'COMPLETED') {
+      if (!opts?.loadMoreCompleted) {
+        completedItems.value = items;
+      } else {
+        completedItems.value = [...completedItems.value, ...items];
+      }
+      completedCursor.value = (res as any).nextCursor ?? null;
+      completedHasMore.value = Boolean((res as any).hasMore);
+    } else {
+      queue.value = items;
+    }
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to load queue');
   } finally {
     loading.value = false;
+    completedLoading.value = false;
+  }
+};
+
+const loadCounts = async () => {
+  try {
+    const summary = await fetchQueueSummary({
+      from: dateRange.value.from,
+      to: dateRange.value.to,
+    });
+    queueCounts.value = summary;
+  } catch {
+    // ignore
   }
 };
 
 onMounted(() => {
   loadQueue();
+  loadCounts();
   loadStaff();
   loadAppointments();
   loadServices();
@@ -131,10 +223,12 @@ const tabFilters: Record<typeof activeTab.value, QueueItem['status'][]> = {
 };
 
 const filteredQueue = computed(() =>
-  queue.value
-    .filter((item) => tabFilters[activeTab.value].includes(item.status))
-    .slice()
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+  activeTab.value === 'COMPLETED'
+    ? completedItems.value
+    : queue.value
+        .filter((item) => tabFilters[activeTab.value].includes(item.status))
+        .slice()
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
 );
 
 const sendReminderForAppointment = async (appt: TodayAppointment) => {
@@ -157,34 +251,6 @@ const sendReminderForAppointment = async (appt: TodayAppointment) => {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to send reminder');
   } finally {
     sendingMap.value = { ...sendingMap.value, [appt.id]: false };
-  }
-};
-
-const sendFeedbackForAppointment = async (appt: TodayAppointment) => {
-  if (!isOnline.value) {
-    ElMessage.warning('Available when online');
-    return;
-  }
-  const key = `${appt.id}-fb`;
-  sendingMap.value = { ...sendingMap.value, [key]: true };
-  try {
-    const matches = await searchCustomers(appt.phoneE164);
-    const customer = matches.find((c) => c.phoneE164 === appt.phoneE164);
-    if (!customer) throw new Error('Customer not found');
-    if (!customer.reviewSmsConsent) {
-      ElMessage.warning('Consent required');
-      return;
-    }
-    if ((customer as any).reviewSentAt) {
-      ElMessage.info('Feedback already sent');
-      return;
-    }
-    await sendCustomerFeedback(customer.id);
-    ElMessage.success('Feedback sent');
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : 'Failed to send feedback');
-  } finally {
-    sendingMap.value = { ...sendingMap.value, [key]: false };
   }
 };
 
@@ -244,6 +310,21 @@ const loadAppointments = async () => {
   } finally {
     loadingAppointments.value = false;
   }
+};
+
+const changeDateFilter = (val: 'today' | 'yesterday' | 'last7' | 'last30') => {
+  dateFilter.value = val;
+  localStorage.setItem('queueCompletedRange', val);
+  completedItems.value = [];
+  completedCursor.value = null;
+  completedHasMore.value = false;
+  loadQueue();
+  loadCounts();
+};
+
+const loadMoreCompleted = () => {
+  if (!completedHasMore.value || completedLoading.value) return;
+  loadQueue({ loadMoreCompleted: true });
 };
 
 const loadServices = async () => {
@@ -341,12 +422,14 @@ const stopPolling = () => {
 const handleVisibility = () => {
   if (document.visibilityState === 'visible') {
     loadQueue();
+    loadCounts();
     loadAppointments();
   }
 };
 
 const handleFocus = () => {
   loadQueue();
+  loadCounts();
   loadAppointments();
 };
 
@@ -355,6 +438,16 @@ watch(checkoutOpen, async (open) => {
     await nextTick();
     checkoutAmountRef.value?.focus();
   }
+});
+
+watch(activeTab, () => {
+  if (activeTab.value === 'COMPLETED') {
+    completedItems.value = [];
+    completedCursor.value = null;
+    completedHasMore.value = false;
+  }
+  loadQueue();
+  loadCounts();
 });
 
 function updateOnline() {
@@ -442,28 +535,13 @@ function updateOnline() {
               >
                 Reminder
               </ElButton>
-              <ElTooltip v-if="!isOnline" content="Available when online">
+              <ElTooltip content="Send feedback after checkout">
                 <span>
-                  <ElButton
-                    size="small"
-                    plain
-                    :disabled="!isOnline"
-                    :loading="sendingMap[`${appt.id}-fb`]"
-                    @click="sendFeedbackForAppointment(appt)"
-                  >
+                  <ElButton size="small" plain disabled>
                     Feedback
                   </ElButton>
                 </span>
               </ElTooltip>
-              <ElButton
-                v-else
-                size="small"
-                plain
-                :loading="sendingMap[`${appt.id}-fb`]"
-                @click="sendFeedbackForAppointment(appt)"
-              >
-                Feedback
-              </ElButton>
             </div>
           </div>
         </div>
@@ -474,13 +552,29 @@ function updateOnline() {
       </div>
     </ElCard>
 
-    <div class="mb-2 flex items-center justify-between">
+    <div class="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
       <div class="text-base font-semibold text-slate-900">Queue</div>
-      <el-tabs v-model="activeTab" class="w-full max-w-md justify-end" stretch>
-        <el-tab-pane label="Waiting" name="WAITING" />
-        <el-tab-pane label="In Service" name="IN_SERVICE" />
-        <el-tab-pane label="Completed" name="COMPLETED" />
-      </el-tabs>
+      <div class="flex items-center gap-3 w-full sm:w-auto">
+        <div v-if="activeTab === 'COMPLETED'" class="flex items-center gap-2">
+          <span class="text-xs text-slate-600">Date range:</span>
+          <ElSelect
+            v-model="dateFilter"
+            size="small"
+            class="w-36"
+            @change="(v: any) => changeDateFilter(v)"
+          >
+            <ElOption label="Today" value="today" />
+            <ElOption label="Yesterday" value="yesterday" />
+            <ElOption label="Last 7 days" value="last7" />
+            <ElOption label="Last 30 days" value="last30" />
+          </ElSelect>
+        </div>
+        <el-tabs v-model="activeTab" class="queue-tabs w-full sm:w-auto" stretch>
+          <el-tab-pane :label="`Waiting (${queueCounts.waiting})`" name="WAITING" />
+          <el-tab-pane :label="`In Service (${queueCounts.inService})`" name="IN_SERVICE" />
+          <el-tab-pane :label="`Completed (${queueCounts.completed})`" name="COMPLETED" />
+        </el-tabs>
+      </div>
     </div>
 
     <div v-if="queueLocked" class="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
@@ -573,6 +667,22 @@ function updateOnline() {
           </div>
         </ElCard>
       </div>
+      <div
+        v-if="activeTab === 'COMPLETED'"
+        class="mt-3 flex justify-center"
+      >
+        <ElButton
+          type="primary"
+          plain
+          size="small"
+          :loading="completedLoading"
+          :disabled="!completedHasMore"
+          @click="loadMoreCompleted"
+        >
+          <span v-if="completedHasMore">Load more</span>
+          <span v-else>No more</span>
+        </ElButton>
+      </div>
     </div>
 
     <div v-if="!loading && queue.length === 0" class="text-center text-sm text-slate-500">
@@ -580,8 +690,8 @@ function updateOnline() {
       <span v-else>No active check-ins.</span>
     </div>
 
-    <ElDialog v-model="checkoutOpen" title="Checkout" width="360px">
-      <div class="space-y-3">
+    <ElDialog v-model="checkoutOpen" title="Checkout" width="520px" class="checkout-modal">
+      <div class="space-y-3 checkout-body">
         <div class="rounded-md border border-slate-200 bg-slate-50 p-2 text-xs text-slate-700">
           Points available: {{ currentCheckoutItem?.pointsBalance ?? 0 }}
         </div>
@@ -618,10 +728,21 @@ function updateOnline() {
           Ask for Google review (send SMS)
         </label>
         <label class="flex items-center gap-2 text-sm text-slate-800">
-          <input type="checkbox" v-model="checkoutRedeem" class="h-4 w-4" :disabled="!canRedeem" />
+          <input
+            type="checkbox"
+            v-model="checkoutRedeem"
+            class="h-4 w-4"
+            :disabled="!canRedeem || !isOnline"
+          />
           Redeem 300 points on this visit
         </label>
-        <div class="flex justify-end gap-2">
+        <div v-if="!canRedeem" class="text-xs text-slate-500">
+          Earn {{ Math.max(0, 300 - (currentCheckoutItem?.pointsBalance ?? 0)) }} more points to redeem.
+        </div>
+        <div v-else-if="!isOnline" class="text-xs text-slate-500">
+          Redemption requires internet connection.
+        </div>
+        <div class="flex justify-end gap-2 checkout-actions">
           <ElButton @click="checkoutOpen = false">Cancel</ElButton>
           <ElButton type="primary" :loading="actionLoading === checkoutTarget" @click="submitCheckout">
             Complete checkout
@@ -675,14 +796,42 @@ function updateOnline() {
   -webkit-overflow-scrolling: touch;
 }
 .appointment-list {
-  max-height: 50vh;
+  max-height: 280px;
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
 @media (min-width: 1024px) {
   .appointment-list {
-    max-height: 420px;
+    max-height: 320px;
   }
+}
+.queue-tabs :deep(.el-tabs__item.is-active) {
+  color: #0ea5e9;
+  font-weight: 600;
+}
+.queue-tabs :deep(.el-tabs__active-bar) {
+  background-color: #0ea5e9;
+}
+.checkout-modal :deep(.el-dialog) {
+  max-width: 520px;
+  width: 92%;
+}
+.checkout-body {
+  padding: 24px 28px;
+}
+.checkout-body label {
+  font-size: 15px;
+}
+.checkout-body input,
+.checkout-body .el-input__wrapper,
+.checkout-body .el-select {
+  font-size: 16px;
+  min-height: 44px;
+}
+.checkout-actions .el-button {
+  min-height: 44px;
+  padding: 0 20px;
+  font-size: 16px;
 }
 </style>

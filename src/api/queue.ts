@@ -24,10 +24,27 @@ const apiBase = apiUrl('/checkins');
 
 export type QueueResponse =
   | { locked: true }
-  | { locked?: false; items: QueueItem[] };
+  | { locked?: false; items: QueueItem[]; nextCursor?: string | null; hasMore?: boolean };
 
-export async function fetchQueue(): Promise<QueueResponse> {
-  const res = await fetch(`${apiBase}/queue`, {
+export async function fetchQueue(params?: {
+  status?: 'WAITING' | 'IN_SERVICE' | 'COMPLETED' | 'NO_SHOW';
+  limit?: number;
+  cursor?: string | null;
+  from?: string | null;
+  to?: string | null;
+}): Promise<QueueResponse> {
+  const search = new URLSearchParams();
+  if (params?.status) search.set('status', params.status);
+  if (params?.limit) search.set('limit', String(params.limit));
+  if (params?.cursor) search.set('cursor', params.cursor);
+  if (params?.from) search.set('from', params.from);
+  if (params?.to) search.set('to', params.to);
+
+  const url = search.toString()
+    ? `${apiBase}/queue?${search.toString()}`
+    : `${apiBase}/queue`;
+
+  const res = await fetch(url, {
     headers: buildHeaders({ auth: true, tenant: true, json: true }),
   });
 
@@ -40,7 +57,32 @@ export async function fetchQueue(): Promise<QueueResponse> {
     throw new Error(err.error || 'Failed to load queue');
   }
 
-  return { items: await res.json() };
+  const data = await res.json();
+  if (Array.isArray(data)) {
+    return { items: data, nextCursor: null, hasMore: false };
+  }
+  return data;
+}
+
+export async function fetchQueueSummary(params?: {
+  from?: string | null;
+  to?: string | null;
+}): Promise<{ waiting: number; inService: number; completed: number; noShow: number }> {
+  const search = new URLSearchParams();
+  if (params?.from) search.set('from', params.from);
+  if (params?.to) search.set('to', params.to);
+  const url = search.toString()
+    ? `${apiBase}/queue/summary?${search.toString()}`
+    : `${apiBase}/queue/summary`;
+
+  const res = await fetch(url, {
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to load queue summary');
+  }
+  return res.json();
 }
 
 export async function callCheckIn(checkInId: string) {

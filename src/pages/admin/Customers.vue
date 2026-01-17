@@ -17,6 +17,9 @@ const query = ref('');
 const loading = ref(false);
 const errorMessage = ref('');
 const results = ref<CustomerSearchResult[]>([]);
+const nextCursor = ref<string | null>(null);
+const hasMore = ref(false);
+const loadingMore = ref(false);
 const timelineOpen = ref(false);
 const timelineLoading = ref(false);
 const timeline = ref<CustomerTimelineType | null>(null);
@@ -30,6 +33,8 @@ const doSearch = async () => {
   errorMessage.value = '';
   try {
     results.value = await searchCustomers(query.value.trim());
+    nextCursor.value = null;
+    hasMore.value = false;
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to search customers');
     errorMessage.value = err instanceof Error ? err.message : 'Failed to search customers';
@@ -61,12 +66,38 @@ const loadAll = async () => {
   loading.value = true;
   errorMessage.value = '';
   try {
-    results.value = await fetchCustomers('all');
+    const data = await fetchCustomers({ segment: 'all', limit: 50, cursor: null });
+    if (Array.isArray(data)) {
+      results.value = data;
+      nextCursor.value = null;
+      hasMore.value = false;
+    } else {
+      results.value = data.items ?? [];
+      nextCursor.value = data.nextCursor ?? null;
+      hasMore.value = !!data.hasMore;
+    }
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to load customers');
     errorMessage.value = err instanceof Error ? err.message : 'Failed to load customers';
   } finally {
     loading.value = false;
+  }
+};
+
+const loadMore = async () => {
+  if (!hasMore.value || loadingMore.value || !nextCursor.value) return;
+  loadingMore.value = true;
+  try {
+    const data = await fetchCustomers({ segment: 'all', limit: 50, cursor: nextCursor.value });
+    if (!Array.isArray(data)) {
+      results.value = [...results.value, ...(data.items ?? [])];
+      nextCursor.value = data.nextCursor ?? null;
+      hasMore.value = !!data.hasMore;
+    }
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : 'Failed to load more customers');
+  } finally {
+    loadingMore.value = false;
   }
 };
 
@@ -209,6 +240,19 @@ const sendFeedbackAction = async (row: CustomerSearchResult) => {
           </template>
         </ElTableColumn>
       </ElTable>
+      <div class="mt-3 flex justify-center">
+        <ElButton
+          v-if="hasMore"
+          :loading="loadingMore"
+          type="primary"
+          plain
+          size="small"
+          @click="loadMore"
+        >
+          Load more
+        </ElButton>
+        <div v-else class="text-xs text-slate-500">No more customers</div>
+      </div>
     </ElCard>
 
     <div v-else class="text-sm text-slate-500">
