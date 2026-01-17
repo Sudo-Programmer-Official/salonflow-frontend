@@ -15,6 +15,9 @@ export type QueueItem = {
   calledAt?: string | null;
   startedAt?: string | null;
   completedAt?: string | null;
+  visitsLast30?: number;
+  totalVisits?: number;
+  customerType?: 'VIP' | 'SECOND_TIME' | 'REGULAR';
 };
 
 const apiBase = apiUrl('/checkins');

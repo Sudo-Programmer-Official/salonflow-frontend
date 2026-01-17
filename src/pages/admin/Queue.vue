@@ -37,6 +37,7 @@ const loadingStaff = ref(false);
 const todayAppointments = ref<TodayAppointment[]>([]);
 const todayAppointmentsLocked = ref(false);
 const loadingAppointments = ref(false);
+const activeTab = ref<'WAITING' | 'IN_SERVICE' | 'COMPLETED'>('WAITING');
 const services = ref<ServiceOption[]>([]);
 const loadingServices = ref(false);
 const checkinOpen = ref(false);
@@ -105,6 +106,16 @@ const statusType = (status: QueueItem['status']) => {
   if (status === 'CANCELED') return 'danger';
   return 'info';
 };
+
+const tabFilters: Record<typeof activeTab.value, QueueItem['status'][]> = {
+  WAITING: ['WAITING', 'CALLED'],
+  IN_SERVICE: ['IN_SERVICE'],
+  COMPLETED: ['COMPLETED', 'NO_SHOW', 'CANCELED'],
+};
+
+const filteredQueue = computed(() =>
+  queue.value.filter((item) => tabFilters[activeTab.value].includes(item.status)),
+);
 
 const elapsed = (item: QueueItem) => {
   const start = item.calledAt || item.createdAt;
@@ -315,26 +326,59 @@ watch(checkoutOpen, async (open) => {
       </div>
     </ElCard>
 
-    <div class="grid gap-3 queue-grid">
+    <div class="mb-2 flex items-center justify-between">
+      <div class="text-base font-semibold text-slate-900">Queue</div>
+      <el-tabs v-model="activeTab" class="w-full max-w-md justify-end" stretch>
+        <el-tab-pane label="Waiting" name="WAITING" />
+        <el-tab-pane label="In Service" name="IN_SERVICE" />
+        <el-tab-pane label="Completed" name="COMPLETED" />
+      </el-tabs>
+    </div>
+
+    <div v-if="queueLocked" class="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+      Billing required to use queue. Activate to resume live queue.
+    </div>
+
+    <div v-else-if="filteredQueue.length === 0" class="rounded-md border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-600">
+      No guests in this state.
+    </div>
+
+    <div v-else class="grid gap-3 queue-grid">
       <ElCard
-        v-for="item in queue"
+        v-for="item in filteredQueue"
         :key="item.id"
         shadow="hover"
         class="border border-slate-100"
       >
         <div class="flex items-start justify-between gap-2">
-          <div class="space-y-1">
-            <div class="text-sm font-semibold text-slate-900">
-              {{ item.customerName }}
+          <div class="flex items-center gap-3">
+            <div class="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">
+              {{ (item.customerName || '?').charAt(0).toUpperCase() }}
             </div>
-            <div class="text-xs text-slate-600">•••{{ (item.customerPhone || '').slice(-4) }}</div>
-            <div class="text-xs text-slate-600">
-              {{ item.serviceName || 'No service selected' }}
+            <div class="space-y-1">
+              <div class="text-sm font-semibold text-slate-900">
+                {{ item.customerName || 'Unknown' }}
+              </div>
+              <div class="flex items-center gap-1 text-xs text-slate-600">
+                <span>📞</span>
+                <span>{{ item.customerPhone || '—' }}</span>
+              </div>
+              <div class="text-xs text-slate-600">
+                {{ item.serviceName || 'No service selected' }}
+              </div>
+              <div class="text-xs text-slate-600">
+                Points: {{ item.pointsBalance ?? 0 }}
+              </div>
             </div>
           </div>
-          <ElTag :type="statusType(item.status)" effect="light">
-            {{ statusLabel(item.status) }}
-          </ElTag>
+          <div class="flex flex-col items-end gap-1">
+            <ElTag :type="statusType(item.status)" effect="light">
+              {{ statusLabel(item.status) }}
+            </ElTag>
+            <ElTag v-if="item.customerType" effect="plain" size="small">
+              {{ item.customerType === 'VIP' ? 'VIP' : item.customerType === 'SECOND_TIME' ? '2nd-time' : 'Regular' }}
+            </ElTag>
+          </div>
         </div>
         <div class="text-xs text-slate-500">
           {{ elapsed(item) }}

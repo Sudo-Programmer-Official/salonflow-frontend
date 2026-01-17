@@ -8,6 +8,8 @@ export type CustomerSearchResult = {
   visitCount: number;
   lastVisitAt: string | null;
   reviewSmsConsent: boolean;
+  pointsBalance?: number | null;
+  reviewSentAt?: string | null;
 };
 
 export type CustomerTimelineVisit = {
@@ -65,4 +67,26 @@ export async function fetchCustomerTimeline(customerId: string): Promise<Custome
   }
 
   return res.json();
+}
+
+export async function sendCustomerReminder(customerId: string): Promise<void> {
+  const res = await fetch(apiUrl(`/customers/${customerId}/reminder`), {
+    method: 'POST',
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to send reminder');
+  }
+}
+
+export async function sendCustomerFeedback(customerId: string): Promise<void> {
+  const res = await fetch(apiUrl(`/customers/${customerId}/feedback`), {
+    method: 'POST',
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to send feedback');
+  }
 }

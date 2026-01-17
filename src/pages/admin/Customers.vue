@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { ElCard, ElInput, ElTable, ElTableColumn, ElTag, ElButton, ElMessage, ElDrawer } from 'element-plus';
+import { ElCard, ElInput, ElTable, ElTableColumn, ElTag, ElButton, ElMessage, ElDrawer, ElTooltip } from 'element-plus';
 import dayjs from 'dayjs';
 import {
   searchCustomers,
@@ -8,6 +8,8 @@ import {
   fetchCustomers,
   type CustomerSearchResult,
   type CustomerTimeline as CustomerTimelineType,
+  sendCustomerReminder,
+  sendCustomerFeedback,
 } from '../../api/customers';
 import CustomerTimeline from '../../components/CustomerTimeline.vue';
 
@@ -64,6 +66,38 @@ const loadAll = async () => {
 };
 
 loadAll();
+
+const canSendReminder = (row: CustomerSearchResult) =>
+  !!row.phoneE164 && row.reviewSmsConsent;
+const canSendFeedback = (row: CustomerSearchResult) =>
+  !!row.phoneE164 && row.reviewSmsConsent && !row.reviewSentAt;
+
+const sendReminderAction = async (row: CustomerSearchResult) => {
+  if (!canSendReminder(row)) {
+    ElMessage.warning('Consent required to send reminder');
+    return;
+  }
+  try {
+    await sendCustomerReminder(row.id);
+    ElMessage.success('Reminder sent');
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : 'Failed to send reminder');
+  }
+};
+
+const sendFeedbackAction = async (row: CustomerSearchResult) => {
+  if (!canSendFeedback(row)) {
+    ElMessage.warning('Already sent or consent missing');
+    return;
+  }
+  try {
+    await sendCustomerFeedback(row.id);
+    ElMessage.success('Feedback link sent');
+    row.reviewSentAt = new Date().toISOString();
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : 'Failed to send feedback');
+  }
+};
 </script>
 
 <template>
@@ -89,36 +123,81 @@ loadAll();
 
     <ElCard v-if="results.length > 0" class="bg-white">
       <ElTable :data="results" style="width: 100%">
-        <ElTableColumn label="Name" prop="name" />
-        <ElTableColumn label="Phone" prop="phoneE164" />
-        <ElTableColumn label="Visits" prop="visitCount" width="90" />
-        <ElTableColumn label="Last Visit" width="150">
+        <ElTableColumn label="Customer">
           <template #default="{ row }">
-            {{ formatDate(row.lastVisitAt) }}
+            <div class="flex items-center gap-3">
+              <div class="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">
+                {{ row.name?.charAt(0)?.toUpperCase() || '?' }}
+              </div>
+              <div class="space-y-1">
+                <div class="text-sm font-semibold text-slate-900">👤 {{ row.name }}</div>
+                <div class="text-xs text-slate-700">📞 {{ row.phoneE164 || '—' }}</div>
+              </div>
+            </div>
           </template>
         </ElTableColumn>
-      <ElTableColumn label="Consent" width="110">
-        <template #default="{ row }">
-          <ElTag :type="row.reviewSmsConsent ? 'success' : 'info'" effect="light">
-            {{ row.reviewSmsConsent ? 'Yes' : 'No' }}
-          </ElTag>
-        </template>
-      </ElTableColumn>
-      <ElTableColumn label="Points" width="90">
-        <template #default="{ row }">
-          {{ (row as any).pointsBalance ?? 0 }}
-        </template>
-      </ElTableColumn>
-        <ElTableColumn label="Segment" width="110">
+
+        <ElTableColumn label="Activity" width="200">
           <template #default="{ row }">
-            <ElTag effect="light">
-              {{ row.type.toUpperCase() }}
+            <div class="space-y-1 text-xs text-slate-700">
+              <div>
+                Last visit:
+                <ElTooltip :content="row.lastVisitAt || '—'" placement="top">
+                  <span class="font-medium">{{ formatDate(row.lastVisitAt) }}</span>
+                </ElTooltip>
+              </div>
+              <div>Visits: {{ row.visitCount ?? 0 }}</div>
+            </div>
+          </template>
+        </ElTableColumn>
+
+        <ElTableColumn label="Loyalty" width="200">
+          <template #default="{ row }">
+            <div class="space-y-1 text-xs text-slate-700">
+              <div class="flex items-center gap-1">
+                <span>⭐</span>
+                <span :class="(row.pointsBalance ?? 0) >= 300 ? 'text-emerald-600 font-semibold' : 'text-slate-700'">
+                  {{ row.pointsBalance ?? 0 }} pts
+                </span>
+              </div>
+              <ElTag effect="light">
+                {{ row.type.toUpperCase() }}
+              </ElTag>
+            </div>
+          </template>
+        </ElTableColumn>
+
+        <ElTableColumn label="Consent" width="100">
+          <template #default="{ row }">
+            <ElTag :type="row.reviewSmsConsent ? 'success' : 'info'" effect="light">
+              {{ row.reviewSmsConsent ? 'Yes' : 'No' }}
             </ElTag>
           </template>
         </ElTableColumn>
-        <ElTableColumn label="Actions" width="120">
+
+        <ElTableColumn label="Actions" width="220">
           <template #default="{ row }">
-            <ElButton size="small" @click="openTimeline(row.id)">View</ElButton>
+            <div class="flex flex-wrap gap-2">
+              <ElButton
+                size="small"
+                type="primary"
+                plain
+                :disabled="!canSendReminder(row)"
+                @click="sendReminderAction(row)"
+              >
+                🔔 Reminder
+              </ElButton>
+              <ElButton
+                size="small"
+                type="success"
+                plain
+                :disabled="!canSendFeedback(row)"
+                @click="sendFeedbackAction(row)"
+              >
+                📩 Feedback
+              </ElButton>
+              <ElButton size="small" @click="openTimeline(row.id)">👁 View</ElButton>
+            </div>
           </template>
         </ElTableColumn>
       </ElTable>
