@@ -6,6 +6,7 @@ export type QueueItem = {
   customerPhone: string;
   serviceName: string | null;
   staffName: string | null;
+  appointmentId?: string | null;
   createdAt: string;
   status: 'WAITING' | 'CALLED' | 'IN_SERVICE' | 'COMPLETED' | 'NO_SHOW' | 'CANCELED';
   amountPaid?: number | null;

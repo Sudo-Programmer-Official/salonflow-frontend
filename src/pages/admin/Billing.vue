@@ -159,40 +159,93 @@ const canSubscribe = computed(() => billing.value?.canSubscribe !== false);
       <p class="text-sm text-slate-600">Manage your SalonFlow subscription.</p>
     </div>
 
-    <div class="grid gap-4 lg:grid-cols-3">
-      <ElCard class="bg-white lg:col-span-2">
-        <div class="flex flex-col gap-3">
-          <div class="flex flex-wrap items-center gap-2">
-            <span class="rounded-md bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-800">
-              {{ statusLabel(status) }}
-            </span>
-            <span
-              v-if="billing?.plan && billing.plan !== 'demo'"
-              class="rounded-md bg-slate-50 px-2 py-1 text-xs text-slate-600"
+    <section class="space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-slate-900">Plans</h2>
+        <span v-if="!canSubscribe" class="text-xs text-slate-600">Subscription active — manage below.</span>
+      </div>
+      <div class="grid gap-4 md:grid-cols-2">
+        <div class="flex min-h-[260px] flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-5 shadow-[0_1px_6px_rgba(0,0,0,0.08)] transition hover:-translate-y-0.5">
+          <div class="text-base font-semibold text-slate-900">Monthly</div>
+          <div class="text-3xl font-bold text-slate-900">$65<span class="text-base font-medium text-slate-600">/mo</span></div>
+          <ul class="space-y-2 text-sm text-slate-700">
+            <li>✓ Core platform access</li>
+            <li>✓ Queue + appointments</li>
+            <li>✓ SMS reminders (metered)</li>
+          </ul>
+          <div class="mt-auto">
+            <ElButton
+              type="primary"
+              class="w-full"
+              :loading="actionLoading === 'monthly'"
+              :disabled="!canSubscribe"
+              @click="handleCheckout('monthly')"
             >
-              {{ billing.plan === 'annual' ? 'Core Annual' : billing.plan === 'monthly' ? 'Core Monthly' : '' }}
-            </span>
-            <span
-              v-if="billing?.isDemo"
-              class="rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-700"
-            >
-              Demo Tenant
-            </span>
-            <span
-              v-if="billing?.billingMode === 'sandbox'"
-              class="rounded-md bg-blue-50 px-2 py-1 text-xs text-blue-700"
-            >
-              Test Mode
-            </span>
+              Subscribe Monthly
+            </ElButton>
           </div>
-          <div class="flex flex-wrap items-center gap-2 text-sm text-slate-700">
-            <span v-if="billing?.renewsAt || renewalText">
-              {{ renewalText || `Renews at: ${billing?.renewsAt}` }}
-            </span>
-            <span v-else>Status: {{ statusLabel(status) }}</span>
+        </div>
+
+        <div class="relative flex min-h-[260px] flex-col gap-3 rounded-xl border-2 border-sky-500 bg-white p-5 shadow-[0_4px_12px_rgba(14,165,233,0.18)] transition hover:-translate-y-0.5">
+          <span class="absolute right-3 top-3 rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700">
+            Best Value
+          </span>
+          <div class="text-base font-semibold text-slate-900">Annual</div>
+          <div class="text-3xl font-bold text-slate-900">$700<span class="text-base font-medium text-slate-600">/yr</span></div>
+          <ul class="space-y-2 text-sm text-slate-700">
+            <li>✓ Everything in Monthly</li>
+            <li>✓ Priority support</li>
+            <li>✓ 2 months free</li>
+          </ul>
+          <div class="mt-auto">
+            <ElButton
+              type="primary"
+              class="w-full"
+              :loading="actionLoading === 'annual'"
+              :disabled="!canSubscribe"
+              @click="handleCheckout('annual')"
+            >
+              Subscribe Annual
+            </ElButton>
           </div>
-          <div class="text-xs text-slate-500">
-            Subscription ID: {{ billing?.subscriptionId || '—' }} · Customer: {{ billing?.customerId || '—' }}
+        </div>
+      </div>
+    </section>
+
+    <section class="space-y-3">
+      <h2 class="text-lg font-semibold text-slate-900">Current Subscription</h2>
+      <ElCard class="bg-white">
+        <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div class="space-y-1">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="rounded-md bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-800">
+                {{ statusLabel(status) }}
+              </span>
+              <span
+                v-if="billing?.plan && billing.plan !== 'demo'"
+                class="rounded-md bg-slate-50 px-2 py-1 text-xs text-slate-600"
+              >
+                {{ billing.plan === 'annual' ? 'Core Annual' : billing.plan === 'monthly' ? 'Core Monthly' : '' }}
+              </span>
+              <span
+                v-if="billing?.isDemo"
+                class="rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-700"
+              >
+                Demo Tenant
+              </span>
+              <span
+                v-if="billing?.billingMode === 'sandbox'"
+                class="rounded-md bg-blue-50 px-2 py-1 text-xs text-blue-700"
+              >
+                Test Mode
+              </span>
+            </div>
+            <div class="text-sm text-slate-700">
+              {{ renewalText || `Renews at: ${billing?.renewsAt || '—'}` }}
+            </div>
+            <div class="text-xs text-slate-500">
+              Subscription ID: {{ billing?.subscriptionId || '—' }} · Customer: {{ billing?.customerId || '—' }}
+            </div>
           </div>
           <div class="flex flex-wrap gap-2">
             <ElButton
@@ -206,59 +259,7 @@ const canSubscribe = computed(() => billing.value?.canSubscribe !== false);
           </div>
         </div>
       </ElCard>
-
-      <ElCard class="bg-white">
-        <div class="space-y-3">
-          <div class="text-sm font-semibold text-slate-900">Plans</div>
-          <div class="grid gap-3 sm:grid-cols-2">
-            <div class="flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-              <div class="flex items-center justify-between">
-                <div class="text-base font-semibold text-slate-900">Monthly</div>
-              </div>
-              <div class="text-2xl font-bold text-slate-900">$65<span class="text-sm font-medium text-slate-600">/mo</span></div>
-              <ul class="space-y-1 text-sm text-slate-700">
-                <li>✓ Core platform access</li>
-                <li>✓ Queue + appointments</li>
-                <li>✓ SMS reminders (metered)</li>
-              </ul>
-              <ElButton
-                type="primary"
-                :loading="actionLoading === 'monthly'"
-                :disabled="!canSubscribe"
-                @click="handleCheckout('monthly')"
-              >
-                Subscribe Monthly
-              </ElButton>
-            </div>
-            <div class="flex flex-col gap-3 rounded-lg border-2 border-sky-500 bg-white p-4 shadow-[0_1px_6px_rgba(14,165,233,0.2)] relative">
-              <span class="absolute right-3 top-3 rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700">
-                Best Value
-              </span>
-              <div class="flex items-center justify-between">
-                <div class="text-base font-semibold text-slate-900">Annual</div>
-              </div>
-              <div class="text-2xl font-bold text-slate-900">$700<span class="text-sm font-medium text-slate-600">/yr</span></div>
-              <ul class="space-y-1 text-sm text-slate-700">
-                <li>✓ Everything in Monthly</li>
-                <li>✓ Priority support</li>
-                <li>✓ 2 months free</li>
-              </ul>
-              <ElButton
-                type="primary"
-                :loading="actionLoading === 'annual'"
-                :disabled="!canSubscribe"
-                @click="handleCheckout('annual')"
-              >
-                Subscribe Annual
-              </ElButton>
-            </div>
-          </div>
-          <div v-if="!canSubscribe" class="rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600">
-            Subscription is already active. Use Manage Billing to change or cancel.
-          </div>
-        </div>
-      </ElCard>
-    </div>
+    </section>
 
     <ElAlert
       v-if="success"
@@ -275,9 +276,10 @@ const canSubscribe = computed(() => billing.value?.canSubscribe !== false);
       class="w-full"
     />
 
-    <ElCard class="bg-white">
-      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+    <section class="space-y-3">
+      <h2 class="text-lg font-semibold text-slate-900">SMS Credits & Add-ons</h2>
+      <ElCard class="bg-white">
+        <div class="flex flex-col gap-3">
           <div class="text-sm text-slate-600">SMS Credits</div>
           <div class="text-xl font-semibold text-slate-900">
             <span v-if="smsCredits">
@@ -290,28 +292,40 @@ const canSubscribe = computed(() => billing.value?.canSubscribe !== false);
             Purchased balance: {{ smsCredits.purchasedRemaining }} ·
             Usage this month: {{ smsCredits.monthlyUsage }}
           </div>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <div class="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-4 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+              <div class="text-base font-semibold text-slate-900">500 SMS</div>
+              <div class="text-xl font-bold text-slate-900">$10</div>
+              <div class="text-xs text-slate-600">Best for smaller teams.</div>
+              <ElButton
+                type="primary"
+                class="w-full"
+                :loading="actionLoading === 'sms-500' || smsLoading"
+                @click="handleSmsPack(500)"
+              >
+                Buy 500 SMS
+              </ElButton>
+            </div>
+            <div class="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-4 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+              <div class="text-base font-semibold text-slate-900">1,500 SMS</div>
+              <div class="text-xl font-bold text-slate-900">$25</div>
+              <div class="text-xs text-slate-600">Best for busy salons.</div>
+              <ElButton
+                type="primary"
+                class="w-full"
+                :loading="actionLoading === 'sms-1500' || smsLoading"
+                @click="handleSmsPack(1500)"
+              >
+                Buy 1,500 SMS
+              </ElButton>
+            </div>
+          </div>
+          <ElDivider class="my-2" />
+          <div class="text-sm text-slate-600">
+            Included quota resets each billing cycle. Packs never expire; usage draws from included first, then packs.
+          </div>
         </div>
-        <ElSpace wrap>
-          <ElButton
-            type="primary"
-            :loading="actionLoading === 'sms-500' || smsLoading"
-            @click="handleSmsPack(500)"
-          >
-            Buy 500 SMS – $10
-          </ElButton>
-          <ElButton
-            type="primary"
-            :loading="actionLoading === 'sms-1500' || smsLoading"
-            @click="handleSmsPack(1500)"
-          >
-            Buy 1,500 SMS – $25
-          </ElButton>
-        </ElSpace>
-      </div>
-      <ElDivider class="my-4" />
-      <div class="text-sm text-slate-600">
-        Included quota resets each billing cycle. Packs never expire; usage draws from included first, then packs.
-      </div>
-    </ElCard>
+      </ElCard>
+    </section>
   </div>
 </template>

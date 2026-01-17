@@ -51,6 +51,7 @@ const todayAppointmentsLocked = ref(false);
 const loadingAppointments = ref(false);
 const sendingMap = ref<Record<string, boolean>>({});
 const activeTab = ref<'WAITING' | 'IN_SERVICE' | 'COMPLETED'>('WAITING');
+const isRefreshing = ref(false);
 const queueCounts = ref<{ waiting: number; inService: number; completed: number; noShow: number }>({
   waiting: 0,
   inService: 0,
@@ -72,6 +73,7 @@ const checkinPhone = ref('');
 const checkinServiceId = ref('');
 const checkinPrefillService = ref('');
 const isOnline = ref(typeof navigator !== 'undefined' ? navigator.onLine : true);
+const activeCheckinAppt = ref<TodayAppointment | null>(null);
 
 const dateRange = computed(() => {
   const now = new Date();
@@ -102,10 +104,15 @@ const dateRange = computed(() => {
   };
 });
 
-const loadQueue = async (opts?: { loadMoreCompleted?: boolean }) => {
-  loading.value = !opts?.loadMoreCompleted;
-  if (activeTab.value === 'COMPLETED' && opts?.loadMoreCompleted) {
-    completedLoading.value = true;
+const loadQueue = async (opts?: { loadMoreCompleted?: boolean; silent?: boolean }) => {
+  const silent = opts?.silent === true;
+  if (!silent) {
+    loading.value = !opts?.loadMoreCompleted;
+    if (activeTab.value === 'COMPLETED' && opts?.loadMoreCompleted) {
+      completedLoading.value = true;
+    }
+  } else {
+    isRefreshing.value = true;
   }
   try {
     const params: any = {};
@@ -131,23 +138,26 @@ const loadQueue = async (opts?: { loadMoreCompleted?: boolean }) => {
       completedHasMore.value = false;
       return;
     }
-    const items = (res as any).items ?? [];
-    if (activeTab.value === 'COMPLETED') {
-      if (!opts?.loadMoreCompleted) {
-        completedItems.value = items;
-      } else {
-        completedItems.value = [...completedItems.value, ...items];
-      }
-      completedCursor.value = (res as any).nextCursor ?? null;
-      completedHasMore.value = Boolean((res as any).hasMore);
+  const items = (res as any).items ?? [];
+  if (activeTab.value === 'COMPLETED') {
+    if (!opts?.loadMoreCompleted) {
+      completedItems.value = items;
     } else {
-      queue.value = items;
+      completedItems.value = [...completedItems.value, ...items];
     }
+    completedCursor.value = (res as any).nextCursor ?? null;
+    completedHasMore.value = Boolean((res as any).hasMore);
+  } else {
+      queue.value = items;
+  }
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to load queue');
   } finally {
-    loading.value = false;
-    completedLoading.value = false;
+    if (!silent) {
+      loading.value = false;
+      completedLoading.value = false;
+    }
+    isRefreshing.value = false;
   }
 };
 
@@ -339,6 +349,7 @@ const loadServices = async () => {
 };
 
 const openCheckinModal = (appt?: TodayAppointment) => {
+  activeCheckinAppt.value = appt ?? null;
   checkinName.value = appt?.customerName || '';
   checkinPhone.value = appt?.phoneE164 || '';
   checkinServiceId.value = appt?.serviceName
@@ -348,7 +359,7 @@ const openCheckinModal = (appt?: TodayAppointment) => {
   checkinOpen.value = true;
 };
 
-const submitCheckin = async () => {
+const submitCheckin = async (appt?: TodayAppointment) => {
   if (!checkinName.value.trim() || !checkinPhone.value.trim()) {
     ElMessage.warning('Name and phone are required');
     return;
@@ -358,10 +369,17 @@ const submitCheckin = async () => {
       name: checkinName.value.trim(),
       phoneE164: checkinPhone.value.trim(),
       serviceId: checkinServiceId.value || undefined,
+      appointmentId: appt?.id ?? activeCheckinAppt.value?.id,
     });
     checkinOpen.value = false;
     checkinServiceId.value = '';
     checkinPrefillService.value = '';
+    if (appt) {
+      appt.status = 'CHECKED_IN';
+    } else if (activeCheckinAppt.value) {
+      activeCheckinAppt.value.status = 'CHECKED_IN';
+    }
+    activeCheckinAppt.value = null;
     await Promise.all([loadQueue(), loadAppointments()]);
     ElMessage.success('Checked in');
   } catch (err) {
@@ -406,10 +424,11 @@ const startPolling = () => {
   if (pollId.value !== null) return;
   pollId.value = window.setInterval(() => {
     if (document.visibilityState === 'visible') {
-      loadQueue();
+      loadQueue({ silent: true });
+      loadCounts();
       loadAppointments();
     }
-  }, 5000);
+  }, 30000);
 };
 
 const stopPolling = () => {
@@ -421,14 +440,14 @@ const stopPolling = () => {
 
 const handleVisibility = () => {
   if (document.visibilityState === 'visible') {
-    loadQueue();
+    loadQueue({ silent: true });
     loadCounts();
     loadAppointments();
   }
 };
 
 const handleFocus = () => {
-  loadQueue();
+  loadQueue({ silent: true });
   loadCounts();
   loadAppointments();
 };
@@ -515,7 +534,10 @@ function updateOnline() {
               </div>
             </div>
             <div class="flex flex-wrap gap-2">
-              <ElButton size="small" type="primary" @click="openCheckinModal(appt)">Check in</ElButton>
+              <template v-if="appt.status === 'BOOKED'">
+                <ElButton size="small" type="primary" @click="openCheckinModal(appt)">Check in</ElButton>
+              </template>
+              <ElTag v-else effect="plain" type="success" size="small">Checked in</ElTag>
               <ElTooltip v-if="!isOnline" content="Available when online">
                 <span>
                   <ElButton
@@ -556,7 +578,10 @@ function updateOnline() {
     </ElCard>
 
     <div class="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-      <div class="text-base font-semibold text-slate-900">Queue</div>
+      <div class="flex items-center gap-2">
+        <div class="text-base font-semibold text-slate-900">Queue</div>
+        <span v-if="isRefreshing" class="text-xs text-slate-500 animate-pulse">Updating…</span>
+      </div>
       <div class="flex items-center gap-3 w-full sm:w-auto">
         <div v-if="activeTab === 'COMPLETED'" class="flex items-center gap-2">
           <span class="text-xs text-slate-600">Date range:</span>
@@ -794,7 +819,7 @@ function updateOnline() {
         </div>
         <div class="flex justify-end gap-2">
           <ElButton @click="checkinOpen = false">Cancel</ElButton>
-          <ElButton type="primary" @click="submitCheckin">Check in</ElButton>
+          <ElButton type="primary" @click="submitCheckin(activeCheckinAppt || undefined)">Check in</ElButton>
         </div>
       </div>
     </ElDialog>

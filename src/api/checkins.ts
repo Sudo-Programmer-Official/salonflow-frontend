@@ -10,6 +10,7 @@ export type CreateCheckInPayload = {
   phoneE164: string;
   serviceId?: string | null;
   serviceName?: string | null;
+  appointmentId?: string | null;
 };
 
 export async function publicLookup(phoneE164: string): Promise<

@@ -1,6 +1,6 @@
 import { apiUrl, buildHeaders } from '@/api/client';
 
-export type AppointmentStatus = 'BOOKED' | 'CANCELED' | 'COMPLETED';
+export type AppointmentStatus = 'BOOKED' | 'CHECKED_IN' | 'CANCELED' | 'COMPLETED';
 
 export type Appointment = {
   id: string;
@@ -25,6 +25,7 @@ export type TodayAppointment = {
   phoneE164: string;
   serviceName: string;
   scheduledAt: string;
+  status: AppointmentStatus;
   staffName?: string | null;
 };
 

@@ -93,10 +93,7 @@ const toggleStatus = async (member: StaffMember) => {
       >
         <ElTableColumn label="Name" min-width="200" class-name="col-name">
           <template #default="{ row }">
-            <div class="flex flex-col">
-              <span class="text-sm font-semibold text-slate-900">{{ row.name }}</span>
-              <span v-if="row.nickname" class="text-xs text-slate-600">Nickname: {{ row.nickname }}</span>
-            </div>
+            <span class="text-sm font-semibold text-slate-900">{{ row.name }}</span>
           </template>
         </ElTableColumn>
         <ElTableColumn label="Nickname" width="180" class-name="col-nickname">
