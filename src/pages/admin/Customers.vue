@@ -15,6 +15,7 @@ import CustomerTimeline from '../../components/CustomerTimeline.vue';
 
 const query = ref('');
 const loading = ref(false);
+const errorMessage = ref('');
 const results = ref<CustomerSearchResult[]>([]);
 const timelineOpen = ref(false);
 const timelineLoading = ref(false);
@@ -26,10 +27,12 @@ const doSearch = async () => {
     return;
   }
   loading.value = true;
+  errorMessage.value = '';
   try {
     results.value = await searchCustomers(query.value.trim());
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to search customers');
+    errorMessage.value = err instanceof Error ? err.message : 'Failed to search customers';
   } finally {
     loading.value = false;
   }
@@ -56,10 +59,12 @@ const openTimeline = async (customerId: string) => {
 
 const loadAll = async () => {
   loading.value = true;
+  errorMessage.value = '';
   try {
     results.value = await fetchCustomers('all');
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to load customers');
+    errorMessage.value = err instanceof Error ? err.message : 'Failed to load customers';
   } finally {
     loading.value = false;
   }
@@ -118,6 +123,9 @@ const sendFeedbackAction = async (row: CustomerSearchResult) => {
           @keyup.enter="doSearch"
         />
         <ElButton type="primary" :loading="loading" @click="doSearch">Search</ElButton>
+      </div>
+      <div v-if="errorMessage" class="mt-3 text-sm text-amber-700">
+        {{ errorMessage }}
       </div>
     </ElCard>
 

@@ -1,6 +1,16 @@
 <script setup lang="ts">
 import { computed, onMounted, onBeforeUnmount, ref, watch, nextTick } from 'vue';
-import { ElCard, ElButton, ElTag, ElMessage, ElDialog, ElSelect, ElOption, ElInput } from 'element-plus';
+import {
+  ElCard,
+  ElButton,
+  ElTag,
+  ElMessage,
+  ElDialog,
+  ElSelect,
+  ElOption,
+  ElInput,
+  ElTooltip,
+} from 'element-plus';
 import {
   fetchQueue,
   startCheckIn,
@@ -16,6 +26,7 @@ import {
   type TodayAppointmentsResponse,
 } from '../../api/appointments';
 import { fetchServices, type ServiceOption, createPublicCheckIn } from '../../api/checkins';
+import { searchCustomers, sendCustomerFeedback, sendCustomerReminder } from '../../api/customers';
 
 const queue = ref<QueueItem[]>([]);
 const queueLocked = ref(false);
@@ -37,6 +48,7 @@ const loadingStaff = ref(false);
 const todayAppointments = ref<TodayAppointment[]>([]);
 const todayAppointmentsLocked = ref(false);
 const loadingAppointments = ref(false);
+const sendingMap = ref<Record<string, boolean>>({});
 const activeTab = ref<'WAITING' | 'IN_SERVICE' | 'COMPLETED'>('WAITING');
 const services = ref<ServiceOption[]>([]);
 const loadingServices = ref(false);
@@ -45,6 +57,7 @@ const checkinName = ref('');
 const checkinPhone = ref('');
 const checkinServiceId = ref('');
 const checkinPrefillService = ref('');
+const isOnline = ref(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
 const loadQueue = async () => {
   loading.value = true;
@@ -67,12 +80,16 @@ onMounted(() => {
   startPolling();
   document.addEventListener('visibilitychange', handleVisibility);
   window.addEventListener('focus', handleFocus);
+  window.addEventListener('online', updateOnline);
+  window.addEventListener('offline', updateOnline);
 });
 
 onBeforeUnmount(() => {
   stopPolling();
   document.removeEventListener('visibilitychange', handleVisibility);
   window.removeEventListener('focus', handleFocus);
+  window.removeEventListener('online', updateOnline);
+  window.removeEventListener('offline', updateOnline);
 });
 
 const handleAction = async (id: string, action: () => Promise<unknown>) => {
@@ -120,6 +137,57 @@ const filteredQueue = computed(() =>
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
 );
 
+const sendReminderForAppointment = async (appt: TodayAppointment) => {
+  if (!isOnline.value) {
+    ElMessage.warning('Available when online');
+    return;
+  }
+  sendingMap.value = { ...sendingMap.value, [appt.id]: true };
+  try {
+    const matches = await searchCustomers(appt.phoneE164);
+    const customer = matches.find((c) => c.phoneE164 === appt.phoneE164);
+    if (!customer) throw new Error('Customer not found');
+    if (!customer.reviewSmsConsent) {
+      ElMessage.warning('Consent required');
+      return;
+    }
+    await sendCustomerReminder(customer.id);
+    ElMessage.success('Reminder sent');
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : 'Failed to send reminder');
+  } finally {
+    sendingMap.value = { ...sendingMap.value, [appt.id]: false };
+  }
+};
+
+const sendFeedbackForAppointment = async (appt: TodayAppointment) => {
+  if (!isOnline.value) {
+    ElMessage.warning('Available when online');
+    return;
+  }
+  const key = `${appt.id}-fb`;
+  sendingMap.value = { ...sendingMap.value, [key]: true };
+  try {
+    const matches = await searchCustomers(appt.phoneE164);
+    const customer = matches.find((c) => c.phoneE164 === appt.phoneE164);
+    if (!customer) throw new Error('Customer not found');
+    if (!customer.reviewSmsConsent) {
+      ElMessage.warning('Consent required');
+      return;
+    }
+    if ((customer as any).reviewSentAt) {
+      ElMessage.info('Feedback already sent');
+      return;
+    }
+    await sendCustomerFeedback(customer.id);
+    ElMessage.success('Feedback sent');
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : 'Failed to send feedback');
+  } finally {
+    sendingMap.value = { ...sendingMap.value, [key]: false };
+  }
+};
+
 const elapsed = (item: QueueItem) => {
   const start = item.calledAt || item.createdAt;
   if (!start) return '';
@@ -155,6 +223,14 @@ const loadStaff = async () => {
 const activeStaffNames = computed(() =>
   staff.value.filter((s) => s.status === 'active').map((s) => s.name),
 );
+
+const singleStaffName = computed(() => {
+  const names = todayAppointments.value
+    .map((a) => a.staffName)
+    .filter((n): n is string => Boolean(n));
+  const unique = Array.from(new Set(names));
+  return unique.length === 1 ? unique[0] : null;
+});
 
 const loadAppointments = async () => {
   loadingAppointments.value = true;
@@ -280,6 +356,10 @@ watch(checkoutOpen, async (open) => {
     checkoutAmountRef.value?.focus();
   }
 });
+
+function updateOnline() {
+  isOnline.value = typeof navigator !== 'undefined' ? navigator.onLine : true;
+}
 </script>
 
 <template>
@@ -300,30 +380,95 @@ watch(checkoutOpen, async (open) => {
     </ElCard>
 
     <ElCard class="bg-white" :loading="loadingAppointments">
-      <div class="mb-2 flex items-center justify-between">
+      <div class="mb-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div class="text-base font-semibold text-slate-900">Today’s Appointments</div>
+          <div class="text-base font-semibold text-slate-900">
+            Today’s Appointments
+            <span v-if="singleStaffName" class="text-sm font-normal text-slate-600">
+              — Staff: {{ singleStaffName }}
+            </span>
+          </div>
           <div class="text-xs text-slate-600">Check in quickly without retyping.</div>
         </div>
+        <div class="text-xs font-medium" :class="isOnline ? 'text-emerald-600' : 'text-amber-600'">
+          <span v-if="isOnline">🟢 Online</span>
+          <span v-else>⚪ Offline mode</span>
+        </div>
       </div>
-      <div class="space-y-2">
+      <div class="appointment-list space-y-2">
+        <div v-if="todayAppointmentsLocked" class="text-xs text-slate-600">
+          Appointments visible after billing activation.
+        </div>
         <div
           v-for="appt in todayAppointments"
           :key="appt.id"
-          class="flex flex-col gap-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+          class="rounded-md border border-slate-200 bg-slate-50 p-3 shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
         >
-          <div class="text-sm text-slate-900">
-            <span class="font-semibold">{{ appt.customerName }}</span>
-            <span class="text-slate-600"> · {{ appt.phoneE164 }}</span>
-            <div class="text-xs text-slate-600">Service: {{ appt.serviceName }}</div>
-          </div>
-          <div class="flex items-center gap-2">
-            <ElTag size="small" effect="light">📅 {{ appt.scheduledAt.slice(11, 16) }}</ElTag>
-            <ElButton size="small" type="primary" plain @click="openCheckinModal(appt)">Check in</ElButton>
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div class="space-y-1">
+              <div class="flex flex-wrap items-center gap-2 text-sm text-slate-900">
+                <span class="font-semibold">👤 {{ appt.customerName }}</span>
+                <span class="flex items-center gap-1 text-slate-700">
+                  📞 <span>{{ appt.phoneE164 }}</span>
+                </span>
+              </div>
+              <div class="flex flex-wrap items-center gap-2 text-xs text-slate-700">
+                <span>💇 {{ appt.serviceName || 'No service' }}</span>
+                <span>🕒 {{ appt.scheduledAt.slice(11, 16) }}</span>
+                <span v-if="appt.staffName">👩‍🎨 {{ appt.staffName }}</span>
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <ElButton size="small" type="primary" @click="openCheckinModal(appt)">Check in</ElButton>
+              <ElTooltip v-if="!isOnline" content="Available when online">
+                <span>
+                  <ElButton
+                    size="small"
+                    plain
+                    :disabled="!isOnline"
+                    :loading="sendingMap[appt.id]"
+                    @click="sendReminderForAppointment(appt)"
+                  >
+                    Reminder
+                  </ElButton>
+                </span>
+              </ElTooltip>
+              <ElButton
+                v-else
+                size="small"
+                plain
+                :loading="sendingMap[appt.id]"
+                @click="sendReminderForAppointment(appt)"
+              >
+                Reminder
+              </ElButton>
+              <ElTooltip v-if="!isOnline" content="Available when online">
+                <span>
+                  <ElButton
+                    size="small"
+                    plain
+                    :disabled="!isOnline"
+                    :loading="sendingMap[`${appt.id}-fb`]"
+                    @click="sendFeedbackForAppointment(appt)"
+                  >
+                    Feedback
+                  </ElButton>
+                </span>
+              </ElTooltip>
+              <ElButton
+                v-else
+                size="small"
+                plain
+                :loading="sendingMap[`${appt.id}-fb`]"
+                @click="sendFeedbackForAppointment(appt)"
+              >
+                Feedback
+              </ElButton>
+            </div>
           </div>
         </div>
         <div v-if="!loadingAppointments && todayAppointments.length === 0" class="text-xs text-slate-500">
-          <span v-if="queueLocked || todayAppointmentsLocked">Appointments visible after billing activation.</span>
+          <span v-if="todayAppointmentsLocked">Appointments visible after billing activation.</span>
           <span v-else>No appointments for today.</span>
         </div>
       </div>
@@ -346,86 +491,88 @@ watch(checkoutOpen, async (open) => {
       No guests in this state.
     </div>
 
-    <div v-else class="grid gap-3 queue-grid">
-      <ElCard
-        v-for="item in filteredQueue"
-        :key="item.id"
-        shadow="hover"
-        class="border border-slate-100"
-      >
-        <div class="flex items-start justify-between gap-2">
-          <div class="flex items-center gap-3">
-            <div class="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">
-              {{ (item.customerName || '?').charAt(0).toUpperCase() }}
+    <div v-else class="queue-scroll">
+      <div class="grid gap-3 queue-grid">
+        <ElCard
+          v-for="item in filteredQueue"
+          :key="item.id"
+          shadow="hover"
+          class="border border-slate-100"
+        >
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex items-center gap-3">
+              <div class="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">
+                {{ (item.customerName || '?').charAt(0).toUpperCase() }}
+              </div>
+              <div class="space-y-1">
+                <div class="text-sm font-semibold text-slate-900">
+                  {{ item.customerName || 'Unknown' }}
+                </div>
+                <div class="flex items-center gap-1 text-xs text-slate-600">
+                  <span>📞</span>
+                  <span>{{ item.customerPhone || '—' }}</span>
+                </div>
+                <div class="text-xs text-slate-600">
+                  {{ item.serviceName || 'No service selected' }}
+                </div>
+                <div class="text-xs text-slate-600">
+                  Points: {{ item.pointsBalance ?? 0 }}
+                </div>
+              </div>
             </div>
-            <div class="space-y-1">
-              <div class="text-sm font-semibold text-slate-900">
-                {{ item.customerName || 'Unknown' }}
-              </div>
-              <div class="flex items-center gap-1 text-xs text-slate-600">
-                <span>📞</span>
-                <span>{{ item.customerPhone || '—' }}</span>
-              </div>
-              <div class="text-xs text-slate-600">
-                {{ item.serviceName || 'No service selected' }}
-              </div>
-              <div class="text-xs text-slate-600">
-                Points: {{ item.pointsBalance ?? 0 }}
-              </div>
+            <div class="flex flex-col items-end gap-1">
+              <ElTag :type="statusType(item.status)" effect="light">
+                {{ statusLabel(item.status) }}
+              </ElTag>
+              <ElTag v-if="item.customerType" effect="plain" size="small">
+                {{ item.customerType === 'VIP' ? 'VIP' : item.customerType === 'SECOND_TIME' ? '2nd-time' : 'Regular' }}
+              </ElTag>
             </div>
           </div>
-          <div class="flex flex-col items-end gap-1">
-            <ElTag :type="statusType(item.status)" effect="light">
-              {{ statusLabel(item.status) }}
-            </ElTag>
-            <ElTag v-if="item.customerType" effect="plain" size="small">
-              {{ item.customerType === 'VIP' ? 'VIP' : item.customerType === 'SECOND_TIME' ? '2nd-time' : 'Regular' }}
-            </ElTag>
+          <div class="text-xs text-slate-500">
+            {{ elapsed(item) }}
           </div>
-        </div>
-        <div class="text-xs text-slate-500">
-          {{ elapsed(item) }}
-        </div>
-        <div class="mt-2 flex flex-wrap gap-2">
-          <ElButton
-            v-if="item.status === 'WAITING'"
-            size="small"
-            type="primary"
-            :loading="actionLoading === item.id"
-            @click="handleAction(item.id, () => callCheckIn(item.id))"
-          >
-            Call Next
-          </ElButton>
-          <template v-else-if="item.status === 'CALLED'">
+          <div class="mt-2 flex flex-wrap gap-2">
             <ElButton
+              v-if="item.status === 'WAITING'"
               size="small"
-              type="success"
+              type="primary"
               :loading="actionLoading === item.id"
-              @click="handleAction(item.id, () => startCheckIn(item.id))"
+              @click="handleAction(item.id, () => callCheckIn(item.id))"
             >
-              Mark In Service
+              Call Next
             </ElButton>
+            <template v-else-if="item.status === 'CALLED'">
+              <ElButton
+                size="small"
+                type="success"
+                :loading="actionLoading === item.id"
+                @click="handleAction(item.id, () => startCheckIn(item.id))"
+              >
+                Mark In Service
+              </ElButton>
+              <ElButton
+                size="small"
+                type="danger"
+                plain
+                :loading="actionLoading === `${item.id}-no-show`"
+                @click="handleAction(`${item.id}-no-show`, () => markNoShow(item.id))"
+              >
+                No Show
+              </ElButton>
+            </template>
             <ElButton
+              v-else-if="item.status === 'IN_SERVICE'"
               size="small"
-              type="danger"
-              plain
-              :loading="actionLoading === `${item.id}-no-show`"
-              @click="handleAction(`${item.id}-no-show`, () => markNoShow(item.id))"
+              type="primary"
+              :loading="actionLoading === item.id"
+              @click="openCheckout(item.id)"
             >
-              No Show
+              Complete
             </ElButton>
-          </template>
-          <ElButton
-            v-else-if="item.status === 'IN_SERVICE'"
-            size="small"
-            type="primary"
-            :loading="actionLoading === item.id"
-            @click="openCheckout(item.id)"
-          >
-            Complete
-          </ElButton>
-        </div>
-      </ElCard>
+          </div>
+        </ElCard>
+      </div>
     </div>
 
     <div v-if="!loading && queue.length === 0" class="text-center text-sm text-slate-500">
@@ -520,5 +667,22 @@ watch(checkoutOpen, async (open) => {
 <style scoped>
 .queue-grid {
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+.queue-scroll {
+  max-height: 60vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.appointment-list {
+  max-height: 50vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+@media (min-width: 1024px) {
+  .appointment-list {
+    max-height: 420px;
+  }
 }
 </style>

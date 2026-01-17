@@ -25,6 +25,7 @@ export type TodayAppointment = {
   phoneE164: string;
   serviceName: string;
   scheduledAt: string;
+  staffName?: string | null;
 };
 
 export async function fetchAppointments(params?: {
