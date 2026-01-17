@@ -114,7 +114,10 @@ const tabFilters: Record<typeof activeTab.value, QueueItem['status'][]> = {
 };
 
 const filteredQueue = computed(() =>
-  queue.value.filter((item) => tabFilters[activeTab.value].includes(item.status)),
+  queue.value
+    .filter((item) => tabFilters[activeTab.value].includes(item.status))
+    .slice()
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
 );
 
 const elapsed = (item: QueueItem) => {
