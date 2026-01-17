@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue';
-import { ElCard, ElButton, ElAlert, ElMessage, ElDivider, ElSpace } from 'element-plus';
+import { ElCard, ElButton, ElAlert, ElMessage, ElDivider } from 'element-plus';
 import {
   fetchBillingStatus,
   createCheckoutSession,

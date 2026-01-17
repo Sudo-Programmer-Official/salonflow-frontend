@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { ElCard, ElInput, ElTable, ElTableColumn, ElTag, ElButton, ElMessage, ElDrawer, ElTooltip } from 'element-plus';
 import dayjs from 'dayjs';
 import {
@@ -13,6 +13,7 @@ import {
 } from '../../api/customers';
 import CustomerTimeline from '../../components/CustomerTimeline.vue';
 
+const PAGE_SIZE = 10;
 const query = ref('');
 const loading = ref(false);
 const errorMessage = ref('');
@@ -23,6 +24,15 @@ const loadingMore = ref(false);
 const timelineOpen = ref(false);
 const timelineLoading = ref(false);
 const timeline = ref<CustomerTimelineType | null>(null);
+const page = ref(1);
+
+const totalPages = computed(() => Math.max(1, Math.ceil(results.value.length / PAGE_SIZE)));
+
+const displayedResults = computed(() => {
+  if (page.value > totalPages.value) page.value = totalPages.value;
+  const start = (page.value - 1) * PAGE_SIZE;
+  return results.value.slice(start, start + PAGE_SIZE);
+});
 
 const doSearch = async () => {
   if (!query.value.trim()) {
@@ -76,6 +86,7 @@ const loadAll = async () => {
       nextCursor.value = data.nextCursor ?? null;
       hasMore.value = !!data.hasMore;
     }
+    page.value = 1;
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to load customers');
     errorMessage.value = err instanceof Error ? err.message : 'Failed to load customers';
@@ -94,6 +105,7 @@ const loadMore = async () => {
       nextCursor.value = data.nextCursor ?? null;
       hasMore.value = !!data.hasMore;
     }
+    page.value = Math.min(page.value, totalPages.value);
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to load more customers');
   } finally {
@@ -134,6 +146,30 @@ const sendFeedbackAction = async (row: CustomerSearchResult) => {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to send feedback');
   }
 };
+
+const ensureDataForPage = async (target: number) => {
+  const needed = target * PAGE_SIZE;
+  if (needed > results.value.length && hasMore.value && nextCursor.value) {
+    await loadMore();
+  }
+};
+
+const changePage = async (direction: 'prev' | 'next') => {
+  const target = direction === 'next' ? page.value + 1 : page.value - 1;
+  await goToPage(target);
+};
+
+const goToPage = async (target: number) => {
+  const clamped = Math.max(1, target);
+  await ensureDataForPage(clamped);
+  page.value = Math.min(Math.max(1, clamped), totalPages.value);
+};
+
+watch(results, () => {
+  if (page.value > totalPages.value) {
+    page.value = totalPages.value;
+  }
+});
 </script>
 
 <template>
@@ -161,8 +197,10 @@ const sendFeedbackAction = async (row: CustomerSearchResult) => {
     </ElCard>
 
     <ElCard v-if="results.length > 0" class="bg-white">
-      <ElTable :data="results" style="width: 100%">
-        <ElTableColumn label="Customer">
+      <div class="table-shell">
+        <div class="table-body">
+          <ElTable :data="displayedResults" style="width: 100%">
+            <ElTableColumn label="Customer">
           <template #default="{ row }">
             <div class="flex items-center gap-3">
               <div class="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">
@@ -239,19 +277,22 @@ const sendFeedbackAction = async (row: CustomerSearchResult) => {
             </div>
           </template>
         </ElTableColumn>
-      </ElTable>
-      <div class="mt-3 flex justify-center">
-        <ElButton
-          v-if="hasMore"
-          :loading="loadingMore"
-          type="primary"
-          plain
-          size="small"
-          @click="loadMore"
-        >
-          Load more
-        </ElButton>
-        <div v-else class="text-xs text-slate-500">No more customers</div>
+          </ElTable>
+        </div>
+        <div class="pagination-footer">
+          <ElButton size="small" plain :disabled="page <= 1" @click="goToPage(1)">«</ElButton>
+          <ElButton size="small" plain :disabled="page <= 1" @click="changePage('prev')">Prev</ElButton>
+          <div class="page-indicator">Page {{ page }} of {{ totalPages }}</div>
+          <ElButton
+            size="small"
+            plain
+            :disabled="page >= totalPages && !hasMore"
+            :loading="loadingMore && page >= totalPages"
+            @click="changePage('next')"
+          >
+            Next
+          </ElButton>
+        </div>
       </div>
     </ElCard>
 
@@ -265,3 +306,36 @@ const sendFeedbackAction = async (row: CustomerSearchResult) => {
     </ElDrawer>
   </div>
 </template>
+
+<style scoped>
+.table-shell {
+  display: flex;
+  flex-direction: column;
+  max-height: 70vh;
+}
+.table-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding-bottom: 12px;
+}
+.pagination-footer {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border-top: 1px solid #e5e7eb;
+  padding: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+.page-indicator {
+  font-size: 13px;
+  color: #475569;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: #f1f5f9;
+}
+</style>

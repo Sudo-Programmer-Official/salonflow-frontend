@@ -29,6 +29,8 @@ import {
 import { fetchServices, type ServiceOption, createPublicCheckIn } from '../../api/checkins';
 import { searchCustomers, sendCustomerReminder } from '../../api/customers';
 
+const PAGE_SIZE = 10;
+
 const queue = ref<QueueItem[]>([]);
 const queueLocked = ref(false);
 const loading = ref(false);
@@ -51,6 +53,9 @@ const todayAppointmentsLocked = ref(false);
 const loadingAppointments = ref(false);
 const sendingMap = ref<Record<string, boolean>>({});
 const activeTab = ref<'WAITING' | 'IN_SERVICE' | 'COMPLETED'>('WAITING');
+const waitingPage = ref(1);
+const inServicePage = ref(1);
+const completedPage = ref(1);
 const isRefreshing = ref(false);
 const queueCounts = ref<{ waiting: number; inService: number; completed: number; noShow: number }>({
   waiting: 0,
@@ -118,13 +123,13 @@ const loadQueue = async (opts?: { loadMoreCompleted?: boolean; silent?: boolean 
     const params: any = {};
     if (activeTab.value === 'WAITING') {
       params.status = 'WAITING';
-      params.limit = 100;
+      params.limit = 50;
     } else if (activeTab.value === 'IN_SERVICE') {
       params.status = 'IN_SERVICE';
-      params.limit = 100;
+      params.limit = 50;
     } else if (activeTab.value === 'COMPLETED') {
       params.status = 'COMPLETED';
-      params.limit = 20;
+      params.limit = PAGE_SIZE;
       params.cursor = opts?.loadMoreCompleted ? completedCursor.value : null;
       params.from = dateRange.value.from;
       params.to = dateRange.value.to;
@@ -138,18 +143,19 @@ const loadQueue = async (opts?: { loadMoreCompleted?: boolean; silent?: boolean 
       completedHasMore.value = false;
       return;
     }
-  const items = (res as any).items ?? [];
-  if (activeTab.value === 'COMPLETED') {
-    if (!opts?.loadMoreCompleted) {
-      completedItems.value = items;
+    const items = (res as any).items ?? [];
+    if (activeTab.value === 'COMPLETED') {
+      if (!opts?.loadMoreCompleted) {
+        completedItems.value = items;
+        completedPage.value = 1;
+      } else {
+        completedItems.value = [...completedItems.value, ...items];
+      }
+      completedCursor.value = (res as any).nextCursor ?? null;
+      completedHasMore.value = Boolean((res as any).hasMore);
     } else {
-      completedItems.value = [...completedItems.value, ...items];
-    }
-    completedCursor.value = (res as any).nextCursor ?? null;
-    completedHasMore.value = Boolean((res as any).hasMore);
-  } else {
       queue.value = items;
-  }
+    }
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to load queue');
   } finally {
@@ -226,20 +232,65 @@ const statusType = (status: QueueItem['status']) => {
   return 'info';
 };
 
-const tabFilters: Record<typeof activeTab.value, QueueItem['status'][]> = {
-  WAITING: ['WAITING', 'CALLED'],
-  IN_SERVICE: ['IN_SERVICE'],
-  COMPLETED: ['COMPLETED', 'NO_SHOW', 'CANCELED'],
-};
-
-const filteredQueue = computed(() =>
-  activeTab.value === 'COMPLETED'
-    ? completedItems.value
-    : queue.value
-        .filter((item) => tabFilters[activeTab.value].includes(item.status))
-        .slice()
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+const waitingItems = computed(() =>
+  queue.value
+    .filter((item) => item.status === 'WAITING' || item.status === 'CALLED')
+    .slice()
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
 );
+
+const inServiceItems = computed(() =>
+  queue.value
+    .filter((item) => item.status === 'IN_SERVICE')
+    .slice()
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+);
+
+const completedList = computed(() => completedItems.value);
+
+const totalPagesWaiting = computed(() => Math.max(1, Math.ceil(waitingItems.value.length / PAGE_SIZE)));
+const totalPagesInService = computed(() => Math.max(1, Math.ceil(inServiceItems.value.length / PAGE_SIZE)));
+const totalPagesCompleted = computed(() => {
+  const base = Math.max(1, Math.ceil(completedList.value.length / PAGE_SIZE));
+  return completedHasMore.value ? base + 1 : base;
+});
+
+const activePage = computed(() => {
+  if (activeTab.value === 'WAITING') return waitingPage.value;
+  if (activeTab.value === 'IN_SERVICE') return inServicePage.value;
+  return completedPage.value;
+});
+
+const totalPages = computed(() => {
+  if (activeTab.value === 'WAITING') return totalPagesWaiting.value;
+  if (activeTab.value === 'IN_SERVICE') return totalPagesInService.value;
+  return totalPagesCompleted.value;
+});
+
+const displayedQueue = computed(() => {
+  const list =
+    activeTab.value === 'WAITING'
+      ? waitingItems.value
+      : activeTab.value === 'IN_SERVICE'
+      ? inServiceItems.value
+      : completedList.value;
+  const total = totalPages.value || 1;
+  const pageRef =
+    activeTab.value === 'WAITING'
+      ? waitingPage
+      : activeTab.value === 'IN_SERVICE'
+      ? inServicePage
+      : completedPage;
+  if (pageRef.value > total) pageRef.value = total;
+  const start = (pageRef.value - 1) * PAGE_SIZE;
+  return list.slice(start, start + PAGE_SIZE);
+});
+
+const isQueueEmpty = computed(() => {
+  if (activeTab.value === 'WAITING') return waitingItems.value.length === 0;
+  if (activeTab.value === 'IN_SERVICE') return inServiceItems.value.length === 0;
+  return completedList.value.length === 0;
+});
 
 const sendReminderForAppointment = async (appt: TodayAppointment) => {
   if (!isOnline.value) {
@@ -330,11 +381,6 @@ const changeDateFilter = (val: 'today' | 'yesterday' | 'last7' | 'last30') => {
   completedHasMore.value = false;
   loadQueue();
   loadCounts();
-};
-
-const loadMoreCompleted = () => {
-  if (!completedHasMore.value || completedLoading.value) return;
-  loadQueue({ loadMoreCompleted: true });
 };
 
 const loadServices = async () => {
@@ -464,7 +510,10 @@ watch(activeTab, () => {
     completedItems.value = [];
     completedCursor.value = null;
     completedHasMore.value = false;
+    completedPage.value = 1;
   }
+  if (activeTab.value === 'WAITING') waitingPage.value = 1;
+  if (activeTab.value === 'IN_SERVICE') inServicePage.value = 1;
   loadQueue();
   loadCounts();
 });
@@ -472,6 +521,47 @@ watch(activeTab, () => {
 function updateOnline() {
   isOnline.value = typeof navigator !== 'undefined' ? navigator.onLine : true;
 }
+
+const changePage = async (direction: 'prev' | 'next') => {
+  const target =
+    activePage.value + (direction === 'next' ? 1 : -1);
+  await goToPage(target);
+};
+
+const goToPage = async (page: number) => {
+  const clamped = Math.max(1, page);
+  if (activeTab.value === 'COMPLETED') {
+    const neededEnd = clamped * PAGE_SIZE;
+    if (neededEnd > completedItems.value.length && completedHasMore.value) {
+      await loadQueue({ loadMoreCompleted: true });
+    }
+    const total = totalPages.value || 1;
+    completedPage.value = Math.min(clamped, total);
+  } else if (activeTab.value === 'WAITING') {
+    waitingPage.value = Math.min(Math.max(1, clamped), totalPagesWaiting.value || 1);
+  } else if (activeTab.value === 'IN_SERVICE') {
+    inServicePage.value = Math.min(Math.max(1, clamped), totalPagesInService.value || 1);
+  }
+};
+
+watch(waitingItems, () => {
+  if (waitingPage.value > totalPagesWaiting.value) waitingPage.value = totalPagesWaiting.value || 1;
+});
+
+watch(inServiceItems, () => {
+  if (inServicePage.value > totalPagesInService.value) inServicePage.value = totalPagesInService.value || 1;
+});
+
+watch(completedList, () => {
+  if (completedPage.value > totalPagesCompleted.value) completedPage.value = totalPagesCompleted.value || 1;
+});
+
+watch(completedPage, async (val) => {
+  const neededEnd = val * PAGE_SIZE;
+  if (neededEnd > completedItems.value.length && completedHasMore.value) {
+    await loadQueue({ loadMoreCompleted: true });
+  }
+});
 </script>
 
 <template>
@@ -616,14 +706,14 @@ function updateOnline() {
       <div v-for="n in 4" :key="n" class="h-32 rounded-md border border-slate-100 bg-slate-50 animate-pulse" />
     </div>
 
-    <div v-else-if="filteredQueue.length === 0" class="rounded-md border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-600">
+    <div v-else-if="isQueueEmpty" class="rounded-md border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-600">
       No guests in this state.
     </div>
 
     <div v-else class="queue-scroll">
       <div class="grid gap-3 queue-grid">
         <ElCard
-          v-for="item in filteredQueue"
+          v-for="item in displayedQueue"
           :key="item.id"
           shadow="hover"
           class="border border-slate-100"
@@ -708,25 +798,26 @@ function updateOnline() {
           </div>
         </ElCard>
       </div>
-      <div
-        v-if="activeTab === 'COMPLETED'"
-        class="mt-3 flex justify-center"
-      >
+      <div class="pagination-footer">
+        <ElButton size="small" plain :disabled="activePage <= 1" @click="goToPage(1)">«</ElButton>
+        <ElButton size="small" plain :disabled="activePage <= 1" @click="changePage('prev')">Prev</ElButton>
+        <div class="page-indicator">Page {{ activePage }} of {{ totalPages }}</div>
         <ElButton
-          type="primary"
-          plain
           size="small"
-          :loading="completedLoading"
-          :disabled="!completedHasMore"
-          @click="loadMoreCompleted"
+          plain
+          :disabled="activePage >= totalPages"
+          :loading="activeTab === 'COMPLETED' && completedLoading && activePage > 1"
+          @click="changePage('next')"
         >
-          <span v-if="completedHasMore">Load more</span>
-          <span v-else>No more</span>
+          Next
         </ElButton>
       </div>
     </div>
 
-    <div v-if="!loading && queue.length === 0" class="text-center text-sm text-slate-500">
+    <div
+      v-if="!loading && queue.length === 0 && completedItems.length === 0"
+      class="text-center text-sm text-slate-500"
+    >
       <span v-if="queueLocked">Queue is locked until billing is activated.</span>
       <span v-else>No active check-ins.</span>
     </div>
@@ -831,10 +922,17 @@ function updateOnline() {
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
 }
 .queue-scroll {
-  max-height: 60vh;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  max-height: 70vh;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  gap: 0.75rem;
+}
+.queue-scroll .queue-grid {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding-bottom: 12px;
 }
 .appointment-list {
   max-height: 280px;
@@ -874,5 +972,25 @@ function updateOnline() {
   min-height: 44px;
   padding: 0 20px;
   font-size: 16px;
+}
+.pagination-footer {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border-top: 1px solid #e5e7eb;
+  padding: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+.page-indicator {
+  font-size: 13px;
+  color: #475569;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: #f1f5f9;
 }
 </style>

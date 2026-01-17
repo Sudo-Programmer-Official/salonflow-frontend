@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref, watch } from 'vue';
+import { onMounted, reactive, ref, watch, computed } from 'vue';
 import {
   ElCard,
   ElTable,
@@ -26,12 +26,15 @@ import {
 import { fetchServices, type ServiceItem } from '../../api/services';
 import { fetchStaff, type StaffMember } from '../../api/staff';
 
+const PAGE_SIZE = 10;
 const appointments = ref<Appointment[]>([]);
 const services = ref<ServiceItem[]>([]);
 const staff = ref<StaffMember[]>([]);
 const loading = ref(false);
 const loadingServices = ref(false);
 const loadingStaff = ref(false);
+const page = ref(1);
+const totalPages = ref(1);
 
 const selectedDate = ref(new Date().toISOString().slice(0, 10));
 
@@ -77,6 +80,8 @@ const loadAppointments = async () => {
     appointments.value = await fetchAppointments({
       date: selectedDate.value,
     });
+    totalPages.value = Math.max(1, Math.ceil(appointments.value.length / PAGE_SIZE));
+    if (page.value > totalPages.value) page.value = totalPages.value;
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to load appointments');
   } finally {
@@ -115,6 +120,7 @@ onMounted(() => {
 
 watch(selectedDate, () => {
   form.date = selectedDate.value;
+  page.value = 1;
   loadAppointments();
 });
 
@@ -203,6 +209,20 @@ const handleComplete = async (id: string) => {
   }
 };
 
+const displayedAppointments = computed(() => {
+  const start = (page.value - 1) * PAGE_SIZE;
+  return appointments.value.slice(start, start + PAGE_SIZE);
+});
+
+const changePage = (direction: 'prev' | 'next') => {
+  const target = direction === 'next' ? page.value + 1 : page.value - 1;
+  page.value = Math.min(Math.max(1, target), totalPages.value);
+};
+
+const goToPage = (target: number) => {
+  page.value = Math.min(Math.max(1, target), totalPages.value);
+};
+
 </script>
 
 <template>
@@ -227,7 +247,9 @@ const handleComplete = async (id: string) => {
         />
       </div>
 
-      <ElTable :data="appointments" :loading="loading" stripe>
+      <div class="table-shell">
+        <div class="table-body">
+          <ElTable :data="displayedAppointments" :loading="loading" stripe>
       <ElTableColumn prop="customerName" label="Customer" min-width="140" />
       <ElTableColumn prop="phoneE164" label="Phone" min-width="120" />
       <ElTableColumn prop="serviceName" label="Service" min-width="140" />
@@ -258,8 +280,23 @@ const handleComplete = async (id: string) => {
         </ElTableColumn>
       </ElTable>
 
-      <div v-if="!loading && appointments.length === 0" class="py-6 text-center text-sm text-slate-500">
+          <div v-if="!loading && appointments.length === 0" class="py-6 text-center text-sm text-slate-500">
         No appointments for this date.
+      </div>
+        </div>
+        <div class="pagination-footer">
+          <ElButton size="small" plain :disabled="page <= 1" @click="goToPage(1)">«</ElButton>
+          <ElButton size="small" plain :disabled="page <= 1" @click="changePage('prev')">Prev</ElButton>
+          <div class="page-indicator">Page {{ page }} of {{ totalPages }}</div>
+          <ElButton
+            size="small"
+            plain
+            :disabled="page >= totalPages"
+            @click="changePage('next')"
+          >
+            Next
+          </ElButton>
+        </div>
       </div>
     </ElCard>
 
@@ -330,3 +367,36 @@ const handleComplete = async (id: string) => {
     </ElDialog>
   </div>
 </template>
+
+<style scoped>
+.table-shell {
+  display: flex;
+  flex-direction: column;
+  max-height: 70vh;
+}
+.table-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding-bottom: 12px;
+}
+.pagination-footer {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border-top: 1px solid #e5e7eb;
+  padding: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+.page-indicator {
+  font-size: 13px;
+  color: #475569;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: #f1f5f9;
+}
+</style>
