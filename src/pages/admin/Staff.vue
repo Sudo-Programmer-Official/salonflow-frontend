@@ -1,19 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref, reactive } from 'vue';
-import {
-  ElTable,
-  ElTableColumn,
-  ElSwitch,
-  ElCard,
-  ElMessage,
-  ElButton,
-  ElDialog,
-  ElForm,
-  ElFormItem,
-  ElInput,
-  ElSelect,
-  ElOption,
-} from 'element-plus';
+import { ElTable, ElTableColumn, ElSwitch, ElCard, ElMessage, ElButton, ElDialog, ElForm, ElFormItem, ElInput } from 'element-plus';
 import { fetchStaff, updateStaffStatus, createStaff, type StaffMember } from '../../api/staff';
 
 const staff = ref<StaffMember[]>([]);
@@ -22,9 +9,9 @@ const dialogOpen = ref(false);
 const saving = ref(false);
 const form = reactive({
   name: '',
-  email: '',
-  role: 'STAFF',
-  status: 'active',
+  nickname: '',
+  phoneE164: '',
+  active: true,
 });
 
 const loadStaff = async () => {
@@ -44,24 +31,24 @@ onMounted(() => {
 
 const openDialog = () => {
   form.name = '';
-  form.email = '';
-  form.role = 'STAFF';
-  form.status = 'active';
+  form.nickname = '';
+  form.phoneE164 = '';
+  form.active = true;
   dialogOpen.value = true;
 };
 
 const submit = async () => {
-  if (!form.name.trim() || !form.email.trim()) {
-    ElMessage.warning('Name and email are required');
+  if (!form.name.trim()) {
+    ElMessage.warning('Name is required');
     return;
   }
   saving.value = true;
   try {
     await createStaff({
       name: form.name.trim(),
-      email: form.email.trim(),
-      role: form.role,
-      status: form.status as 'active' | 'inactive',
+      nickname: form.nickname.trim() || undefined,
+      phoneE164: form.phoneE164.trim() || undefined,
+      active: form.active,
     });
     dialogOpen.value = false;
     await loadStaff();
@@ -74,12 +61,13 @@ const submit = async () => {
 };
 
 const toggleStatus = async (member: StaffMember) => {
-  const nextStatus = member.status === 'active' ? 'inactive' : 'active';
+  const nextActive = !member.active;
+  member.active = nextActive;
   try {
-    await updateStaffStatus(member.id, nextStatus);
-    await loadStaff();
+    await updateStaffStatus(member.id, nextActive);
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to update staff');
+    member.active = !nextActive; // revert
   }
 };
 </script>
@@ -103,16 +91,24 @@ const toggleStatus = async (member: StaffMember) => {
         :stripe="true"
         class="staff-table"
       >
-        <ElTableColumn prop="name" label="Name" class-name="col-name" />
-        <ElTableColumn prop="role" label="Role" width="140" class-name="col-role" />
-        <ElTableColumn prop="email" label="Email" min-width="200" class-name="col-email" />
-        <ElTableColumn label="Active" width="140" class-name="col-active">
+        <ElTableColumn label="Name" class-name="col-name">
+          <template #default="{ row }">
+            <div class="flex flex-col">
+              <span class="text-sm font-semibold text-slate-900">{{ row.name }}</span>
+              <span v-if="row.nickname" class="text-xs text-slate-600">{{ row.nickname }}</span>
+            </div>
+          </template>
+        </ElTableColumn>
+        <ElTableColumn prop="phoneE164" label="Phone" min-width="180" class-name="col-phone">
+          <template #default="{ row }">
+            <span class="text-sm text-slate-800">{{ row.phoneE164 || '—' }}</span>
+          </template>
+        </ElTableColumn>
+        <ElTableColumn label="Active" width="120" class-name="col-active">
           <template #default="{ row }">
             <div class="toggle-wrapper">
               <ElSwitch
-                :model-value="row.status === 'active'"
-                active-text="Active"
-                inactive-text="Inactive"
+                :model-value="row.active"
                 @change="() => toggleStatus(row)"
               />
             </div>
@@ -129,22 +125,14 @@ const toggleStatus = async (member: StaffMember) => {
         <ElFormItem label="Name" required>
           <ElInput v-model="form.name" placeholder="Jane Doe" />
         </ElFormItem>
-        <ElFormItem label="Email" required>
-          <ElInput v-model="form.email" placeholder="jane@example.com" />
+        <ElFormItem label="Nickname (optional)">
+          <ElInput v-model="form.nickname" placeholder="Display name e.g., Abhi" />
         </ElFormItem>
-        <ElFormItem label="Role">
-          <ElSelect v-model="form.role" disabled>
-            <ElOption label="Staff" value="STAFF" />
-          </ElSelect>
-          <div class="text-xs text-slate-500 mt-1">
-            Staff role is supported now. Owners are managed separately.
-          </div>
+        <ElFormItem label="Phone (optional)">
+          <ElInput v-model="form.phoneE164" placeholder="+1 555 123 4567" />
         </ElFormItem>
-        <ElFormItem label="Status">
-          <ElSelect v-model="form.status">
-            <ElOption label="Active" value="active" />
-            <ElOption label="Inactive" value="inactive" />
-          </ElSelect>
+        <ElFormItem label="Active">
+          <ElSwitch v-model="form.active" />
         </ElFormItem>
       </ElForm>
       <template #footer>
@@ -164,21 +152,15 @@ const toggleStatus = async (member: StaffMember) => {
 .staff-table :deep(.col-name) {
   width: auto;
 }
-.staff-table :deep(.col-role) {
-  width: 140px;
-}
-.staff-table :deep(.col-email) {
-  min-width: 200px;
-}
 .staff-table :deep(.col-active) {
-  width: 140px;
+  width: 120px;
   text-align: center;
 }
 .toggle-wrapper {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 100px;
+  min-width: 80px;
 }
 
 @media (max-width: 1024px) {

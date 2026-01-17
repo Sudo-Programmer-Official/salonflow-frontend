@@ -162,7 +162,7 @@ const canSubscribe = computed(() => billing.value?.canSubscribe !== false);
     <div class="grid gap-4 lg:grid-cols-3">
       <ElCard class="bg-white lg:col-span-2">
         <div class="flex flex-col gap-3">
-          <div class="flex items-center gap-3">
+          <div class="flex flex-wrap items-center gap-2">
             <span class="rounded-md bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-800">
               {{ statusLabel(status) }}
             </span>
@@ -185,15 +185,20 @@ const canSubscribe = computed(() => billing.value?.canSubscribe !== false);
               Test Mode
             </span>
           </div>
-          <div v-if="billing?.renewsAt || renewalText" class="text-sm text-slate-700">
-            {{ renewalText || `Renews at: ${billing?.renewsAt}` }}
+          <div class="flex flex-wrap items-center gap-2 text-sm text-slate-700">
+            <span v-if="billing?.renewsAt || renewalText">
+              {{ renewalText || `Renews at: ${billing?.renewsAt}` }}
+            </span>
+            <span v-else>Status: {{ statusLabel(status) }}</span>
           </div>
           <div class="text-xs text-slate-500">
             Subscription ID: {{ billing?.subscriptionId || '—' }} · Customer: {{ billing?.customerId || '—' }}
           </div>
-          <div>
+          <div class="flex flex-wrap gap-2">
             <ElButton
               :loading="actionLoading === 'portal'"
+              type="primary"
+              plain
               @click="handlePortal"
             >
               Manage Billing
@@ -203,31 +208,53 @@ const canSubscribe = computed(() => billing.value?.canSubscribe !== false);
       </ElCard>
 
       <ElCard class="bg-white">
-        <div class="space-y-2">
-          <div class="text-sm font-semibold text-slate-900">Subscribe</div>
-          <div class="text-xs text-slate-600">
-            You will be redirected to Stripe Checkout.
+        <div class="space-y-3">
+          <div class="text-sm font-semibold text-slate-900">Plans</div>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <div class="flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+              <div class="flex items-center justify-between">
+                <div class="text-base font-semibold text-slate-900">Monthly</div>
+              </div>
+              <div class="text-2xl font-bold text-slate-900">$49<span class="text-sm font-medium text-slate-600">/mo</span></div>
+              <ul class="space-y-1 text-sm text-slate-700">
+                <li>✓ Core platform access</li>
+                <li>✓ Queue + appointments</li>
+                <li>✓ SMS reminders (metered)</li>
+              </ul>
+              <ElButton
+                type="primary"
+                :loading="actionLoading === 'monthly'"
+                :disabled="!canSubscribe"
+                @click="handleCheckout('monthly')"
+              >
+                Subscribe Monthly
+              </ElButton>
+            </div>
+            <div class="flex flex-col gap-3 rounded-lg border-2 border-sky-500 bg-white p-4 shadow-[0_1px_6px_rgba(14,165,233,0.2)] relative">
+              <span class="absolute right-3 top-3 rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700">
+                Best Value
+              </span>
+              <div class="flex items-center justify-between">
+                <div class="text-base font-semibold text-slate-900">Annual</div>
+              </div>
+              <div class="text-2xl font-bold text-slate-900">$499<span class="text-sm font-medium text-slate-600">/yr</span></div>
+              <ul class="space-y-1 text-sm text-slate-700">
+                <li>✓ Everything in Monthly</li>
+                <li>✓ Priority support</li>
+                <li>✓ 2 months free</li>
+              </ul>
+              <ElButton
+                type="primary"
+                :loading="actionLoading === 'annual'"
+                :disabled="!canSubscribe"
+                @click="handleCheckout('annual')"
+              >
+                Subscribe Annual
+              </ElButton>
+            </div>
           </div>
           <div v-if="!canSubscribe" class="rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600">
             Subscription is already active. Use Manage Billing to change or cancel.
-          </div>
-          <div class="flex flex-col gap-2">
-            <ElButton
-              type="primary"
-              :loading="actionLoading === 'monthly'"
-              :disabled="!canSubscribe"
-              @click="handleCheckout('monthly')"
-            >
-              Subscribe Monthly
-            </ElButton>
-            <ElButton
-              type="primary"
-              :loading="actionLoading === 'annual'"
-              :disabled="!canSubscribe"
-              @click="handleCheckout('annual')"
-            >
-              Subscribe Annual
-            </ElButton>
           </div>
         </div>
       </ElCard>

@@ -12,6 +12,22 @@ export type CreateCheckInPayload = {
   serviceName?: string | null;
 };
 
+export async function publicLookup(phoneE164: string): Promise<
+  | { exists: false }
+  | { exists: true; customer: { id: string; name: string; pointsBalance: number | null } }
+> {
+  const res = await fetch(apiUrl('/checkins/public/lookup'), {
+    method: 'POST',
+    headers: buildHeaders({ json: true, tenant: true }),
+    body: JSON.stringify({ phoneE164 }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Lookup failed');
+  }
+  return res.json();
+}
+
 export async function fetchServices(): Promise<ServiceOption[]> {
   const res = await fetch(apiUrl('/public/services'), {
     headers: buildHeaders({ json: true, tenant: true }),

@@ -287,7 +287,7 @@ const loadStaff = async () => {
 };
 
 const activeStaffNames = computed(() =>
-  staff.value.filter((s) => s.status === 'active').map((s) => s.name),
+  staff.value.filter((s) => s.active).map((s) => s.nickname || s.name),
 );
 
 const singleStaffName = computed(() => {
@@ -508,7 +508,10 @@ function updateOnline() {
               <div class="flex flex-wrap items-center gap-2 text-xs text-slate-700">
                 <span>💇 {{ appt.serviceName || 'No service' }}</span>
                 <span>🕒 {{ appt.scheduledAt.slice(11, 16) }}</span>
-                <span v-if="appt.staffName">👩‍🎨 {{ appt.staffName }}</span>
+                <span class="flex items-center gap-1">
+                  👩‍🎨
+                  <span>{{ appt.staffName || 'Unassigned' }}</span>
+                </span>
               </div>
             </div>
             <div class="flex flex-wrap gap-2">
@@ -581,6 +584,13 @@ function updateOnline() {
       Billing required to use queue. Activate to resume live queue.
     </div>
 
+    <div
+      v-else-if="(loading && activeTab !== 'COMPLETED') || (activeTab === 'COMPLETED' && completedLoading && !completedItems.length)"
+      class="grid gap-3 queue-grid"
+    >
+      <div v-for="n in 4" :key="n" class="h-32 rounded-md border border-slate-100 bg-slate-50 animate-pulse" />
+    </div>
+
     <div v-else-if="filteredQueue.length === 0" class="rounded-md border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-600">
       No guests in this state.
     </div>
@@ -593,38 +603,44 @@ function updateOnline() {
           shadow="hover"
           class="border border-slate-100"
         >
-          <div class="flex items-start justify-between gap-2">
-            <div class="flex items-center gap-3">
-              <div class="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">
-                {{ (item.customerName || '?').charAt(0).toUpperCase() }}
-              </div>
-              <div class="space-y-1">
+          <div class="flex items-start gap-3">
+            <div class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">
+              {{ (item.customerName || '?').charAt(0).toUpperCase() }}
+            </div>
+            <div class="flex-1 space-y-2">
+              <div class="flex items-start justify-between gap-2">
                 <div class="text-sm font-semibold text-slate-900">
                   {{ item.customerName || 'Unknown' }}
                 </div>
-                <div class="flex items-center gap-1 text-xs text-slate-600">
-                  <span>📞</span>
-                  <span>{{ item.customerPhone || '—' }}</span>
-                </div>
-                <div class="text-xs text-slate-600">
-                  {{ item.serviceName || 'No service selected' }}
-                </div>
-                <div class="text-xs text-slate-600">
-                  Points: {{ item.pointsBalance ?? 0 }}
+                <div class="flex items-center gap-1">
+                  <ElTag :type="statusType(item.status)" effect="light">
+                    {{ statusLabel(item.status) }}
+                  </ElTag>
+                  <ElTag v-if="item.customerType" effect="plain" size="small">
+                    {{ item.customerType === 'VIP' ? 'VIP' : item.customerType === 'SECOND_TIME' ? '2nd-time' : 'Regular' }}
+                  </ElTag>
                 </div>
               </div>
-            </div>
-            <div class="flex flex-col items-end gap-1">
-              <ElTag :type="statusType(item.status)" effect="light">
-                {{ statusLabel(item.status) }}
-              </ElTag>
-              <ElTag v-if="item.customerType" effect="plain" size="small">
-                {{ item.customerType === 'VIP' ? 'VIP' : item.customerType === 'SECOND_TIME' ? '2nd-time' : 'Regular' }}
-              </ElTag>
+              <div class="flex flex-wrap items-center gap-3 text-xs text-slate-700">
+                <div class="flex items-center gap-1">
+                  ✂️
+                  <span>{{ item.serviceName || 'No service selected' }}</span>
+                </div>
+                <div v-if="item.servedByName" class="flex items-center gap-1">
+                  👤
+                  <span>{{ item.servedByName }}</span>
+                </div>
+              </div>
+              <div class="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                <span class="flex items-center gap-1">📞 {{ item.customerPhone || '—' }}</span>
+              </div>
             </div>
           </div>
-          <div class="text-xs text-slate-500">
-            {{ elapsed(item) }}
+          <div class="mt-3 flex items-center justify-between text-xs text-slate-600">
+            <div class="flex items-center gap-1">⏱ {{ elapsed(item) }}</div>
+            <div class="flex items-center gap-1 text-slate-700">
+              💎 <span class="font-semibold">{{ item.pointsBalance ?? 0 }}</span>
+            </div>
           </div>
           <div class="mt-2 flex flex-wrap gap-2">
             <ElButton
