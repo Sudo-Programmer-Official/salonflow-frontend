@@ -667,14 +667,14 @@ watch(completedPage, async (val) => {
       </div>
     </ElCard>
 
-    <div class="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div class="queue-toolbar">
       <div class="flex items-center gap-2">
         <div class="text-base font-semibold text-slate-900">Queue</div>
         <span v-if="isRefreshing" class="text-xs text-slate-500 animate-pulse">Updating…</span>
       </div>
-      <div class="flex items-center gap-3 w-full sm:w-auto">
+      <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
         <div v-if="activeTab === 'COMPLETED'" class="flex items-center gap-2">
-          <span class="text-xs text-slate-600">Date range:</span>
+          <span class="text-xs text-slate-600">Date range</span>
           <ElSelect
             v-model="dateFilter"
             size="small"
@@ -687,7 +687,7 @@ watch(completedPage, async (val) => {
             <ElOption label="Last 30 days" value="last30" />
           </ElSelect>
         </div>
-        <el-tabs v-model="activeTab" class="queue-tabs w-full sm:w-auto" stretch>
+        <el-tabs v-model="activeTab" class="queue-tabs" stretch>
           <el-tab-pane :label="`Waiting (${queueCounts.waiting})`" name="WAITING" />
           <el-tab-pane :label="`In Service (${queueCounts.inService})`" name="IN_SERVICE" />
           <el-tab-pane :label="`Completed (${queueCounts.completed})`" name="COMPLETED" />
@@ -972,6 +972,19 @@ watch(completedPage, async (val) => {
   min-height: 44px;
   padding: 0 20px;
   font-size: 16px;
+}
+.queue-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+@media (min-width: 640px) {
+  .queue-toolbar {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
 }
 .pagination-footer {
   position: sticky;
