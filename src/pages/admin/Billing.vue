@@ -215,7 +215,7 @@ const canSubscribe = computed(() => billing.value?.canSubscribe !== false);
               <div class="flex items-center justify-between">
                 <div class="text-base font-semibold text-slate-900">Monthly</div>
               </div>
-              <div class="text-2xl font-bold text-slate-900">$49<span class="text-sm font-medium text-slate-600">/mo</span></div>
+              <div class="text-2xl font-bold text-slate-900">$65<span class="text-sm font-medium text-slate-600">/mo</span></div>
               <ul class="space-y-1 text-sm text-slate-700">
                 <li>✓ Core platform access</li>
                 <li>✓ Queue + appointments</li>
@@ -237,7 +237,7 @@ const canSubscribe = computed(() => billing.value?.canSubscribe !== false);
               <div class="flex items-center justify-between">
                 <div class="text-base font-semibold text-slate-900">Annual</div>
               </div>
-              <div class="text-2xl font-bold text-slate-900">$499<span class="text-sm font-medium text-slate-600">/yr</span></div>
+              <div class="text-2xl font-bold text-slate-900">$700<span class="text-sm font-medium text-slate-600">/yr</span></div>
               <ul class="space-y-1 text-sm text-slate-700">
                 <li>✓ Everything in Monthly</li>
                 <li>✓ Priority support</li>

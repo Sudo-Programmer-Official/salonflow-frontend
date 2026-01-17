@@ -91,17 +91,25 @@ const toggleStatus = async (member: StaffMember) => {
         :stripe="true"
         class="staff-table"
       >
-        <ElTableColumn label="Name" class-name="col-name">
+        <ElTableColumn label="Name" min-width="200" class-name="col-name">
           <template #default="{ row }">
             <div class="flex flex-col">
               <span class="text-sm font-semibold text-slate-900">{{ row.name }}</span>
-              <span v-if="row.nickname" class="text-xs text-slate-600">{{ row.nickname }}</span>
+              <span v-if="row.nickname" class="text-xs text-slate-600">Nickname: {{ row.nickname }}</span>
             </div>
+          </template>
+        </ElTableColumn>
+        <ElTableColumn label="Nickname" width="180" class-name="col-nickname">
+          <template #default="{ row }">
+            <span class="text-sm text-slate-800">{{ row.nickname || '—' }}</span>
           </template>
         </ElTableColumn>
         <ElTableColumn prop="phoneE164" label="Phone" min-width="180" class-name="col-phone">
           <template #default="{ row }">
-            <span class="text-sm text-slate-800">{{ row.phoneE164 || '—' }}</span>
+            <span class="text-sm text-slate-800 flex items-center gap-1">
+              📞
+              <span>{{ row.phoneE164 || '—' }}</span>
+            </span>
           </template>
         </ElTableColumn>
         <ElTableColumn label="Active" width="120" class-name="col-active">
@@ -151,6 +159,9 @@ const toggleStatus = async (member: StaffMember) => {
 }
 .staff-table :deep(.col-name) {
   width: auto;
+}
+.staff-table :deep(.col-nickname) {
+  width: 180px;
 }
 .staff-table :deep(.col-active) {
   width: 120px;
