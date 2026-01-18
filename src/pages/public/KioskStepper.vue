@@ -559,6 +559,14 @@ watch(
                   <p class="text-4xl font-semibold text-white">Welcome 👋</p>
                   <p class="mt-2 text-lg text-white/80">Tap to check in</p>
                 </div>
+                <div
+                  v-if="showPoints"
+                  class="rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-left text-white shadow-lg"
+                >
+                  <div class="text-sm font-semibold uppercase tracking-wide text-white/70">Earn Rewards</div>
+                  <div class="text-lg font-semibold">300 points = $5 off</div>
+                  <div class="text-sm text-white/80">Check in to start earning.</div>
+                </div>
                 <ElButton type="primary" size="large">Start</ElButton>
               </div>
 
@@ -730,7 +738,9 @@ watch(
                 <div class="kiosk-heading">
                   <div>
                     <p class="text-xl font-semibold text-white">Choose a staff member</p>
-                    <p class="text-sm text-white/70">Optional — we'll assign automatically if you skip.</p>
+                    <p class="text-sm text-white/70">
+                      {{ enforceStaffAvailability ? 'Available staff shown based on today’s schedule.' : 'Pick anyone or continue without preference.' }}
+                    </p>
                   </div>
                   <ElButton size="large" @click="step = 'services'">Back</ElButton>
                 </div>
@@ -850,7 +860,7 @@ watch(
                   Services: {{ successServices.join(', ') }}
                 </div>
                 <div class="mt-3 text-lg text-white/80">
-                  Restarting in {{ doneCountdown ?? autoResetSeconds }}s
+                  Restarting for next guest in {{ doneCountdown ?? autoResetSeconds }}s
                 </div>
                 <ElButton class="mt-4" type="primary" size="large" @click="resetFlow">
                   Restart now

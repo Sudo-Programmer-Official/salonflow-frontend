@@ -258,7 +258,7 @@ watch(
 </script>
 
 <template>
-  <div class="w-full">
+  <div class="w-full max-w-xl mx-auto">
     <div class="mb-8 text-center">
       <h1 class="text-2xl font-semibold text-slate-900">{{ businessName }}</h1>
       <p class="mt-2 text-sm text-slate-600">Let us know you're here. We'll call you shortly.</p>
@@ -312,7 +312,7 @@ watch(
           <template v-else>
             <div class="flex flex-wrap items-center gap-2">
               <span class="text-base font-semibold">✨ Welcome!</span>
-              <span class="text-sm text-slate-700">⭐ Your Points: 0 · Earn rewards on every visit</span>
+              <span class="text-sm text-slate-700">⭐ Earn points after today’s visit</span>
             </div>
           </template>
         </div>
@@ -357,6 +357,22 @@ watch(
         </ElFormItem>
 
         <div class="space-y-3">
+          <div
+            v-if="showPoints"
+            class="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800"
+          >
+            <div class="flex items-center gap-2">
+              <span class="text-base font-semibold">⭐ Loyalty</span>
+              <span class="text-slate-600">
+                <template v-if="lookupResult?.exists && lookupResult.customer">
+                  {{ lookupResult.customer.pointsBalance ?? 0 }} points
+                </template>
+                <template v-else>
+                  Earn points after this visit
+                </template>
+              </span>
+            </div>
+          </div>
           <ElButton
             type="primary"
             size="large"
