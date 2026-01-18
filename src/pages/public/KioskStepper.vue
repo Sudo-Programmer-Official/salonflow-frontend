@@ -35,6 +35,8 @@ const errorMessage = ref('');
 const submitting = ref(false);
 const successName = ref('Guest');
 const successServices = ref<string[]>([]);
+const animatedPoints = ref<number | null>(null);
+const pointsAnimationFrame = ref<number | null>(null);
 const doneCountdown = ref<number | null>(null);
 const doneTimer = ref<number | null>(null);
 const stopWatchdog = ref<(() => void) | null>(null);
@@ -63,7 +65,7 @@ const defaultSettings: BusinessSettings = {
   kioskEnabled: false,
   publicCheckInEnabled: true,
   requirePhone: true,
-  showPointsOnKiosk: false,
+  showPointsOnKiosk: true,
   allowMultiService: false,
   requireService: false,
   allowStaffSelection: false,
@@ -111,7 +113,7 @@ const allowPhoneSkip = computed(() => !requirePhone.value);
 const kioskEnabled = computed(() => settings.value?.kioskEnabled ?? false);
 const publicEnabled = computed(() => settings.value?.publicCheckInEnabled !== false);
 const businessName = computed(() => settings.value?.businessName || 'Salon Kiosk');
-const showPoints = computed(() => settings.value?.showPointsOnKiosk !== false);
+const showPoints = computed(() => (settings.value ? settings.value.showPointsOnKiosk === true : true));
 const allowStaffSelection = computed(() => settings.value?.allowStaffSelection === true);
 const enforceStaffAvailability = computed(() => settings.value?.enforceStaffAvailability === true);
 const autoResetSeconds = computed(() => {
@@ -182,6 +184,11 @@ const primaryServiceId = computed(() => selectedServiceIds.value[0] ?? null);
 const selectedStaffName = computed(() => {
   if (!selectedStaffId.value) return null;
   return staffList.value.find((s) => s.id === selectedStaffId.value)?.name ?? null;
+});
+const rewardValue = computed(() => {
+  if (!showPoints.value || animatedPoints.value === null) return null;
+  const perPointValue = 5 / 300; // mirrors 300 pts = $5 teaser
+  return animatedPoints.value * perPointValue;
 });
 
 const appendDigit = (digit: string) => {
@@ -300,6 +307,11 @@ const resetFlow = () => {
     doneTimer.value = null;
   }
   doneCountdown.value = null;
+  if (pointsAnimationFrame.value !== null) {
+    cancelAnimationFrame(pointsAnimationFrame.value);
+    pointsAnimationFrame.value = null;
+  }
+  animatedPoints.value = null;
   phone.value = '';
   name.value = '';
   selectedServiceIds.value = [];
@@ -413,6 +425,31 @@ const startDoneCountdown = () => {
   }, 1000);
 };
 
+const startPointsAnimation = (target: number | null | undefined) => {
+  if (pointsAnimationFrame.value !== null) {
+    cancelAnimationFrame(pointsAnimationFrame.value);
+    pointsAnimationFrame.value = null;
+  }
+  if (target === null || target === undefined || Number.isNaN(target)) {
+    animatedPoints.value = null;
+    return;
+  }
+  const start = performance.now();
+  const duration = 350;
+  const from = 0;
+  const to = Math.max(0, target);
+  const stepAnim = (now: number) => {
+    const t = Math.min(1, (now - start) / duration);
+    animatedPoints.value = Math.round(from + (to - from) * t);
+    if (t < 1) {
+      pointsAnimationFrame.value = requestAnimationFrame(stepAnim);
+    } else {
+      pointsAnimationFrame.value = null;
+    }
+  };
+  pointsAnimationFrame.value = requestAnimationFrame(stepAnim);
+};
+
 const confirmCheckIn = async () => {
   if (!publicEnabled.value || !kioskEnabled.value) {
     errorMessage.value = 'Kiosk check-in is disabled right now.';
@@ -451,6 +488,7 @@ const confirmCheckIn = async () => {
     successName.value =
       lookupResult.value?.customer?.name?.trim() || name.value.trim() || 'Guest';
     successServices.value = selectedServiceDetails.value.map((s) => s.name).filter(Boolean);
+    startPointsAnimation(lookupResult.value?.customer?.pointsBalance ?? null);
     step.value = 'done';
     startDoneCountdown();
   } catch (err: any) {
@@ -563,9 +601,9 @@ watch(
                   v-if="showPoints"
                   class="rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-left text-white shadow-lg"
                 >
-                  <div class="text-sm font-semibold uppercase tracking-wide text-white/70">Earn Rewards</div>
-                  <div class="text-lg font-semibold">300 points = $5 off</div>
-                  <div class="text-sm text-white/80">Check in to start earning.</div>
+                  <div class="text-sm font-semibold uppercase tracking-wide text-white/60">💎 Earn rewards</div>
+                  <div class="text-lg font-semibold text-white">300 points = $5 off</div>
+                  <div class="text-sm text-white/70">Check in to start earning.</div>
                 </div>
                 <ElButton type="primary" size="large">Start</ElButton>
               </div>
@@ -611,13 +649,13 @@ watch(
                     <template v-else-if="lookupResult?.exists && lookupResult.customer">
                       <div class="text-base font-semibold">👋 Welcome back, {{ lookupResult.customer.name }}!</div>
                       <div class="text-sm text-white/80">
-                        ⭐ Points: {{ lookupResult.customer.pointsBalance ?? 0 }}
+                        💎 {{ lookupResult.customer.pointsBalance ?? 0 }} points
                         <span class="ml-2 text-xs text-white/60">Keep earning rewards every visit.</span>
                       </div>
                     </template>
                     <template v-else>
-                      <div class="text-base font-semibold">✨ Earn rewards on every visit</div>
-                      <div class="text-sm text-white/70">Check in to start collecting points.</div>
+                      <div class="text-base font-semibold">💎 Earn rewards</div>
+                      <div class="text-sm text-white/70">Check in today to start earning points.</div>
                     </template>
                   </div>
                   <div v-if="lookupError" class="rounded-xl border border-amber-300 bg-amber-100/20 px-4 py-3 text-sm text-amber-100">
@@ -829,10 +867,10 @@ watch(
                   <div v-if="showPoints && lookupResult?.exists && lookupResult.customer">
                     <p class="text-sm text-white/70">Rewards preview</p>
                     <p class="text-base text-white">
-                      ⭐ Current: {{ lookupResult.customer.pointsBalance ?? 0 }} points
+                      💎 {{ lookupResult.customer.pointsBalance ?? 0 }} points
                     </p>
                     <p class="text-sm text-white/70">
-                      Keep checking in to earn more rewards.
+                      Keep earning rewards every visit.
                     </p>
                   </div>
                 </div>
@@ -853,12 +891,39 @@ watch(
                 </div>
               </div>
 
-              <div v-else-if="step === 'done'" class="done-card">
-                <div class="text-4xl">✅ Checked in!</div>
-                <div class="text-xl font-semibold text-white">Thanks, {{ successName }}.</div>
-                <div class="text-base text-white/80" v-if="successServices.length">
-                  Services: {{ successServices.join(', ') }}
+                <div v-else-if="step === 'done'" class="done-card">
+                <div class="text-4xl mb-1">✅ Checked in!</div>
+                <div class="text-2xl font-semibold text-white">Thanks, {{ successName }}.</div>
+
+                <div v-if="showPoints" class="mt-3 rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-left">
+                  <div class="text-lg font-semibold text-white">
+                    💎 {{ animatedPoints ?? lookupResult?.customer?.pointsBalance ?? 0 }} points
+                  </div>
+                  <div class="text-sm text-white/80">
+                    <template v-if="rewardValue !== null">
+                      ≈
+                      {{
+                        Intl.NumberFormat('en-US', {
+                          style: 'currency',
+                          currency: settings?.currency || 'USD',
+                          minimumFractionDigits: 2,
+                        }).format(rewardValue)
+                      }}
+                      toward rewards
+                    </template>
+                    <template v-else>
+                      You’re earning rewards every visit.
+                    </template>
+                  </div>
                 </div>
+
+                <div class="mt-3 text-left w-full max-w-md mx-auto" v-if="successServices.length">
+                  <div class="text-sm text-white/70">Services</div>
+                  <ul class="list-disc list-inside text-white">
+                    <li v-for="svc in successServices" :key="svc">{{ svc }}</li>
+                  </ul>
+                </div>
+
                 <div class="mt-3 text-lg text-white/80">
                   Restarting for next guest in {{ doneCountdown ?? autoResetSeconds }}s
                 </div>
@@ -1123,16 +1188,4 @@ watch(
   }
 }
 
-:global(.flex.min-h-screen.flex-col.bg-slate-50.text-slate-900 > header),
-:global(.flex.min-h-screen.flex-col.bg-slate-50.text-slate-900 > footer) {
-  display: none !important;
-}
-:global(.flex.min-h-screen.flex-col.bg-slate-50.text-slate-900) {
-  background: transparent;
-}
-:global(.flex.min-h-screen.flex-col.bg-slate-50.text-slate-900 > main) {
-  max-width: none;
-  width: 100%;
-  padding: 0;
-}
 </style>

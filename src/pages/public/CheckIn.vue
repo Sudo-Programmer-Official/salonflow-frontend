@@ -57,7 +57,7 @@ const defaultSettings: BusinessSettings = {
   kioskEnabled: false,
   publicCheckInEnabled: true,
   requirePhone: true,
-  showPointsOnKiosk: false,
+  showPointsOnKiosk: true,
   allowMultiService: false,
   requireService: false,
   allowStaffSelection: false,
@@ -304,15 +304,15 @@ watch(
             <div class="flex flex-wrap items-center gap-2">
               <span class="text-base font-semibold">👤 Hi, {{ lookupResult.customer.name }}</span>
               <span class="text-sm text-slate-700">
-                ⭐ {{ lookupResult.customer.pointsBalance ?? 0 }} points · 💸 {{ rewardText }}
+                💎 {{ lookupResult.customer.pointsBalance ?? 0 }} points · 💸 {{ rewardText }}
               </span>
             </div>
             <div class="text-xs text-slate-600">Keep earning rewards every visit.</div>
           </template>
           <template v-else>
             <div class="flex flex-wrap items-center gap-2">
-              <span class="text-base font-semibold">✨ Welcome!</span>
-              <span class="text-sm text-slate-700">⭐ Earn points after today’s visit</span>
+              <span class="text-base font-semibold">💎 Earn rewards</span>
+              <span class="text-sm text-slate-700">Check in today to start earning points.</span>
             </div>
           </template>
         </div>
@@ -362,13 +362,13 @@ watch(
             class="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800"
           >
             <div class="flex items-center gap-2">
-              <span class="text-base font-semibold">⭐ Loyalty</span>
+              <span class="text-base font-semibold">💎 Loyalty</span>
               <span class="text-slate-600">
                 <template v-if="lookupResult?.exists && lookupResult.customer">
                   {{ lookupResult.customer.pointsBalance ?? 0 }} points
                 </template>
                 <template v-else>
-                  Earn points after this visit
+                  Earn rewards after this visit
                 </template>
               </span>
             </div>
@@ -397,7 +397,13 @@ watch(
             <div class="text-lg font-semibold">✅ Thank you, {{ successName || form.name || 'Guest' }}!</div>
             <div class="text-sm text-slate-700">You are checked in.</div>
             <div class="mt-1 text-sm font-semibold text-emerald-700" v-if="showPoints">
-              ⭐ {{ successPoints ?? 0 }} points · 💸 {{ rewardText }}
+              💎
+              <template v-if="successPoints !== null && successPoints !== undefined">
+                {{ successPoints ?? 0 }} points
+              </template>
+              <template v-else>
+                Earn rewards on every visit
+              </template>
             </div>
           </div>
           <ElAlert

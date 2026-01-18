@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, type RouteLocationRaw } from "vue-router";
 import PublicLayout from "../layouts/PublicLayout.vue";
+import KioskLayout from "../layouts/KioskLayout.vue";
 import CheckInPage from "../pages/public/CheckIn.vue";
 import KioskStepperPage from "../pages/public/KioskStepper.vue";
 import AdminLayout from "../layouts/AdminLayout.vue";
@@ -130,14 +131,20 @@ const routes = [
         component: CheckInPage,
       },
       {
-        path: "kiosk",
-        name: "check-in-kiosk",
-        component: KioskStepperPage,
-      },
-      {
         path: "book",
         name: "book",
         component: PublicBookPage,
+      },
+    ],
+  },
+  {
+    path: "/check-in/kiosk",
+    component: KioskLayout,
+    children: [
+      {
+        path: "",
+        name: "check-in-kiosk",
+        component: KioskStepperPage,
       },
     ],
   },
