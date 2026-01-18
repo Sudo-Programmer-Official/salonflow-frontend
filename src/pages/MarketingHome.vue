@@ -54,7 +54,7 @@ const faqs = [
               to="/salon-login"
               class="inline-flex items-center justify-center rounded-lg border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-800 transition hover:border-slate-300 hover:bg-slate-50"
             >
-              Existing salon login
+              Login
             </RouterLink>
           </div>
           <div class="mt-4 text-sm font-medium text-slate-600">
