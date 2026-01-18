@@ -7,6 +7,11 @@ export type StaffMember = {
   phoneE164: string | null;
   active: boolean;
 };
+export type PublicStaffResponse = {
+  allowStaffSelection: boolean;
+  enforceAvailability: boolean;
+  staff: StaffMember[];
+};
 
 const apiBase = apiUrl('/staff');
 
@@ -69,6 +74,19 @@ export async function updateStaffStatus(
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || 'Failed to update staff');
+  }
+  return res.json();
+}
+
+export async function fetchPublicAvailableStaff(serviceId?: string): Promise<PublicStaffResponse> {
+  const url = new URL(apiUrl('/staff/public/staff-available'), window.location.origin);
+  if (serviceId) url.searchParams.set('serviceId', serviceId);
+  const res = await fetch(url.toString(), {
+    headers: buildHeaders({ tenant: true, json: true }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to load staff availability');
   }
   return res.json();
 }

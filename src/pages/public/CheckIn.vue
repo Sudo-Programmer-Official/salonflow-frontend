@@ -60,6 +60,7 @@ const defaultSettings: BusinessSettings = {
   showPointsOnKiosk: false,
   allowMultiService: false,
   requireService: false,
+  allowStaffSelection: false,
   kioskAutoResetSeconds: null,
   enforceStaffAvailability: false,
   defaultBookingRules: {

@@ -234,6 +234,19 @@ onMounted(loadSettings);
 
         <div class="flex items-center justify-between gap-4">
           <div>
+              <div class="text-sm font-semibold text-slate-900">Allow staff selection (kiosk/public)</div>
+              <div class="text-xs text-slate-600">
+                Shows an optional staff picker in kiosk/public flows. Disabled by default.
+              </div>
+            </div>
+            <ElSwitch
+              :model-value="settings.allowStaffSelection"
+              @change="(val) => handleToggle('allowStaffSelection', val)"
+            />
+          </div>
+
+        <div class="flex items-center justify-between gap-4">
+          <div>
               <div class="text-sm font-semibold text-slate-900">Allow multiple services per check-in</div>
               <div class="text-xs text-slate-600">
                 Enable multi-select in kiosk/public flows. When off, only one service can be chosen.

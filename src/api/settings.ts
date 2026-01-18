@@ -19,6 +19,7 @@ export type BusinessSettings = {
   showPointsOnKiosk: boolean;
   allowMultiService: boolean;
   requireService: boolean;
+  allowStaffSelection: boolean;
   kioskAutoResetSeconds: number | null;
   enforceStaffAvailability: boolean;
   defaultBookingRules: DefaultBookingRules;
@@ -35,6 +36,7 @@ export type SettingsPatch = Partial<
     | 'showPointsOnKiosk'
     | 'allowMultiService'
     | 'requireService'
+    | 'allowStaffSelection'
     | 'kioskAutoResetSeconds'
     | 'enforceStaffAvailability'
     | 'currency'
