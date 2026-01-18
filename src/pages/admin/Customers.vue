@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { ElCard, ElInput, ElTable, ElTableColumn, ElTag, ElButton, ElMessage, ElDrawer, ElTooltip } from 'element-plus';
-import dayjs from 'dayjs';
 import {
   searchCustomers,
   fetchCustomerTimeline,
@@ -12,6 +11,7 @@ import {
   sendCustomerFeedback,
 } from '../../api/customers';
 import CustomerTimeline from '../../components/CustomerTimeline.vue';
+import { formatInBusinessTz } from '../../utils/dates';
 
 const PAGE_SIZE = 10;
 const query = ref('');
@@ -53,10 +53,7 @@ const doSearch = async () => {
   }
 };
 
-const formatDate = (value: string | null) => {
-  if (!value) return '—';
-  return dayjs(value).format('MMM D, YYYY');
-};
+const formatDate = (value: string | null) => formatInBusinessTz(value, 'MMM D, YYYY');
 
 const openTimeline = async (customerId: string) => {
   timelineLoading.value = true;

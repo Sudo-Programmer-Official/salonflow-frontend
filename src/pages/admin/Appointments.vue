@@ -25,6 +25,7 @@ import {
 } from '../../api/appointments';
 import { fetchServices, type ServiceItem } from '../../api/services';
 import { fetchStaff, type StaffMember } from '../../api/staff';
+import { formatInBusinessTz } from '../../utils/dates';
 
 const PAGE_SIZE = 10;
 const appointments = ref<Appointment[]>([]);
@@ -149,6 +150,9 @@ const buildScheduledAt = () => {
   return `${form.date}T${form.time}:00`;
 };
 
+const formatTime = (_: unknown, __: unknown, val: string) =>
+  formatInBusinessTz(val, 'MMM D, h:mm A');
+
 const saveAppointment = async () => {
   if (!form.customerName || !form.phoneE164 || !form.serviceId || !form.date || !form.time) {
     ElMessage.warning('Name, phone, service, date, and time are required');
@@ -259,7 +263,7 @@ const goToPage = (target: number) => {
         prop="scheduledAt"
         label="Time"
         min-width="110"
-        :formatter="(_, __, val) => val.slice(11, 16)"
+        :formatter="formatTime"
         />
         <ElTableColumn prop="status" label="Status" width="110" />
         <ElTableColumn label="Actions" width="220">

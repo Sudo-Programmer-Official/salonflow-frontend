@@ -5,6 +5,8 @@ import './style.css';
 import App from './App.vue';
 import router from './router';
 import { setupTrialInterceptor } from './api/trialBanner';
+import { fetchOnboardingStatus } from './api/onboarding';
+import { setBusinessTimezone } from './utils/dates';
 
 const app = createApp(App);
 
@@ -13,6 +15,20 @@ app.use(router);
 app.use(ElementPlus);
 
 app.mount('#app');
+
+// Refresh business timezone from API on app bootstrap to avoid stale localStorage.
+(async () => {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  if (!token) return;
+  try {
+    const status = await fetchOnboardingStatus(true);
+    if (status?.timezone) {
+      setBusinessTimezone(status.timezone);
+    }
+  } catch {
+    // best-effort only; ignore errors on bootstrap
+  }
+})();
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

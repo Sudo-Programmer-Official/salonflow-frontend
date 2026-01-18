@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue';
-import dayjs from 'dayjs';
 import { ElCard, ElButton, ElTag, ElAlert, ElSkeleton } from 'element-plus';
 import { fetchQueue, type QueueItem, type QueueResponse } from '../../api/queue';
 import {
@@ -11,6 +10,7 @@ import {
 import { fetchOnboardingStatus } from '../../api/onboarding';
 import { fetchReviewSmsSettings, type ReviewSettingsResponse } from '../../api/reviewSms';
 import { useRouter } from 'vue-router';
+import { dayjs, nowInBusinessTz, setBusinessTimezone, DEFAULT_TIMEZONE } from '../../utils/dates';
 
 const router = useRouter();
 
@@ -24,6 +24,7 @@ const reviewSmsLocked = ref(false);
 
 const loading = ref(true);
 const error = ref('');
+const businessTimezone = ref(DEFAULT_TIMEZONE);
 
 const load = async () => {
   loading.value = true;
@@ -40,6 +41,9 @@ const load = async () => {
     queue.value = queueLocked.value ? [] : (queueRes as any).items ?? [];
     appointments.value = appointmentsLocked.value ? [] : (apptRes as any).items ?? [];
     onboardingIncomplete.value = !(onboardingRes?.completed ?? false);
+    const tz = onboardingRes?.timezone?.trim() || DEFAULT_TIMEZONE;
+    businessTimezone.value = tz;
+    setBusinessTimezone(tz);
     reviewSmsLocked.value = (reviewRes as ReviewSettingsResponse).locked === true;
     reviewSmsEnabled.value = reviewSmsLocked.value ? false : reviewRes.enabled;
   } catch (err) {
@@ -63,9 +67,9 @@ const completedCount = computed(() =>
 const appointmentsToday = computed(() => (appointmentsLocked.value ? 0 : appointments.value.length));
 
 const upcomingAppointments = computed(() => {
-  const now = dayjs();
+  const now = nowInBusinessTz(businessTimezone.value);
   return appointments.value.filter((a) => {
-    const time = dayjs(a.scheduledAt);
+    const time = dayjs(a.scheduledAt).tz(businessTimezone.value);
     return time.isAfter(now) && time.diff(now, 'minute') <= 30;
   });
 });

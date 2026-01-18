@@ -3,6 +3,10 @@ import { apiUrl, buildHeaders } from './client';
 export type ServiceOption = {
   id: string;
   name: string;
+  icon?: string;
+  durationMinutes?: number;
+  priceCents?: number;
+  currency?: string;
 };
 
 export type CreateCheckInPayload = {
@@ -40,6 +44,31 @@ export async function fetchServices(): Promise<ServiceOption[]> {
 
   const data = await res.json();
   return (data as any[]).map((s) => ({ id: s.id, name: s.name }));
+}
+
+export async function fetchGroupedServices(): Promise<
+  Array<{
+    categoryId: string | null;
+    categoryName: string;
+    categoryIcon: string;
+    services: Array<{
+      id: string;
+      name: string;
+      icon?: string;
+      durationMinutes?: number;
+      priceCents?: number;
+      currency?: string;
+    }>;
+  }>
+> {
+  const res = await fetch(apiUrl('/public/services-grouped'), {
+    headers: buildHeaders({ json: true, tenant: true }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to load services');
+  }
+  return res.json();
 }
 
 export async function createPublicCheckIn(payload: CreateCheckInPayload) {

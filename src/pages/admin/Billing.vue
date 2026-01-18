@@ -11,6 +11,7 @@ import {
   type SmsCredits,
 } from '../../api/billing';
 import { resetTrialState, setTrialEndsAt } from '../../api/trialBanner';
+import { formatInBusinessTz } from '../../utils/dates';
 
 const status = ref<SubscriptionStatus | null>(null);
 const billing = ref<{
@@ -146,7 +147,8 @@ const renewalText = computed(() => {
   const renewDate = new Date(billing.value.renewsAt);
   const days = Math.ceil((renewDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
   if (Number.isNaN(days)) return null;
-  return `${days > 0 ? `Renews in ${days} day${days === 1 ? '' : 's'}` : 'Renewal today'} (${renewDate.toLocaleDateString()})`;
+  const dateLabel = formatInBusinessTz(renewDate.toISOString(), 'MMM D, YYYY');
+  return `${days > 0 ? `Renews in ${days} day${days === 1 ? '' : 's'}` : 'Renewal today'} (${dateLabel})`;
 });
 
 const canSubscribe = computed(() => billing.value?.canSubscribe !== false);

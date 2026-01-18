@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, onBeforeUnmount, ref } from 'vue';
-import { ElCard, ElDivider, ElTag, ElButton, ElMessage, ElInput } from 'element-plus';
+import { ElCard, ElDivider, ElTag, ElButton, ElMessage, ElInput, ElSelect, ElOption } from 'element-plus';
 import { useRouter } from 'vue-router';
 import { fetchOnboardingStatus, markQrPrinted, updateOnboardingLocation } from '../../api/onboarding';
+import { DEFAULT_TIMEZONE, setBusinessTimezone } from '../../utils/dates';
 
 const router = useRouter();
 const status = ref<Awaited<ReturnType<typeof fetchOnboardingStatus>> | null>(null);
@@ -11,9 +12,20 @@ const markingQr = ref(false);
 const savingLocation = ref(false);
 const countryCode = ref('US');
 const postalCode = ref('');
+const timezone = ref(DEFAULT_TIMEZONE);
 const liveDomain =
   (import.meta.env.VITE_PUBLIC_APP_DOMAIN as string | undefined)?.replace(/^\s+|\s+$/g, '') ||
   'salonflow.app';
+
+const timezoneOptions = [
+  { value: 'America/New_York', label: 'America/New_York (Eastern)' },
+  { value: 'America/Chicago', label: 'America/Chicago (Central)' },
+  { value: 'America/Denver', label: 'America/Denver (Mountain)' },
+  { value: 'America/Phoenix', label: 'America/Phoenix (Mountain, no DST)' },
+  { value: 'America/Los_Angeles', label: 'America/Los_Angeles (Pacific)' },
+  { value: 'America/Anchorage', label: 'America/Anchorage (Alaska)' },
+  { value: 'Pacific/Honolulu', label: 'Pacific/Honolulu (Hawaii)' },
+];
 
 const quickNav = (name: string) => {
   router.push({ name });
@@ -28,6 +40,8 @@ const load = async () => {
     }
     countryCode.value = status.value.countryCode?.trim() || 'US';
     postalCode.value = status.value.postalCode?.trim() || '';
+    timezone.value = status.value.timezone?.trim() || DEFAULT_TIMEZONE;
+    setBusinessTimezone(timezone.value);
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to load onboarding');
   } finally {
@@ -172,14 +186,18 @@ const saveLocation = async () => {
     ElMessage.error('ZIP / Postal Code must be letters, numbers, spaces, or dashes');
     return;
   }
+  const tz = timezone.value || DEFAULT_TIMEZONE;
   savingLocation.value = true;
   try {
     status.value = await updateOnboardingLocation({
       countryCode: cc,
       postalCode: zip,
+      timezone: tz,
     });
     countryCode.value = status.value.countryCode?.trim() || cc;
     postalCode.value = status.value.postalCode?.trim() || zip;
+    timezone.value = status.value.timezone?.trim() || tz;
+    setBusinessTimezone(timezone.value);
     ElMessage.success('Location updated');
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to update location');
@@ -210,7 +228,14 @@ const saveLocation = async () => {
     </div>
 
     <ElCard class="bg-white" :loading="loading">
-      <div class="grid gap-4 md:grid-cols-2">
+      <div class="grid gap-4 md:grid-cols-3">
+        <div class="space-y-1">
+          <label class="text-sm font-semibold text-slate-800">Timezone</label>
+          <ElSelect v-model="timezone" filterable placeholder="Select timezone">
+            <ElOption v-for="zone in timezoneOptions" :key="zone.value" :label="zone.label" :value="zone.value" />
+          </ElSelect>
+          <p class="text-xs text-slate-500">Used for displaying dates/times in your dashboards.</p>
+        </div>
         <div class="space-y-1">
           <label class="text-sm font-semibold text-slate-800">Country</label>
           <ElInput

@@ -6,6 +6,7 @@ import {
   completeAppointment,
   type Appointment,
 } from '../../api/appointments';
+import { formatInBusinessTz } from '../../utils/dates';
 
 const appointments = ref<Appointment[]>([]);
 const loading = ref(false);
@@ -38,6 +39,9 @@ const markComplete = async (id: string) => {
     actionLoading.value = null;
   }
 };
+
+const formatTime = (_: unknown, __: unknown, val: string) =>
+  formatInBusinessTz(val, 'MMM D, h:mm A');
 </script>
 
 <template>
@@ -56,7 +60,7 @@ const markComplete = async (id: string) => {
           prop="scheduledAt"
           label="Time"
           min-width="100"
-          :formatter="(_, __, val) => val.slice(11, 16)"
+          :formatter="formatTime"
         />
         <ElTableColumn prop="status" label="Status" width="110" />
         <ElTableColumn label="Actions" width="140">

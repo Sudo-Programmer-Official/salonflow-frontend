@@ -17,6 +17,7 @@ import {
   generateMagicLink,
   type DemoRequest,
 } from '../../api/demoRequests';
+import { formatInBusinessTz } from '../../utils/dates';
 
 const loading = ref(false);
 const requests = ref<DemoRequest[]>([]);
@@ -52,10 +53,7 @@ const statusType = (status: string | undefined) => {
   return 'info';
 };
 
-const formatDate = (iso: string) => {
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString();
-};
+const formatDate = (iso: string) => formatInBusinessTz(iso, 'MMM D, YYYY h:mm A');
 
 const notesText = computed(() => selected.value?.notes?.trim() || 'No notes provided');
 

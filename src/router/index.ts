@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory, type RouteLocationRaw } from "vue-router";
 import PublicLayout from "../layouts/PublicLayout.vue";
 import CheckInPage from "../pages/public/CheckIn.vue";
+import KioskStepperPage from "../pages/public/KioskStepper.vue";
 import AdminLayout from "../layouts/AdminLayout.vue";
 import PlatformLayout from "../layouts/PlatformLayout.vue";
 import AdminQRCodePage from "../pages/admin/QRCode.vue";
@@ -124,6 +125,11 @@ const routes = [
         path: "",
         name: "check-in",
         component: CheckInPage,
+      },
+      {
+        path: "kiosk",
+        name: "check-in-kiosk",
+        component: KioskStepperPage,
       },
       {
         path: "book",

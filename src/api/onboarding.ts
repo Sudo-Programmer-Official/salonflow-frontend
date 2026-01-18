@@ -1,6 +1,7 @@
 export type OnboardingStatus = {
   businessName: string;
   subdomain: string;
+  timezone?: string | null;
   countryCode?: string | null;
   postalCode?: string | null;
   servicesAdded: boolean;
@@ -103,6 +104,7 @@ export async function dismissOnboardingBanner(): Promise<OnboardingStatus> {
 export async function updateOnboardingLocation(input: {
   countryCode: string;
   postalCode: string;
+  timezone?: string;
 }): Promise<OnboardingStatus> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -115,6 +117,7 @@ export async function updateOnboardingLocation(input: {
     body: JSON.stringify({
       countryCode: input.countryCode,
       postalCode: input.postalCode,
+      timezone: input.timezone,
     }),
   });
   if (!res.ok) throw new Error('Failed to update location');

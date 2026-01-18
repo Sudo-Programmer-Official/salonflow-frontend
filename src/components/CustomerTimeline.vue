@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import dayjs from 'dayjs';
 import type { CustomerTimeline } from '../api/customers';
+import { formatInBusinessTz } from '../utils/dates';
 
 const props = defineProps<{
   timeline: CustomerTimeline | null;
@@ -10,10 +10,7 @@ const props = defineProps<{
 const visits = computed(() => props.timeline?.visits ?? []);
 const customer = computed(() => props.timeline?.customer);
 
-const formatDate = (iso: string | null) => {
-  if (!iso) return '—';
-  return dayjs(iso).format('MMM D, YYYY');
-};
+const formatDate = (iso: string | null) => formatInBusinessTz(iso, 'MMM D, YYYY');
 
 const formatAmount = (val: number | null) => {
   if (val === null || typeof val === 'undefined') return '—';

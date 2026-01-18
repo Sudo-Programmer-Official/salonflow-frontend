@@ -13,6 +13,7 @@ import {
   type RedemptionRule,
 } from '../../api/customerProfile';
 import { ElCard, ElAlert, ElTable, ElTableColumn, ElTag, ElButton, ElSelect, ElOption, ElMessage, ElDialog } from 'element-plus';
+import { formatInBusinessTz } from '../../utils/dates';
 
 const route = useRoute();
 const customerId = route.params.customerId as string;
@@ -90,7 +91,7 @@ const confirmRedeem = async () => {
         <div>
           <div class="text-lg font-semibold text-slate-900">{{ profile.customer.name }}</div>
           <div class="text-sm text-slate-600">{{ profile.customer.phoneE164 }}</div>
-          <div class="text-xs text-slate-500">Member since: {{ profile.customer.createdAt }}</div>
+          <div class="text-xs text-slate-500">Member since: {{ formatInBusinessTz(profile.customer.createdAt, 'MMM D, YYYY') }}</div>
         </div>
         <div class="flex items-center gap-3">
           <div class="text-right">
@@ -110,7 +111,7 @@ const confirmRedeem = async () => {
         <ElTableColumn prop="delta" label="Points" width="100" />
         <ElTableColumn prop="reason" label="Reason" min-width="140" />
         <ElTableColumn prop="referenceType" label="Ref" min-width="120" />
-        <ElTableColumn prop="createdAt" label="Date" min-width="160" />
+        <ElTableColumn prop="createdAt" label="Date" min-width="160" :formatter="(_, __, val) => formatInBusinessTz(val, 'MMM D, YYYY h:mm A')" />
       </ElTable>
       <div v-if="!loading && ledger.length === 0" class="py-4 text-center text-sm text-slate-500">
         No history yet.
@@ -124,7 +125,7 @@ const confirmRedeem = async () => {
       <ElTable :data="redemptions" :loading="loading" stripe>
         <ElTableColumn prop="ruleName" label="Reward" min-width="160" />
         <ElTableColumn prop="pointsSpent" label="Points Spent" width="140" />
-        <ElTableColumn prop="createdAt" label="Date" min-width="160" />
+        <ElTableColumn prop="createdAt" label="Date" min-width="160" :formatter="(_, __, val) => formatInBusinessTz(val, 'MMM D, YYYY h:mm A')" />
       </ElTable>
       <div v-if="!loading && redemptions.length === 0" class="py-4 text-center text-sm text-slate-500">
         No redemptions yet.
