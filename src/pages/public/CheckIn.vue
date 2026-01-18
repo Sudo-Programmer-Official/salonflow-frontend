@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
-import { ElForm, ElFormItem, ElInput, ElSelect, ElOption, ElButton, ElAlert } from 'element-plus';
+import { ElForm, ElFormItem, ElInput, ElSelect, ElOption, ElOptionGroup, ElButton, ElAlert } from 'element-plus';
 import { useRoute } from 'vue-router';
-import { createPublicCheckIn, fetchServices, publicLookup } from '../../api/checkins';
+import { createPublicCheckIn, fetchGroupedServices, publicLookup } from '../../api/checkins';
 import type { ServiceOption } from '../../api/checkins';
 import { apiUrl, buildHeaders } from '../../api/client';
 import { startKioskIdleWatchdog } from '../../utils/kioskIdleWatchdog';
+import { fetchPublicSettings, type BusinessSettings } from '../../api/settings';
 
 const form = reactive({
   name: '',
@@ -13,7 +14,14 @@ const form = reactive({
   serviceId: '',
 });
 
-const services = ref<ServiceOption[]>([]);
+const groupedServices = ref<
+  Array<{
+    categoryId: string | null;
+    categoryName: string;
+    categoryIcon: string;
+    services: ServiceOption[];
+  }>
+>([]);
 const loadingServices = ref(false);
 const submitting = ref(false);
 const success = ref(false);
@@ -29,6 +37,8 @@ const lookupLoading = ref(false);
 const lookupResult = ref<{ exists: boolean; customer?: { id: string; name: string; pointsBalance: number | null } } | null>(null);
 const lookupTimer = ref<number | null>(null);
 const rewardText = ref('Get $5 off');
+const settings = ref<BusinessSettings | null>(null);
+const settingsError = ref('');
 const route = useRoute();
 const tenant = computed(
   () =>
@@ -39,10 +49,45 @@ const tenant = computed(
     'demo',
 );
 
+const defaultSettings: BusinessSettings = {
+  businessId: '',
+  businessName: '',
+  timezone: null,
+  currency: 'USD',
+  kioskEnabled: false,
+  publicCheckInEnabled: true,
+  requirePhone: true,
+  showPointsOnKiosk: false,
+  allowMultiService: false,
+  requireService: false,
+  kioskAutoResetSeconds: null,
+  enforceStaffAvailability: false,
+  defaultBookingRules: {
+    buffer_before: 0,
+    buffer_after: 0,
+    min_notice_minutes: 0,
+    allow_same_day: true,
+    allow_walkins_outside_availability: true,
+  },
+  createdAt: null,
+  updatedAt: null,
+};
+
+const phoneRequired = computed(() => (settings.value ? settings.value.requirePhone !== false : true));
+const serviceRequired = computed(() => (settings.value ? settings.value.requireService === true : false));
+const showPoints = computed(() => (settings.value ? settings.value.showPointsOnKiosk === true : true));
+const publicEnabled = computed(() => (settings.value ? settings.value.publicCheckInEnabled !== false : true));
+
 onMounted(async () => {
   if (tenant.value) {
     localStorage.setItem('tenantSubdomain', tenant.value);
     localStorage.setItem('tenantId', tenant.value);
+  }
+  try {
+    settings.value = await fetchPublicSettings();
+  } catch (err: any) {
+    settings.value = defaultSettings;
+    settingsError.value = err?.message || 'Unable to load settings.';
   }
   loadingServices.value = true;
   await refreshServices();
@@ -86,9 +131,9 @@ onUnmounted(() => {
 const refreshServices = async () => {
   loadingServices.value = true;
   try {
-    services.value = await fetchServices();
+    groupedServices.value = await fetchGroupedServices();
   } catch {
-    services.value = [];
+    groupedServices.value = [];
   } finally {
     loadingServices.value = false;
   }
@@ -122,24 +167,35 @@ const normalizePhone = (raw: string) => {
 const onSubmit = async () => {
   errorMessage.value = '';
   success.value = false;
+  if (!publicEnabled.value) {
+    errorMessage.value = 'Public check-in is disabled right now.';
+    return;
+  }
+  if (serviceRequired.value && !form.serviceId) {
+    errorMessage.value = 'Please select a service to continue.';
+    return;
+  }
   submitting.value = true;
   try {
     const normalizedPhone = normalizePhone(form.phoneE164);
     if (!lookupResult.value && normalizedPhone) {
       await onLookup();
     }
+    if (phoneRequired.value && !normalizedPhone) {
+      throw new Error('Phone number is required');
+    }
     const nameToUse =
       lookupResult.value?.exists && lookupResult.value.customer?.name
         ? lookupResult.value.customer.name
         : form.name.trim();
+    const serviceName = form.serviceId
+      ? groupedServices.value.flatMap((g) => g.services).find((s) => s.id === form.serviceId)?.name
+      : undefined;
     await createPublicCheckIn({
       name: nameToUse,
-      phoneE164: normalizedPhone,
+      phoneE164: phoneRequired.value ? normalizedPhone : normalizedPhone || null,
       serviceId: form.serviceId || undefined,
-      serviceName:
-        form.serviceId && services.value.length
-          ? services.value.find((s) => s.id === form.serviceId)?.name
-          : undefined,
+      serviceName,
     });
     success.value = true;
     successName.value = nameToUse;
@@ -207,10 +263,26 @@ watch(
       <p class="mt-2 text-sm text-slate-600">Let us know you're here. We'll call you shortly.</p>
     </div>
 
+    <ElAlert
+      v-if="settingsError"
+      type="warning"
+      :closable="false"
+      class="mb-3"
+      :title="settingsError"
+    />
+
+    <div
+      v-if="!publicEnabled"
+      class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-slate-800 shadow-sm"
+    >
+      <div class="text-lg font-semibold">Public check-in is disabled.</div>
+      <div class="text-sm text-slate-700">Please see the front desk for help.</div>
+    </div>
+
     <div class="rounded-2xl bg-white p-5 shadow-sm sm:p-6">
       <ElForm label-position="top" class="space-y-4" @submit.prevent="onSubmit">
 
-        <ElFormItem label="Phone number" required>
+        <ElFormItem label="Phone number" :required="phoneRequired">
           <ElInput
             v-model="form.phoneE164"
             placeholder="+1 555 123 4567"
@@ -223,7 +295,10 @@ watch(
           />
         </ElFormItem>
 
-        <div class="rounded-lg bg-slate-50 p-3 text-sm text-slate-800" v-if="lookupResult && !lookupLoading">
+        <div
+          class="rounded-lg bg-slate-50 p-3 text-sm text-slate-800"
+          v-if="lookupResult && !lookupLoading && showPoints"
+        >
           <template v-if="lookupResult.exists && lookupResult.customer">
             <div class="flex flex-wrap items-center gap-2">
               <span class="text-base font-semibold">👤 Hi, {{ lookupResult.customer.name }}</span>
@@ -258,7 +333,7 @@ watch(
           />
         </ElFormItem>
 
-        <ElFormItem label="Service (optional)">
+        <ElFormItem :label="serviceRequired ? 'Service' : 'Service (optional)'" :required="serviceRequired">
           <ElSelect
             v-model="form.serviceId"
             placeholder="Select a service"
@@ -267,12 +342,16 @@ watch(
             filterable
             :loading="loadingServices"
           >
-            <ElOption
-              v-for="service in services"
-              :key="service.id"
-              :label="service.name"
-              :value="service.id"
-            />
+            <template v-for="group in groupedServices" :key="group.categoryId || 'uncategorized'">
+              <ElOptionGroup :label="`${group.categoryIcon || '📋'} ${group.categoryName}`">
+                <ElOption
+                  v-for="service in group.services"
+                  :key="service.id"
+                  :label="service.name"
+                  :value="service.id"
+                />
+              </ElOptionGroup>
+            </template>
           </ElSelect>
         </ElFormItem>
 
@@ -282,7 +361,13 @@ watch(
             size="large"
             class="w-full"
             :loading="submitting"
-            :disabled="(!form.name && !lookupResult?.exists) || !form.phoneE164 || submitting"
+            :disabled="
+              (!form.name && !lookupResult?.exists) ||
+              (phoneRequired && !form.phoneE164) ||
+              (serviceRequired && !form.serviceId) ||
+              submitting ||
+              !publicEnabled
+            "
             @click="onSubmit"
           >
             Check In
@@ -294,7 +379,7 @@ watch(
           >
             <div class="text-lg font-semibold">✅ Thank you, {{ successName || form.name || 'Guest' }}!</div>
             <div class="text-sm text-slate-700">You are checked in.</div>
-            <div class="mt-1 text-sm font-semibold text-emerald-700">
+            <div class="mt-1 text-sm font-semibold text-emerald-700" v-if="showPoints">
               ⭐ {{ successPoints ?? 0 }} points · 💸 {{ rewardText }}
             </div>
           </div>

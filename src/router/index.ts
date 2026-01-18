@@ -24,6 +24,9 @@ import AdminDemoRequestsPage from "../pages/admin/DemoRequests.vue";
 import AdminCustomersPage from "../pages/admin/Customers.vue";
 import AdminQueuePage from "../pages/admin/Queue.vue";
 import AdminBillingSuccessPage from "../pages/admin/BillingSuccess.vue";
+import AdminSettingsPage from "../pages/admin/Settings.vue";
+import AdminCategoriesPage from "../pages/admin/Categories.vue";
+import AdminAnalyticsPage from "../pages/admin/Analytics.vue";
 import MarketingLayout from "../layouts/MarketingLayout.vue";
 import MarketingHome from "../pages/MarketingHome.vue";
 import StartPage from "../pages/Start.vue";
@@ -185,6 +188,18 @@ const routes = [
         meta: { requiresAuth: true, roles: ["OWNER"] },
       },
       {
+        path: "categories",
+        name: "admin-categories",
+        component: AdminCategoriesPage,
+        meta: { requiresAuth: true, roles: ["OWNER"] },
+      },
+      {
+        path: "analytics",
+        name: "admin-analytics",
+        component: AdminAnalyticsPage,
+        meta: { requiresAuth: true, roles: ["OWNER"] },
+      },
+      {
         path: "onboarding",
         name: "admin-onboarding",
         component: AdminOnboardingPage,
@@ -236,6 +251,12 @@ const routes = [
         path: "review-sms",
         name: "admin-review-sms",
         component: AdminReviewSMSPage,
+        meta: { requiresAuth: true, roles: ["OWNER"] },
+      },
+      {
+        path: "settings",
+        name: "admin-settings",
+        component: AdminSettingsPage,
         meta: { requiresAuth: true, roles: ["OWNER"] },
       },
       {

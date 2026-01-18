@@ -11,7 +11,7 @@ export type ServiceOption = {
 
 export type CreateCheckInPayload = {
   name: string;
-  phoneE164: string;
+  phoneE164?: string | null;
   serviceId?: string | null;
   serviceName?: string | null;
   appointmentId?: string | null;

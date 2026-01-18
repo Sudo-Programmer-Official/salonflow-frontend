@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { ElButton, ElCard, ElInput, ElAlert } from 'element-plus';
 import { fetchGroupedServices, createPublicCheckIn, publicLookup } from '../../api/checkins';
 import { apiUrl, buildHeaders } from '../../api/client';
+import { fetchPublicSettings, type BusinessSettings } from '../../api/settings';
 
 type Step = 'welcome' | 'categories' | 'services' | 'review' | 'done';
 
@@ -11,6 +12,8 @@ const businessName = ref<string>('SalonFlow');
 const loading = ref(false);
 const error = ref('');
 const step = ref<Step>('welcome');
+const settings = ref<BusinessSettings | null>(null);
+const settingsError = ref('');
 const grouped = ref<{
   categoryId: string | null;
   categoryName: string;
@@ -26,6 +29,42 @@ const selectedCategoryId = ref<string | null>(null);
 const selectedServices = ref<Set<string>>(new Set());
 const lookupResult = ref<{ exists: boolean; customer?: { id: string; name: string; pointsBalance: number | null } } | null>(null);
 const submitting = ref(false);
+const resetTimer = ref<number | null>(null);
+
+const defaultSettings: BusinessSettings = {
+  businessId: '',
+  businessName: '',
+  timezone: null,
+  currency: 'USD',
+  kioskEnabled: true,
+  publicCheckInEnabled: true,
+  requirePhone: true,
+  showPointsOnKiosk: false,
+  allowMultiService: false,
+  requireService: false,
+  kioskAutoResetSeconds: null,
+  enforceStaffAvailability: false,
+  defaultBookingRules: {
+    buffer_before: 0,
+    buffer_after: 0,
+    min_notice_minutes: 0,
+    allow_same_day: true,
+    allow_walkins_outside_availability: true,
+  },
+  createdAt: null,
+  updatedAt: null,
+};
+
+const kioskEnabled = computed(() => (settings.value ? settings.value.kioskEnabled !== false : true));
+const phoneRequired = computed(() => (settings.value ? settings.value.requirePhone !== false : true));
+const serviceRequired = computed(() => (settings.value ? settings.value.requireService === true : false));
+const allowMultiService = computed(() => (settings.value ? settings.value.allowMultiService === true : true));
+const autoResetMs = computed(() => {
+  const seconds = settings.value?.kioskAutoResetSeconds;
+  if (seconds === null) return null;
+  const fallback = seconds === undefined ? 10 : seconds;
+  return Math.max(5, fallback) * 1000;
+});
 
 const filteredCategories = computed(() => grouped.value);
 const servicesForCategory = computed(() => {
@@ -70,8 +109,18 @@ const loadServices = async () => {
   }
 };
 
+const loadSettings = async () => {
+  try {
+    settings.value = await fetchPublicSettings();
+  } catch (err: any) {
+    settings.value = defaultSettings;
+    settingsError.value = err?.message || 'Unable to load settings.';
+  }
+};
+
 onMounted(async () => {
   await loadTenant();
+  await loadSettings();
   await loadServices();
 });
 
@@ -86,9 +135,9 @@ const normalizePhone = (raw: string) => {
 };
 
 const goTo = (next: Step) => {
-  if (next === 'categories' && !grouped.value.length) return;
-  if (next === 'services' && !selectedCategoryId.value) return;
-  if (next === 'review' && !selectedServices.value.size) return;
+  if (next === 'categories' && !grouped.value.length && serviceRequired.value) return;
+  if (next === 'services' && serviceRequired.value && !selectedCategoryId.value) return;
+  if (next === 'review' && serviceRequired.value && !selectedServices.value.size) return;
   step.value = next;
 };
 
@@ -99,6 +148,10 @@ const selectCategory = (id: string | null) => {
 };
 
 const toggleService = (id: string) => {
+  if (!allowMultiService.value) {
+    selectedServices.value = new Set([id]);
+    return;
+  }
   const copy = new Set(selectedServices.value);
   if (copy.has(id)) copy.delete(id);
   else copy.add(id);
@@ -145,24 +198,37 @@ const onLookup = async () => {
 
 const submitCheckIn = async () => {
   error.value = '';
+  if (!kioskEnabled.value) {
+    error.value = 'Kiosk check-in is disabled.';
+    return;
+  }
   submitting.value = true;
   try {
     const normalizedPhone = normalizePhone(form.phoneE164);
+    if (phoneRequired.value && !normalizedPhone) {
+      throw new Error('Phone number is required');
+    }
     const nameToUse = form.name.trim();
     const firstServiceId = reviewItems.value[0]?.id || undefined;
     const serviceNameList = reviewItems.value.map((s) => s.name).join(', ');
     await createPublicCheckIn({
       name: nameToUse,
-      phoneE164: normalizedPhone,
+      phoneE164: phoneRequired.value ? normalizedPhone : normalizedPhone || null,
       serviceId: firstServiceId,
       serviceName: serviceNameList || undefined,
       appointmentId: undefined,
     });
     step.value = 'done';
     // Auto-reset after short delay
-    window.setTimeout(() => {
-      resetFlow();
-    }, 6000);
+    const resetMs = autoResetMs.value;
+    if (resetTimer.value) {
+      clearTimeout(resetTimer.value);
+    }
+    if (resetMs && resetMs > 0) {
+      resetTimer.value = window.setTimeout(() => {
+        resetFlow();
+      }, resetMs);
+    }
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to check in';
   } finally {
@@ -178,6 +244,10 @@ const resetFlow = () => {
   lookupResult.value = null;
   step.value = 'welcome';
   error.value = '';
+  if (resetTimer.value) {
+    clearTimeout(resetTimer.value);
+    resetTimer.value = null;
+  }
 };
 </script>
 
@@ -188,6 +258,22 @@ const resetFlow = () => {
         <h1 class="text-3xl font-semibold">{{ businessName }}</h1>
         <p class="text-slate-300">Touch-friendly check-in</p>
       </div>
+
+      <ElAlert
+        v-if="settingsError"
+        type="warning"
+        :closable="false"
+        class="mb-3"
+        :title="settingsError"
+      />
+
+      <ElAlert
+        v-if="!kioskEnabled"
+        type="warning"
+        :closable="false"
+        class="mb-3"
+        title="Kiosk mode is disabled. Ask the front desk to enable it."
+      />
 
       <ElAlert v-if="error" type="error" :title="error" class="mb-4" />
 
@@ -227,7 +313,12 @@ const resetFlow = () => {
               <ElInput v-model="form.name" size="large" placeholder="Enter name" />
             </div>
             <div class="col-span-2 flex justify-end gap-2">
-              <ElButton size="large" type="primary" @click="goTo('categories')" :disabled="loading">
+              <ElButton
+                size="large"
+                type="primary"
+                @click="goTo('categories')"
+                :disabled="loading || (phoneRequired && !form.phoneE164) || !form.name || !kioskEnabled"
+              >
                 Next
               </ElButton>
             </div>
@@ -249,6 +340,9 @@ const resetFlow = () => {
             </div>
             <div class="flex justify-between">
               <ElButton @click="goTo('welcome')">Back</ElButton>
+              <ElButton v-if="!serviceRequired" type="primary" @click="goTo('review')">
+                Skip selection
+              </ElButton>
             </div>
           </div>
 
@@ -276,7 +370,7 @@ const resetFlow = () => {
             </div>
             <div class="flex justify-between">
               <ElButton @click="goTo('categories')">Back</ElButton>
-              <ElButton type="primary" :disabled="!selectedServices.size" @click="goTo('review')">Next</ElButton>
+              <ElButton type="primary" :disabled="serviceRequired && !selectedServices.size" @click="goTo('review')">Next</ElButton>
             </div>
           </div>
 
@@ -284,15 +378,16 @@ const resetFlow = () => {
           <div v-else-if="step === 'review'" class="space-y-3">
             <div class="rounded-lg border border-slate-700 bg-slate-800 p-4">
               <div class="text-lg font-semibold text-white">You selected</div>
-              <div class="mt-2 space-y-2">
+              <div v-if="reviewItems.length" class="mt-2 space-y-2">
                 <div v-for="item in reviewItems" :key="item.id" class="flex justify-between text-slate-200">
                   <span>{{ item.name }}</span>
                   <span class="text-emerald-300">{{ formatPrice(item.priceCents, item.currency) }}</span>
                 </div>
               </div>
+              <div v-else class="mt-2 text-sm text-slate-300">No services selected.</div>
               <div class="mt-3 flex justify-between text-white font-semibold">
                 <span>Total</span>
-                <span>{{ formatPrice(Math.round(totalPrice * 100), 'USD') }}</span>
+                <span>{{ formatPrice(Math.round(totalPrice * 100), settings?.currency || 'USD') }}</span>
               </div>
             </div>
             <div class="flex justify-between">

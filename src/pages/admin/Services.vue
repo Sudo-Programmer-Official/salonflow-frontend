@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import {
   ElTable,
   ElTableColumn,
@@ -34,7 +35,10 @@ import {
   updateCategory,
   type ServiceCategory,
 } from '../../api/serviceCategories';
+import { deleteCategory } from '../../api/serviceCategories';
+import { fetchSettings, type DefaultBookingRules } from '../../api/settings';
 
+const router = useRouter();
 const services = ref<ServiceItem[]>([]);
 const loading = ref(false);
 const creating = ref(false);
@@ -47,6 +51,7 @@ const iconOptions = ['💅', '✂️', '🪮', '💇', '🧖', '💆', '💄', '
 const categoryIconOptions = ['📋', '💅', '🧖', '🧴', '💄', '✂️', '🪮', '🪒'];
 const selectedCategoryFilter = ref<string | null | ''>('');
 const staffCounts = ref<Record<string, number>>({});
+const settingsDefaults = ref<DefaultBookingRules | null>(null);
 
 const form = reactive({
   name: '',
@@ -55,7 +60,7 @@ const form = reactive({
   icon: iconOptions[3],
   isActive: true,
   price: 0,
-  categoryId: '' as string | null | '',
+  categoryId: 'uncategorized' as string | null | '',
   requiresStaff: false,
   allowWalkin: true,
   bufferBefore: 0,
@@ -80,13 +85,20 @@ const resetForm = () => {
   form.icon = iconOptions[3];
   form.isActive = true;
   form.price = 0;
-  form.categoryId = '';
+  form.categoryId = 'uncategorized';
   form.requiresStaff = false;
   form.allowWalkin = true;
   form.bufferBefore = 0;
   form.bufferAfter = 0;
   form.minNotice = 0;
   editingId.value = null;
+
+  if (settingsDefaults.value) {
+    form.bufferBefore = settingsDefaults.value.buffer_before ?? 0;
+    form.bufferAfter = settingsDefaults.value.buffer_after ?? 0;
+    form.minNotice = settingsDefaults.value.min_notice_minutes ?? 0;
+    form.allowWalkin = settingsDefaults.value.allow_walkins_outside_availability !== false;
+  }
 };
 
 const applyServiceUpdate = (updated: ServiceItem) => {
@@ -117,15 +129,32 @@ const loadStaffCounts = async () => {
   }
 };
 
+const loadSettingsDefaults = async () => {
+  try {
+    const s = await fetchSettings();
+    settingsDefaults.value = s.defaultBookingRules;
+    if (!editingId.value) {
+      resetForm();
+    }
+  } catch {
+    settingsDefaults.value = null;
+  }
+};
+
 onMounted(() => {
   loadCategories();
   loadServices();
   loadStaffCounts();
+  loadSettingsDefaults();
 });
 
 const handleCreate = async () => {
   if (!form.name || form.durationMinutes <= 0) {
     ElMessage.warning('Name and duration are required');
+    return;
+  }
+  if (!form.categoryId) {
+    ElMessage.warning('Select a category');
     return;
   }
   creating.value = true;
@@ -137,12 +166,13 @@ const handleCreate = async () => {
       buffer_after: Math.max(0, form.bufferAfter || 0),
       min_notice_minutes: Math.max(0, form.minNotice || 0),
     };
+    const categoryIdToSend = form.categoryId === 'uncategorized' ? null : form.categoryId || null;
     const created = await createService({
       name: form.name.trim(),
       durationMinutes: form.durationMinutes,
       points: form.points ?? 0,
       icon: form.icon,
-      categoryId: form.categoryId || null,
+      categoryId: categoryIdToSend,
       priceCents: Math.max(0, Math.round((form.price ?? 0) * 100)),
       bookingRules,
     });
@@ -166,7 +196,7 @@ const openEdit = (service: ServiceItem) => {
   form.icon = service.icon || iconOptions[3];
   form.isActive = service.isActive;
   form.price = service.priceCents ? service.priceCents / 100 : 0;
-  form.categoryId = service.categoryId || '';
+  form.categoryId = service.categoryId || 'uncategorized';
   const rules = service.bookingRules || {};
   form.requiresStaff = !!rules.requires_staff;
   form.allowWalkin = rules.allow_walkin !== false;
@@ -182,6 +212,10 @@ const handleSaveEdit = async () => {
     ElMessage.warning('Name and duration are required');
     return;
   }
+  if (!form.categoryId) {
+    ElMessage.warning('Select a category');
+    return;
+  }
   saving.value = true;
   try {
     const bookingRules = {
@@ -191,13 +225,14 @@ const handleSaveEdit = async () => {
       buffer_after: Math.max(0, form.bufferAfter || 0),
       min_notice_minutes: Math.max(0, form.minNotice || 0),
     };
+    const categoryIdToSend = form.categoryId === 'uncategorized' ? null : form.categoryId || null;
     const updated = await updateService(editingId.value, {
       name: form.name.trim(),
       durationMinutes: form.durationMinutes,
       points: form.points ?? 0,
       icon: form.icon,
       isActive: form.isActive,
-      categoryId: form.categoryId || null,
+      categoryId: categoryIdToSend,
       priceCents: Math.max(0, Math.round((form.price ?? 0) * 100)),
       bookingRules,
     });
@@ -240,6 +275,22 @@ const categoryLabel = (id?: string | null) => {
   return cat ? `${cat.icon || '📋'} ${cat.name}` : 'Uncategorized';
 };
 
+const sortedCategories = computed(() =>
+  [...categories.value].sort((a, b) => {
+    if (a.id === 'uncategorized') return 1;
+    if (b.id === 'uncategorized') return -1;
+    return (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name);
+  }),
+);
+
+const categoryOptions = computed(() => {
+  const active = sortedCategories.value.filter((c) => c.id !== 'uncategorized' && c.active);
+  const unc = categories.value.find((c) => c.id === 'uncategorized');
+  return unc ? [...active, unc] : active;
+});
+
+const categoryCards = computed(() => sortedCategories.value.filter((c) => c.id !== 'uncategorized'));
+
 const filteredServices = computed(() => {
   const filter = selectedCategoryFilter.value;
   if (!filter) return services.value;
@@ -247,13 +298,12 @@ const filteredServices = computed(() => {
   return services.value.filter((s) => s.categoryId === filter);
 });
 
-const sortedCategories = computed(() =>
-  [...categories.value].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name)),
-);
-
 const loadCategories = async () => {
   try {
     categories.value = await fetchCategories();
+    if (!form.categoryId) {
+      form.categoryId = 'uncategorized';
+    }
   } catch (err) {
     categories.value = [];
   }
@@ -310,6 +360,31 @@ const handleCategoryToggle = async (categoryId: string, val: boolean) => {
     ElMessage.error('Failed to update category');
   }
 };
+
+const deleteCategoryAction = async (categoryId: string) => {
+  if (categoryId === 'uncategorized') return;
+  if (!window.confirm('Delete this category? Services will move to Uncategorized.')) return;
+  try {
+    await deleteCategory(categoryId);
+    await loadCategories();
+    await loadServices();
+    await loadStaffCounts();
+    ElMessage.success('Category deleted');
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : 'Failed to delete category');
+  }
+};
+
+const goToCategories = () => {
+  router.push({ name: 'admin-categories' });
+};
+
+const handleCategorySelect = (val: string | null) => {
+  if (val === '__add__') {
+    form.categoryId = 'uncategorized';
+    openCategoryDialog();
+  }
+};
 </script>
 
 <template>
@@ -333,8 +408,20 @@ const handleCategoryToggle = async (categoryId: string, val: boolean) => {
           </ElSelect>
         </ElFormItem>
         <ElFormItem label="Category" class="sm:col-span-2">
-          <ElSelect v-model="form.categoryId" placeholder="Select category" clearable filterable size="small">
-            <ElOption v-for="cat in sortedCategories" :key="cat.id" :label="`${cat.icon} ${cat.name}`" :value="cat.id" />
+          <ElSelect
+            v-model="form.categoryId"
+            placeholder="Select category"
+            filterable
+            size="small"
+            @change="(val) => handleCategorySelect(val as string)"
+          >
+            <ElOption
+              v-for="cat in categoryOptions"
+              :key="cat.id"
+              :label="`${cat.icon} ${cat.name}`"
+              :value="cat.id"
+            />
+            <ElOption label="+ Add category" value="__add__" />
           </ElSelect>
         </ElFormItem>
         <ElFormItem label="Duration (minutes)" class="sm:col-span-1">
@@ -379,16 +466,16 @@ const handleCategoryToggle = async (categoryId: string, val: boolean) => {
             style="width: 220px"
           >
             <ElOption label="All categories" :value="''" />
-            <ElOption v-for="cat in sortedCategories" :key="cat.id" :label="`${cat.icon} ${cat.name}`" :value="cat.id" />
+            <ElOption v-for="cat in categoryOptions" :key="cat.id" :label="`${cat.icon} ${cat.name}`" :value="cat.id" />
             <ElOption label="Uncategorized" value="__uncategorized__" />
           </ElSelect>
-          <ElButton size="small" plain @click="openCategoryDialog()">Manage Categories</ElButton>
+          <ElButton size="small" plain @click="goToCategories()">Manage Categories</ElButton>
         </div>
       </div>
 
       <div class="mb-3 grid gap-3 md:grid-cols-2">
         <div
-          v-for="cat in sortedCategories"
+          v-for="cat in categoryCards"
           :key="cat.id"
           class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 flex items-center justify-between"
         >
@@ -406,6 +493,14 @@ const handleCategoryToggle = async (categoryId: string, val: boolean) => {
               @change="(val) => handleCategoryToggle(cat.id, val as boolean)"
             />
             <ElButton size="small" plain @click.stop="openCategoryDialog(cat)">Edit</ElButton>
+            <ElButton
+              size="small"
+              plain
+              type="danger"
+              @click.stop="deleteCategoryAction(cat.id)"
+            >
+              Delete
+            </ElButton>
           </div>
         </div>
         <div

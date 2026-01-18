@@ -6,6 +6,7 @@ import { trialExpired, trialEndedAt, trialDaysRemaining, resetTrialState } from 
 import { fetchOnboardingStatus, dismissOnboardingBanner } from '../api/onboarding';
 import { logout } from '../utils/auth';
 import SiteFooter from '../components/SiteFooter.vue';
+import { fetchSettings } from '../api/settings';
 
 const role = computed(() => localStorage.getItem('role') || '');
 const isOwner = computed(() => role.value === 'OWNER');
@@ -67,6 +68,17 @@ const openPublicCheckIn = () => {
   window.location.href = publicCheckInUrl.value;
 };
 
+const kioskUrl = computed(() => {
+  if (typeof window === 'undefined') return '/check-in/kiosk';
+  return `${window.location.origin}/check-in/kiosk`;
+});
+
+const kioskEnabled = ref(false);
+
+const openKioskMode = () => {
+  window.location.href = kioskUrl.value;
+};
+
 const loadOnboarding = async () => {
   if (!isOwner.value) return;
   try {
@@ -77,7 +89,20 @@ const loadOnboarding = async () => {
   }
 };
 
-onMounted(loadOnboarding);
+const loadSettingsFlags = async () => {
+  if (!isOwner.value) return;
+  try {
+    const data = await fetchSettings();
+    kioskEnabled.value = data.kioskEnabled;
+  } catch {
+    kioskEnabled.value = false;
+  }
+};
+
+onMounted(() => {
+  loadOnboarding();
+  loadSettingsFlags();
+});
 
 const showOnboardingBanner = computed(
   () =>
@@ -108,6 +133,8 @@ const navItems = computed(() => {
     { label: 'Queue', name: 'admin-queue', roles: ['OWNER', 'STAFF'] },
     { label: 'Onboarding', name: 'admin-onboarding', roles: ['OWNER'] },
     { label: 'Services', name: 'admin-services', roles: ['OWNER'] },
+    { label: 'Categories', name: 'admin-categories', roles: ['OWNER'] },
+    { label: 'Analytics', name: 'admin-analytics', roles: ['OWNER'] },
     { label: 'Staff', name: 'admin-staff', roles: ['OWNER'] },
     { label: 'Customers', name: 'admin-customers', roles: ['OWNER'] },
     { label: 'Appointments', name: 'admin-appointments', roles: ['OWNER'] },
@@ -117,6 +144,7 @@ const navItems = computed(() => {
       roles: ['OWNER'],
     },
     { label: 'Review SMS', name: 'admin-review-sms', roles: ['OWNER'] },
+    { label: 'Settings', name: 'admin-settings', roles: ['OWNER'] },
     { label: 'SMS', name: 'admin-sms', roles: ['OWNER'] },
     { label: 'QR Codes', name: 'admin-qr', roles: ['OWNER'] },
     { label: 'Billing', name: 'admin-billing', roles: ['OWNER'] },
@@ -162,6 +190,15 @@ const navItems = computed(() => {
       >
         <div class="text-sm font-semibold text-slate-900">Admin</div>
         <div class="flex items-center gap-3">
+          <el-button
+            v-if="isOwner && kioskEnabled"
+            type="success"
+            plain
+            size="small"
+            @click="openKioskMode"
+          >
+            Kiosk Mode
+          </el-button>
           <el-button type="primary" plain size="small" @click="openPublicCheckIn">
             Public Check-In
           </el-button>

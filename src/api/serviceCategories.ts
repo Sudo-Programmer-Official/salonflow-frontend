@@ -6,6 +6,8 @@ export type ServiceCategory = {
   icon: string;
   sortOrder: number;
   active: boolean;
+  serviceCount?: number;
+  createdAt?: string;
 };
 
 const apiBase = apiUrl('/service-categories');
@@ -53,4 +55,14 @@ export async function updateCategory(
     throw new Error(err.error || 'Failed to update category');
   }
   return res.json();
+}
+
+export async function deleteCategory(categoryId: string): Promise<void> {
+  const res = await fetch(`${apiBase}/${categoryId}`, {
+    method: 'DELETE',
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
+  });
+  if (res.status === 204) return;
+  const err = await res.json().catch(() => ({}));
+  throw new Error(err.error || 'Failed to delete category');
 }
