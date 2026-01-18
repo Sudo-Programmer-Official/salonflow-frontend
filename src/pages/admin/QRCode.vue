@@ -67,7 +67,7 @@ const handleDownload = () => {
         <ol class="list-decimal space-y-1 pl-5 text-sm text-slate-700">
           <li>Open this page on the iPad.</li>
           <li>Tap the Share icon, then choose <strong>Add to Home Screen</strong>.</li>
-          <li>Open the new “SalonFlow” app icon. It launches full screen to /check-in.</li>
+          <li>Open the new “SalonFlow” app icon. It launches to /app and routes you to the dashboard or login; use the Public Check-In button to open the kiosk view.</li>
           <li>Use iPad Guided Access to keep the kiosk locked (optional but recommended).</li>
         </ol>
         <p class="text-xs text-slate-500">

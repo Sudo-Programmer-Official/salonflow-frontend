@@ -14,7 +14,7 @@ export const clearAuthState = () => {
   keys.forEach((key) => localStorage.removeItem(key));
 };
 
-export const logout = (redirectPath = '/login') => {
+export const logout = (redirectPath = '/app/login') => {
   clearAuthState();
   window.location.href = redirectPath;
 };

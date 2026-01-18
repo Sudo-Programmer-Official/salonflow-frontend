@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from "vue-router";
+import { createRouter, createWebHistory, type RouteLocationRaw } from "vue-router";
 import PublicLayout from "../layouts/PublicLayout.vue";
 import CheckInPage from "../pages/public/CheckIn.vue";
 import AdminLayout from "../layouts/AdminLayout.vue";
@@ -30,6 +30,45 @@ import LoginPage from "../pages/Login.vue";
 import MagicLoginPage from "../pages/MagicLogin.vue";
 import PrivacyPage from "../pages/Privacy.vue";
 import TermsPage from "../pages/Terms.vue";
+import { clearAuthState } from "../utils/auth";
+import { defaultRouteForRole } from "../utils/navigation";
+
+const LOGIN_ROUTE: RouteLocationRaw = { name: "login" };
+
+const isBrowser = typeof window !== "undefined";
+
+const decodeJwtExpiry = (token: string): number | null => {
+  try {
+    const base64 = token.split(".")[1];
+    if (!base64) return null;
+    const normalized = base64.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), "=");
+    const payload = JSON.parse(atob(padded));
+    return typeof payload.exp === "number" ? payload.exp : null;
+  } catch (_err) {
+    return null;
+  }
+};
+
+const isTokenExpired = (token: string | null) => {
+  const exp = token ? decodeJwtExpiry(token) : null;
+  if (!exp) return false;
+  return exp * 1000 < Date.now();
+};
+
+const getStoredRole = () => (isBrowser ? localStorage.getItem("role") : null);
+
+const hasValidSession = () => {
+  if (!isBrowser) return false;
+  const token = localStorage.getItem("token");
+  const role = getStoredRole();
+  if (!token || !role) return false;
+  if (isTokenExpired(token)) {
+    clearAuthState();
+    return false;
+  }
+  return true;
+};
 
 const routes = [
   {
@@ -49,8 +88,17 @@ const routes = [
     ],
   },
   {
-    path: "/login",
+    path: "/app",
+    name: "pwa-entry",
+    redirect: () => {
+      const role = getStoredRole();
+      return hasValidSession() ? defaultRouteForRole(role) : LOGIN_ROUTE;
+    },
+  },
+  {
+    path: "/app/login",
     name: "login",
+    alias: "/login",
     component: LoginPage,
   },
   {
@@ -222,25 +270,22 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to, _from, next) => {
-  const token = localStorage.getItem("token");
-  const storedRole = localStorage.getItem("role");
+  const authed = hasValidSession();
+  const storedRole = getStoredRole();
 
-  if (to.name === "login" && token && storedRole) {
-    if (storedRole === "SUPER_ADMIN")
-      return next({ name: "platform-dashboard" });
-    if (storedRole === "OWNER") return next({ name: "admin-dashboard" });
-    if (storedRole === "STAFF") return next({ name: "admin-queue" });
+  if (to.name === "login" && authed && storedRole) {
+    return next(defaultRouteForRole(storedRole));
   }
 
   if (to.meta.requiresAuth) {
-    if (!token) {
-      return next("/login");
+    if (!authed) {
+      return next(LOGIN_ROUTE);
     }
 
     const roles = (to.meta.roles as string[] | undefined) ?? [];
     if (roles.length > 0) {
       if (!storedRole || !roles.includes(storedRole)) {
-        return next("/login");
+        return next(LOGIN_ROUTE);
       }
 
       // Owners can navigate freely; onboarding is guided via banner/CTA, not hard redirects

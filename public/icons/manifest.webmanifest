@@ -1,7 +1,7 @@
 {
   "name": "SalonFlow Check-In",
   "short_name": "SalonFlow",
-  "start_url": "/check-in",
+  "start_url": "/app",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",

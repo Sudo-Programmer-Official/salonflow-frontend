@@ -70,6 +70,8 @@ const toggleStatus = async (member: StaffMember) => {
     member.active = !nextActive; // revert
   }
 };
+
+const staffInitial = (name: string) => (name?.trim()?.charAt(0) || '?').toUpperCase();
 </script>
 
 <template>
@@ -93,7 +95,12 @@ const toggleStatus = async (member: StaffMember) => {
       >
         <ElTableColumn label="Name" min-width="200" class-name="col-name">
           <template #default="{ row }">
-            <span class="text-sm font-semibold text-slate-900">{{ row.name }}</span>
+            <div class="flex items-center gap-3">
+              <div class="name-avatar" aria-hidden="true">
+                {{ staffInitial(row.name) }}
+              </div>
+              <span class="text-sm font-semibold text-slate-900">{{ row.name }}</span>
+            </div>
           </template>
         </ElTableColumn>
         <ElTableColumn label="Nickname" width="180" class-name="col-nickname">
@@ -169,6 +176,19 @@ const toggleStatus = async (member: StaffMember) => {
   align-items: center;
   justify-content: center;
   min-width: 80px;
+}
+.name-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #2563eb, #38bdf8);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.875rem;
+  box-shadow: 0 6px 12px rgba(37, 99, 235, 0.18);
 }
 
 @media (max-width: 1024px) {

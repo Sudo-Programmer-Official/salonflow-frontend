@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { magicLogin } from '../api/auth';
+import { defaultRouteForRole } from '../utils/navigation';
 
 const route = useRoute();
 const router = useRouter();
@@ -11,19 +12,7 @@ const loading = ref(true);
 const error = ref('');
 
 const redirectByRole = (role: string) => {
-  if (role === 'SUPER_ADMIN') {
-    router.replace({ name: 'platform-dashboard' });
-    return;
-  }
-  if (role === 'OWNER') {
-    router.replace({ name: 'admin-onboarding' });
-    return;
-  }
-  if (role === 'STAFF') {
-    router.replace({ name: 'admin-queue' });
-    return;
-  }
-  router.replace({ name: 'check-in' });
+  router.replace(defaultRouteForRole(role));
 };
 
 onMounted(async () => {

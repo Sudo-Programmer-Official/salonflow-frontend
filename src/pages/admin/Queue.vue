@@ -130,7 +130,7 @@ const loadQueue = async (opts?: { loadMoreCompleted?: boolean; silent?: boolean 
     } else if (activeTab.value === 'COMPLETED') {
       params.status = 'COMPLETED';
       params.limit = PAGE_SIZE;
-      params.cursor = opts?.loadMoreCompleted ? completedCursor.value : null;
+      params.cursor = opts?.loadMoreCompleted ? completedCursor.value || deriveCompletedCursor() : null;
       params.from = dateRange.value.from;
       params.to = dateRange.value.to;
     }
@@ -143,16 +143,29 @@ const loadQueue = async (opts?: { loadMoreCompleted?: boolean; silent?: boolean 
       completedHasMore.value = false;
       return;
     }
-    const items = (res as any).items ?? [];
+    const items = ((res as any).items ?? []) as QueueItem[];
     if (activeTab.value === 'COMPLETED') {
       if (!opts?.loadMoreCompleted) {
-        completedItems.value = items;
-        completedPage.value = 1;
+        if (opts?.silent && completedItems.value.length) {
+          const incomingIds = new Set(items.map((i) => i.id));
+          const preserved = completedItems.value.filter((i) => !incomingIds.has(i.id));
+          completedItems.value = [...items, ...preserved];
+        } else {
+          completedItems.value = items;
+          completedPage.value = 1;
+        }
       } else {
-        completedItems.value = [...completedItems.value, ...items];
+        const existingIds = new Set(completedItems.value.map((i) => i.id));
+        const appended = items.filter((i) => !existingIds.has(i.id));
+        completedItems.value = [...completedItems.value, ...appended];
       }
-      completedCursor.value = (res as any).nextCursor ?? null;
-      completedHasMore.value = Boolean((res as any).hasMore);
+      const next = (res as any).nextCursor ?? deriveCompletedCursor();
+      completedCursor.value = next;
+      const hasMoreFromResponse = (res as any).hasMore;
+      completedHasMore.value =
+        hasMoreFromResponse !== undefined
+          ? Boolean(hasMoreFromResponse)
+          : Boolean(next && items.length >= PAGE_SIZE);
     } else {
       queue.value = items;
     }
@@ -247,12 +260,16 @@ const inServiceItems = computed(() =>
 );
 
 const completedList = computed(() => completedItems.value);
+const expectedCompletedPages = computed(() =>
+  Math.max(1, Math.ceil(queueCounts.value.completed / PAGE_SIZE)),
+);
 
 const totalPagesWaiting = computed(() => Math.max(1, Math.ceil(waitingItems.value.length / PAGE_SIZE)));
 const totalPagesInService = computed(() => Math.max(1, Math.ceil(inServiceItems.value.length / PAGE_SIZE)));
 const totalPagesCompleted = computed(() => {
-  const base = Math.max(1, Math.ceil(completedList.value.length / PAGE_SIZE));
-  return completedHasMore.value ? base + 1 : base;
+  const loadedPages = Math.max(1, Math.ceil(completedList.value.length / PAGE_SIZE));
+  const paddedPages = completedHasMore.value ? loadedPages + 1 : loadedPages;
+  return Math.max(paddedPages, expectedCompletedPages.value);
 });
 
 const activePage = computed(() => {
@@ -522,6 +539,30 @@ function updateOnline() {
   isOnline.value = typeof navigator !== 'undefined' ? navigator.onLine : true;
 }
 
+function deriveCompletedCursor() {
+  const last = completedItems.value[completedItems.value.length - 1];
+  return last?.completedAt ? `${last.completedAt}|${last.id}` : null;
+}
+
+const ensureCompletedDataForPage = async (targetPage: number) => {
+  const neededEnd = targetPage * PAGE_SIZE;
+  let safety = 0;
+
+  while (
+    completedItems.value.length < neededEnd &&
+    (completedHasMore.value || completedItems.value.length < queueCounts.value.completed)
+  ) {
+    const before = completedItems.value.length;
+    const cursor = completedCursor.value || deriveCompletedCursor();
+    if (!cursor) break;
+    completedCursor.value = cursor;
+    await loadQueue({ loadMoreCompleted: true });
+    safety += 1;
+    if (completedItems.value.length <= before) break;
+    if (safety > 5) break;
+  }
+};
+
 const changePage = async (direction: 'prev' | 'next') => {
   const target =
     activePage.value + (direction === 'next' ? 1 : -1);
@@ -531,10 +572,7 @@ const changePage = async (direction: 'prev' | 'next') => {
 const goToPage = async (page: number) => {
   const clamped = Math.max(1, page);
   if (activeTab.value === 'COMPLETED') {
-    const neededEnd = clamped * PAGE_SIZE;
-    if (neededEnd > completedItems.value.length && completedHasMore.value) {
-      await loadQueue({ loadMoreCompleted: true });
-    }
+    await ensureCompletedDataForPage(clamped);
     const total = totalPages.value || 1;
     completedPage.value = Math.min(clamped, total);
   } else if (activeTab.value === 'WAITING') {
@@ -557,10 +595,7 @@ watch(completedList, () => {
 });
 
 watch(completedPage, async (val) => {
-  const neededEnd = val * PAGE_SIZE;
-  if (neededEnd > completedItems.value.length && completedHasMore.value) {
-    await loadQueue({ loadMoreCompleted: true });
-  }
+  await ensureCompletedDataForPage(val);
 });
 </script>
 

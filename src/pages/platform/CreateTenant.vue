@@ -16,7 +16,7 @@ const success = ref<{
 } | null>(null);
 
 const loginUrl = computed(() =>
-  subdomain.value ? `https://${subdomain.value}.salonflow.studio/login` : '',
+  subdomain.value ? `https://${subdomain.value}.salonflow.studio/app/login` : '',
 );
 const checkInUrl = computed(() =>
   subdomain.value ? `https://${subdomain.value}.salonflow.studio/check-in` : '',
@@ -76,11 +76,11 @@ const submit = async () => {
             placeholder="MTV Nails"
           />
         </div>
-        <div>
-          <label class="text-sm font-medium text-slate-800">Subdomain</label>
-          <div class="mt-1 flex items-center gap-2">
-            <input
-              v-model="subdomain"
+          <div>
+            <label class="text-sm font-medium text-slate-800">Subdomain</label>
+            <div class="mt-1 flex items-center gap-2">
+              <input
+                v-model="subdomain"
               @blur="normalizeSubdomain"
               type="text"
               class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none"
@@ -89,7 +89,7 @@ const submit = async () => {
             <span class="text-sm text-slate-500">.salonflow.studio</span>
           </div>
           <p v-if="subdomain" class="mt-1 text-xs text-slate-500">
-            Login: https://{{ subdomain }}.salonflow.studio/login
+            Login: https://{{ subdomain }}.salonflow.studio/app/login
           </p>
         </div>
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">

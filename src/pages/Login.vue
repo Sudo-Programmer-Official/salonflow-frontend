@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { login } from '../api/auth';
+import { defaultRouteForRole } from '../utils/navigation';
 
 const email = ref('');
 const password = ref('');
@@ -10,19 +11,7 @@ const loading = ref(false);
 const router = useRouter();
 
 const redirectByRole = (role: string) => {
-  if (role === 'SUPER_ADMIN') {
-    router.push({ name: 'platform-dashboard' });
-    return;
-  }
-  if (role === 'OWNER') {
-    router.push({ name: 'admin-dashboard' });
-    return;
-  }
-  if (role === 'STAFF') {
-    router.push({ name: 'admin-queue' });
-    return;
-  }
-  router.push({ name: 'check-in' });
+  router.push(defaultRouteForRole(role));
 };
 
 const handleSubmit = async () => {

@@ -2,25 +2,18 @@ import { apiUrl, buildHeaders } from '@/api/client';
 
 export type SmsSegment = 'all' | 'new' | 'regular' | 'vip';
 
-export type CustomerSummary = {
-  id: string;
-  name: string;
-  phoneE164: string;
-};
-
-export async function fetchCustomersBySegment(
-  segment: SmsSegment,
-): Promise<CustomerSummary[]> {
-  const res = await fetch(apiUrl(`/customers?segment=${segment}`), {
+export async function fetchSmsRecipientsCount(segment: SmsSegment): Promise<number> {
+  const res = await fetch(apiUrl(`/sms/recipients?segment=${segment}`), {
     headers: buildHeaders({ auth: true, tenant: true, json: true }),
   });
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || 'Failed to load customers');
+    throw new Error(err.error || 'Failed to load SMS recipients');
   }
 
-  return res.json();
+  const data = await res.json();
+  return typeof data.count === 'number' ? data.count : 0;
 }
 
 export async function sendSms(payload: {

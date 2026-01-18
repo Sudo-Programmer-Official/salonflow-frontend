@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import {
   ElCard,
   ElRadioGroup,
@@ -10,18 +10,16 @@ import {
   ElDialog,
   ElMessage,
   ElCheckbox,
-  ElTag,
 } from 'element-plus';
 import {
-  fetchCustomersBySegment,
+  fetchSmsRecipientsCount,
   sendSms,
   type SmsSegment,
-  type CustomerSummary,
 } from '../../api/sms';
 
 const segment = ref<SmsSegment>('all');
-const customers = ref<CustomerSummary[]>([]);
-const loadingCustomers = ref(false);
+const recipientsCount = ref(0);
+const loadingRecipients = ref(false);
 const message = ref('');
 const consent = ref(false);
 const sending = ref(false);
@@ -29,23 +27,30 @@ const showConfirm = ref(false);
 const successMessage = ref('');
 const errorMessage = ref('');
 
-const loadCustomers = async () => {
-  loadingCustomers.value = true;
+const loadRecipients = async () => {
+  loadingRecipients.value = true;
+  const currentSegment = segment.value;
   try {
-    customers.value = await fetchCustomersBySegment(segment.value);
+    const count = await fetchSmsRecipientsCount(currentSegment);
+    if (currentSegment === segment.value) {
+      recipientsCount.value = count;
+    }
   } catch (err) {
-    customers.value = [];
-    ElMessage.error(err instanceof Error ? err.message : 'Failed to load customers');
+    recipientsCount.value = 0;
+    ElMessage.error(err instanceof Error ? err.message : 'Failed to load SMS recipients');
   } finally {
-    loadingCustomers.value = false;
+    loadingRecipients.value = false;
   }
 };
 
 onMounted(() => {
-  loadCustomers();
+  loadRecipients();
 });
 
-const recipientCount = computed(() => customers.value.length);
+watch(segment, () => {
+  loadRecipients();
+});
+
 const charCount = computed(() => message.value.length);
 const overLimit = computed(() => charCount.value > 160);
 const canSend = computed(
@@ -53,8 +58,9 @@ const canSend = computed(
     !!message.value.trim() &&
     !overLimit.value &&
     consent.value &&
-    recipientCount.value > 0 &&
-    !sending.value,
+    recipientsCount.value > 0 &&
+    !sending.value &&
+    !loadingRecipients.value,
 );
 
 const openConfirm = () => {
@@ -75,7 +81,7 @@ const handleSend = async () => {
     message.value = '';
     consent.value = false;
     showConfirm.value = false;
-    await loadCustomers();
+    await loadRecipients();
   } catch (err) {
     errorMessage.value = err instanceof Error ? err.message : 'Failed to send SMS';
   } finally {
@@ -104,15 +110,26 @@ const segmentLabel = (seg: SmsSegment) => {
       <div class="space-y-4">
         <div class="space-y-2">
           <div class="text-sm font-semibold text-slate-900">Audience</div>
-          <ElRadioGroup v-model="segment" size="large" @change="loadCustomers">
+          <ElRadioGroup v-model="segment" size="large">
             <ElRadioButton label="all">All Customers</ElRadioButton>
             <ElRadioButton label="new">New Customers</ElRadioButton>
             <ElRadioButton label="regular">Regular Customers</ElRadioButton>
             <ElRadioButton label="vip">VIP Customers</ElRadioButton>
           </ElRadioGroup>
-          <div class="text-xs text-slate-600">
-            Recipients: <ElTag size="small">{{ recipientCount }}</ElTag>
+          <div class="text-sm text-slate-600">
+            Recipients: <strong>{{ recipientsCount }}</strong>
+            <span v-if="loadingRecipients" class="text-xs text-slate-500">(updating...)</span>
           </div>
+          <div class="text-xs text-slate-500">
+            Only customers who have opted in for SMS will receive this message.
+          </div>
+          <ElAlert
+            v-if="!loadingRecipients && recipientsCount === 0"
+            type="warning"
+            title="No opted-in customers found for this audience."
+            show-icon
+            :closable="false"
+          />
         </div>
 
         <div class="space-y-2">
@@ -187,7 +204,7 @@ const segmentLabel = (seg: SmsSegment) => {
           Audience: <strong>{{ segmentLabel(segment) }}</strong>
         </div>
         <div class="text-sm text-slate-700">
-          Estimated recipients: <strong>{{ recipientCount }}</strong>
+          Estimated recipients: <strong>{{ recipientsCount }}</strong>
         </div>
         <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800 whitespace-pre-line">
           {{ message }}

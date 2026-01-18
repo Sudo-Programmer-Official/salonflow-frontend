@@ -49,5 +49,5 @@
 import SiteFooter from '../components/SiteFooter.vue';
 import { logout } from '../utils/auth';
 
-const handleLogout = () => logout('/login');
+const handleLogout = () => logout('/app/login');
 </script>

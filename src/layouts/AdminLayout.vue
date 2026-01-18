@@ -56,7 +56,16 @@ const exitImpersonation = () => {
   window.location.href = '/platform';
 };
 
-const handleLogout = () => logout('/login');
+const handleLogout = () => logout('/app/login');
+
+const publicCheckInUrl = computed(() => {
+  if (typeof window === 'undefined') return '/check-in';
+  return `${window.location.origin}/check-in`;
+});
+
+const openPublicCheckIn = () => {
+  window.location.href = publicCheckInUrl.value;
+};
 
 const loadOnboarding = async () => {
   if (!isOwner.value) return;
@@ -152,9 +161,14 @@ const navItems = computed(() => {
         class="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4"
       >
         <div class="text-sm font-semibold text-slate-900">Admin</div>
-        <el-button type="danger" plain size="small" @click="handleLogout">
-          Logout
-        </el-button>
+        <div class="flex items-center gap-3">
+          <el-button type="primary" plain size="small" @click="openPublicCheckIn">
+            Public Check-In
+          </el-button>
+          <el-button type="danger" plain size="small" @click="handleLogout">
+            Logout
+          </el-button>
+        </div>
       </header>
 
       <main class="flex-1 space-y-4 overflow-y-auto px-6 py-5">
