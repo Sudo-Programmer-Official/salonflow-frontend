@@ -356,7 +356,8 @@ const openCheckout = (id: string) => {
 const loadStaff = async () => {
   loadingStaff.value = true;
   try {
-    staff.value = await fetchStaff();
+    const res = await fetchStaff();
+    staff.value = res.items;
   } catch {
     staff.value = [];
   } finally {
@@ -600,7 +601,7 @@ watch(completedPage, async (val) => {
 </script>
 
 <template>
-  <div class="space-y-4">
+  <div class="flex h-full flex-col space-y-4">
     <div class="mb-2">
       <h1 class="text-xl font-semibold text-slate-900">Today’s Queue</h1>
       <p class="text-sm text-slate-600">Live queue with quick actions. Staff view is read-only.</p>
@@ -745,7 +746,7 @@ watch(completedPage, async (val) => {
       No guests in this state.
     </div>
 
-    <div v-else class="queue-scroll">
+    <div v-else class="queue-scroll flex-1">
       <div class="grid gap-3 queue-grid">
         <ElCard
           v-for="item in displayedQueue"
@@ -959,7 +960,8 @@ watch(completedPage, async (val) => {
 .queue-scroll {
   display: flex;
   flex-direction: column;
-  max-height: 70vh;
+  flex: 1 1 auto;
+  max-height: calc(100vh - 260px);
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   gap: 0.75rem;
@@ -1022,10 +1024,6 @@ watch(completedPage, async (val) => {
   }
 }
 .pagination-footer {
-  position: sticky;
-  bottom: 0;
-  left: 0;
-  right: 0;
   background: #fff;
   border-top: 1px solid #e5e7eb;
   padding: 12px;
@@ -1033,6 +1031,7 @@ watch(completedPage, async (val) => {
   justify-content: center;
   align-items: center;
   gap: 8px;
+  min-height: 56px;
 }
 .page-indicator {
   font-size: 13px;

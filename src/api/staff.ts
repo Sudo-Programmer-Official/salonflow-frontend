@@ -33,15 +33,25 @@ export type AvailabilityOverride = {
   active: boolean;
 };
 
-export async function fetchStaff(): Promise<StaffMember[]> {
-  const res = await fetch(apiBase, {
+export async function fetchStaff(page?: number, limit?: number): Promise<{ items: StaffMember[]; total: number }> {
+  const url = new URL(apiBase, window.location.origin);
+  if (page) url.searchParams.set('page', String(page));
+  if (limit) url.searchParams.set('limit', String(limit));
+  const res = await fetch(url.toString(), {
     headers: buildHeaders({ auth: true, tenant: true, json: true }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || 'Failed to load staff');
   }
-  return res.json();
+  const data = await res.json();
+  if (Array.isArray(data)) {
+    return { items: data, total: data.length };
+  }
+  return {
+    items: data.items ?? [],
+    total: data.total ?? (data.items?.length ?? 0),
+  };
 }
 
 export async function createStaff(input: {

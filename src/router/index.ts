@@ -30,6 +30,7 @@ import AdminCategoriesPage from "../pages/admin/Categories.vue";
 import AdminAnalyticsPage from "../pages/admin/Analytics.vue";
 import MarketingLayout from "../layouts/MarketingLayout.vue";
 import MarketingHome from "../pages/MarketingHome.vue";
+import SalonLoginPage from "../pages/SalonLogin.vue";
 import StartPage from "../pages/Start.vue";
 import LoginPage from "../pages/Login.vue";
 import MagicLoginPage from "../pages/MagicLogin.vue";
@@ -84,6 +85,11 @@ const routes = [
         path: "",
         name: "marketing-home",
         component: MarketingHome,
+      },
+      {
+        path: "salon-login",
+        name: "salon-login",
+        component: SalonLoginPage,
       },
       {
         path: "start",

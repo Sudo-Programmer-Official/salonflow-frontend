@@ -20,6 +20,9 @@ function createEmptyAvailability(): Record<number, AvailabilityEntry[]> {
 const dayLabels = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const staff = ref<StaffMember[]>([]);
+const totalStaff = ref(0);
+const page = ref(1);
+const pageSize = ref(10);
 const loading = ref(false);
 const dialogOpen = ref(false);
 const saving = ref(false);
@@ -43,9 +46,13 @@ const form = reactive({
 const loadStaff = async () => {
   loading.value = true;
   try {
-    staff.value = await fetchStaff();
+    const res = await fetchStaff(page.value, pageSize.value);
+    staff.value = res.items;
+    totalStaff.value = res.total ?? res.items.length;
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to load staff');
+    staff.value = [];
+    totalStaff.value = 0;
   } finally {
     loading.value = false;
   }
@@ -67,6 +74,11 @@ onMounted(() => {
   loadServices();
   loadCategories();
 });
+
+const changePage = (val: number) => {
+  page.value = val;
+  loadStaff();
+};
 
 const openDialog = () => {
   form.name = '';
@@ -245,65 +257,77 @@ const saveAvailabilityChanges = async () => {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="flex h-full flex-col space-y-6">
     <div>
       <h1 class="text-2xl font-semibold text-slate-900">Staff</h1>
       <p class="mt-1 text-sm text-slate-600">Add team members and enable or disable access.</p>
     </div>
 
-    <ElCard class="bg-white">
+    <ElCard class="bg-white flex-1 flex flex-col">
       <div class="mb-4 flex items-center justify-between">
         <div class="text-base font-semibold text-slate-900">Team</div>
         <ElButton type="primary" @click="openDialog">Add Staff</ElButton>
       </div>
-      <ElTable
-        :data="staff"
-        style="width: 100%"
-        :loading="loading"
-        :stripe="true"
-        class="staff-table"
-      >
-        <ElTableColumn label="Name" min-width="200" class-name="col-name">
-          <template #default="{ row }">
-            <div class="flex items-center gap-3">
-              <div class="name-avatar" aria-hidden="true">
-                {{ staffInitial(row.name) }}
+      <div class="flex-1 overflow-auto">
+        <ElTable
+          :data="staff"
+          style="width: 100%"
+          :loading="loading"
+          :stripe="true"
+          class="staff-table"
+        >
+          <ElTableColumn label="Name" min-width="200" class-name="col-name">
+            <template #default="{ row }">
+              <div class="flex items-center gap-3">
+                <div class="name-avatar" aria-hidden="true">
+                  {{ staffInitial(row.name) }}
+                </div>
+                <span class="text-sm font-semibold text-slate-900">{{ row.name }}</span>
               </div>
-              <span class="text-sm font-semibold text-slate-900">{{ row.name }}</span>
-            </div>
-          </template>
-        </ElTableColumn>
-        <ElTableColumn label="Nickname" width="180" class-name="col-nickname">
-          <template #default="{ row }">
-            <span class="text-sm text-slate-800">{{ row.nickname || '—' }}</span>
-          </template>
-        </ElTableColumn>
-        <ElTableColumn prop="phoneE164" label="Phone" min-width="180" class-name="col-phone">
-          <template #default="{ row }">
-            <span class="text-sm text-slate-800 flex items-center gap-1">
-              📞
-              <span>{{ row.phoneE164 || '—' }}</span>
-            </span>
-          </template>
-        </ElTableColumn>
-        <ElTableColumn label="Active" width="120" class-name="col-active">
-          <template #default="{ row }">
-            <div class="toggle-wrapper">
-              <ElSwitch
-                :model-value="row.active"
-                @change="() => toggleStatus(row)"
-              />
-            </div>
-          </template>
-        </ElTableColumn>
-        <ElTableColumn label="Services" width="150">
-          <template #default="{ row }">
-            <ElButton size="small" plain @click="openAssignments(row)">Assign</ElButton>
-          </template>
-        </ElTableColumn>
-      </ElTable>
-      <div v-if="!loading && staff.length === 0" class="py-6 text-center text-sm text-slate-500">
-        No staff members found.
+            </template>
+          </ElTableColumn>
+          <ElTableColumn label="Nickname" width="180" class-name="col-nickname">
+            <template #default="{ row }">
+              <span class="text-sm text-slate-800">{{ row.nickname || '—' }}</span>
+            </template>
+          </ElTableColumn>
+          <ElTableColumn prop="phoneE164" label="Phone" min-width="180" class-name="col-phone">
+            <template #default="{ row }">
+              <span class="text-sm text-slate-800 flex items-center gap-1">
+                📞
+                <span>{{ row.phoneE164 || '—' }}</span>
+              </span>
+            </template>
+          </ElTableColumn>
+          <ElTableColumn label="Active" width="120" class-name="col-active">
+            <template #default="{ row }">
+              <div class="toggle-wrapper">
+                <ElSwitch
+                  :model-value="row.active"
+                  @change="() => toggleStatus(row)"
+                />
+              </div>
+            </template>
+          </ElTableColumn>
+          <ElTableColumn label="Services" width="150">
+            <template #default="{ row }">
+              <ElButton size="small" plain @click="openAssignments(row)">Assign</ElButton>
+            </template>
+          </ElTableColumn>
+        </ElTable>
+        <div v-if="!loading && staff.length === 0" class="py-6 text-center text-sm text-slate-500">
+          No staff members found.
+        </div>
+      </div>
+      <div class="pagination-bar" v-if="!loading && totalStaff > pageSize">
+        <el-pagination
+          background
+          layout="prev, pager, next"
+          :page-size="pageSize"
+          :total="totalStaff"
+          :current-page="page"
+          @current-change="changePage"
+        />
       </div>
     </ElCard>
 

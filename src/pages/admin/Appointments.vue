@@ -104,7 +104,8 @@ const loadServices = async () => {
 const loadStaff = async () => {
   loadingStaff.value = true;
   try {
-    staff.value = await fetchStaff();
+    const res = await fetchStaff();
+    staff.value = res.items;
   } catch {
     staff.value = [];
   } finally {
