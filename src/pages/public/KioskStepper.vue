@@ -186,9 +186,11 @@ const selectedStaffName = computed(() => {
   return staffList.value.find((s) => s.id === selectedStaffId.value)?.name ?? null;
 });
 const rewardValue = computed(() => {
-  if (!showPoints.value || animatedPoints.value === null) return null;
+  if (!showPoints.value) return null;
+  const points = animatedPoints.value ?? lookupResult.value?.customer?.pointsBalance;
+  if (points === null || points === undefined) return null;
   const perPointValue = 5 / 300; // mirrors 300 pts = $5 teaser
-  return animatedPoints.value * perPointValue;
+  return points * perPointValue;
 });
 
 const appendDigit = (digit: string) => {
@@ -635,7 +637,7 @@ watch(
                     </template>
                   </div>
                 </div>
-                <div class="kiosk-pane space-y-4">
+                <div class="kiosk-pane space-y-4 min-h-[320px]">
                   <div>
                     <label class="kiosk-label">
                       Phone {{ requirePhone ? '(required)' : '(optional)' }}
@@ -644,22 +646,24 @@ watch(
                       {{ phone || 'Tap numbers to enter' }}
                     </div>
                   </div>
-                  <div v-if="showPoints" class="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white">
-                    <div v-if="lookupLoading" class="text-sm text-white/80">Checking rewards…</div>
-                    <template v-else-if="lookupResult?.exists && lookupResult.customer">
-                      <div class="text-base font-semibold">👋 Welcome back, {{ lookupResult.customer.name }}!</div>
-                      <div class="text-sm text-white/80">
-                        💎 {{ lookupResult.customer.pointsBalance ?? 0 }} points
-                        <span class="ml-2 text-xs text-white/60">Keep earning rewards every visit.</span>
-                      </div>
-                    </template>
-                    <template v-else>
-                      <div class="text-base font-semibold">💎 Earn rewards</div>
-                      <div class="text-sm text-white/70">Check in today to start earning points.</div>
-                    </template>
-                  </div>
-                  <div v-if="lookupError" class="rounded-xl border border-amber-300 bg-amber-100/20 px-4 py-3 text-sm text-amber-100">
-                    {{ lookupError }}
+                  <div class="space-y-2">
+                    <div v-if="showPoints" class="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white min-h-[90px] flex flex-col justify-center">
+                      <div v-if="lookupLoading" class="text-sm text-white/80">Checking rewards…</div>
+                      <template v-else-if="lookupResult?.exists && lookupResult.customer">
+                        <div class="text-base font-semibold">👋 Welcome back, {{ lookupResult.customer.name }}!</div>
+                        <div class="text-sm text-white/80">
+                          💎 {{ lookupResult.customer.pointsBalance ?? 0 }} points
+                          <span class="ml-2 text-xs text-white/60">Keep earning rewards every visit.</span>
+                        </div>
+                      </template>
+                      <template v-else>
+                        <div class="text-base font-semibold">💎 Earn rewards</div>
+                        <div class="text-sm text-white/70">Check in today to start earning points.</div>
+                      </template>
+                    </div>
+                    <div v-if="lookupError" class="rounded-xl border border-amber-300 bg-amber-100/20 px-4 py-3 text-sm text-amber-100">
+                      {{ lookupError }}
+                    </div>
                   </div>
                   <div>
                     <label class="kiosk-label">Name</label>
@@ -891,12 +895,15 @@ watch(
                 </div>
               </div>
 
-                <div v-else-if="step === 'done'" class="done-card">
+              <div v-else-if="step === 'done'" class="done-card">
                 <div class="text-4xl mb-1">✅ Checked in!</div>
-                <div class="text-2xl font-semibold text-white">Thanks, {{ successName }}.</div>
+                <div class="text-2xl font-semibold text-white mb-3">Thanks, {{ successName }}.</div>
 
-                <div v-if="showPoints" class="mt-3 rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-left">
-                  <div class="text-lg font-semibold text-white">
+                <div
+                  v-if="showPoints"
+                  class="mt-1 rounded-2xl border border-white/20 bg-white/10 px-5 py-4 text-left shadow-lg"
+                >
+                  <div class="text-xl font-semibold text-white">
                     💎 {{ animatedPoints ?? lookupResult?.customer?.pointsBalance ?? 0 }} points
                   </div>
                   <div class="text-sm text-white/80">
@@ -912,22 +919,22 @@ watch(
                       toward rewards
                     </template>
                     <template v-else>
-                      You’re earning rewards every visit.
+                      Earn rewards after today’s visit.
                     </template>
                   </div>
                 </div>
 
                 <div class="mt-3 text-left w-full max-w-md mx-auto" v-if="successServices.length">
                   <div class="text-sm text-white/70">Services</div>
-                  <ul class="list-disc list-inside text-white">
+                  <ul class="list-disc list-inside text-white/90">
                     <li v-for="svc in successServices" :key="svc">{{ svc }}</li>
                   </ul>
                 </div>
 
-                <div class="mt-3 text-lg text-white/80">
+                <div class="mt-4 text-base text-white/70">
                   Restarting for next guest in {{ doneCountdown ?? autoResetSeconds }}s
                 </div>
-                <ElButton class="mt-4" type="primary" size="large" @click="resetFlow">
+                <ElButton class="mt-3" type="primary" size="large" @click="resetFlow">
                   Restart now
                 </ElButton>
               </div>
