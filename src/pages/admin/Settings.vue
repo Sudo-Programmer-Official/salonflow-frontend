@@ -11,6 +11,7 @@ import {
   ElSkeleton,
   ElSwitch,
   ElSlider,
+  ElButton,
 } from 'element-plus';
 import {
   fetchSettings,
@@ -19,7 +20,7 @@ import {
   type DefaultBookingRules,
   type SettingsPatch,
 } from '../../api/settings';
-import { applyThemeFromSettings, themeBounds } from '../../utils/theme';
+import { applyThemeFromSettings, defaultUiPreferences, fontFamilyOptions, themeBounds } from '../../utils/theme';
 
 const loading = ref(false);
 const saving = ref(false);
@@ -48,6 +49,7 @@ const fontScaleValue = computed(
   () => settings.value?.uiFontScale ?? themeBounds.defaultScale,
 );
 const largeTextEnabled = computed(() => fontScaleValue.value >= 1.2);
+const fontFamilyValue = computed(() => settings.value?.uiFontFamily ?? 'system');
 
 const handleFontScaleChange = (value: number) => {
   const numeric = Number(value);
@@ -65,6 +67,30 @@ const handleFontScaleInput = (value: number | number[]) => {
 const toggleLargeText = (value: boolean) => {
   const target = value ? Math.max(fontScaleValue.value, 1.22) : themeBounds.defaultScale;
   handleFontScaleChange(target);
+};
+
+const setPresetScale = (value: number) => {
+  handleFontScaleChange(value);
+};
+
+const handleFontFamilyChange = (value: string) => {
+  scheduleSave({ uiFontFamily: value });
+};
+
+const applyPreset = (preset: { label: string; scale: number; family: string; glass: boolean }) => {
+  scheduleSave({
+    uiFontScale: Number(preset.scale.toFixed(2)),
+    uiFontFamily: preset.family,
+    uiGlassEnabled: preset.glass,
+  });
+};
+
+const resetAppearance = () => {
+  scheduleSave({
+    uiFontScale: defaultUiPreferences.uiFontScale ?? themeBounds.defaultScale,
+    uiFontFamily: defaultUiPreferences.uiFontFamily ?? 'system',
+    uiGlassEnabled: defaultUiPreferences.uiGlassEnabled ?? true,
+  });
 };
 
 const mergeRules = (
@@ -217,6 +243,102 @@ onMounted(loadSettings);
         <ElDivider />
 
         <div class="space-y-5">
+          <div class="grid gap-4 md:grid-cols-2">
+            <div class="space-y-2">
+              <div class="text-sm font-semibold text-slate-900">Font family</div>
+              <ElSelect
+                class="w-full"
+                :model-value="fontFamilyValue"
+                placeholder="Choose font"
+                @change="(val: string) => handleFontFamilyChange(val)"
+              >
+                <ElOption
+                  v-for="option in fontFamilyOptions"
+                  :key="option.value"
+                  :label="option.label"
+                  :value="option.value"
+                />
+              </ElSelect>
+            </div>
+
+            <div class="space-y-2">
+              <div class="text-sm font-semibold text-slate-900">Scale presets</div>
+              <div class="grid grid-cols-4 gap-2">
+                <ElButton
+                  v-for="preset in [1, 1.25, 1.5, 1.75]"
+                  :key="preset"
+                  size="small"
+                  :type="fontScaleValue === preset ? 'primary' : 'default'"
+                  @click="() => setPresetScale(preset)"
+                >
+                  {{ Math.round(preset * 100) }}%
+                </ElButton>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <div class="text-sm font-semibold text-slate-900">Theme presets</div>
+            <div class="grid gap-2 sm:grid-cols-2">
+              <ElButton
+                type="default"
+                plain
+                @click="
+                  applyPreset({
+                    label: 'Classic',
+                    scale: 1,
+                    family: 'system',
+                    glass: true,
+                  })
+                "
+              >
+                Classic
+              </ElButton>
+              <ElButton
+                type="default"
+                plain
+                @click="
+                  applyPreset({
+                    label: 'Modern',
+                    scale: 1.15,
+                    family: 'inter',
+                    glass: true,
+                  })
+                "
+              >
+                Modern
+              </ElButton>
+              <ElButton
+                type="default"
+                plain
+                @click="
+                  applyPreset({
+                    label: 'Elegant',
+                    scale: 1.2,
+                    family: 'poppins',
+                    glass: true,
+                  })
+                "
+              >
+                Elegant
+              </ElButton>
+              <ElButton
+                type="default"
+                plain
+                @click="
+                  applyPreset({
+                    label: 'High-Contrast (Kiosk)',
+                    scale: 1.35,
+                    family: 'space',
+                    glass: false,
+                  })
+                "
+              >
+                High-Contrast
+              </ElButton>
+            </div>
+          </div>
+
           <div class="space-y-2">
             <div class="flex items-center justify-between gap-3">
               <div>
@@ -267,6 +389,12 @@ onMounted(loadSettings);
                 @change="(val) => handleToggle('uiGlassEnabled', val as boolean)"
               />
             </div>
+          </div>
+
+          <div class="flex justify-end">
+            <ElButton size="small" type="warning" plain @click="resetAppearance">
+              Reset to default
+            </ElButton>
           </div>
         </div>
       </ElCard>

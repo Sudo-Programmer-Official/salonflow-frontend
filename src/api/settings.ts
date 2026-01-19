@@ -24,6 +24,7 @@ export type BusinessSettings = {
   enforceStaffAvailability: boolean;
   uiFontScale: number;
   uiGlassEnabled: boolean;
+  uiFontFamily: string;
   defaultBookingRules: DefaultBookingRules;
   createdAt: string | null;
   updatedAt: string | null;
@@ -44,6 +45,7 @@ export type SettingsPatch = Partial<
     | 'currency'
     | 'uiFontScale'
     | 'uiGlassEnabled'
+    | 'uiFontFamily'
   >
 > & {
   defaultBookingRules?: Partial<DefaultBookingRules>;

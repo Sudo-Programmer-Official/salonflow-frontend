@@ -66,6 +66,7 @@ const defaultSettings: BusinessSettings = {
   enforceStaffAvailability: false,
   uiFontScale: 1,
   uiGlassEnabled: true,
+  uiFontFamily: 'system',
   defaultBookingRules: {
     buffer_before: 0,
     buffer_after: 0,

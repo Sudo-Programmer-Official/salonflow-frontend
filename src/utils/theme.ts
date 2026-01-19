@@ -1,10 +1,18 @@
 const DEFAULT_FONT_SCALE = 1.05;
 const MIN_FONT_SCALE = 0.8;
-const MAX_FONT_SCALE = 1.6;
+const MAX_FONT_SCALE = 1.75;
+const FONT_MAP: Record<string, string> = {
+  system: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  inter: '"Inter", system-ui, -apple-system, "Segoe UI", sans-serif',
+  poppins: '"Poppins", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif',
+  montserrat: '"Montserrat", system-ui, -apple-system, "Segoe UI", sans-serif',
+  space: '"Space Grotesk", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif',
+};
 
 export type UiPreferences = {
   uiFontScale?: number | null;
   uiGlassEnabled?: boolean | null;
+  uiFontFamily?: string | null;
 };
 
 const clamp = (val: number, min: number, max: number) => Math.min(Math.max(val, min), max);
@@ -24,6 +32,12 @@ export function applyThemeFromSettings(
 
   root.style.setProperty('--font-scale-base', boosted.toFixed(2));
   root.dataset.glass = settings?.uiGlassEnabled === false ? 'off' : 'on';
+  const familyKey = String(settings?.uiFontFamily ?? 'system').toLowerCase();
+  const resolved =
+    FONT_MAP[familyKey] ??
+    FONT_MAP[familyKey.replace(/\s+/g, '')] ??
+    FONT_MAP.system;
+  root.style.setProperty('--ui-font-family', (resolved ?? FONT_MAP.system) as string);
 }
 
 export function resetThemeToDefault() {
@@ -37,4 +51,18 @@ export const themeBounds = {
   minScale: MIN_FONT_SCALE,
   maxScale: MAX_FONT_SCALE,
   defaultScale: DEFAULT_FONT_SCALE,
+};
+
+export const fontFamilyOptions = [
+  { value: 'system', label: 'System UI' },
+  { value: 'inter', label: 'Inter' },
+  { value: 'poppins', label: 'Poppins' },
+  { value: 'montserrat', label: 'Montserrat' },
+  { value: 'space', label: 'Space Grotesk' },
+];
+
+export const defaultUiPreferences: UiPreferences = {
+  uiFontScale: DEFAULT_FONT_SCALE,
+  uiGlassEnabled: true,
+  uiFontFamily: 'system',
 };

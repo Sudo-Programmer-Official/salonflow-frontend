@@ -164,37 +164,26 @@ const navItems = computed(() => {
 
 <template>
   <div class="flex min-h-screen text-slate-900">
-    <aside class="flex w-64 flex-col border-r border-slate-200 bg-white/80 backdrop-blur">
-      <div class="flex h-14 items-center px-4 text-base font-semibold">SalonFlow Admin</div>
-      <div class="flex-1 px-3 pb-4">
+    <aside class="sidebar">
+      <div class="sidebar__brand">SalonFlow Admin</div>
+      <div class="sidebar__nav">
         <nav class="space-y-1">
           <RouterLink
             v-for="item in navItems"
             :key="item.name"
             :to="{ name: item.name }"
-            class="flex items-center justify-between rounded-md px-3 py-2.5 text-[15px] font-medium transition"
-            :class="
-              route.name === item.name
-                ? 'bg-slate-900 text-white shadow-sm'
-                : 'text-slate-700 hover:bg-slate-100'
-            "
+            class="nav-link"
+            :class="route.name === item.name ? 'nav-link--active' : 'nav-link--idle'"
           >
             <span>{{ item.label }}</span>
-            <span
-              v-if="route.name === item.name"
-              class="text-[10px] uppercase tracking-wide text-white/70"
-            >
-              Current
-            </span>
+            <span v-if="route.name === item.name" class="nav-link__badge">Current</span>
           </RouterLink>
         </nav>
       </div>
     </aside>
 
     <div class="flex min-h-screen flex-1 flex-col">
-      <header
-        class="flex items-center justify-between border-b border-slate-200 bg-white/80 backdrop-blur px-6 py-4"
-      >
+      <header class="admin-header">
         <div class="text-sm font-semibold text-slate-900">Admin</div>
         <div class="flex items-center gap-3">
           <el-button
@@ -343,3 +332,68 @@ const navItems = computed(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.sidebar {
+  width: 16rem;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid rgba(148, 163, 184, 0.35);
+  background: var(--sidebar-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  font-family: var(--ui-font-family);
+}
+.sidebar__brand {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  font-weight: 700;
+  font-size: var(--font-lg);
+}
+.sidebar__nav {
+  flex: 1;
+  padding: 0 12px 16px 12px;
+  font-size: var(--font-md);
+}
+.nav-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+  font-size: var(--font-md);
+}
+.nav-link--active {
+  background: rgba(15, 23, 42, 0.92);
+  color: #fff;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+}
+.nav-link--idle {
+  color: #334155;
+}
+.nav-link--idle:hover {
+  background: rgba(226, 232, 240, 0.7);
+}
+.nav-link__badge {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #e2e8f0;
+}
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+  background: var(--main-surface);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  padding: 16px 24px;
+  font-size: var(--font-md);
+  font-family: var(--ui-font-family);
+}
+</style>

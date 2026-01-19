@@ -717,7 +717,7 @@ watch(completedPage, async (val) => {
         <div class="text-base font-semibold text-slate-900">Queue</div>
         <span v-if="isRefreshing" class="text-xs text-slate-500 animate-pulse">Updating…</span>
       </div>
-      <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
         <div v-if="activeTab === 'COMPLETED'" class="flex items-center gap-2">
           <span class="text-xs text-slate-600">Date range</span>
           <ElSelect
@@ -732,11 +732,13 @@ watch(completedPage, async (val) => {
             <ElOption label="Last 30 days" value="last30" />
           </ElSelect>
         </div>
-        <el-tabs v-model="activeTab" class="queue-tabs" stretch>
-          <el-tab-pane :label="`Waiting (${queueCounts.waiting})`" name="WAITING" />
-          <el-tab-pane :label="`In Service (${queueCounts.inService})`" name="IN_SERVICE" />
-          <el-tab-pane :label="`Completed (${queueCounts.completed})`" name="COMPLETED" />
-        </el-tabs>
+        <div class="tab-shell flex-1">
+          <el-tabs v-model="activeTab" class="queue-tabs" stretch>
+            <el-tab-pane :label="`Waiting (${queueCounts.waiting})`" name="WAITING" />
+            <el-tab-pane :label="`In Service (${queueCounts.inService})`" name="IN_SERVICE" />
+            <el-tab-pane :label="`Completed (${queueCounts.completed})`" name="COMPLETED" />
+          </el-tabs>
+        </div>
       </div>
     </div>
 
@@ -1031,10 +1033,14 @@ watch(completedPage, async (val) => {
 }
 .queue-tabs :deep(.el-tabs__item.is-active) {
   color: #0ea5e9;
-  font-weight: 600;
+  font-weight: 700;
+  font-size: var(--font-sm);
 }
 .queue-tabs :deep(.el-tabs__active-bar) {
   background-color: #0ea5e9;
+}
+.queue-tabs :deep(.el-tabs__item) {
+  font-size: var(--font-sm);
 }
 .queue-card {
   align-self: flex-start;

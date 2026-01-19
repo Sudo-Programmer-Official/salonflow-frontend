@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&family=Montserrat:wght@500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,14 +6,22 @@
 
 :root {
   --font-scale-base: 1.05;
-  --font-scale: var(--font-scale-base);
-  --font-family-sans: 'Space Grotesk', 'Inter', system-ui, -apple-system, BlinkMacSystemFont,
+  --ui-font-scale: var(--font-scale-base);
+  --font-xs: calc(12px * var(--ui-font-scale));
+  --font-sm: calc(13px * var(--ui-font-scale));
+  --font-md: calc(14px * var(--ui-font-scale));
+  --font-lg: calc(16px * var(--ui-font-scale));
+  --font-xl: calc(18px * var(--ui-font-scale));
+  --font-2xl: calc(20px * var(--ui-font-scale));
+  --ui-font-family: 'Space Grotesk', 'Inter', system-ui, -apple-system, BlinkMacSystemFont,
     'Segoe UI', sans-serif;
   --text-color: #0b1220;
   --muted-text: #475569;
   --bg-app: radial-gradient(circle at 12% 18%, rgba(14, 165, 233, 0.12), transparent 28%),
     radial-gradient(circle at 86% 12%, rgba(56, 189, 248, 0.1), transparent 26%),
     linear-gradient(180deg, #f8fafc 0%, #eef2ff 50%, #f8fafc 100%);
+  --sidebar-bg: rgba(255, 255, 255, 0.8);
+  --main-surface: rgba(255, 255, 255, 0.8);
   --glass-bg: rgba(255, 255, 255, 0.08);
   --glass-border: rgba(255, 255, 255, 0.2);
   --glass-blur: 18px;
@@ -23,7 +31,7 @@
   --panel-surface: rgba(255, 255, 255, 0.82);
   color: var(--text-color);
   background-color: #f8fafc;
-  font-family: var(--font-family-sans);
+  font-family: var(--ui-font-family);
   text-rendering: optimizeLegibility;
 }
 
@@ -36,7 +44,7 @@
 
 html {
   height: 100%;
-  font-size: calc(16px * var(--font-scale));
+  font-size: var(--font-md);
 }
 
 body {
@@ -46,6 +54,7 @@ body {
   color: var(--text-color);
   line-height: 1.58;
   letter-spacing: -0.01em;
+  font-family: var(--ui-font-family);
 }
 
 #app {
@@ -69,4 +78,14 @@ main {
 
 .text-soft {
   color: var(--muted-text);
+}
+
+.tab-shell {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 6px 8px;
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  box-shadow: var(--glass-shadow);
 }
