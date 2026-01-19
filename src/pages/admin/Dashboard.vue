@@ -194,7 +194,7 @@ const navigate = (name: string) => {
               <ElTag :type="item.type" effect="light" size="small">Now</ElTag>
             </div>
             <div class="mt-2">
-              <ElButton type="primary" size="small" @click="item.action">Go</ElButton>
+              <ElButton type="primary" class="sf-btn" @click="item.action">Go</ElButton>
             </div>
           </ElCard>
         </div>

@@ -165,7 +165,13 @@ const navItems = computed(() => {
 <template>
   <div class="flex min-h-screen text-slate-900">
     <aside class="sidebar">
-      <div class="sidebar__brand">SalonFlow Admin</div>
+      <div class="sidebar__brand">
+        <img src="/icons/icon-128x128.png" alt="SalonFlow logo" class="sidebar__logo" />
+        <div class="sidebar__brand-text">
+          <span class="sidebar__brand-name">SalonFlow</span>
+          <span class="sidebar__brand-sub">Admin</span>
+        </div>
+      </div>
       <div class="sidebar__nav">
         <nav class="space-y-1">
           <RouterLink
@@ -345,12 +351,33 @@ const navItems = computed(() => {
   font-family: var(--ui-font-family);
 }
 .sidebar__brand {
-  height: 56px;
+  height: 64px;
   display: flex;
   align-items: center;
+  gap: 10px;
   padding: 0 16px;
-  font-weight: 700;
+  font-weight: 800;
   font-size: var(--font-lg);
+  white-space: nowrap;
+}
+.sidebar__logo {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+}
+.sidebar__brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+.sidebar__brand-name {
+  font-size: 18px;
+}
+.sidebar__brand-sub {
+  font-size: 13px;
+  font-weight: 700;
+  color: #475569;
 }
 .sidebar__nav {
   flex: 1;
@@ -400,5 +427,18 @@ const navItems = computed(() => {
   font-size: inherit;
   height: auto;
   padding: 0.75em 1em;
+  border-radius: 14px;
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #fff;
+}
+.admin-header :deep(.el-button.is-plain) {
+  background: #0f172a;
+  color: #fff;
+  border-color: #0f172a;
+}
+.admin-header :deep(.el-button:hover),
+.admin-header :deep(.el-button:focus) {
+  filter: brightness(1.08);
 }
 </style>
