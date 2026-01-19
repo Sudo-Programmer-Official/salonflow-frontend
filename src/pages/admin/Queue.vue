@@ -761,7 +761,7 @@ watch(completedPage, async (val) => {
           v-for="item in displayedQueue"
           :key="item.id"
           shadow="hover"
-          class="border border-slate-100"
+          class="queue-card border border-slate-100"
         >
           <div class="flex items-start gap-3">
             <div class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">
@@ -995,6 +995,8 @@ watch(completedPage, async (val) => {
 <style scoped>
 .queue-grid {
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  align-items: start;
+  flex: 1 1 auto;
 }
 .queue-scroll {
   display: flex;
@@ -1027,6 +1029,12 @@ watch(completedPage, async (val) => {
 }
 .queue-tabs :deep(.el-tabs__active-bar) {
   background-color: #0ea5e9;
+}
+.queue-card {
+  align-self: flex-start;
+}
+.queue-card :deep(.el-card__body) {
+  padding: 12px;
 }
 .checkout-modal :deep(.el-dialog) {
   max-width: 520px;

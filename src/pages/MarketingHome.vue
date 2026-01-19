@@ -148,7 +148,7 @@ const faqs = [
             <div>
               <h3 class="text-2xl font-semibold text-slate-900">Pricing that makes sense</h3>
               <p class="mt-2 text-slate-600">Founding plan for salons that want clarity and control.</p>
-              <p class="mt-3 text-lg font-semibold text-slate-900">$65/month or $650/year</p>
+              <p class="mt-3 text-lg font-semibold text-slate-900">$65/month or $700/year</p>
               <p class="text-sm text-slate-600">Includes unlimited staff/customers, booking, check-in, loyalty, dashboards.</p>
               <p class="mt-2 text-sm font-semibold text-slate-700">No long-term contracts. Cancel anytime.</p>
             </div>

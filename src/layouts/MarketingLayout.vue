@@ -9,7 +9,6 @@
         <nav class="flex items-center gap-4 text-sm font-medium text-slate-700">
           <RouterLink class="hover:text-slate-900 transition-colors" to="/">Home</RouterLink>
           <RouterLink class="hover:text-slate-900 transition-colors" to="/start">Get Started</RouterLink>
-          <RouterLink class="hover:text-slate-900 transition-colors" to="/check-in">Live Check-In</RouterLink>
           <RouterLink class="hover:text-slate-900 transition-colors" to="/salon-login">Login</RouterLink>
         </nav>
       </div>
