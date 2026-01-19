@@ -758,7 +758,7 @@ watch(completedPage, async (val) => {
     </div>
 
     <div v-else class="queue-scroll flex-1">
-      <div class="grid gap-3 queue-grid">
+      <div class="grid gap-6 queue-grid">
         <ElCard
           v-for="item in displayedQueue"
           :key="item.id"
@@ -766,7 +766,7 @@ watch(completedPage, async (val) => {
           class="queue-card glass-card"
         >
           <div class="flex items-start gap-3">
-            <div class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">
+            <div class="queue-avatar">
               {{ (item.customerName || '?').charAt(0).toUpperCase() }}
             </div>
             <div class="flex-1 space-y-1.5">
@@ -1006,7 +1006,7 @@ watch(completedPage, async (val) => {
   min-height: calc(100vh - 140px);
 }
 .queue-grid {
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   align-items: start;
   flex: 1 1 auto;
 }
@@ -1054,6 +1054,18 @@ watch(completedPage, async (val) => {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+}
+.queue-card .queue-avatar {
+  height: 42px;
+  width: 42px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.08);
+  color: #0f172a;
+  font-weight: 700;
+  box-shadow: none;
 }
 .queue-card :deep(.el-card__body) {
   padding: 14px;
@@ -1103,7 +1115,7 @@ watch(completedPage, async (val) => {
   }
 }
 .queue-grid {
-  gap: 20px;
+  gap: 24px;
 }
 .queue-card .customer-name {
   line-height: 1.2;
@@ -1141,8 +1153,19 @@ watch(completedPage, async (val) => {
   border-radius: 12px;
   font-size: 1rem;
   background: #ffffff;
-  border: 1px solid rgba(148, 163, 184, 0.35);
+  border: none;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+}
+.queue-date-picker :deep(.el-select__wrapper) {
+  height: 44px;
+  border-radius: 12px !important;
+  border: none;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.25);
+  display: flex;
+  align-items: center;
+}
+.queue-date-picker :deep(.el-input__inner) {
+  text-align: center;
 }
 .pagination-footer {
   position: sticky;

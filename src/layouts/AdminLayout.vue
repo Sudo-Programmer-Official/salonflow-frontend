@@ -428,8 +428,8 @@ const navItems = computed(() => {
   height: auto;
   padding: 0.75em 1em;
   border-radius: 14px;
-  background: #0f172a;
-  border-color: #0f172a;
+  background: linear-gradient(135deg, #0ea5e9, #0b83d9);
+  border-color: #0b83d9;
   color: #fff;
 }
 .admin-header :deep(.el-button.logout-btn) {
@@ -437,9 +437,9 @@ const navItems = computed(() => {
   border-color: #dc2626;
 }
 .admin-header :deep(.el-button.is-plain) {
-  background: #0f172a;
+  background: linear-gradient(135deg, #0ea5e9, #0b83d9);
   color: #fff;
-  border-color: #0f172a;
+  border-color: #0b83d9;
 }
 .admin-header :deep(.el-button:hover),
 .admin-header :deep(.el-button:focus) {

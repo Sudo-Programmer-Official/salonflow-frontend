@@ -188,9 +188,10 @@ main {
   color: #fff;
 }
 .quick-btn {
-  background: #0f172a;
+  background: linear-gradient(135deg, #0ea5e9, #0b83d9);
   color: #fff;
-  border: 1px solid #0f172a;
+  border: none;
+  padding: 10px 18px;
 }
 .quick-btn:hover,
 .go-btn:hover {

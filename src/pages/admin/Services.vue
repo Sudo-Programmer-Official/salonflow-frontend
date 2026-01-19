@@ -396,7 +396,7 @@ const handleCategorySelect = (val: string | null) => {
 
     <ElCard class="bg-white">
       <div class="mb-4 text-base font-semibold text-slate-900">Add Service</div>
-      <ElForm label-position="top" class="grid gap-3 sm:grid-cols-4 sm:items-end text-sm">
+      <ElForm label-position="top" class="grid gap-3 sm:grid-cols-4 sm:items-end text-sm service-form">
         <ElFormItem label="Name" class="sm:col-span-2">
           <ElInput v-model="form.name" placeholder="e.g., Gel Manicure" size="small" />
         </ElFormItem>
@@ -596,7 +596,7 @@ const handleCategorySelect = (val: string | null) => {
 
     <ElDialog v-model="dialogVisible" title="Edit Service" width="480px">
       <div class="space-y-3">
-        <ElForm label-position="top" class="grid gap-3 sm:grid-cols-2 sm:items-end text-sm">
+        <ElForm label-position="top" class="grid gap-3 sm:grid-cols-2 sm:items-end text-sm service-form">
           <ElFormItem label="Name" class="sm:col-span-2">
             <ElInput v-model="form.name" placeholder="Service name" size="small" />
           </ElFormItem>
@@ -651,7 +651,7 @@ const handleCategorySelect = (val: string | null) => {
 
     <ElDialog v-model="categoryDialogOpen" :title="categoryForm.id ? 'Edit Category' : 'Add Category'" width="420px">
       <div class="space-y-3">
-        <ElForm label-position="top" class="space-y-3 text-sm">
+        <ElForm label-position="top" class="space-y-3 text-sm service-form">
           <ElFormItem label="Name" required>
             <ElInput v-model="categoryForm.name" placeholder="e.g., Nails" size="small" />
           </ElFormItem>
@@ -683,5 +683,23 @@ const handleCategorySelect = (val: string | null) => {
 <style scoped>
 .inactive-row {
   opacity: 0.6;
+}
+.service-form :deep(.el-form-item__label) {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+.service-form :deep(.el-input__wrapper),
+.service-form :deep(.el-select__wrapper),
+.service-form :deep(.el-input-number__wrapper) {
+  padding: 12px 14px;
+  min-height: 44px;
+  font-size: 1rem;
+}
+.service-form :deep(.el-input__inner) {
+  font-size: 1rem;
+}
+.service-form :deep(.el-switch__core) {
+  height: 22px;
 }
 </style>
