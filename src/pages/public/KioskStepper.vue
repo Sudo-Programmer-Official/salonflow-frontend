@@ -8,7 +8,7 @@ import { fetchPublicAvailableStaff, type StaffMember } from '../../api/staff';
 import { startKioskIdleWatchdog } from '../../utils/kioskIdleWatchdog';
 import { applyThemeFromSettings } from '../../utils/theme';
 
-type Step = 'welcome' | 'phone' | 'category' | 'services' | 'staff' | 'review' | 'done';
+type Step = 'welcome' | 'phone' | 'services' | 'staff' | 'review' | 'done';
 
 type ServiceGroup = {
   categoryId: string | null;
@@ -24,10 +24,9 @@ type ServiceGroup = {
 };
 
 const route = useRoute();
-const step = ref<Step>('welcome');
+const step = ref<Step>('phone');
 const phone = ref('');
 const name = ref('');
-const selectedCategoryId = ref<string | null>(null);
 const selectedServiceIds = ref<string[]>([]);
 const groupedServices = ref<ServiceGroup[]>([]);
 const settings = ref<BusinessSettings | null>(null);
@@ -67,9 +66,15 @@ const defaultSettings: BusinessSettings = {
   publicCheckInEnabled: true,
   requirePhone: true,
   showPointsOnKiosk: true,
+  showPointsPreview: true,
   allowMultiService: false,
   requireService: false,
   allowStaffSelection: false,
+  requireStaffSelection: false,
+  kioskWelcomeStyle: 'classic',
+  kioskShowRewardsCard: true,
+  kioskAllowSkipService: true,
+  kioskAllowSkipStaff: true,
   kioskAutoResetSeconds: null,
   enforceStaffAvailability: false,
   uiFontScale: 1,
@@ -96,13 +101,12 @@ const tenant = computed(
 );
 
 const stepItems = computed<Array<{ key: Step; label: string }>>(() => {
-  const base: Array<{ key: Step; label: string }> = [
-    { key: 'welcome', label: 'Welcome' },
-    { key: 'phone', label: 'Phone' },
-    { key: 'category', label: 'Category' },
-    { key: 'services', label: 'Services' },
-  ];
-  if (allowStaffSelection.value) {
+  const base: Array<{ key: Step; label: string }> = [];
+  if (!useClassicWelcome.value) {
+    base.push({ key: 'welcome', label: 'Welcome' });
+  }
+  base.push({ key: 'phone', label: 'Phone' }, { key: 'services', label: 'Services' });
+  if (showStaffStep.value) {
     base.push({ key: 'staff', label: 'Staff' });
   }
   base.push({ key: 'review', label: 'Review' }, { key: 'done', label: 'Done' });
@@ -117,45 +121,32 @@ const allowPhoneSkip = computed(() => !requirePhone.value);
 const kioskEnabled = computed(() => settings.value?.kioskEnabled ?? false);
 const publicEnabled = computed(() => settings.value?.publicCheckInEnabled !== false);
 const businessName = computed(() => settings.value?.businessName || 'Salon Kiosk');
-const showPoints = computed(() => (settings.value ? settings.value.showPointsOnKiosk === true : true));
-const allowStaffSelection = computed(() => settings.value?.allowStaffSelection === true);
+const showPoints = computed(() => {
+  if (!settings.value) return true;
+  const flag = settings.value.showPointsPreview ?? settings.value.showPointsOnKiosk;
+  return flag !== false;
+});
+const showStaffStep = computed(() => settings.value?.allowStaffSelection === true);
+const allowStaffSelection = showStaffStep;
+const requireStaffStep = computed(
+  () => showStaffStep.value && settings.value?.requireStaffSelection === true,
+);
+const allowStaffSkip = computed(
+  () => showStaffStep.value && (settings.value?.kioskAllowSkipStaff !== false),
+);
 const enforceStaffAvailability = computed(() => settings.value?.enforceStaffAvailability === true);
+const welcomeStyle = computed(() => settings.value?.kioskWelcomeStyle ?? 'classic');
+const useClassicWelcome = computed(() => welcomeStyle.value === 'classic');
+const showRewardsCard = computed(() => settings.value?.kioskShowRewardsCard !== false);
+const allowServiceSkip = computed(
+  () => !requireService.value && (settings.value?.kioskAllowSkipService !== false),
+);
 const autoResetSeconds = computed(() => {
   const raw = settings.value?.kioskAutoResetSeconds;
   if (raw === null || raw === undefined) return 10;
   const n = Number(raw);
   if (Number.isNaN(n)) return 10;
   return Math.min(Math.max(Math.round(n), 5), 120);
-});
-
-const categories = computed(() => {
-  const list = [...groupedServices.value];
-  const active = list.filter((c) => c.categoryId);
-  const uncategorized = list.filter((c) => !c.categoryId);
-  return [...active, ...uncategorized];
-});
-
-watch(
-  categories,
-  (cats) => {
-    if (cats.length === 0) {
-      selectedCategoryId.value = null;
-      return;
-    }
-    const found = cats.find((c) => c.categoryId === selectedCategoryId.value);
-    if (!found) {
-      selectedCategoryId.value = cats[0]?.categoryId ?? null;
-    }
-  },
-  { immediate: true },
-);
-
-const servicesForCategory = computed(() => {
-  if (!categories.value.length) return [];
-  if (selectedCategoryId.value === null) {
-    return categories.value.find((c) => c.categoryId === null)?.services ?? [];
-  }
-  return categories.value.find((c) => c.categoryId === selectedCategoryId.value)?.services ?? [];
 });
 
 const selectedServiceDetails = computed<ServiceGroup['services'][number][]>(() => {
@@ -166,6 +157,13 @@ const selectedServiceDetails = computed<ServiceGroup['services'][number][]>(() =
   return selectedServiceIds.value
     .map((id) => map.get(id))
     .filter((service): service is ServiceGroup['services'][number] => Boolean(service));
+});
+
+const serviceSections = computed(() => {
+  const list = [...groupedServices.value];
+  const active = list.filter((c) => c.categoryId);
+  const uncategorized = list.filter((c) => !c.categoryId);
+  return [...active, ...uncategorized];
 });
 
 const formattedPhone = computed(() => {
@@ -224,12 +222,13 @@ const loadSettings = async () => {
   try {
     settings.value = await fetchPublicSettings();
     settingsError.value = '';
-    applyThemeFromSettings(settings.value, { boost: 1.12 });
+    applyThemeFromSettings(settings.value, { boost: 1.12, mode: 'kiosk', maxScale: 1.4 });
   } catch (err: any) {
     settings.value = defaultSettings;
     settingsError.value = err?.message || 'Unable to load settings.';
-    applyThemeFromSettings(settings.value, { boost: 1.12 });
+    applyThemeFromSettings(settings.value, { boost: 1.12, mode: 'kiosk', maxScale: 1.4 });
   }
+  step.value = useClassicWelcome.value ? 'phone' : 'welcome';
 };
 
 const refreshServices = async () => {
@@ -242,7 +241,7 @@ const refreshServices = async () => {
 };
 
 const loadStaff = async () => {
-  if (!allowStaffSelection.value) return;
+  if (!showStaffStep.value) return;
   staffLoading.value = true;
   staffError.value = '';
   try {
@@ -307,7 +306,7 @@ onBeforeUnmount(() => {
 onUnmounted(() => {
   stopWatchdog.value?.();
   cancelIdleWarning();
-  applyThemeFromSettings(settings.value);
+  applyThemeFromSettings(settings.value, { mode: 'app' });
 });
 
 const resetFlow = () => {
@@ -335,7 +334,7 @@ const resetFlow = () => {
     clearTimeout(lookupTimer.value);
     lookupTimer.value = null;
   }
-  step.value = 'welcome';
+  step.value = useClassicWelcome.value ? 'phone' : 'welcome';
   cancelIdleWarning();
 };
 
@@ -344,7 +343,11 @@ const canAdvanceFromPhone = computed(() => {
   return true;
 });
 
-const canAdvanceFromServices = computed(() => !requireService.value || selectedServiceIds.value.length > 0);
+const canAdvanceFromServices = computed(() => {
+  if (requireService.value) return selectedServiceIds.value.length > 0;
+  if (!allowServiceSkip.value && selectedServiceIds.value.length === 0) return false;
+  return true;
+});
 
 const goToPhone = () => {
   errorMessage.value = '';
@@ -362,16 +365,7 @@ const proceedFromPhone = () => {
     return;
   }
   errorMessage.value = '';
-  step.value = 'category';
-};
-
-const selectCategory = (categoryId: string | null) => {
-  selectedCategoryId.value = categoryId;
-  errorMessage.value = '';
   step.value = 'services';
-  if (!allowMultiService.value) {
-    selectedServiceIds.value = [];
-  }
 };
 
 const toggleService = (serviceId: string) => {
@@ -388,9 +382,11 @@ const toggleService = (serviceId: string) => {
 };
 
 const skipServiceSelection = () => {
+  if (!allowServiceSkip.value) return;
   selectedServiceIds.value = [];
-  step.value = allowStaffSelection.value ? 'staff' : 'review';
-  if (allowStaffSelection.value) {
+  errorMessage.value = '';
+  step.value = showStaffStep.value ? 'staff' : 'review';
+  if (showStaffStep.value) {
     loadStaff();
   }
 };
@@ -400,8 +396,12 @@ const goNextFromServices = async () => {
     errorMessage.value = 'Please select at least one service.';
     return;
   }
+  if (!requireService.value && !allowServiceSkip.value && selectedServiceIds.value.length === 0) {
+    errorMessage.value = 'Select a service or enable skips in Settings.';
+    return;
+  }
   errorMessage.value = '';
-  if (allowStaffSelection.value) {
+  if (showStaffStep.value) {
     step.value = 'staff';
     await loadStaff();
     return;
@@ -415,6 +415,17 @@ const selectStaff = (staffId: string | null) => {
 };
 
 const goFromStaffToReview = () => {
+  if (requireStaffStep.value && !selectedStaffId.value) {
+    errorMessage.value = 'Please choose a staff member.';
+    return;
+  }
+  step.value = 'review';
+};
+
+const skipStaffSelection = () => {
+  if (!allowStaffSkip.value || requireStaffStep.value) return;
+  selectedStaffId.value = null;
+  errorMessage.value = '';
   step.value = 'review';
 };
 
@@ -473,6 +484,11 @@ const confirmCheckIn = async () => {
   if (requireService.value && selectedServiceIds.value.length === 0) {
     errorMessage.value = 'Please select at least one service.';
     step.value = 'services';
+    return;
+  }
+  if (requireStaffStep.value && !selectedStaffId.value) {
+    errorMessage.value = 'Please select a staff member.';
+    step.value = 'staff';
     return;
   }
   submitting.value = true;
@@ -548,8 +564,20 @@ watch(
 watch(
   () => [primaryServiceId.value, enforceStaffAvailability.value, allowStaffSelection.value],
   () => {
-    if (allowStaffSelection.value) {
+    if (showStaffStep.value) {
       loadStaff();
+    }
+  },
+);
+
+watch(
+  useClassicWelcome,
+  (isClassic) => {
+    if (isClassic && step.value === 'welcome') {
+      step.value = 'phone';
+    }
+    if (!isClassic && step.value === 'phone' && !phone.value && !name.value) {
+      step.value = 'welcome';
     }
   },
 );
@@ -602,125 +630,115 @@ watch(
 
             <div v-else>
               <div v-if="step === 'welcome'" class="welcome-card" @click="goToPhone">
-                <div>
-                  <p class="text-4xl font-semibold text-white">Welcome 👋</p>
-                  <p class="mt-2 text-lg text-white/80">Tap to check in</p>
+                <div class="space-y-2">
+                  <p class="text-sm uppercase tracking-wide text-white/70">Touch to start</p>
+                  <p class="text-4xl font-semibold text-white">Check in & earn rewards</p>
+                  <p class="text-lg text-white/85">We kept the classic flow your team already knows.</p>
+                  <ElButton type="primary" size="large">Start</ElButton>
                 </div>
                 <div
-                  v-if="showPoints"
-                  class="rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-left text-white shadow-lg"
+                  v-if="showRewardsCard && showPoints"
+                  class="welcome-reward glass-tile"
                 >
-                  <div class="text-sm font-semibold uppercase tracking-wide text-white/60">💎 Earn rewards</div>
-                  <div class="text-lg font-semibold text-white">300 points = $5 off</div>
-                  <div class="text-sm text-white/70">Check in to start earning.</div>
+                  <div class="text-xs font-semibold uppercase tracking-wide text-white/70">Loyalty</div>
+                  <div class="text-2xl font-semibold text-white">300 points = $5 off</div>
+                  <div class="text-sm text-white/75">Tap to begin and keep earning.</div>
                 </div>
-                <ElButton type="primary" size="large">Start</ElButton>
               </div>
 
-              <div v-else-if="step === 'phone'" class="grid gap-6 lg:grid-cols-2">
-                <div class="kiosk-pane">
-                  <div class="phone-display">
-                    <div class="text-sm text-white/70">Phone number</div>
-                    <div class="text-3xl font-semibold text-white">{{ phone || 'Enter phone' }}</div>
+              <div v-else-if="step === 'phone'" class="space-y-5">
+                <div class="phone-hero grid gap-5 lg:grid-cols-[1fr,1.15fr]">
+                  <div v-if="showRewardsCard && showPoints" class="reward-panel glass-tile">
+                    <div class="text-xs font-semibold uppercase tracking-wide text-white/70">Loyalty</div>
+                    <div class="text-3xl font-semibold text-white">300 points = $5 off</div>
+                    <p class="text-sm text-white/75 mt-1">Enter your phone to load rewards.</p>
+                    <div
+                      v-if="lookupResult?.exists && lookupResult.customer"
+                      class="mt-4 rounded-lg border border-white/15 bg-white/10 px-4 py-3"
+                    >
+                      <div class="text-base font-semibold text-white">👋 Welcome back, {{ lookupResult.customer.name }}!</div>
+                      <div class="text-sm text-white/80">
+                        💎 {{ lookupResult.customer.pointsBalance ?? 0 }} points
+                        <span class="ml-2 text-xs text-white/60">Keep earning every visit.</span>
+                      </div>
+                    </div>
                   </div>
-                  <div class="keypad">
-                    <template v-for="(row, rowIndex) in keypad" :key="row.join('-')">
-                      <button
-                        v-for="key in row"
-                        :key="`${rowIndex}-${key}`"
-                        :class="['keypad-key', { action: key === 'backspace' || key === 'clear' }]"
-                        @click="
-                          key === 'backspace'
-                            ? handleBackspace()
-                            : key === 'clear'
-                              ? clearPhone()
-                              : appendDigit(key)
-                        "
+                  <div class="phone-panel kiosk-pane">
+                    <div class="phone-heading">
+                      <p class="text-xs uppercase tracking-wide text-white/60">Step 1 • Phone</p>
+                      <p class="text-2xl font-semibold text-white">Please enter your phone number</p>
+                      <p class="text-sm text-white/70">We’ll use this to find your rewards.</p>
+                    </div>
+                    <div class="phone-display">
+                      <div class="text-sm text-white/70">Phone number</div>
+                      <div class="text-3xl font-semibold text-white">{{ phone || 'Tap the keypad' }}</div>
+                    </div>
+                    <div class="keypad">
+                      <template v-for="(row, rowIndex) in keypad" :key="row.join('-')">
+                        <button
+                          v-for="key in row"
+                          :key="`${rowIndex}-${key}`"
+                          :class="['keypad-key', { action: key === 'backspace' || key === 'clear' }]"
+                          @click="
+                            key === 'backspace'
+                              ? handleBackspace()
+                              : key === 'clear'
+                                ? clearPhone()
+                                : appendDigit(key)
+                          "
+                        >
+                          <span v-if="key === 'backspace'">⌫</span>
+                          <span v-else-if="key === 'clear'">Clear</span>
+                          <span v-else>{{ key }}</span>
+                        </button>
+                      </template>
+                    </div>
+                    <div class="flex flex-wrap gap-3 justify-end">
+                      <ElButton size="large" @click="resetFlow">Start over</ElButton>
+                      <ElButton
+                        v-if="allowPhoneSkip"
+                        size="large"
+                        plain
+                        @click="skipPhoneStep"
                       >
-                        <span v-if="key === 'backspace'">⌫</span>
-                        <span v-else-if="key === 'clear'">Clear</span>
-                        <span v-else>{{ key }}</span>
-                      </button>
-                    </template>
-                  </div>
-                </div>
-                <div class="kiosk-pane space-y-4 min-h-[320px]">
-                  <div>
-                    <label class="kiosk-label">
-                      Phone {{ requirePhone ? '(required)' : '(optional)' }}
-                    </label>
-                    <div class="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-white/90">
-                      {{ phone || 'Tap numbers to enter' }}
+                        Skip phone
+                      </ElButton>
+                      <ElButton
+                        type="primary"
+                        size="large"
+                        :disabled="!canAdvanceFromPhone"
+                        @click="proceedFromPhone"
+                      >
+                        Next
+                      </ElButton>
                     </div>
                   </div>
-                  <div class="space-y-2">
-                    <div v-if="showPoints" class="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white min-h-[90px] flex flex-col justify-center">
-                      <div v-if="lookupLoading" class="text-sm text-white/80">Checking rewards…</div>
-                      <template v-else-if="lookupResult?.exists && lookupResult.customer">
-                        <div class="text-base font-semibold">👋 Welcome back, {{ lookupResult.customer.name }}!</div>
-                        <div class="text-sm text-white/80">
-                          💎 {{ lookupResult.customer.pointsBalance ?? 0 }} points
-                          <span class="ml-2 text-xs text-white/60">Keep earning rewards every visit.</span>
-                        </div>
-                      </template>
-                      <template v-else>
-                        <div class="text-base font-semibold">💎 Earn rewards</div>
-                        <div class="text-sm text-white/70">Check in today to start earning points.</div>
-                      </template>
+                </div>
+                <div class="kiosk-pane phone-bottom">
+                  <div class="grid gap-4 lg:grid-cols-[1.1fr,0.9fr] items-start">
+                    <div>
+                      <label class="kiosk-label">
+                        Name
+                      </label>
+                      <ElInput v-model="name" size="large" placeholder="Your name" />
                     </div>
-                    <div v-if="lookupError" class="rounded-xl border border-amber-300 bg-amber-100/20 px-4 py-3 text-sm text-amber-100">
-                      {{ lookupError }}
+                    <div class="space-y-2">
+                      <div v-if="showPoints" class="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white min-h-[90px] flex flex-col justify-center">
+                        <div v-if="lookupLoading" class="text-sm text-white/80">Checking rewards…</div>
+                        <template v-else-if="lookupResult?.exists && lookupResult.customer">
+                          <div class="text-base font-semibold">💎 {{ lookupResult.customer.pointsBalance ?? 0 }} points</div>
+                          <div class="text-sm text-white/80">Keep earning rewards every visit.</div>
+                        </template>
+                        <template v-else>
+                          <div class="text-base font-semibold">💎 Earn rewards</div>
+                          <div class="text-sm text-white/70">Check in today to start earning points.</div>
+                        </template>
+                      </div>
+                      <div v-if="lookupError" class="rounded-xl border border-amber-300 bg-amber-100/20 px-4 py-3 text-sm text-amber-100">
+                        {{ lookupError }}
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <label class="kiosk-label">Name</label>
-                    <ElInput v-model="name" size="large" placeholder="Your name" />
-                  </div>
-                  <div class="flex flex-wrap gap-3">
-                    <ElButton size="large" @click="resetFlow">Start over</ElButton>
-                    <ElButton
-                      v-if="allowPhoneSkip"
-                      size="large"
-                      plain
-                      @click="skipPhoneStep"
-                    >
-                      Skip phone
-                    </ElButton>
-                    <ElButton
-                      type="primary"
-                      size="large"
-                      :disabled="!canAdvanceFromPhone"
-                      @click="proceedFromPhone"
-                    >
-                      Next
-                    </ElButton>
-                  </div>
-                </div>
-              </div>
-
-              <div v-else-if="step === 'category'" class="space-y-4">
-                <div class="kiosk-heading">
-                  <div>
-                    <p class="text-xl font-semibold text-white">Pick a category</p>
-                    <p class="text-sm text-white/70">Uncategorized is always available.</p>
-                  </div>
-                  <ElButton size="large" @click="step = 'phone'">Back</ElButton>
-                </div>
-                <div class="category-grid">
-                  <button
-                    v-for="category in categories"
-                    :key="category.categoryId || 'uncategorized'"
-                    class="category-card"
-                    :class="{ active: selectedCategoryId === category.categoryId }"
-                    @click="selectCategory(category.categoryId)"
-                  >
-                    <div class="text-3xl">{{ category.categoryIcon || '📋' }}</div>
-                    <div class="text-lg font-semibold">{{ category.categoryName }}</div>
-                    <div class="text-sm text-white/80">{{ category.services.length }} services</div>
-                  </button>
-                </div>
-                <div class="flex justify-end">
-                  <ElButton type="primary" size="large" @click="step = 'services'">Choose services</ElButton>
                 </div>
               </div>
 
@@ -732,44 +750,67 @@ watch(
                       {{ allowMultiService ? 'Tap all that apply.' : 'Choose one service.' }}
                     </p>
                   </div>
-                  <ElButton size="large" @click="step = 'category'">Back</ElButton>
+                  <ElButton size="large" @click="step = 'phone'">Back</ElButton>
                 </div>
 
-                <div v-if="servicesForCategory.length" class="services-grid">
-                  <button
-                    v-for="service in servicesForCategory"
-                    :key="service.id"
-                    class="service-card"
-                    :class="{ active: selectedServiceIds.includes(service.id) }"
-                    @click="toggleService(service.id)"
+                <div v-if="serviceSections.length" class="service-section-grid">
+                  <div
+                    v-for="category in serviceSections"
+                    :key="category.categoryId || 'uncategorized'"
+                    class="service-section"
                   >
-                    <div class="flex items-start justify-between gap-3">
-                      <div class="text-2xl">{{ service.icon || '💇' }}</div>
-                      <div class="service-chip" v-if="selectedServiceIds.includes(service.id)">Selected</div>
+                    <div class="section-header">
+                      <div class="section-icon">{{ category.categoryIcon || '💅' }}</div>
+                      <div>
+                        <div class="section-title">{{ category.categoryName || 'Other services' }}</div>
+                        <div class="section-sub">{{ category.services.length }} options</div>
+                      </div>
                     </div>
-                    <div class="text-lg font-semibold text-white">{{ service.name }}</div>
-                    <div class="text-sm text-white/80">
-                      <span v-if="service.durationMinutes">{{ service.durationMinutes }} min · </span>
-                      <span v-if="service.priceCents !== undefined && service.priceCents !== null">
-                        {{
-                          Intl.NumberFormat('en-US', {
-                            style: 'currency',
-                            currency: service.currency || settings?.currency || 'USD',
-                            minimumFractionDigits: 0,
-                          }).format((service.priceCents || 0) / 100)
-                        }}
-                      </span>
-                      <span v-else>Tap to select</span>
+                    <div v-if="category.services.length" class="service-list">
+                      <label
+                        v-for="service in category.services"
+                        :key="service.id"
+                        class="service-row"
+                        :class="{ active: selectedServiceIds.includes(service.id) }"
+                      >
+                        <input
+                          type="checkbox"
+                          class="service-checkbox"
+                          :checked="selectedServiceIds.includes(service.id)"
+                          @change="toggleService(service.id)"
+                        />
+                        <div class="service-copy">
+                          <div class="service-name">{{ service.name }}</div>
+                          <div class="service-meta">
+                            <span v-if="service.durationMinutes">{{ service.durationMinutes }} min</span>
+                            <span
+                              v-if="service.priceCents !== undefined && service.priceCents !== null"
+                              class="inline-flex items-center gap-1"
+                            >
+                              <span aria-hidden="true">•</span>
+                              {{
+                                Intl.NumberFormat('en-US', {
+                                  style: 'currency',
+                                  currency: service.currency || settings?.currency || 'USD',
+                                  minimumFractionDigits: 0,
+                                }).format((service.priceCents || 0) / 100)
+                              }}
+                            </span>
+                          </div>
+                        </div>
+                        <span class="service-chip" v-if="selectedServiceIds.includes(service.id)">Selected</span>
+                      </label>
                     </div>
-                  </button>
+                    <div v-else class="service-empty">No services in this category yet.</div>
+                  </div>
                 </div>
                 <div v-else class="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white/80">
-                  No services in this category yet.
+                  No services published yet.
                 </div>
 
-                <div class="flex flex-wrap justify-end gap-3">
-                  <ElButton size="large" @click="step = 'category'">Back</ElButton>
-                  <ElButton v-if="!requireService" size="large" plain @click="skipServiceSelection">
+                <div class="service-actions">
+                  <ElButton size="large" @click="step = 'phone'">Back</ElButton>
+                  <ElButton v-if="allowServiceSkip" size="large" plain @click="skipServiceSelection">
                     Skip
                   </ElButton>
                   <ElButton
@@ -778,12 +819,12 @@ watch(
                     :disabled="!canAdvanceFromServices"
                     @click="goNextFromServices"
                   >
-                    Review
+                    Next
                   </ElButton>
                 </div>
               </div>
 
-              <div v-else-if="step === 'staff' && allowStaffSelection" class="space-y-5">
+              <div v-else-if="step === 'staff' && showStaffStep" class="space-y-5">
                 <div class="kiosk-heading">
                   <div>
                     <p class="text-xl font-semibold text-white">Choose a staff member</p>
@@ -798,11 +839,15 @@ watch(
                   {{ staffError }}
                 </div>
 
-                <div class="services-grid">
+                <div v-if="staffLoading" class="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white/80">
+                  Loading staff…
+                </div>
+
+                <div class="services-grid" v-if="!staffLoading">
                   <button
                     class="service-card"
                     :class="{ active: selectedStaffId === null }"
-                    @click="selectStaff(null); goFromStaffToReview()"
+                    @click="selectStaff(null)"
                   >
                     <div class="flex items-start justify-between gap-3">
                       <div class="text-2xl">🤝</div>
@@ -817,7 +862,7 @@ watch(
                     :key="staff.id"
                     class="service-card"
                     :class="{ active: selectedStaffId === staff.id }"
-                    @click="selectStaff(staff.id); goFromStaffToReview()"
+                    @click="selectStaff(staff.id)"
                     :disabled="!staff.active"
                   >
                     <div class="flex items-start justify-between gap-3">
@@ -836,6 +881,26 @@ watch(
 
                 <div v-if="!staffList.length && !staffLoading" class="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white/80">
                   No staff available right now — we'll assign for you.
+                </div>
+
+                <div class="service-actions">
+                  <ElButton size="large" @click="step = 'services'">Back</ElButton>
+                  <ElButton
+                    v-if="allowStaffSkip && !requireStaffStep"
+                    size="large"
+                    plain
+                    @click="skipStaffSelection"
+                  >
+                    Skip
+                  </ElButton>
+                  <ElButton
+                    type="primary"
+                    size="large"
+                    :disabled="requireStaffStep && !selectedStaffId"
+                    @click="goFromStaffToReview"
+                  >
+                    Next
+                  </ElButton>
                 </div>
               </div>
 
@@ -895,7 +960,7 @@ watch(
                 />
 
                 <div class="flex justify-end gap-3">
-                  <ElButton size="large" @click="step = 'services'">Back</ElButton>
+                  <ElButton size="large" @click="step = showStaffStep ? 'staff' : 'services'">Back</ElButton>
                   <ElButton type="primary" size="large" :loading="submitting" @click="confirmCheckIn">
                     Confirm check-in
                   </ElButton>
@@ -1044,18 +1109,34 @@ watch(
   font-weight: 700;
 }
 .welcome-card {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   align-items: center;
-  justify-content: space-between;
-  border-radius: 16px;
-  padding: 32px;
-  background: linear-gradient(120deg, #0ea5e9, #6366f1);
+  gap: 16px;
+  border-radius: 18px;
+  padding: 28px 32px;
+  background: linear-gradient(135deg, #0ea5e9, #14b8a6 50%, #6366f1);
   cursor: pointer;
   transition: transform 0.12s ease, box-shadow 0.12s ease;
+  box-shadow: 0 20px 60px rgba(14, 165, 233, 0.35);
 }
 .welcome-card:active {
   transform: scale(0.985);
   box-shadow: 0 10px 30px rgba(14, 165, 233, 0.25);
+}
+.glass-tile {
+  border: 1px solid var(--kiosk-border);
+  background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.08), transparent 60%),
+    rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(var(--kiosk-blur));
+  -webkit-backdrop-filter: blur(var(--kiosk-blur));
+  box-shadow: var(--glass-shadow);
+  border-radius: 18px;
+  padding: 18px;
+}
+.welcome-reward {
+  max-width: 340px;
+  justify-self: end;
 }
 .kiosk-pane {
   border-radius: 16px;
@@ -1107,6 +1188,23 @@ watch(
   color: rgba(255, 255, 255, 0.7);
   margin-bottom: 6px;
 }
+.phone-hero {
+  align-items: stretch;
+}
+.reward-panel {
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.phone-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.phone-bottom {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.08));
+}
 .kiosk-heading {
   display: flex;
   align-items: center;
@@ -1140,6 +1238,113 @@ watch(
 .category-card:active {
   transform: scale(0.985);
   background: rgba(14, 165, 233, 0.14);
+}
+.service-section-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+.service-section {
+  border: 1px solid var(--kiosk-border);
+  background: var(--kiosk-surface);
+  backdrop-filter: blur(var(--kiosk-blur));
+  -webkit-backdrop-filter: blur(var(--kiosk-blur));
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: var(--glass-shadow);
+}
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.section-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+}
+.section-title {
+  font-weight: 700;
+  color: #fff;
+}
+.section-sub {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+}
+.service-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.service-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--kiosk-border);
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  padding: 12px;
+  transition: border 0.12s ease, transform 0.12s ease, background 0.12s ease;
+}
+.service-row.active {
+  border-color: rgba(99, 102, 241, 0.7);
+  background: rgba(99, 102, 241, 0.1);
+  transform: translateY(-1px);
+}
+.service-checkbox {
+  width: 22px;
+  height: 22px;
+  border-radius: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+  display: grid;
+  place-items: center;
+  position: relative;
+}
+.service-checkbox:checked {
+  border-color: rgba(99, 102, 241, 0.8);
+  background: rgba(99, 102, 241, 0.2);
+}
+.service-checkbox:checked::after {
+  content: '✓';
+  font-size: 13px;
+  color: #fff;
+}
+.service-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.service-name {
+  color: #fff;
+  font-weight: 700;
+  font-size: 16px;
+}
+.service-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+}
+.service-empty {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+}
+.service-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 6px;
+  flex-wrap: wrap;
 }
 .services-grid {
   display: grid;

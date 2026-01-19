@@ -17,9 +17,15 @@ export type BusinessSettings = {
   publicCheckInEnabled: boolean;
   requirePhone: boolean;
   showPointsOnKiosk: boolean;
+  showPointsPreview: boolean;
   allowMultiService: boolean;
   requireService: boolean;
   allowStaffSelection: boolean;
+  requireStaffSelection: boolean;
+  kioskWelcomeStyle: 'classic' | 'modern';
+  kioskShowRewardsCard: boolean;
+  kioskAllowSkipService: boolean;
+  kioskAllowSkipStaff: boolean;
   kioskAutoResetSeconds: number | null;
   enforceStaffAvailability: boolean;
   uiFontScale: number;
@@ -37,9 +43,15 @@ export type SettingsPatch = Partial<
     | 'publicCheckInEnabled'
     | 'requirePhone'
     | 'showPointsOnKiosk'
+    | 'showPointsPreview'
     | 'allowMultiService'
     | 'requireService'
     | 'allowStaffSelection'
+    | 'requireStaffSelection'
+    | 'kioskWelcomeStyle'
+    | 'kioskShowRewardsCard'
+    | 'kioskAllowSkipService'
+    | 'kioskAllowSkipStaff'
     | 'kioskAutoResetSeconds'
     | 'enforceStaffAvailability'
     | 'currency'

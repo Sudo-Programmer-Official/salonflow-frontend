@@ -59,9 +59,15 @@ const defaultSettings: BusinessSettings = {
   publicCheckInEnabled: true,
   requirePhone: true,
   showPointsOnKiosk: true,
+  showPointsPreview: true,
   allowMultiService: false,
   requireService: false,
   allowStaffSelection: false,
+  requireStaffSelection: false,
+  kioskWelcomeStyle: 'classic',
+  kioskShowRewardsCard: true,
+  kioskAllowSkipService: true,
+  kioskAllowSkipStaff: true,
   kioskAutoResetSeconds: null,
   enforceStaffAvailability: false,
   uiFontScale: 1,
@@ -80,7 +86,11 @@ const defaultSettings: BusinessSettings = {
 
 const phoneRequired = computed(() => (settings.value ? settings.value.requirePhone !== false : true));
 const serviceRequired = computed(() => (settings.value ? settings.value.requireService === true : false));
-const showPoints = computed(() => (settings.value ? settings.value.showPointsOnKiosk === true : true));
+const showPoints = computed(() => {
+  if (!settings.value) return true;
+  const flag = settings.value.showPointsPreview ?? settings.value.showPointsOnKiosk;
+  return flag !== false;
+});
 const publicEnabled = computed(() => (settings.value ? settings.value.publicCheckInEnabled !== false : true));
 
 onMounted(async () => {

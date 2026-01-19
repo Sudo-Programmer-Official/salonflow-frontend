@@ -50,6 +50,9 @@ const fontScaleValue = computed(
 );
 const largeTextEnabled = computed(() => fontScaleValue.value >= 1.2);
 const fontFamilyValue = computed(() => settings.value?.uiFontFamily ?? 'system');
+const showPointsValue = computed(
+  () => settings.value?.showPointsPreview ?? settings.value?.showPointsOnKiosk ?? true,
+);
 
 const handleFontScaleChange = (value: number) => {
   const numeric = Number(value);
@@ -157,6 +160,10 @@ const scheduleSave = (patch: SettingsPatch) => {
 
 const handleToggle = (key: keyof SettingsPatch, value: boolean | string | number) => {
   scheduleSave({ [key]: Boolean(value) } as SettingsPatch);
+};
+
+const handlePointsToggle = (value: boolean) => {
+  scheduleSave({ showPointsPreview: value, showPointsOnKiosk: value });
 };
 
 const handleKioskResetChange = (value: number | null) => {
@@ -412,88 +419,150 @@ onMounted(loadSettings);
 
         <ElDivider />
 
-        <div class="space-y-4">
-          <div class="flex items-center justify-between gap-4">
-            <div>
-            <div class="text-sm font-semibold text-slate-900">Enable public check-in</div>
-            <div class="text-xs text-slate-600">Allow customers to check in from the public page.</div>
-          </div>
-          <ElSwitch
-            :model-value="settings.publicCheckInEnabled"
-            @change="(val) => handleToggle('publicCheckInEnabled', val)"
-          />
-        </div>
-
-        <div class="flex items-center justify-between gap-4">
-          <div>
-              <div class="text-sm font-semibold text-slate-900">Enable kiosk mode</div>
-              <div class="text-xs text-slate-600">Lock the tablet-friendly stepper for in-store use.</div>
-          </div>
-          <ElSwitch
-            :model-value="settings.kioskEnabled"
-            @change="(val) => handleToggle('kioskEnabled', val)"
-          />
-        </div>
-
-        <div class="flex items-center justify-between gap-4">
-          <div>
-              <div class="text-sm font-semibold text-slate-900">Require phone number</div>
-              <div class="text-xs text-slate-600">Turn off to allow quick walk-ins without a phone.</div>
-          </div>
-          <ElSwitch
-            :model-value="settings.requirePhone"
-            @change="(val) => handleToggle('requirePhone', val)"
-          />
-        </div>
-
-        <div class="flex items-center justify-between gap-4">
-          <div>
-              <div class="text-sm font-semibold text-slate-900">Require service selection</div>
-              <div class="text-xs text-slate-600">
-                When on, public check-in must pick a service before submitting.
+        <div class="space-y-6">
+          <div class="grid gap-4 md:grid-cols-2">
+            <div class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <div>
+                <div class="text-sm font-semibold text-slate-900">Enable public check-in</div>
+                <div class="text-xs text-slate-600">Allow customers to check in from the public page.</div>
               </div>
-          </div>
-          <ElSwitch
-            :model-value="settings.requireService"
-            @change="(val) => handleToggle('requireService', val)"
-          />
-        </div>
-
-        <div class="flex items-center justify-between gap-4">
-          <div>
-              <div class="text-sm font-semibold text-slate-900">Allow staff selection (kiosk/public)</div>
-              <div class="text-xs text-slate-600">
-                Shows an optional staff picker in kiosk/public flows. Disabled by default.
-              </div>
+              <ElSwitch
+                :model-value="settings.publicCheckInEnabled"
+                @change="(val) => handleToggle('publicCheckInEnabled', val)"
+              />
             </div>
-            <ElSwitch
-              :model-value="settings.allowStaffSelection"
-              @change="(val) => handleToggle('allowStaffSelection', val)"
-            />
+
+            <div class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <div>
+                <div class="text-sm font-semibold text-slate-900">Enable kiosk mode</div>
+                <div class="text-xs text-slate-600">Lock the tablet-friendly stepper for in-store use.</div>
+              </div>
+              <ElSwitch
+                :model-value="settings.kioskEnabled"
+                @change="(val) => handleToggle('kioskEnabled', val)"
+              />
+            </div>
           </div>
 
-        <div class="flex items-center justify-between gap-4">
-          <div>
-              <div class="text-sm font-semibold text-slate-900">Allow multiple services per check-in</div>
-              <div class="text-xs text-slate-600">
-                Enable multi-select in kiosk/public flows. When off, only one service can be chosen.
+          <div class="space-y-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <div class="text-sm font-semibold text-slate-900">Welcome layout</div>
+                <div class="text-xs text-slate-600">Classic (GoCheckin-style) or modern hero.</div>
+              </div>
+              <ElSelect
+                class="w-48"
+                :model-value="settings.kioskWelcomeStyle || 'classic'"
+                @change="(val: 'classic' | 'modern') => scheduleSave({ kioskWelcomeStyle: val })"
+              >
+                <ElOption label="Classic (keypad + rewards)" value="classic" />
+                <ElOption label="Modern hero" value="modern" />
+              </ElSelect>
+            </div>
+            <div class="grid gap-3 sm:grid-cols-2">
+              <div class="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-3 py-2">
+                <div>
+                  <div class="text-sm font-semibold text-slate-900">Show rewards card</div>
+                  <div class="text-xs text-slate-600">Display the 300 pts = $5 teaser.</div>
+                </div>
+                <ElSwitch
+                  :model-value="settings.kioskShowRewardsCard !== false"
+                  @change="(val) => handleToggle('kioskShowRewardsCard', val)"
+                />
+              </div>
+              <div class="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-3 py-2">
+                <div>
+                  <div class="text-sm font-semibold text-slate-900">Show points preview</div>
+                  <div class="text-xs text-slate-600">Keep loyalty visible in kiosk/public flows.</div>
+                </div>
+                <ElSwitch
+                  :model-value="showPointsValue"
+                  @change="(val) => handlePointsToggle(val as boolean)"
+                />
               </div>
             </div>
-            <ElSwitch
-              :model-value="settings.allowMultiService"
-              @change="(val) => handleToggle('allowMultiService', val)"
-            />
           </div>
 
-          <div class="flex items-center justify-between gap-4">
-            <div>
-              <div class="text-sm font-semibold text-slate-900">Show loyalty points</div>
-              <div class="text-xs text-slate-600">Display customer points during public check-in lookup.</div>
+          <div class="grid gap-4 md:grid-cols-2">
+            <div class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <div>
+                <div class="text-sm font-semibold text-slate-900">Require phone number</div>
+                <div class="text-xs text-slate-600">Turn off to allow quick walk-ins without a phone.</div>
+              </div>
+              <ElSwitch
+                :model-value="settings.requirePhone"
+                @change="(val) => handleToggle('requirePhone', val)"
+              />
             </div>
-            <ElSwitch
-              :model-value="settings.showPointsOnKiosk"
-              @change="(val) => handleToggle('showPointsOnKiosk', val)"
-            />
+
+            <div class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <div>
+                <div class="text-sm font-semibold text-slate-900">Require service selection</div>
+                <div class="text-xs text-slate-600">If on, the services step must be completed.</div>
+              </div>
+              <ElSwitch
+                :model-value="settings.requireService"
+                @change="(val) => handleToggle('requireService', val)"
+              />
+            </div>
+
+            <div class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <div>
+                <div class="text-sm font-semibold text-slate-900">Allow skip on services</div>
+                <div class="text-xs text-slate-600">Show Skip on services unless required.</div>
+              </div>
+              <ElSwitch
+                :model-value="settings.kioskAllowSkipService !== false"
+                @change="(val) => handleToggle('kioskAllowSkipService', val)"
+              />
+            </div>
+
+            <div class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <div>
+                <div class="text-sm font-semibold text-slate-900">Allow multiple services</div>
+                <div class="text-xs text-slate-600">Enable multi-select in kiosk/public flows.</div>
+              </div>
+              <ElSwitch
+                :model-value="settings.allowMultiService"
+                @change="(val) => handleToggle('allowMultiService', val)"
+              />
+            </div>
+          </div>
+
+          <div class="space-y-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <div class="text-sm font-semibold text-slate-900">Show staff preference step</div>
+                <div class="text-xs text-slate-600">Expose staff cards in kiosk/public when enabled.</div>
+              </div>
+              <ElSwitch
+                :model-value="settings.allowStaffSelection"
+                @change="(val) => handleToggle('allowStaffSelection', val)"
+              />
+            </div>
+
+            <div class="grid gap-3 sm:grid-cols-2" v-if="settings.allowStaffSelection">
+              <div class="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-3 py-2">
+                <div>
+                  <div class="text-sm font-semibold text-slate-900">Require staff selection</div>
+                  <div class="text-xs text-slate-600">Force a pick before continuing.</div>
+                </div>
+                <ElSwitch
+                  :model-value="settings.requireStaffSelection === true"
+                  @change="(val) => handleToggle('requireStaffSelection', val)"
+                />
+              </div>
+              <div class="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-3 py-2">
+                <div>
+                  <div class="text-sm font-semibold text-slate-900">Allow skip on staff</div>
+                  <div class="text-xs text-slate-600">If off, the staff step cannot be skipped.</div>
+                </div>
+                <ElSwitch
+                  :model-value="settings.kioskAllowSkipStaff !== false"
+                  @change="(val) => handleToggle('kioskAllowSkipStaff', val)"
+                />
+              </div>
+            </div>
           </div>
 
           <div class="flex items-center justify-between gap-4">

@@ -389,11 +389,16 @@ const navItems = computed(() => {
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid rgba(148, 163, 184, 0.35);
-  background: var(--main-surface);
+  background: var(--header-surface, var(--main-surface));
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
   padding: 16px 24px;
   font-size: var(--font-md);
   font-family: var(--ui-font-family);
+}
+.admin-header :deep(.el-button) {
+  font-size: inherit;
+  height: auto;
+  padding: 0.55em 0.95em;
 }
 </style>
