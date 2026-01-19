@@ -41,6 +41,7 @@ const checkoutConsent = ref(true);
 const checkoutTarget = ref<string | null>(null);
 const checkoutServedBy = ref<string | null>(null);
 const checkoutRedeem = ref(false);
+const checkoutServices = ref<Array<{ name: string; priceCents: number | null }>>([]);
 const checkoutAmountRef = ref<InstanceType<typeof ElInput> | null>(null);
 const currentCheckoutItem = computed(() =>
   checkoutTarget.value ? queue.value.find((q) => q.id === checkoutTarget.value) : null,
@@ -350,6 +351,14 @@ const openCheckout = (id: string) => {
   checkoutConsent.value = true;
   checkoutServedBy.value = null;
   checkoutRedeem.value = false;
+  const targetItem = queue.value.find((q) => q.id === id);
+  const svcName = targetItem?.serviceName || '';
+  const matchedService = services.value.find((s) => s.name === svcName);
+  const priceCents = matchedService?.priceCents ?? null;
+  checkoutServices.value = svcName ? [{ name: svcName, priceCents }] : [];
+  if (priceCents !== null && priceCents !== undefined) {
+    checkoutAmount.value = (priceCents / 100).toFixed(2);
+  }
   checkoutOpen.value = true;
 };
 
@@ -862,6 +871,36 @@ watch(completedPage, async (val) => {
       <div class="space-y-3 checkout-body">
         <div class="rounded-md border border-slate-200 bg-slate-50 p-2 text-xs text-slate-700">
           Points available: {{ currentCheckoutItem?.pointsBalance ?? 0 }}
+        </div>
+        <div class="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800 space-y-2">
+          <div class="text-xs font-semibold text-slate-700">Services (from check-in)</div>
+          <div v-if="checkoutServices.length" class="flex flex-wrap gap-2">
+            <div
+              v-for="svc in checkoutServices"
+              :key="svc.name"
+              class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 shadow-sm"
+            >
+              <span class="text-base">💅</span>
+              <span class="text-sm font-semibold">{{ svc.name }}</span>
+              <span v-if="svc.priceCents !== null" class="text-xs text-slate-600">
+                {{
+                  Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: 'USD',
+                    minimumFractionDigits: 2,
+                  }).format((svc.priceCents ?? 0) / 100)
+                }}
+              </span>
+            </div>
+          </div>
+          <div v-else class="text-xs text-slate-600">Services will be confirmed at the counter.</div>
+          <div v-if="checkoutServices.length && checkoutServices.some((s) => s.priceCents !== null)" class="text-xs text-slate-600">
+            Subtotal {{
+              Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(
+                checkoutServices.reduce((acc, svc) => acc + (svc.priceCents ?? 0), 0) / 100,
+              )
+            }}
+          </div>
         </div>
         <div>
           <label class="text-sm font-medium text-slate-800">Amount Paid</label>

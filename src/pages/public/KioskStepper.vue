@@ -897,7 +897,8 @@ watch(
 
               <div v-else-if="step === 'done'" class="done-card">
                 <div class="text-4xl mb-1">✅ Checked in!</div>
-                <div class="text-2xl font-semibold text-white mb-3">Thanks, {{ successName }}.</div>
+                <div class="text-2xl font-semibold text-white mb-2">Thanks, {{ successName }}.</div>
+                <div class="text-sm text-white/70 mb-4">You’re all set — we’ll take it from here.</div>
 
                 <div
                   v-if="showPoints"
@@ -924,19 +925,31 @@ watch(
                   </div>
                 </div>
 
-                <div class="mt-3 text-left w-full max-w-md mx-auto" v-if="successServices.length">
-                  <div class="text-sm text-white/70">Services</div>
-                  <ul class="list-disc list-inside text-white/90">
-                    <li v-for="svc in successServices" :key="svc">{{ svc }}</li>
-                  </ul>
+                <div class="mt-4 w-full max-w-2xl mx-auto text-left">
+                  <div class="text-sm text-white/70 mb-2">Services selected</div>
+                  <div v-if="successServices.length" class="flex flex-wrap gap-2">
+                    <div
+                      v-for="svc in successServices"
+                      :key="svc"
+                      class="service-chip-card"
+                    >
+                      <span class="text-lg">💅</span>
+                      <span class="text-sm font-semibold text-white">{{ svc }}</span>
+                    </div>
+                  </div>
+                  <div v-else class="text-sm text-white/60">
+                    Services will be confirmed at the counter.
+                  </div>
                 </div>
 
-                <div class="mt-4 text-base text-white/70">
-                  Restarting for next guest in {{ doneCountdown ?? autoResetSeconds }}s
+                <div class="mt-5 flex flex-col items-center gap-2">
+                  <div class="text-sm text-white/70">
+                    Restarting for next guest in {{ doneCountdown ?? autoResetSeconds }}s
+                  </div>
+                  <ElButton class="mt-1" type="primary" size="large" @click="resetFlow">
+                    Restart now
+                  </ElButton>
                 </div>
-                <ElButton class="mt-3" type="primary" size="large" @click="resetFlow">
-                  Restart now
-                </ElButton>
               </div>
             </div>
           </template>
@@ -1155,6 +1168,19 @@ watch(
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: linear-gradient(120deg, rgba(34, 197, 94, 0.15), rgba(16, 185, 129, 0.12));
+  color: #fff;
+}
+.service-chip-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+.service-chip-card span {
   color: #fff;
 }
 .idle-banner {
