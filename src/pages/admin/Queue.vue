@@ -723,7 +723,7 @@ watch(completedPage, async (val) => {
           <ElSelect
             v-model="dateFilter"
             size="small"
-            class="w-36 queue-date-picker"
+            class="w-40 queue-date-picker"
             @change="(v: any) => changeDateFilter(v)"
           >
             <ElOption label="Today" value="today" />
@@ -1135,14 +1135,14 @@ watch(completedPage, async (val) => {
   border-radius: 10px;
 }
 .queue-date-picker {
-  height: 40px;
-  padding: 0 12px;
+  height: 44px;
+  min-width: 160px;
+  padding: 0 14px;
   border-radius: 12px;
-  font-size: 0.95rem;
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  font-size: 1rem;
+  background: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
 }
 .pagination-footer {
   position: sticky;

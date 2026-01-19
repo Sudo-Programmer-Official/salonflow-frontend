@@ -194,7 +194,10 @@ const navigate = (name: string) => {
               <ElTag :type="item.type" effect="light" size="small">Now</ElTag>
             </div>
             <div class="mt-2">
-              <ElButton type="primary" class="sf-btn" @click="item.action">Go</ElButton>
+              <ElButton type="primary" class="sf-btn go-btn" @click="item.action">
+                <span>Go</span>
+                <span aria-hidden="true">→</span>
+              </ElButton>
             </div>
           </ElCard>
         </div>
@@ -207,10 +210,10 @@ const navigate = (name: string) => {
             <div class="text-sm text-slate-600">Jump to common tasks.</div>
           </div>
           <div class="flex flex-wrap gap-2">
-            <ElButton type="primary" plain @click="navigate('admin-queue')">Check in customer</ElButton>
-            <ElButton @click="navigate('admin-appointments')">View appointments</ElButton>
-            <ElButton @click="navigate('admin-customers')">View customers</ElButton>
-            <ElButton @click="navigate('admin-review-sms')">Review SMS</ElButton>
+            <ElButton type="primary" class="sf-btn quick-btn" @click="navigate('admin-queue')">Check in customer</ElButton>
+            <ElButton class="sf-btn quick-btn" @click="navigate('admin-appointments')">View appointments</ElButton>
+            <ElButton class="sf-btn quick-btn" @click="navigate('admin-customers')">View customers</ElButton>
+            <ElButton class="sf-btn quick-btn" @click="navigate('admin-review-sms')">Review SMS</ElButton>
           </div>
         </div>
       </ElCard>

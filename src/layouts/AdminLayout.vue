@@ -204,7 +204,7 @@ const navItems = computed(() => {
           <el-button type="primary" plain size="small" @click="openPublicCheckIn">
             Public Check-In
           </el-button>
-          <el-button type="danger" plain size="small" @click="handleLogout">
+          <el-button class="logout-btn" type="danger" size="small" @click="handleLogout">
             Logout
           </el-button>
         </div>
@@ -431,6 +431,10 @@ const navItems = computed(() => {
   background: #0f172a;
   border-color: #0f172a;
   color: #fff;
+}
+.admin-header :deep(.el-button.logout-btn) {
+  background: #dc2626;
+  border-color: #dc2626;
 }
 .admin-header :deep(.el-button.is-plain) {
   background: #0f172a;

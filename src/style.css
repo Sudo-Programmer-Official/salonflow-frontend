@@ -179,6 +179,23 @@ main {
   font-weight: 600;
   letter-spacing: 0.2px;
 }
+.go-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #0ea5e9, #0b83d9);
+  border: none;
+  color: #fff;
+}
+.quick-btn {
+  background: #0f172a;
+  color: #fff;
+  border: 1px solid #0f172a;
+}
+.quick-btn:hover,
+.go-btn:hover {
+  filter: brightness(1.08);
+}
 
 :root[data-mode='kiosk'] body {
   background:
