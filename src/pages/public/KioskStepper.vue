@@ -610,7 +610,7 @@ watch(
       </div>
 
       <template v-else>
-        <div class="stepper" aria-hidden="true">
+        <div class="stepper glass-card" aria-hidden="true">
           <div
             v-for="(item, index) in stepItems"
             :key="item.key"
@@ -652,14 +652,17 @@ watch(
                     <div class="text-xs font-semibold uppercase tracking-wide text-white/70">Loyalty</div>
                     <div class="text-3xl font-semibold text-white">300 points = $5 off</div>
                     <p class="text-sm text-white/75 mt-1">Enter your phone to load rewards.</p>
-                    <div
-                      v-if="lookupResult?.exists && lookupResult.customer"
-                      class="mt-4 rounded-lg border border-white/15 bg-white/10 px-4 py-3"
-                    >
-                      <div class="text-base font-semibold text-white">👋 Welcome back, {{ lookupResult.customer.name }}!</div>
-                      <div class="text-sm text-white/80">
-                        💎 {{ lookupResult.customer.pointsBalance ?? 0 }} points
-                        <span class="ml-2 text-xs text-white/60">Keep earning every visit.</span>
+                    <div class="reward-body">
+                      <div v-if="lookupResult?.exists && lookupResult.customer" class="reward-stats glass-card">
+                        <div class="text-base font-semibold text-white">👋 {{ lookupResult.customer.name }}</div>
+                        <div class="text-sm text-white/80">
+                          💎 {{ lookupResult.customer.pointsBalance ?? 0 }} points
+                          <span class="ml-2 text-xs text-white/60">We’ll keep these ready.</span>
+                        </div>
+                      </div>
+                      <div v-else class="reward-placeholder">
+                        <div class="text-base font-semibold text-white/90">Tap the keypad to load your points.</div>
+                        <div class="text-sm text-white/70">We’ll track rewards automatically.</div>
                       </div>
                     </div>
                   </div>
@@ -1184,6 +1187,25 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 8px;
+  padding: 18px;
+}
+.reward-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.reward-stats {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 12px;
+}
+.reward-placeholder {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.85);
+  display: grid;
+  gap: 6px;
 }
 .phone-panel {
   display: flex;
