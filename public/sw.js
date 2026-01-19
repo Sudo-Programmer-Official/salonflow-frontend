@@ -1,5 +1,6 @@
-const STATIC_CACHE = 'salonflow-static-v1';
-const HTML_CACHE = 'salonflow-html-v1';
+const APP_VERSION = '2025-03-30-01';
+const STATIC_CACHE = `salonflow-static-${APP_VERSION}`;
+const HTML_CACHE = `salonflow-html-${APP_VERSION}`;
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -62,10 +63,16 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // JavaScript should always prefer the network to avoid stale hashed bundles.
+  if (request.destination === 'script' || /\.js$/.test(url.pathname)) {
+    event.respondWith(networkFirst(request, STATIC_CACHE));
+    return;
+  }
+
   // Static assets: cache first.
   if (
-    ['script', 'style', 'font', 'image'].includes(request.destination) ||
-    /\.(?:js|css|woff2?|png|svg|jpg|jpeg|gif|webp)$/.test(url.pathname)
+    ['style', 'font', 'image'].includes(request.destination) ||
+    /\.(?:css|woff2?|png|svg|jpg|jpeg|gif|webp)$/.test(url.pathname)
   ) {
     event.respondWith(cacheFirst(request, STATIC_CACHE));
     return;

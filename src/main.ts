@@ -34,10 +34,28 @@ app.mount('#app');
 })();
 
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {
-      // Fail silently; app still works without SW.
+  const refreshServiceWorkers = () => {
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      registrations.forEach((registration) => {
+        if (registration.update) registration.update();
+      });
     });
+  };
+
+  const registerSw = () => {
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then((registration) => {
+        if (registration.update) registration.update();
+      })
+      .catch(() => {
+        // Fail silently; app still works without SW.
+      });
+  };
+
+  window.addEventListener('load', () => {
+    refreshServiceWorkers();
+    registerSw();
   });
 }
 
