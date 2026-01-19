@@ -23,13 +23,15 @@
   --sidebar-bg: rgba(255, 255, 255, 0.7);
   --main-surface: rgba(255, 255, 255, 0.75);
   --header-surface: rgba(255, 255, 255, 0.7);
-  --glass-bg: rgba(255, 255, 255, 0.08);
+  --glass-bg: rgba(255, 255, 255, 0.14);
   --glass-border: rgba(255, 255, 255, 0.18);
-  --glass-blur: 18px;
-  --glass-shadow: 0 18px 60px rgba(15, 23, 42, 0.12);
+  --glass-blur: 22px;
+  --glass-saturate: 160%;
+  --glass-shadow: 0 8px 30px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.25);
   --kiosk-glass-bg: rgba(20, 30, 60, 0.35);
-  --kiosk-glass-border: rgba(255, 255, 255, 0.12);
+  --kiosk-glass-border: rgba(255, 255, 255, 0.18);
   --kiosk-glass-blur: 22px;
+  --kiosk-glass-saturate: 160%;
   --panel-radius: 16px;
   --card-radius: 14px;
   --panel-surface: rgba(255, 255, 255, 0.82);
@@ -44,6 +46,7 @@
   --glass-border: rgba(148, 163, 184, 0.35);
   --glass-blur: 0px;
   --glass-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  --glass-saturate: 100%;
 }
 
 :root[data-mode='kiosk'] {
@@ -82,23 +85,28 @@ main {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   border-radius: var(--panel-radius);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate, 140%));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate, 140%));
   box-shadow: var(--glass-shadow);
 }
 .glass-card {
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow);
-  border-radius: 18px;
+  background: var(--glass-card-bg, var(--glass-bg));
+  border: 1px solid var(--glass-card-border, var(--glass-border));
+  border-radius: 16px;
+  box-shadow: var(--glass-card-shadow, var(--glass-shadow));
+  backdrop-filter: blur(var(--glass-card-blur, var(--glass-blur)))
+    saturate(var(--glass-card-saturate, var(--glass-saturate, 140%)));
+  -webkit-backdrop-filter: blur(var(--glass-card-blur, var(--glass-blur)))
+    saturate(var(--glass-card-saturate, var(--glass-saturate, 140%)));
+  transform: translateZ(0);
+  will-change: backdrop-filter;
 }
 [data-mode='kiosk'] .glass-card {
-  background: var(--kiosk-glass-bg);
-  backdrop-filter: blur(var(--kiosk-glass-blur));
-  -webkit-backdrop-filter: blur(var(--kiosk-glass-blur));
-  border-color: var(--kiosk-glass-border);
+  --glass-card-bg: var(--kiosk-glass-bg);
+  --glass-card-border: var(--kiosk-glass-border);
+  --glass-card-blur: var(--kiosk-glass-blur);
+  --glass-card-saturate: var(--kiosk-glass-saturate);
+  --glass-card-shadow: var(--kiosk-glass-shadow, var(--glass-shadow));
 }
 .glass-surface {
   background: rgba(255, 255, 255, 0.65);
@@ -108,12 +116,6 @@ main {
 }
 [data-mode='kiosk'] .glass-surface {
   background: var(--kiosk-glass-bg);
-  border-color: var(--kiosk-glass-border);
-}
-[data-mode='kiosk'] .glass-card {
-  background: var(--kiosk-glass-bg);
-  backdrop-filter: blur(var(--kiosk-glass-blur));
-  -webkit-backdrop-filter: blur(var(--kiosk-glass-blur));
   border-color: var(--kiosk-glass-border);
 }
 
@@ -186,11 +188,21 @@ main {
   background: linear-gradient(135deg, #0ea5e9, #0b83d9);
   border: none;
   color: #fff;
+  padding: 16px 30px;
+  border-radius: 999px;
+}
+.go-btn.el-button {
+  padding: 16px 30px;
+  border-radius: 999px;
 }
 .quick-btn {
   background: linear-gradient(135deg, #0ea5e9, #0b83d9);
   color: #fff;
   border: none;
+  padding: 16px 30px;
+  border-radius: 999px;
+}
+.quick-btn.el-button {
   padding: 16px 30px;
   border-radius: 999px;
 }
