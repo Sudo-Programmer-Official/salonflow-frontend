@@ -266,7 +266,7 @@ const saveAvailabilityChanges = async () => {
     <ElCard class="bg-white flex-1 flex flex-col">
       <div class="mb-4 flex items-center justify-between">
         <div class="text-base font-semibold text-slate-900">Team</div>
-        <ElButton type="primary" class="action-dark" @click="openDialog">Add Staff</ElButton>
+        <ElButton type="primary" class="action-accent" @click="openDialog">Add Staff</ElButton>
       </div>
       <div class="flex-1 overflow-auto">
         <ElTable
@@ -311,7 +311,7 @@ const saveAvailabilityChanges = async () => {
           </ElTableColumn>
           <ElTableColumn label="Services" width="150">
             <template #default="{ row }">
-              <ElButton size="small" class="action-dark" @click="openAssignments(row)">Assign</ElButton>
+              <ElButton size="small" class="action-accent" @click="openAssignments(row)">Assign</ElButton>
             </template>
           </ElTableColumn>
         </ElTable>
@@ -460,14 +460,6 @@ const saveAvailabilityChanges = async () => {
 .staff-page :deep(.el-select__wrapper) {
   padding: 12px 14px;
   min-height: 44px;
-}
-.action-dark {
-  background: linear-gradient(135deg, #0f172a, #0b1220);
-  color: #fff;
-  border: none;
-}
-.action-dark:hover {
-  filter: brightness(1.08);
 }
 .staff-table :deep(.col-name) {
   width: auto;

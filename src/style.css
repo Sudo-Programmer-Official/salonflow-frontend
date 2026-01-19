@@ -191,11 +191,31 @@ main {
   background: linear-gradient(135deg, #0ea5e9, #0b83d9);
   color: #fff;
   border: none;
-  padding: 12px 20px;
+  padding: 14px 22px;
+  border-radius: 999px;
 }
 .quick-btn:hover,
 .go-btn:hover {
   filter: brightness(1.08);
+}
+.action-accent {
+  background: linear-gradient(135deg, #0ea5e9, #0b83d9);
+  color: #fff;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(14, 165, 233, 0.25);
+}
+.action-accent:hover {
+  filter: brightness(1.08);
+}
+.action-danger {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: #fff;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 12px;
+  box-shadow: 0 10px 20px rgba(239, 68, 68, 0.25);
 }
 
 :root[data-mode='kiosk'] body {

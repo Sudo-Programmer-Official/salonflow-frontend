@@ -720,4 +720,14 @@ onMounted(loadSettings);
 .settings-page :deep(.el-switch__core) {
   height: 22px;
 }
+.settings-page :deep(.el-slider) {
+  display: flex;
+  align-items: center;
+}
+.settings-page :deep(.el-slider__runway) {
+  margin: 0 12px;
+}
+.settings-page :deep(.el-select__wrapper) {
+  align-items: center;
+}
 </style>

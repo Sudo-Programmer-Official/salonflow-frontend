@@ -186,7 +186,7 @@ watch(results, () => {
           clearable
           @keyup.enter="doSearch"
         />
-        <ElButton type="primary" class="action-dark" :loading="loading" @click="doSearch">Search</ElButton>
+        <ElButton type="primary" class="action-accent" :loading="loading" @click="doSearch">Search</ElButton>
       </div>
       <div v-if="errorMessage" class="mt-3 text-sm text-amber-700">
         {{ errorMessage }}
@@ -249,12 +249,12 @@ watch(results, () => {
           </template>
         </ElTableColumn>
 
-        <ElTableColumn label="Actions" width="220">
+        <ElTableColumn label="Actions" width="260">
           <template #default="{ row }">
-            <div class="flex flex-wrap gap-2">
+            <div class="flex flex-wrap gap-2 action-stack">
               <ElButton
                 size="small"
-                class="action-dark"
+                class="action-accent"
                 :disabled="!canSendReminder(row)"
                 @click="sendReminderAction(row)"
               >
@@ -262,13 +262,13 @@ watch(results, () => {
               </ElButton>
               <ElButton
                 size="small"
-                class="action-dark"
+                class="action-accent"
                 :disabled="!canSendFeedback(row)"
                 @click="sendFeedbackAction(row)"
               >
                 📩 Feedback
               </ElButton>
-              <ElButton size="small" class="action-dark" @click="openTimeline(row.id)">👁 View</ElButton>
+              <ElButton size="small" class="action-accent" @click="openTimeline(row.id)">👁 View</ElButton>
             </div>
           </template>
         </ElTableColumn>
@@ -313,6 +313,9 @@ watch(results, () => {
   padding: 12px 14px;
   min-height: 44px;
 }
+.customers-page :deep(.el-button) {
+  font-size: 1rem;
+}
 .table-shell {
   display: flex;
   flex-direction: column;
@@ -343,12 +346,8 @@ watch(results, () => {
   border-radius: 12px;
   background: #f1f5f9;
 }
-.action-dark {
-  background: linear-gradient(135deg, #0f172a, #0b1220);
-  color: #fff;
-  border: none;
-}
-.action-dark:hover {
-  filter: brightness(1.08);
+.action-stack :deep(.el-button) {
+  border-radius: 12px;
+  padding: 10px 14px;
 }
 </style>
