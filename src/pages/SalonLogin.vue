@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
 import { checkTenantExists } from '../api/tenantsPublic';
 
-const router = useRouter();
 const tenantInput = ref('');
 const error = ref('');
 const lastTenant = ref<string | null>(null);
@@ -32,6 +30,18 @@ const normalizeTenant = (raw: string): string | null => {
   return value || null;
 };
 
+const getTenantLoginUrl = (tenant: string) => {
+  const { protocol, hostname, port } = window.location;
+  const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
+  if (isLocal) {
+    const portPart = port ? `:${port}` : '';
+    return `${protocol}//${hostname}${portPart}/app/login`;
+  }
+  const parts = hostname.split('.');
+  const baseDomain = parts.length >= 2 ? parts.slice(-2).join('.') : hostname;
+  return `${protocol}//${tenant}.${baseDomain}/app/login`;
+};
+
 const setTenantAndGo = (tenant: string, name?: string | null, city?: string | null) => {
   localStorage.setItem(storageKeys.lastTenant, tenant);
   localStorage.setItem(storageKeys.lastLoginAt, String(Date.now()));
@@ -40,7 +50,7 @@ const setTenantAndGo = (tenant: string, name?: string | null, city?: string | nu
   if (city) localStorage.setItem(storageKeys.lastTenantCity, city);
   localStorage.setItem('tenantSubdomain', tenant);
   localStorage.setItem('tenantId', tenant);
-  router.push({ path: '/app/login' });
+  window.location.href = getTenantLoginUrl(tenant);
 };
 
 const handleContinue = async () => {

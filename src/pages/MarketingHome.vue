@@ -45,12 +45,6 @@ const faqs = [
               Request a free demo
             </RouterLink>
             <RouterLink
-              to="/check-in"
-              class="inline-flex items-center justify-center rounded-lg border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-800 transition hover:border-slate-300 hover:bg-slate-50"
-            >
-              Try live check-in
-            </RouterLink>
-            <RouterLink
               to="/salon-login"
               class="inline-flex items-center justify-center rounded-lg border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-800 transition hover:border-slate-300 hover:bg-slate-50"
             >
@@ -196,12 +190,6 @@ const faqs = [
               class="inline-flex items-center justify-center rounded-lg bg-sky-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700"
             >
               Request a free demo
-            </RouterLink>
-            <RouterLink
-              to="/check-in"
-              class="inline-flex items-center justify-center rounded-lg border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-800 transition hover:border-slate-300 hover:bg-slate-50"
-            >
-              Try live check-in
             </RouterLink>
           </div>
         </div>
