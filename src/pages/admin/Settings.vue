@@ -10,6 +10,7 @@ import {
   ElSelect,
   ElSkeleton,
   ElSwitch,
+  ElSlider,
 } from 'element-plus';
 import {
   fetchSettings,
@@ -18,6 +19,7 @@ import {
   type DefaultBookingRules,
   type SettingsPatch,
 } from '../../api/settings';
+import { applyThemeFromSettings, themeBounds } from '../../utils/theme';
 
 const loading = ref(false);
 const saving = ref(false);
@@ -35,8 +37,35 @@ const defaultRules: DefaultBookingRules = {
 };
 
 const currencyOptions = ['USD', 'CAD', 'EUR', 'GBP', 'AUD'];
+const uiScaleOptions = {
+  min: themeBounds.minScale,
+  max: themeBounds.maxScale,
+  step: 0.05,
+};
 
 const hasPending = computed(() => Object.keys(pendingPatch.value).length > 0);
+const fontScaleValue = computed(
+  () => settings.value?.uiFontScale ?? themeBounds.defaultScale,
+);
+const largeTextEnabled = computed(() => fontScaleValue.value >= 1.2);
+
+const handleFontScaleChange = (value: number) => {
+  const numeric = Number(value);
+  const normalized = Number.isFinite(numeric) ? numeric : themeBounds.defaultScale;
+  const clamped = Math.min(Math.max(normalized, uiScaleOptions.min), uiScaleOptions.max);
+  scheduleSave({ uiFontScale: Number(clamped.toFixed(2)) });
+};
+
+const handleFontScaleInput = (value: number | number[]) => {
+  const next = Array.isArray(value) ? value[0] : value;
+  const safe = typeof next === 'number' ? next : themeBounds.defaultScale;
+  handleFontScaleChange(safe);
+};
+
+const toggleLargeText = (value: boolean) => {
+  const target = value ? Math.max(fontScaleValue.value, 1.22) : themeBounds.defaultScale;
+  handleFontScaleChange(target);
+};
 
 const mergeRules = (
   base: Partial<DefaultBookingRules> | undefined,
@@ -91,6 +120,7 @@ const scheduleSave = (patch: SettingsPatch) => {
   if (!settings.value) return;
   settings.value = mergeSettings(settings.value, patch);
   pendingPatch.value = mergePending(pendingPatch.value, patch);
+  applyThemeFromSettings(settings.value);
   if (saveTimer.value) {
     window.clearTimeout(saveTimer.value);
   }
@@ -139,6 +169,7 @@ const loadSettings = async () => {
       },
       {},
     );
+    applyThemeFromSettings(settings.value);
   } catch (err: any) {
     error.value = err?.message || 'Failed to load settings';
     if (err?.status === 401 || err?.status === 403) {
@@ -172,6 +203,74 @@ onMounted(loadSettings);
     <ElSkeleton v-if="loading && !settings" animated :rows="4" />
 
     <div v-if="settings" class="space-y-6">
+      <ElCard class="glass bg-white">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-lg font-semibold text-slate-900">Appearance & Accessibility</div>
+            <div class="text-sm text-slate-600">
+              Control text scale and the frosted glass UI across kiosk, queue, and check-in views.
+            </div>
+          </div>
+          <div class="text-xs text-slate-500" v-if="saving">Saving…</div>
+        </div>
+
+        <ElDivider />
+
+        <div class="space-y-5">
+          <div class="space-y-2">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <div class="text-sm font-semibold text-slate-900">Font scale</div>
+                <div class="text-xs text-slate-600">
+                  Applies everywhere. Recommended 1.0–1.25 for kiosk and queue screens.
+                </div>
+              </div>
+              <div class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                {{ (fontScaleValue * 100).toFixed(0) }}%
+              </div>
+            </div>
+            <ElSlider
+              :model-value="fontScaleValue"
+              :min="uiScaleOptions.min"
+              :max="uiScaleOptions.max"
+              :step="uiScaleOptions.step"
+              :show-tooltip="false"
+              @input="handleFontScaleInput"
+            />
+            <div class="flex items-center justify-between text-[11px] uppercase tracking-wide text-slate-500">
+              <span>0.9x</span>
+              <span>1.0x</span>
+              <span>1.2x</span>
+              <span>1.4x</span>
+            </div>
+          </div>
+
+          <div class="grid gap-3 sm:grid-cols-2">
+            <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <div>
+                <div class="text-sm font-semibold text-slate-900">Large text mode</div>
+                <div class="text-xs text-slate-600">Quick boost to 1.25x for distance-friendly screens.</div>
+              </div>
+              <ElSwitch
+                :model-value="largeTextEnabled"
+                @change="(val) => toggleLargeText(val as boolean)"
+              />
+            </div>
+
+            <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <div>
+                <div class="text-sm font-semibold text-slate-900">Glass UI</div>
+                <div class="text-xs text-slate-600">Enable the frosted panels on queue, kiosk, and check-in.</div>
+              </div>
+              <ElSwitch
+                :model-value="settings.uiGlassEnabled !== false"
+                @change="(val) => handleToggle('uiGlassEnabled', val as boolean)"
+              />
+            </div>
+          </div>
+        </div>
+      </ElCard>
+
       <ElCard class="bg-white">
         <div class="flex items-center justify-between">
           <div>

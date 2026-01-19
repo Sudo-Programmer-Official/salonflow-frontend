@@ -1,6 +1,6 @@
 <template>
-  <div class="flex min-h-screen flex-col bg-slate-50 text-slate-900">
-    <header class="border-b border-slate-200 bg-white/90 backdrop-blur">
+  <div class="flex min-h-screen flex-col text-slate-900">
+    <header class="border-b border-white/30 bg-white/70 backdrop-blur">
       <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
         <RouterLink to="/" class="flex items-center gap-1.5">
           <img :src="logo" alt="SalonFlow" class="h-8 w-auto rounded-lg shadow-sm" />

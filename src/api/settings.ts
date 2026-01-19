@@ -22,6 +22,8 @@ export type BusinessSettings = {
   allowStaffSelection: boolean;
   kioskAutoResetSeconds: number | null;
   enforceStaffAvailability: boolean;
+  uiFontScale: number;
+  uiGlassEnabled: boolean;
   defaultBookingRules: DefaultBookingRules;
   createdAt: string | null;
   updatedAt: string | null;
@@ -40,6 +42,8 @@ export type SettingsPatch = Partial<
     | 'kioskAutoResetSeconds'
     | 'enforceStaffAvailability'
     | 'currency'
+    | 'uiFontScale'
+    | 'uiGlassEnabled'
   >
 > & {
   defaultBookingRules?: Partial<DefaultBookingRules>;

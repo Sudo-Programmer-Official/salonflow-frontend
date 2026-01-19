@@ -6,7 +6,8 @@ import { trialExpired, trialEndedAt, trialDaysRemaining, resetTrialState } from 
 import { fetchOnboardingStatus, dismissOnboardingBanner } from '../api/onboarding';
 import { logout } from '../utils/auth';
 import SiteFooter from '../components/SiteFooter.vue';
-import { fetchSettings } from '../api/settings';
+import { fetchSettings, fetchPublicSettings } from '../api/settings';
+import { applyThemeFromSettings } from '../utils/theme';
 
 const role = computed(() => localStorage.getItem('role') || '');
 const isOwner = computed(() => role.value === 'OWNER');
@@ -90,12 +91,18 @@ const loadOnboarding = async () => {
 };
 
 const loadSettingsFlags = async () => {
-  if (!isOwner.value) return;
   try {
     const data = await fetchSettings();
     kioskEnabled.value = data.kioskEnabled;
+    applyThemeFromSettings(data);
   } catch {
     kioskEnabled.value = false;
+    try {
+      const publicData = await fetchPublicSettings();
+      applyThemeFromSettings(publicData);
+    } catch {
+      // leave defaults if loading fails
+    }
   }
 };
 
@@ -156,8 +163,8 @@ const navItems = computed(() => {
 </script>
 
 <template>
-  <div class="flex min-h-screen bg-slate-50 text-slate-900">
-    <aside class="flex w-64 flex-col border-r border-slate-200 bg-white">
+  <div class="flex min-h-screen text-slate-900">
+    <aside class="flex w-64 flex-col border-r border-slate-200 bg-white/80 backdrop-blur">
       <div class="flex h-14 items-center px-4 text-base font-semibold">SalonFlow Admin</div>
       <div class="flex-1 px-3 pb-4">
         <nav class="space-y-1">
@@ -165,7 +172,7 @@ const navItems = computed(() => {
             v-for="item in navItems"
             :key="item.name"
             :to="{ name: item.name }"
-            class="flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition"
+            class="flex items-center justify-between rounded-md px-3 py-2.5 text-[15px] font-medium transition"
             :class="
               route.name === item.name
                 ? 'bg-slate-900 text-white shadow-sm'
@@ -186,7 +193,7 @@ const navItems = computed(() => {
 
     <div class="flex min-h-screen flex-1 flex-col">
       <header
-        class="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4"
+        class="flex items-center justify-between border-b border-slate-200 bg-white/80 backdrop-blur px-6 py-4"
       >
         <div class="text-sm font-semibold text-slate-900">Admin</div>
         <div class="flex items-center gap-3">

@@ -6,6 +6,7 @@ import { fetchPublicSettings, type BusinessSettings } from '../../api/settings';
 import { publicLookup, createPublicCheckIn, fetchGroupedServices, type ServiceOption } from '../../api/checkins';
 import { fetchPublicAvailableStaff, type StaffMember } from '../../api/staff';
 import { startKioskIdleWatchdog } from '../../utils/kioskIdleWatchdog';
+import { applyThemeFromSettings } from '../../utils/theme';
 
 type Step = 'welcome' | 'phone' | 'category' | 'services' | 'staff' | 'review' | 'done';
 
@@ -71,6 +72,8 @@ const defaultSettings: BusinessSettings = {
   allowStaffSelection: false,
   kioskAutoResetSeconds: null,
   enforceStaffAvailability: false,
+  uiFontScale: 1,
+  uiGlassEnabled: true,
   defaultBookingRules: {
     buffer_before: 0,
     buffer_after: 0,
@@ -220,9 +223,11 @@ const loadSettings = async () => {
   try {
     settings.value = await fetchPublicSettings();
     settingsError.value = '';
+    applyThemeFromSettings(settings.value, { boost: 1.12 });
   } catch (err: any) {
     settings.value = defaultSettings;
     settingsError.value = err?.message || 'Unable to load settings.';
+    applyThemeFromSettings(settings.value, { boost: 1.12 });
   }
 };
 
@@ -301,6 +306,7 @@ onBeforeUnmount(() => {
 onUnmounted(() => {
   stopWatchdog.value?.();
   cancelIdleWarning();
+  applyThemeFromSettings(settings.value);
 });
 
 const resetFlow = () => {
@@ -970,6 +976,14 @@ watch(
   touch-action: manipulation;
   -webkit-touch-callout: none;
   user-select: none;
+  --kiosk-surface: var(--glass-bg);
+  --kiosk-border: var(--glass-border);
+  --kiosk-blur: var(--glass-blur);
+}
+:root[data-glass='off'] .kiosk-shell {
+  --kiosk-surface: rgba(17, 24, 39, 0.92);
+  --kiosk-border: rgba(17, 24, 39, 0.65);
+  --kiosk-blur: 0px;
 }
 .kiosk-inner {
   margin: 0 auto;
@@ -985,22 +999,25 @@ watch(
   justify-content: space-between;
 }
 .kiosk-card {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(12px);
+  border: 1px solid var(--kiosk-border);
+  background: var(--kiosk-surface);
+  backdrop-filter: blur(var(--kiosk-blur));
+  -webkit-backdrop-filter: blur(var(--kiosk-blur));
+  box-shadow: var(--glass-shadow);
 }
 .kiosk-disabled {
-  border: 1px dashed rgba(255, 255, 255, 0.4);
-  background: rgba(255, 255, 255, 0.08);
+  border: 1px dashed var(--kiosk-border);
+  background: var(--kiosk-surface);
   border-radius: 16px;
   padding: 16px;
+  border-style: dashed;
 }
 .stepper {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 10px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--kiosk-surface);
+  border: 1px solid var(--kiosk-border);
   border-radius: 14px;
   padding: 8px 10px;
 }
@@ -1041,14 +1058,18 @@ watch(
 }
 .kiosk-pane {
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--kiosk-border);
+  background: var(--kiosk-surface);
+  backdrop-filter: blur(var(--kiosk-blur));
+  -webkit-backdrop-filter: blur(var(--kiosk-blur));
   padding: 16px;
 }
 .phone-display {
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--kiosk-border);
+  background: var(--kiosk-surface);
+  backdrop-filter: blur(var(--kiosk-blur));
+  -webkit-backdrop-filter: blur(var(--kiosk-blur));
   padding: 12px;
 }
 .keypad {
@@ -1098,8 +1119,10 @@ watch(
 }
 .category-card {
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--kiosk-border);
+  background: var(--kiosk-surface);
+  backdrop-filter: blur(var(--kiosk-blur));
+  -webkit-backdrop-filter: blur(var(--kiosk-blur));
   padding: 16px;
   text-align: left;
   color: #fff;
@@ -1124,8 +1147,10 @@ watch(
 }
 .service-card {
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--kiosk-border);
+  background: var(--kiosk-surface);
+  backdrop-filter: blur(var(--kiosk-blur));
+  -webkit-backdrop-filter: blur(var(--kiosk-blur));
   padding: 16px;
   text-align: left;
   color: #fff;
@@ -1153,8 +1178,10 @@ watch(
 }
 .review-block {
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--kiosk-border);
+  background: var(--kiosk-surface);
+  backdrop-filter: blur(var(--kiosk-blur));
+  -webkit-backdrop-filter: blur(var(--kiosk-blur));
   padding: 16px;
   display: grid;
   gap: 12px;
@@ -1166,7 +1193,7 @@ watch(
   text-align: center;
   padding: 36px 24px;
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--kiosk-border);
   background: linear-gradient(120deg, rgba(34, 197, 94, 0.15), rgba(16, 185, 129, 0.12));
   color: #fff;
 }
@@ -1176,8 +1203,10 @@ watch(
   gap: 8px;
   padding: 10px 14px;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--kiosk-surface);
+  border: 1px solid var(--kiosk-border);
+  backdrop-filter: blur(var(--kiosk-blur));
+  -webkit-backdrop-filter: blur(var(--kiosk-blur));
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
 }
 .service-chip-card span {
@@ -1185,7 +1214,8 @@ watch(
 }
 .idle-banner {
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.14);
+  background: var(--kiosk-surface);
+  border: 1px solid var(--kiosk-border);
   color: #fff;
   font-weight: 700;
   font-size: 13px;

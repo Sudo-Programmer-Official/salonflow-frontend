@@ -76,15 +76,15 @@ const statusType = (status: QueueItem['status']) => {
         v-for="item in queue"
         :key="item.id"
         shadow="hover"
-        class="border border-slate-100"
+        class="queue-card glass"
       >
         <div class="flex items-start justify-between gap-3">
           <div class="space-y-1">
-            <div class="text-base font-semibold text-slate-900">
+            <div class="text-lg font-semibold text-slate-900">
               {{ item.customerName }}
             </div>
-            <div class="text-sm text-slate-600">{{ item.customerPhone }}</div>
-            <div class="text-sm text-slate-600">
+            <div class="queue-phone">{{ item.customerPhone }}</div>
+            <div class="text-sm text-slate-700">
               {{ item.serviceName || 'No service selected' }}
             </div>
             <div class="text-sm text-slate-600">
@@ -139,3 +139,17 @@ const statusType = (status: QueueItem['status']) => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.queue-card {
+  border-radius: var(--card-radius, 14px);
+}
+.queue-card :deep(.el-card__body) {
+  padding: 14px;
+}
+.queue-phone {
+  font-size: 1.05rem;
+  font-weight: 650;
+  color: #0f172a;
+}
+</style>

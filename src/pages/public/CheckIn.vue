@@ -7,6 +7,7 @@ import type { ServiceOption } from '../../api/checkins';
 import { apiUrl, buildHeaders } from '../../api/client';
 import { startKioskIdleWatchdog } from '../../utils/kioskIdleWatchdog';
 import { fetchPublicSettings, type BusinessSettings } from '../../api/settings';
+import { applyThemeFromSettings } from '../../utils/theme';
 
 const form = reactive({
   name: '',
@@ -63,6 +64,8 @@ const defaultSettings: BusinessSettings = {
   allowStaffSelection: false,
   kioskAutoResetSeconds: null,
   enforceStaffAvailability: false,
+  uiFontScale: 1,
+  uiGlassEnabled: true,
   defaultBookingRules: {
     buffer_before: 0,
     buffer_after: 0,
@@ -86,9 +89,11 @@ onMounted(async () => {
   }
   try {
     settings.value = await fetchPublicSettings();
+    applyThemeFromSettings(settings.value);
   } catch (err: any) {
     settings.value = defaultSettings;
     settingsError.value = err?.message || 'Unable to load settings.';
+    applyThemeFromSettings(settings.value);
   }
   loadingServices.value = true;
   await refreshServices();
@@ -280,7 +285,7 @@ watch(
       <div class="text-sm text-slate-700">Please see the front desk for help.</div>
     </div>
 
-    <div class="rounded-2xl bg-white p-5 shadow-sm sm:p-6">
+    <div class="glass rounded-2xl bg-white/85 p-5 sm:p-6">
       <ElForm label-position="top" class="space-y-4" @submit.prevent="onSubmit">
 
         <ElFormItem label="Phone number" :required="phoneRequired">

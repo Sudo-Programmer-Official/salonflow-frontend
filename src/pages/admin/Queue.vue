@@ -610,13 +610,13 @@ watch(completedPage, async (val) => {
 </script>
 
 <template>
-  <div class="flex h-full flex-col space-y-4">
+  <div class="queue-page flex h-full flex-col space-y-4">
     <div class="mb-2">
       <h1 class="text-xl font-semibold text-slate-900">Today’s Queue</h1>
       <p class="text-sm text-slate-600">Live queue with quick actions. Staff view is read-only.</p>
     </div>
 
-    <ElCard v-if="queueLocked" class="bg-white border-amber-200">
+    <ElCard v-if="queueLocked" class="glass bg-white/90 border-amber-200">
       <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div class="text-sm font-semibold text-slate-900">Live queue unlocks after billing is activated.</div>
@@ -626,7 +626,7 @@ watch(completedPage, async (val) => {
       </div>
     </ElCard>
 
-    <ElCard class="bg-white" :loading="loadingAppointments">
+    <ElCard class="glass bg-white/95" :loading="loadingAppointments">
       <div class="mb-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div class="text-base font-semibold text-slate-900">
@@ -761,15 +761,15 @@ watch(completedPage, async (val) => {
           v-for="item in displayedQueue"
           :key="item.id"
           shadow="hover"
-          class="queue-card border border-slate-100"
+          class="queue-card glass"
         >
           <div class="flex items-start gap-3">
             <div class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">
               {{ (item.customerName || '?').charAt(0).toUpperCase() }}
             </div>
-            <div class="flex-1 space-y-2">
+            <div class="flex-1 space-y-1.5">
               <div class="flex items-start justify-between gap-2">
-                <div class="text-sm font-semibold text-slate-900">
+                <div class="text-base font-semibold text-slate-900">
                   {{ item.customerName || 'Unknown' }}
                 </div>
                 <div class="flex items-center gap-1">
@@ -781,7 +781,7 @@ watch(completedPage, async (val) => {
                   </ElTag>
                 </div>
               </div>
-              <div class="flex flex-wrap items-center gap-3 text-xs text-slate-700">
+              <div class="flex flex-wrap items-center gap-3 text-sm text-slate-700">
                 <div class="flex items-center gap-1">
                   ✂️
                   <span>{{ item.serviceName || 'No service selected' }}</span>
@@ -791,12 +791,15 @@ watch(completedPage, async (val) => {
                   <span>{{ item.servedByName }}</span>
                 </div>
               </div>
-              <div class="flex flex-wrap items-center gap-2 text-xs text-slate-600">
-                <span class="flex items-center gap-1">📞 {{ item.customerPhone || '—' }}</span>
+              <div class="queue-phone">
+                <span class="flex items-center gap-2">
+                  <span>📞</span>
+                  <span>{{ item.customerPhone || '—' }}</span>
+                </span>
               </div>
             </div>
           </div>
-          <div class="mt-3 flex items-center justify-between text-xs text-slate-600">
+          <div class="mt-2 flex items-center justify-between text-sm text-slate-700">
             <div class="flex items-center gap-1">⏱ {{ elapsed(item) }}</div>
             <div class="flex items-center gap-1 text-slate-700">
               💎 <span class="font-semibold">{{ item.pointsBalance ?? 0 }}</span>
@@ -993,8 +996,11 @@ watch(completedPage, async (val) => {
 </template>
 
 <style scoped>
+.queue-page {
+  min-height: calc(100vh - 140px);
+}
 .queue-grid {
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   align-items: start;
   flex: 1 1 auto;
 }
@@ -1002,7 +1008,7 @@ watch(completedPage, async (val) => {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
-  max-height: calc(100vh - 260px);
+  min-height: 0;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   gap: 0.75rem;
@@ -1010,7 +1016,7 @@ watch(completedPage, async (val) => {
 .queue-scroll .queue-grid {
   flex: 1 1 auto;
   overflow-y: auto;
-  padding-bottom: 12px;
+  padding: 6px 4px 14px;
 }
 .appointment-list {
   max-height: 280px;
@@ -1032,9 +1038,16 @@ watch(completedPage, async (val) => {
 }
 .queue-card {
   align-self: flex-start;
+  border-radius: var(--card-radius, 14px);
 }
 .queue-card :deep(.el-card__body) {
   padding: 12px;
+}
+.queue-phone {
+  font-size: 1.05rem;
+  font-weight: 650;
+  color: #0f172a;
+  letter-spacing: 0.01em;
 }
 .checkout-modal :deep(.el-dialog) {
   max-width: 520px;
@@ -1071,20 +1084,27 @@ watch(completedPage, async (val) => {
   }
 }
 .pagination-footer {
-  background: #fff;
-  border-top: 1px solid #e5e7eb;
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 14px;
   padding: 12px;
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 8px;
-  min-height: 56px;
+  min-height: 60px;
+  margin-top: auto;
 }
 .page-indicator {
   font-size: 13px;
   color: #475569;
   padding: 6px 10px;
   border-radius: 12px;
-  background: #f1f5f9;
+  background: rgba(241, 245, 249, 0.85);
 }
 </style>
