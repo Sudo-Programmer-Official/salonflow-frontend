@@ -89,7 +89,7 @@ export async function updateStaffStatus(
 }
 
 export async function fetchPublicAvailableStaff(serviceId?: string): Promise<PublicStaffResponse> {
-  const url = new URL(apiUrl('/staff/public/staff-available'), window.location.origin);
+  const url = new URL(apiUrl('/public/staff-available'), window.location.origin);
   if (serviceId) url.searchParams.set('serviceId', serviceId);
   const res = await fetch(url.toString(), {
     headers: buildHeaders({ tenant: true, json: true }),
