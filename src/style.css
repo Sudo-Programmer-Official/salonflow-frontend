@@ -35,6 +35,8 @@
   --panel-radius: 16px;
   --card-radius: 14px;
   --panel-surface: rgba(255, 255, 255, 0.82);
+  --sf-primary: #0ea5e9;
+  --sf-text-muted: #475569;
   color: var(--text-color);
   background-color: #f8fafc;
   font-family: var(--ui-font-family);
@@ -131,6 +133,44 @@ main {
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
   box-shadow: var(--glass-shadow);
+}
+
+.sf-tabs {
+  display: inline-flex;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.sf-tab {
+  min-height: 44px;
+  padding: 0.6em 1.2em;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--sf-text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sf-tab:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.sf-tab.active {
+  background: var(--sf-primary);
+  color: white;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+}
+
+[data-mode='kiosk'] .sf-tab {
+  min-height: 52px;
+  font-size: 1.1rem;
 }
 
 /* Global element-plus typography alignment */

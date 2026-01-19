@@ -732,12 +732,33 @@ watch(completedPage, async (val) => {
             <ElOption label="Last 30 days" value="last30" />
           </ElSelect>
         </div>
-        <div class="tab-shell flex-1">
-          <el-tabs v-model="activeTab" class="queue-tabs" stretch>
-            <el-tab-pane :label="`Waiting (${queueCounts.waiting})`" name="WAITING" />
-            <el-tab-pane :label="`In Service (${queueCounts.inService})`" name="IN_SERVICE" />
-            <el-tab-pane :label="`Completed (${queueCounts.completed})`" name="COMPLETED" />
-          </el-tabs>
+        <div class="flex-1">
+          <div class="sf-tabs queue-tabs">
+            <button
+              type="button"
+              class="sf-tab"
+              :class="{ active: activeTab === 'WAITING' }"
+              @click="activeTab = 'WAITING'"
+            >
+              Waiting ({{ queueCounts.waiting }})
+            </button>
+            <button
+              type="button"
+              class="sf-tab"
+              :class="{ active: activeTab === 'IN_SERVICE' }"
+              @click="activeTab = 'IN_SERVICE'"
+            >
+              In Service ({{ queueCounts.inService }})
+            </button>
+            <button
+              type="button"
+              class="sf-tab"
+              :class="{ active: activeTab === 'COMPLETED' }"
+              @click="activeTab = 'COMPLETED'"
+            >
+              Completed ({{ queueCounts.completed }})
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1035,17 +1056,15 @@ watch(completedPage, async (val) => {
     max-height: 320px;
   }
 }
-.queue-tabs :deep(.el-tabs__item.is-active) {
-  color: #0ea5e9;
-  font-weight: 700;
-  font-size: var(--font-sm);
+.queue-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  width: fit-content;
+  max-width: 100%;
+  gap: 8px;
 }
-.queue-tabs :deep(.el-tabs__active-bar) {
-  background-color: #0ea5e9;
-}
-.queue-tabs :deep(.el-tabs__item) {
-  font-size: 1rem;
-  padding: 0.75em 1em;
+.queue-tabs .sf-tab {
+  white-space: nowrap;
 }
 .queue-card {
   align-self: flex-start;
@@ -1136,15 +1155,6 @@ watch(completedPage, async (val) => {
 .queue-card .meta {
   font-size: 0.85rem;
   opacity: 0.75;
-}
-.queue-tabs {
-  height: 44px;
-  border-radius: 14px;
-  padding: 4px;
-}
-.queue-tabs :deep(.el-tabs__item) {
-  padding: 8px 14px;
-  border-radius: 10px;
 }
 .queue-date-picker {
   height: 44px;
