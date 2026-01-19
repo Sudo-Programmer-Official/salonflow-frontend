@@ -622,7 +622,7 @@ watch(
           </div>
         </div>
 
-        <ElCard class="kiosk-card">
+        <ElCard class="kiosk-card glass-card">
           <template #default>
             <div v-if="!publicEnabled" class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800">
               Public check-in is disabled. Please see the front desk.
@@ -638,7 +638,7 @@ watch(
                 </div>
                 <div
                   v-if="showRewardsCard && showPoints"
-                  class="welcome-reward glass-tile"
+                  class="welcome-reward glass-card"
                 >
                   <div class="text-xs font-semibold uppercase tracking-wide text-white/70">Loyalty</div>
                   <div class="text-2xl font-semibold text-white">300 points = $5 off</div>
@@ -648,7 +648,7 @@ watch(
 
               <div v-else-if="step === 'phone'" class="space-y-5">
                 <div class="phone-hero grid gap-5 lg:grid-cols-[1fr,1.15fr]">
-                  <div v-if="showRewardsCard && showPoints" class="reward-panel glass-tile">
+                  <div v-if="showRewardsCard && showPoints" class="reward-panel glass-card">
                     <div class="text-xs font-semibold uppercase tracking-wide text-white/70">Loyalty</div>
                     <div class="text-3xl font-semibold text-white">300 points = $5 off</div>
                     <p class="text-sm text-white/75 mt-1">Enter your phone to load rewards.</p>
@@ -663,7 +663,7 @@ watch(
                       </div>
                     </div>
                   </div>
-                  <div class="phone-panel kiosk-pane">
+                  <div class="phone-panel kiosk-pane glass-card">
                     <div class="phone-heading">
                       <p class="text-xs uppercase tracking-wide text-white/60">Step 1 • Phone</p>
                       <p class="text-2xl font-semibold text-white">Please enter your phone number</p>
@@ -714,7 +714,7 @@ watch(
                     </div>
                   </div>
                 </div>
-                <div class="kiosk-pane phone-bottom">
+                <div class="kiosk-pane phone-bottom glass-card">
                   <div class="grid gap-4 lg:grid-cols-[1.1fr,0.9fr] items-start">
                     <div>
                       <label class="kiosk-label">
@@ -757,7 +757,7 @@ watch(
                   <div
                     v-for="category in serviceSections"
                     :key="category.categoryId || 'uncategorized'"
-                    class="service-section"
+                    class="service-section glass-card"
                   >
                     <div class="section-header">
                       <div class="section-icon">{{ category.categoryIcon || '💅' }}</div>
@@ -913,7 +913,7 @@ watch(
                   <ElButton size="large" @click="step = 'services'">Back</ElButton>
                 </div>
 
-                <div class="review-block">
+                <div class="review-block glass-card">
                   <div>
                     <p class="text-sm text-white/70">Name</p>
                     <p class="text-lg font-semibold text-white">{{ name || 'Guest' }}</p>
@@ -967,7 +967,7 @@ watch(
                 </div>
               </div>
 
-              <div v-else-if="step === 'done'" class="done-card">
+              <div v-else-if="step === 'done'" class="done-card glass-card">
                 <div class="text-4xl mb-1">✅ Checked in!</div>
                 <div class="text-2xl font-semibold text-white mb-2">Thanks, {{ successName }}.</div>
                 <div class="text-sm text-white/70 mb-4">You’re all set — we’ll take it from here.</div>
@@ -1035,16 +1035,14 @@ watch(
 .kiosk-shell {
   min-height: calc(100vh - 80px);
   padding: 32px 12px 40px;
-  background: radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.2), transparent 40%),
-    radial-gradient(circle at 80% 0%, rgba(59, 130, 246, 0.25), transparent 35%),
-    linear-gradient(135deg, #0f172a, #0b132b 45%, #111827);
+  background: transparent;
   overscroll-behavior: none;
   touch-action: manipulation;
   -webkit-touch-callout: none;
   user-select: none;
-  --kiosk-surface: var(--glass-bg);
-  --kiosk-border: var(--glass-border);
-  --kiosk-blur: var(--glass-blur);
+  --kiosk-surface: var(--kiosk-glass-bg, var(--glass-bg));
+  --kiosk-border: var(--kiosk-glass-border, var(--glass-border));
+  --kiosk-blur: var(--kiosk-glass-blur, var(--glass-blur));
 }
 :root[data-glass='off'] .kiosk-shell {
   --kiosk-surface: rgba(17, 24, 39, 0.92);
@@ -1123,16 +1121,6 @@ watch(
 .welcome-card:active {
   transform: scale(0.985);
   box-shadow: 0 10px 30px rgba(14, 165, 233, 0.25);
-}
-.glass-tile {
-  border: 1px solid var(--kiosk-border);
-  background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.08), transparent 60%),
-    rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(var(--kiosk-blur));
-  -webkit-backdrop-filter: blur(var(--kiosk-blur));
-  box-shadow: var(--glass-shadow);
-  border-radius: 18px;
-  padding: 18px;
 }
 .welcome-reward {
   max-width: 340px;

@@ -24,9 +24,12 @@
   --main-surface: rgba(255, 255, 255, 0.75);
   --header-surface: rgba(255, 255, 255, 0.7);
   --glass-bg: rgba(255, 255, 255, 0.08);
-  --glass-border: rgba(255, 255, 255, 0.2);
+  --glass-border: rgba(255, 255, 255, 0.18);
   --glass-blur: 18px;
   --glass-shadow: 0 18px 60px rgba(15, 23, 42, 0.12);
+  --kiosk-glass-bg: rgba(20, 30, 60, 0.35);
+  --kiosk-glass-border: rgba(255, 255, 255, 0.12);
+  --kiosk-glass-blur: 22px;
   --panel-radius: 16px;
   --card-radius: 14px;
   --panel-surface: rgba(255, 255, 255, 0.82);
@@ -51,7 +54,7 @@
 
 html {
   height: 100%;
-  font-size: var(--font-md);
+  font-size: 100%;
 }
 
 body {
@@ -62,6 +65,7 @@ body {
   line-height: 1.58;
   letter-spacing: -0.01em;
   font-family: var(--ui-font-family);
+  font-size: calc(16px * var(--ui-font-scale));
 }
 
 #app {
@@ -81,6 +85,36 @@ main {
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
   box-shadow: var(--glass-shadow);
+}
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: 18px;
+}
+[data-mode='kiosk'] .glass-card {
+  background: var(--kiosk-glass-bg);
+  backdrop-filter: blur(var(--kiosk-glass-blur));
+  -webkit-backdrop-filter: blur(var(--kiosk-glass-blur));
+  border-color: var(--kiosk-glass-border);
+}
+.glass-surface {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+[data-mode='kiosk'] .glass-surface {
+  background: var(--kiosk-glass-bg);
+  border-color: var(--kiosk-glass-border);
+}
+[data-mode='kiosk'] .glass-card {
+  background: var(--kiosk-glass-bg);
+  backdrop-filter: blur(var(--kiosk-glass-blur));
+  -webkit-backdrop-filter: blur(var(--kiosk-glass-blur));
+  border-color: var(--kiosk-glass-border);
 }
 
 .text-soft {
@@ -111,8 +145,12 @@ main {
 .el-table__header,
 .el-table__body,
 .el-table__empty-block {
-  font-size: var(--font-sm);
+  font-size: 1rem;
   font-family: var(--ui-font-family);
+}
+.el-input__wrapper,
+.el-select__wrapper {
+  padding: 0.75em 1em;
 }
 
 .el-button {
@@ -134,4 +172,17 @@ main {
 
 .el-tabs__item.is-active {
   font-weight: 700;
+}
+.sf-btn {
+  padding: 10px 18px;
+  border-radius: 14px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+:root[data-mode='kiosk'] body {
+  background:
+    radial-gradient(1200px 600px at 20% 10%, rgba(0, 120, 255, 0.18), transparent),
+    radial-gradient(1000px 800px at 80% 30%, rgba(0, 80, 200, 0.14), transparent),
+    linear-gradient(180deg, #0a1630, #050b1a);
 }

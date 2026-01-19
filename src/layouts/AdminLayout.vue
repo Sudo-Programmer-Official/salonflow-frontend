@@ -393,12 +393,12 @@ const navItems = computed(() => {
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
   padding: 16px 24px;
-  font-size: var(--font-md);
+  font-size: 1rem;
   font-family: var(--ui-font-family);
 }
 .admin-header :deep(.el-button) {
   font-size: inherit;
   height: auto;
-  padding: 0.55em 0.95em;
+  padding: 0.75em 1em;
 }
 </style>

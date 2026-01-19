@@ -723,7 +723,7 @@ watch(completedPage, async (val) => {
           <ElSelect
             v-model="dateFilter"
             size="small"
-            class="w-36"
+            class="w-36 queue-date-picker"
             @change="(v: any) => changeDateFilter(v)"
           >
             <ElOption label="Today" value="today" />
@@ -763,7 +763,7 @@ watch(completedPage, async (val) => {
           v-for="item in displayedQueue"
           :key="item.id"
           shadow="hover"
-          class="queue-card glass"
+          class="queue-card glass-card"
         >
           <div class="flex items-start gap-3">
             <div class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">
@@ -771,7 +771,7 @@ watch(completedPage, async (val) => {
             </div>
             <div class="flex-1 space-y-1.5">
               <div class="flex items-start justify-between gap-2">
-                <div class="text-base font-semibold text-slate-900">
+                <div class="text-base font-semibold text-slate-900 customer-name">
                   {{ item.customerName || 'Unknown' }}
                 </div>
                 <div class="flex items-center gap-1">
@@ -784,11 +784,11 @@ watch(completedPage, async (val) => {
                 </div>
               </div>
               <div class="flex flex-wrap items-center gap-3 text-sm text-slate-700">
-                <div class="flex items-center gap-1">
+                <div class="flex items-center gap-1 service-row">
                   ✂️
                   <span>{{ item.serviceName || 'No service selected' }}</span>
                 </div>
-                <div v-if="item.servedByName" class="flex items-center gap-1">
+                <div v-if="item.servedByName" class="flex items-center gap-1 service-row">
                   👤
                   <span>{{ item.servedByName }}</span>
                 </div>
@@ -801,7 +801,7 @@ watch(completedPage, async (val) => {
               </div>
             </div>
           </div>
-          <div class="mt-2 flex items-center justify-between text-sm text-slate-700">
+          <div class="mt-2 flex items-center justify-between text-sm text-slate-700 meta">
             <div class="flex items-center gap-1">⏱ {{ elapsed(item) }}</div>
             <div class="flex items-center gap-1 text-slate-700">
               💎 <span class="font-semibold">{{ item.pointsBalance ?? 0 }}</span>
@@ -813,6 +813,7 @@ watch(completedPage, async (val) => {
               size="small"
               type="primary"
               :loading="actionLoading === item.id"
+              class="sf-btn"
               @click="handleAction(item.id, () => callCheckIn(item.id))"
             >
               Call Next
@@ -822,6 +823,7 @@ watch(completedPage, async (val) => {
                 size="small"
                 type="success"
                 :loading="actionLoading === item.id"
+                class="sf-btn"
                 @click="handleAction(item.id, () => startCheckIn(item.id))"
               >
                 Mark In Service
@@ -831,6 +833,7 @@ watch(completedPage, async (val) => {
                 type="danger"
                 plain
                 :loading="actionLoading === `${item.id}-no-show`"
+                class="sf-btn"
                 @click="handleAction(`${item.id}-no-show`, () => markNoShow(item.id))"
               >
                 No Show
@@ -841,6 +844,7 @@ watch(completedPage, async (val) => {
               size="small"
               type="primary"
               :loading="actionLoading === item.id"
+              class="sf-btn"
               @click="openCheckout(item.id)"
             >
               Complete
@@ -1040,14 +1044,19 @@ watch(completedPage, async (val) => {
   background-color: #0ea5e9;
 }
 .queue-tabs :deep(.el-tabs__item) {
-  font-size: var(--font-sm);
+  font-size: 1rem;
+  padding: 0.75em 1em;
 }
 .queue-card {
   align-self: flex-start;
-  border-radius: var(--card-radius, 14px);
+  border-radius: 18px;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 .queue-card :deep(.el-card__body) {
-  padding: 12px;
+  padding: 14px;
 }
 .queue-phone {
   font-size: 1.05rem;
@@ -1082,12 +1091,58 @@ watch(completedPage, async (val) => {
   gap: 8px;
   margin-bottom: 8px;
 }
+.queue-toolbar :deep(.el-select .el-input__wrapper) {
+  font-size: 1rem;
+  padding: 0.75em 1em;
+}
 @media (min-width: 640px) {
   .queue-toolbar {
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
   }
+}
+.queue-grid {
+  gap: 20px;
+}
+.queue-card .customer-name {
+  line-height: 1.2;
+  min-height: 2.4em;
+  overflow: hidden;
+}
+.queue-card .service-row {
+  margin-top: 8px;
+  margin-bottom: 8px;
+  opacity: 0.9;
+}
+.queue-card .service-row svg {
+  margin-right: 6px;
+}
+.queue-card .sf-btn {
+  min-height: 40px;
+}
+.queue-card .meta {
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+.queue-tabs {
+  height: 44px;
+  border-radius: 14px;
+  padding: 4px;
+}
+.queue-tabs :deep(.el-tabs__item) {
+  padding: 8px 14px;
+  border-radius: 10px;
+}
+.queue-date-picker {
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 .pagination-footer {
   position: sticky;
