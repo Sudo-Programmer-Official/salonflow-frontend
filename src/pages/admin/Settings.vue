@@ -217,7 +217,7 @@ onMounted(loadSettings);
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="settings-page space-y-6">
     <div>
       <h1 class="text-2xl font-semibold text-slate-900">Business Settings</h1>
       <p class="text-sm text-slate-600">
@@ -697,3 +697,27 @@ onMounted(loadSettings);
     </div>
   </div>
 </template>
+
+<style scoped>
+.settings-page {
+  font-size: var(--font-md);
+}
+.settings-page :deep(.el-card) {
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  box-shadow: 0 14px 40px rgba(15, 23, 42, 0.08);
+}
+.settings-page :deep(.el-form-item__label) {
+  font-weight: 700;
+  color: #0f172a;
+}
+.settings-page :deep(.el-input__wrapper),
+.settings-page :deep(.el-select__wrapper),
+.settings-page :deep(.el-input-number__wrapper) {
+  min-height: 44px;
+  padding: 12px 14px;
+}
+.settings-page :deep(.el-switch__core) {
+  height: 22px;
+}
+</style>

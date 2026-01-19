@@ -170,7 +170,7 @@ watch(results, () => {
 </script>
 
 <template>
-  <div class="space-y-4">
+  <div class="customers-page space-y-4">
     <div>
       <h1 class="text-2xl font-semibold text-slate-900">Customers</h1>
       <p class="text-sm text-slate-600">
@@ -186,7 +186,7 @@ watch(results, () => {
           clearable
           @keyup.enter="doSearch"
         />
-        <ElButton type="primary" :loading="loading" @click="doSearch">Search</ElButton>
+        <ElButton type="primary" class="action-dark" :loading="loading" @click="doSearch">Search</ElButton>
       </div>
       <div v-if="errorMessage" class="mt-3 text-sm text-amber-700">
         {{ errorMessage }}
@@ -254,8 +254,7 @@ watch(results, () => {
             <div class="flex flex-wrap gap-2">
               <ElButton
                 size="small"
-                type="primary"
-                plain
+                class="action-dark"
                 :disabled="!canSendReminder(row)"
                 @click="sendReminderAction(row)"
               >
@@ -263,14 +262,13 @@ watch(results, () => {
               </ElButton>
               <ElButton
                 size="small"
-                type="success"
-                plain
+                class="action-dark"
                 :disabled="!canSendFeedback(row)"
                 @click="sendFeedbackAction(row)"
               >
                 📩 Feedback
               </ElButton>
-              <ElButton size="small" @click="openTimeline(row.id)">👁 View</ElButton>
+              <ElButton size="small" class="action-dark" @click="openTimeline(row.id)">👁 View</ElButton>
             </div>
           </template>
         </ElTableColumn>
@@ -305,6 +303,16 @@ watch(results, () => {
 </template>
 
 <style scoped>
+.customers-page {
+  font-size: var(--font-md);
+}
+.customers-page :deep(.el-table) {
+  font-size: 1rem;
+}
+.customers-page :deep(.el-input__wrapper) {
+  padding: 12px 14px;
+  min-height: 44px;
+}
 .table-shell {
   display: flex;
   flex-direction: column;
@@ -334,5 +342,13 @@ watch(results, () => {
   padding: 6px 10px;
   border-radius: 12px;
   background: #f1f5f9;
+}
+.action-dark {
+  background: linear-gradient(135deg, #0f172a, #0b1220);
+  color: #fff;
+  border: none;
+}
+.action-dark:hover {
+  filter: brightness(1.08);
 }
 </style>

@@ -210,10 +210,22 @@ const navigate = (name: string) => {
             <div class="text-sm text-slate-600">Jump to common tasks.</div>
           </div>
           <div class="flex flex-wrap gap-2">
-            <ElButton type="primary" class="sf-btn quick-btn" @click="navigate('admin-queue')">Check in customer</ElButton>
-            <ElButton class="sf-btn quick-btn" @click="navigate('admin-appointments')">View appointments</ElButton>
-            <ElButton class="sf-btn quick-btn" @click="navigate('admin-customers')">View customers</ElButton>
-            <ElButton class="sf-btn quick-btn" @click="navigate('admin-review-sms')">Review SMS</ElButton>
+            <ElButton type="primary" class="sf-btn quick-btn" @click="navigate('admin-queue')">
+              <span aria-hidden="true">✅</span>
+              <span>Check in customer</span>
+            </ElButton>
+            <ElButton class="sf-btn quick-btn" @click="navigate('admin-appointments')">
+              <span aria-hidden="true">📅</span>
+              <span>View appointments</span>
+            </ElButton>
+            <ElButton class="sf-btn quick-btn" @click="navigate('admin-customers')">
+              <span aria-hidden="true">👥</span>
+              <span>View customers</span>
+            </ElButton>
+            <ElButton class="sf-btn quick-btn" @click="navigate('admin-review-sms')">
+              <span aria-hidden="true">💬</span>
+              <span>Review SMS</span>
+            </ElButton>
           </div>
         </div>
       </ElCard>

@@ -191,7 +191,7 @@ main {
   background: linear-gradient(135deg, #0ea5e9, #0b83d9);
   color: #fff;
   border: none;
-  padding: 10px 18px;
+  padding: 12px 20px;
 }
 .quick-btn:hover,
 .go-btn:hover {
