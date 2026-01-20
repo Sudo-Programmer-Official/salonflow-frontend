@@ -47,8 +47,9 @@
   --kiosk-glass: var(--glass-bg);
   --kiosk-surface-milky: #ffffffee;
   --kiosk-border-milky: rgba(148, 163, 184, 0.35);
-  --kiosk-text-primary: #0f172a;
-  --kiosk-text-secondary: #475569;
+  --kiosk-text-primary: var(--text-color);
+  --kiosk-text-secondary: var(--muted-text);
+  --kiosk-text-muted: var(--muted-text);
   color: var(--text-color);
   background-color: #f8fafc;
   font-family: var(--ui-font-family);
@@ -80,8 +81,14 @@
   --kiosk-glass-border: var(--kiosk-border-milky);
   --kiosk-glass-blur: 16px;
   --kiosk-glass-saturate: 140%;
+  --kiosk-text-primary: #1f2937;
+  --kiosk-text-secondary: #4b5563;
+  --kiosk-text-muted: #6b7280;
 }
 
+[data-kiosk-theme] body {
+  background: var(--bg-app);
+}
 :root[data-kiosk-theme='milky'] {
   --kiosk-surface: #ffffffee;
   --kiosk-primary: var(--green-light);

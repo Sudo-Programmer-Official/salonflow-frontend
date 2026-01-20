@@ -1068,6 +1068,7 @@ watch(
   --kiosk-border: var(--kiosk-glass-border, var(--glass-border));
   --kiosk-blur: var(--kiosk-glass-blur, var(--glass-blur));
   color: var(--kiosk-text-primary);
+  background-color: var(--bg-app);
 }
 :root[data-glass='off'] .kiosk-shell {
   --kiosk-surface: rgba(17, 24, 39, 0.92);
@@ -1090,7 +1091,7 @@ watch(
 }
 .kiosk-card {
   border: 1px solid var(--kiosk-border);
-  background: color-mix(in srgb, var(--kiosk-surface) 88%, #ffffff 12%);
+  background: color-mix(in srgb, var(--kiosk-surface) 90%, #ffffff 10%);
   backdrop-filter: blur(var(--kiosk-blur));
   -webkit-backdrop-filter: blur(var(--kiosk-blur));
   box-shadow: var(--glass-shadow);
@@ -1487,7 +1488,7 @@ watch(
   border-radius: 999px;
   background: var(--kiosk-surface);
   border: 1px solid var(--kiosk-border);
-  color: #fff;
+  color: var(--kiosk-text-primary);
   font-weight: 700;
   font-size: 13px;
   padding: 10px 14px;
