@@ -45,6 +45,8 @@
   --kiosk-accent: var(--amber-light);
   --kiosk-surface: rgba(255, 255, 255, 0.9);
   --kiosk-glass: var(--glass-bg);
+  --kiosk-surface-milky: #ffffffee;
+  --kiosk-border-milky: rgba(148, 163, 184, 0.35);
   color: var(--text-color);
   background-color: #f8fafc;
   font-family: var(--ui-font-family);
@@ -63,6 +65,19 @@
   --panel-radius: 16px;
   --card-radius: 16px;
   --glass-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
+}
+
+:root[data-kiosk-theme='milky'] {
+  --bg-app: #f7f9fb;
+  --kiosk-surface: var(--kiosk-surface-milky);
+  --kiosk-glass: rgba(255, 255, 255, 0.9);
+  --kiosk-border: var(--kiosk-border-milky);
+  --kiosk-primary: var(--green-light);
+  --kiosk-accent: #f4a632;
+  --kiosk-glass-bg: rgba(255, 255, 255, 0.92);
+  --kiosk-glass-border: var(--kiosk-border-milky);
+  --kiosk-glass-blur: 16px;
+  --kiosk-glass-saturate: 140%;
 }
 
 :root[data-kiosk-theme='milky'] {
