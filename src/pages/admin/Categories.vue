@@ -153,7 +153,10 @@ const confirmDelete = async (cat: ServiceCategory) => {
     <ElCard class="bg-white">
       <div class="mb-4 flex items-center justify-between">
         <div class="text-base font-semibold text-slate-900">Categories</div>
-        <ElButton type="primary" size="small" class="sf-btn sf-btn--table" @click="openModal()">Add Category</ElButton>
+        <ElButton type="primary" size="small" class="sf-btn sf-btn--table" @click="openModal()">
+          <span aria-hidden="true">➕</span>
+          <span>Add Category</span>
+        </ElButton>
       </div>
 
       <ElTable :data="sortedCategories" :loading="loading" style="width: 100%" border>
@@ -189,7 +192,7 @@ const confirmDelete = async (cat: ServiceCategory) => {
             />
           </template>
         </ElTableColumn>
-        <ElTableColumn label="Actions" width="180">
+        <ElTableColumn label="Actions" min-width="250">
           <template #default="{ row }">
             <div class="flex items-center gap-2">
               <ElButton size="small" plain class="sf-btn sf-btn--table" @click="openModal(row)" :disabled="row.id === 'uncategorized'">

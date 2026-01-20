@@ -165,7 +165,13 @@ const downloadQr = () => {
         </div>
 
         <div class="flex flex-col gap-2 sm:flex-row sm:justify-end">
-          <ElButton type="primary" :loading="saving" :disabled="locked" @click="handleSave">
+          <ElButton
+            type="primary"
+            class="sf-btn"
+            :loading="saving"
+            :disabled="locked"
+            @click="handleSave"
+          >
             {{ locked ? 'Locked' : 'Save' }}
           </ElButton>
         </div>
@@ -205,13 +211,13 @@ const downloadQr = () => {
             <div class="text-xs font-semibold text-slate-900">Review link</div>
             <div>{{ reviewQr.reviewLink }}</div>
             <div class="flex flex-wrap gap-2">
-              <ElButton size="small" type="primary" plain @click="openReviewLink">
+              <ElButton size="small" type="primary" plain class="sf-btn sf-btn--table" @click="openReviewLink">
                 Open link
               </ElButton>
-              <ElButton size="small" @click="copyReviewLink">
+              <ElButton size="small" class="sf-btn sf-btn--table" @click="copyReviewLink">
                 Copy link
               </ElButton>
-              <ElButton size="small" @click="downloadQr">
+              <ElButton size="small" class="sf-btn sf-btn--table" @click="downloadQr">
                 Download QR
               </ElButton>
             </div>

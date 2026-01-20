@@ -267,7 +267,7 @@ const goToPage = (target: number) => {
         :formatter="formatTime"
         />
         <ElTableColumn prop="status" label="Status" width="110" />
-        <ElTableColumn label="Actions" width="220">
+        <ElTableColumn label="Actions" min-width="300">
           <template #default="{ row }">
             <div class="flex flex-wrap gap-2">
               <ElButton size="small" type="primary" class="sf-btn sf-btn--table" @click="openEdit(row)">Edit</ElButton>

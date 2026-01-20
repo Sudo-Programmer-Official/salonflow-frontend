@@ -450,7 +450,8 @@ const handleCategorySelect = (val: string | null) => {
         </ElFormItem>
         <div class="sm:col-span-4 flex justify-end">
           <ElButton type="primary" :loading="creating" size="small" class="sf-btn sf-btn--table" @click="handleCreate">
-            Add Service
+            <span aria-hidden="true">➕</span>
+            <span>Add Service</span>
           </ElButton>
         </div>
       </ElForm>
@@ -511,7 +512,10 @@ const handleCategorySelect = (val: string | null) => {
           class="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-600 flex items-center justify-between"
         >
           <div>Add your first category to group services.</div>
-          <ElButton size="small" type="primary" class="sf-btn sf-btn--table" @click="openCategoryDialog()">Add</ElButton>
+          <ElButton size="small" type="primary" class="sf-btn sf-btn--table" @click="openCategoryDialog()">
+            <span aria-hidden="true">➕</span>
+            <span>Add</span>
+          </ElButton>
         </div>
       </div>
       <ElTable
