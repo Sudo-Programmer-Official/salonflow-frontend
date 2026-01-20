@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount, ref, watch, nextTick } from 'vue';
+import { computed, onMounted, onBeforeUnmount, ref, watch, nextTick, reactive } from 'vue';
 import {
   ElCard,
   ElButton,
@@ -29,6 +29,7 @@ import {
 import { fetchServices, type ServiceOption, createPublicCheckIn } from '../../api/checkins';
 import { searchCustomers, sendCustomerReminder } from '../../api/customers';
 import { humanizeTime } from '../../utils/dates';
+import { formatPhone } from '../../utils/format';
 
 const PAGE_SIZE = 10;
 
@@ -37,13 +38,21 @@ const queueLocked = ref(false);
 const loading = ref(false);
 const actionLoading = ref<string | null>(null);
 const checkoutOpen = ref(false);
-const checkoutAmount = ref<string>('');
+const paymentOptions = reactive({
+  cash: false,
+  card: false,
+  gift: false,
+});
+const paymentAmounts = reactive<Record<'cash' | 'card' | 'gift', string>>({
+  cash: '',
+  card: '',
+  gift: '',
+});
 const checkoutConsent = ref(true);
 const checkoutTarget = ref<string | null>(null);
 const checkoutServedBy = ref<string | null>(null);
 const checkoutRedeem = ref(false);
 const checkoutServices = ref<Array<{ name: string; priceCents: number | null }>>([]);
-const checkoutAmountRef = ref<InstanceType<typeof ElInput> | null>(null);
 const currentCheckoutItem = computed(() =>
   checkoutTarget.value ? queue.value.find((q) => q.id === checkoutTarget.value) : null,
 );
@@ -237,6 +246,16 @@ const statusLabel = (status: QueueItem['status']) => {
   return status;
 };
 
+const statusType = (status: QueueItem['status']) => {
+  if (status === 'CALLED') return 'warning';
+  if (status === 'IN_SERVICE') return 'warning';
+  if (status === 'WAITING') return 'info';
+  if (status === 'COMPLETED') return 'success';
+  if (status === 'NO_SHOW') return 'danger';
+  if (status === 'CANCELED') return 'danger';
+  return 'info';
+};
+
 const waitingItems = computed(() =>
   queue.value
     .filter((item) => item.status === 'WAITING' || item.status === 'CALLED')
@@ -326,37 +345,60 @@ const sendReminderForAppointment = async (appt: TodayAppointment) => {
 
 const elapsed = (item: QueueItem) => humanizeTime(item.calledAt || item.createdAt || null);
 
-const statusChip = (status: QueueItem['status']) => {
-  if (status === 'WAITING') return { icon: '🧍', tone: 'waiting', label: 'Waiting' };
-  if (status === 'CALLED') return { icon: '📣', tone: 'called', label: 'Call Next' };
-  if (status === 'IN_SERVICE') return { icon: '✂️', tone: 'in-service', label: 'In Service' };
-  if (status === 'COMPLETED') return { icon: '✅', tone: 'completed', label: 'Completed' };
-  if (status === 'NO_SHOW') return { icon: '⚪', tone: 'muted', label: 'No Show' };
-  return { icon: 'ℹ️', tone: 'muted', label: statusLabel(status) };
+const waitingPosition = (item: QueueItem) => {
+  const idx = waitingItems.value.findIndex((q) => q.id === item.id);
+  return idx >= 0 ? idx + 1 : null;
 };
 
-const cardToneClass = (status: QueueItem['status']) => {
-  if (status === 'IN_SERVICE') return 'queue-card--in-service';
-  if (status === 'WAITING' || status === 'CALLED') return 'queue-card--waiting';
-  if (status === 'COMPLETED') return 'queue-card--completed';
-  return '';
-};
+const checkoutSubtotal = computed(() =>
+  checkoutServices.value.reduce((acc, svc) => acc + (svc.priceCents ?? 0), 0) / 100,
+);
+
+const enteredPayments = computed(() => {
+  const entries: Array<{ method: 'cash' | 'card' | 'gift'; amount: number }> = [];
+  (['cash', 'card', 'gift'] as const).forEach((key) => {
+    if (!paymentOptions[key]) return;
+    const val = Number(paymentAmounts[key]);
+    if (Number.isFinite(val) && val >= 0) {
+      entries.push({ method: key, amount: val });
+    }
+  });
+  return entries;
+});
+
+const enteredTotal = computed(() => enteredPayments.value.reduce((acc, cur) => acc + cur.amount, 0));
+const remainingBalance = computed(() => {
+  const remaining = checkoutSubtotal.value - enteredTotal.value;
+  return Number.isFinite(remaining) ? Math.max(0, Number(remaining.toFixed(2))) : 0;
+});
 
 const openCheckout = (id: string) => {
   checkoutTarget.value = id;
-  checkoutAmount.value = '';
   checkoutConsent.value = true;
   checkoutServedBy.value = null;
   checkoutRedeem.value = false;
+  paymentOptions.cash = false;
+  paymentOptions.card = false;
+  paymentOptions.gift = false;
+  paymentAmounts.cash = '';
+  paymentAmounts.card = '';
+  paymentAmounts.gift = '';
   const targetItem = queue.value.find((q) => q.id === id);
   const svcName = targetItem?.serviceName || '';
   const matchedService = services.value.find((s) => s.name === svcName);
   const priceCents = matchedService?.priceCents ?? null;
   checkoutServices.value = svcName ? [{ name: svcName, priceCents }] : [];
-  if (priceCents !== null && priceCents !== undefined) {
-    checkoutAmount.value = (priceCents / 100).toFixed(2);
-  }
   checkoutOpen.value = true;
+};
+
+const togglePayment = (key: 'cash' | 'card' | 'gift', checked: boolean) => {
+  paymentOptions[key] = checked;
+  if (checked) {
+    const rem = remainingBalance.value;
+    paymentAmounts[key] = rem > 0 ? rem.toFixed(2) : '';
+  } else {
+    paymentAmounts[key] = '';
+  }
 };
 
 const loadStaff = async () => {
@@ -461,23 +503,28 @@ const submitCheckout = async () => {
   if (!checkoutTarget.value) return;
   actionLoading.value = checkoutTarget.value;
   try {
-    const rawAmount = checkoutAmount.value;
-    const normalized =
-      typeof rawAmount === 'string' ? rawAmount.trim() : rawAmount ?? '';
-    const amount =
-      normalized === '' ? null : Number(normalized);
-    if (amount === null) {
-      throw new Error('Amount is required');
+    const entries: Array<{ method: 'cash' | 'card' | 'gift'; amount: number }> = [];
+    (['cash', 'card', 'gift'] as const).forEach((key) => {
+      if (!paymentOptions[key]) return;
+      const raw = paymentAmounts[key].trim();
+      if (raw === '') return;
+      const val = Number(raw);
+      if (!Number.isFinite(val) || val < 0) {
+        throw new Error('Enter valid payment amounts');
+      }
+      entries.push({ method: key, amount: val });
+    });
+    if (!entries.length) {
+      throw new Error('Add at least one payment amount');
     }
-    if (Number.isNaN(amount)) {
-      throw new Error('Amount must be a number');
-    }
+    const amountPaid = entries.reduce((acc, cur) => acc + cur.amount, 0);
     await checkoutCheckIn(checkoutTarget.value, {
-      amountPaid: amount,
+      amountPaid,
       reviewSmsConsent: checkoutConsent.value,
       servedByName: checkoutServedBy.value || null,
       redeemPoints: checkoutRedeem.value,
-    });
+      payments: entries,
+    } as any);
     checkoutOpen.value = false;
     await loadQueue();
     ElMessage.success('Checkout completed');
@@ -525,7 +572,6 @@ const handleFocus = () => {
 watch(checkoutOpen, async (open) => {
   if (open) {
     await nextTick();
-    checkoutAmountRef.value?.focus();
   }
 });
 
@@ -748,7 +794,7 @@ watch(completedPage, async (val) => {
               :class="{ active: activeTab === 'WAITING' }"
               @click="activeTab = 'WAITING'"
             >
-              🧍 Waiting ({{ queueCounts.waiting }})
+              Waiting ({{ queueCounts.waiting }})
             </button>
             <button
               type="button"
@@ -756,7 +802,7 @@ watch(completedPage, async (val) => {
               :class="{ active: activeTab === 'IN_SERVICE' }"
               @click="activeTab = 'IN_SERVICE'"
             >
-              ✂️ In Service ({{ queueCounts.inService }})
+              In Service ({{ queueCounts.inService }})
             </button>
             <button
               type="button"
@@ -764,7 +810,7 @@ watch(completedPage, async (val) => {
               :class="{ active: activeTab === 'COMPLETED' }"
               @click="activeTab = 'COMPLETED'"
             >
-              ✅ Completed ({{ queueCounts.completed }})
+              Completed ({{ queueCounts.completed }})
             </button>
           </div>
         </div>
@@ -793,7 +839,6 @@ watch(completedPage, async (val) => {
           :key="item.id"
           shadow="hover"
           class="queue-card glass-card"
-          :class="cardToneClass(item.status)"
         >
           <div class="flex items-start gap-3">
             <div class="queue-avatar">
@@ -805,19 +850,10 @@ watch(completedPage, async (val) => {
                   {{ item.customerName || 'Unknown' }}
                 </div>
                 <div class="flex items-center gap-1">
-                  <span
-                    class="sf-status"
-                    :class="`sf-status--${statusChip(item.status).tone}`"
-                  >
-                    <span aria-hidden="true">{{ statusChip(item.status).icon }}</span>
-                    <span>{{ statusChip(item.status).label }}</span>
-                  </span>
-                  <ElTag
-                    v-if="item.customerType"
-                    effect="plain"
-                    size="small"
-                    :class="item.customerType === 'VIP' ? 'vip-tag' : ''"
-                  >
+                  <ElTag :type="statusType(item.status)" effect="light">
+                    {{ statusLabel(item.status) }}
+                  </ElTag>
+                  <ElTag v-if="item.customerType" effect="plain" size="small">
                     {{ item.customerType === 'VIP' ? 'VIP' : item.customerType === 'SECOND_TIME' ? '2nd-time' : 'Regular' }}
                   </ElTag>
                 </div>
@@ -835,15 +871,17 @@ watch(completedPage, async (val) => {
               <div class="queue-phone">
                 <span class="flex items-center gap-2">
                   <span>📞</span>
-                  <span>{{ item.customerPhone || '—' }}</span>
+                  <span>{{ formatPhone(item.customerPhone) }}</span>
                 </span>
               </div>
             </div>
           </div>
           <div class="mt-2 flex items-center justify-between text-sm text-slate-700 meta">
-            <div class="flex items-center gap-1 text-slate-500 text-xs">
-              <span aria-hidden="true">🕒</span>
-              <span>{{ elapsed(item) }}</span>
+            <div class="flex items-center gap-2">
+              <span v-if="activeTab === 'WAITING'" class="text-xs font-semibold text-slate-600">
+                #{{ waitingPosition(item) || '—' }}
+              </span>
+              <span class="flex items-center gap-1">⏱ {{ elapsed(item) }}</span>
             </div>
             <div class="flex items-center gap-1 text-slate-700">
               💎 <span class="font-semibold">{{ item.pointsBalance ?? 0 }}</span>
@@ -855,11 +893,10 @@ watch(completedPage, async (val) => {
               size="small"
               type="primary"
               :loading="actionLoading === item.id"
-              :class="['sf-btn', 'sf-call-next', { 'sf-call-next--attention': activeTab === 'WAITING' }]"
+              class="sf-btn"
               @click="handleAction(item.id, () => callCheckIn(item.id))"
             >
-              <span aria-hidden="true">👤➡️</span>
-              <span>Call Next</span>
+              Call Next
             </ElButton>
             <template v-else-if="item.status === 'CALLED'">
               <ElButton
@@ -945,24 +982,58 @@ watch(completedPage, async (val) => {
               </span>
             </div>
           </div>
-          <div v-else class="text-xs text-slate-600">Services will be confirmed at the counter.</div>
-          <div v-if="checkoutServices.length && checkoutServices.some((s) => s.priceCents !== null)" class="text-xs text-slate-600">
-            Subtotal {{
-              Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(
-                checkoutServices.reduce((acc, svc) => acc + (svc.priceCents ?? 0), 0) / 100,
-              )
-            }}
-          </div>
+        <div v-else class="text-xs text-slate-600">Services will be confirmed at the counter.</div>
+        <div v-if="checkoutServices.length && checkoutServices.some((s) => s.priceCents !== null)" class="text-xs text-slate-600">
+          Subtotal {{
+            Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(
+              checkoutServices.reduce((acc, svc) => acc + (svc.priceCents ?? 0), 0) / 100,
+            )
+          }}
         </div>
-        <div>
-          <label class="text-sm font-medium text-slate-800">Amount Paid</label>
-          <input
-            v-model="checkoutAmount"
-            type="number"
-            min="0"
-            class="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none"
-            placeholder="e.g. 75.00"
-          />
+      </div>
+        <div class="space-y-2">
+          <div class="text-sm font-medium text-slate-800">Payments</div>
+          <div class="space-y-2">
+            <label class="flex items-center gap-2 text-sm text-slate-800">
+              <input type="checkbox" class="h-4 w-4" :checked="paymentOptions.cash" @change="(e: any) => togglePayment('cash', e.target.checked)" />
+              <span>Cash</span>
+            </label>
+            <input
+              v-if="paymentOptions.cash"
+              v-model="paymentAmounts.cash"
+              type="number"
+              min="0"
+              class="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none"
+              placeholder="Amount"
+            />
+            <label class="flex items-center gap-2 text-sm text-slate-800">
+              <input type="checkbox" class="h-4 w-4" :checked="paymentOptions.card" @change="(e: any) => togglePayment('card', e.target.checked)" />
+              <span>Credit Card</span>
+            </label>
+            <input
+              v-if="paymentOptions.card"
+              v-model="paymentAmounts.card"
+              type="number"
+              min="0"
+              class="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none"
+              placeholder="Amount"
+            />
+            <label class="flex items-center gap-2 text-sm text-slate-800">
+              <input type="checkbox" class="h-4 w-4" :checked="paymentOptions.gift" @change="(e: any) => togglePayment('gift', e.target.checked)" />
+              <span>Gift Card</span>
+            </label>
+            <input
+              v-if="paymentOptions.gift"
+              v-model="paymentAmounts.gift"
+              type="number"
+              min="0"
+              class="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none"
+              placeholder="Amount"
+            />
+          </div>
+          <div class="text-xs text-slate-600">
+            Enter amounts per payment type. Remaining balance: {{ remainingBalance.toFixed(2) }}
+          </div>
         </div>
         <div>
           <label class="text-sm font-medium text-slate-800">Served by (optional)</label>
@@ -1099,116 +1170,6 @@ watch(completedPage, async (val) => {
 .queue-tabs .sf-tab {
   white-space: nowrap;
 }
-.queue-tabs .sf-tab {
-  border-radius: 999px;
-  padding: 0.55em 1.1em;
-  font-weight: 650;
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  background: rgba(255, 255, 255, 0.6);
-  color: #0f172a;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
-  transition: all 0.16s ease;
-}
-.queue-tabs .sf-tab:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.18);
-}
-.queue-tabs .sf-tab.active {
-  background: linear-gradient(135deg, #2563eb, #0ea5e9);
-  color: #fff;
-  border-color: transparent;
-  box-shadow: 0 8px 20px rgba(14, 165, 233, 0.35);
-  opacity: 1;
-}
-.sf-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-}
-.sf-status--waiting {
-  background: rgba(59, 130, 246, 0.12);
-  color: #1d4ed8;
-}
-.sf-status--called {
-  background: linear-gradient(120deg, rgba(59, 130, 246, 0.14), rgba(16, 185, 129, 0.16));
-  color: #0f766e;
-  box-shadow: inset 0 0 0 1px rgba(14, 165, 233, 0.18);
-}
-.sf-status--in-service {
-  background: rgba(16, 185, 129, 0.16);
-  color: #047857;
-}
-.sf-status--in-service::after {
-  content: ' ●';
-  animation: sf-status-blink 1.6s infinite;
-}
-.sf-status--completed {
-  background: rgba(100, 116, 139, 0.14);
-  color: #0f172a;
-}
-.sf-status--muted {
-  background: rgba(148, 163, 184, 0.16);
-  color: #334155;
-}
-.sf-call-next {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border-radius: 999px;
-  padding: 0.65em 1.1em;
-  font-weight: 700;
-  box-shadow: 0 8px 18px rgba(59, 130, 246, 0.28);
-  transition: all 0.2s ease;
-}
-.sf-call-next:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 22px rgba(59, 130, 246, 0.35);
-}
-.sf-call-next--attention {
-  animation: sf-pulse 2s infinite;
-}
-.vip-tag {
-  background: linear-gradient(135deg, #fbbf24, #f59e0b);
-  color: #92400e;
-  border: none;
-  font-weight: 700;
-}
-@keyframes sf-pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.35);
-  }
-  70% {
-    box-shadow: 0 0 0 12px rgba(59, 130, 246, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
-  }
-}
-@keyframes sf-status-blink {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.35;
-  }
-}
-.queue-card--waiting {
-  background: linear-gradient(145deg, rgba(14, 165, 233, 0.04), rgba(59, 130, 246, 0.03));
-}
-.queue-card--in-service {
-  background: linear-gradient(145deg, rgba(16, 185, 129, 0.08), rgba(14, 165, 233, 0.03));
-  box-shadow: 0 12px 30px rgba(16, 185, 129, 0.12);
-}
-.queue-card--completed {
-  background: linear-gradient(145deg, rgba(148, 163, 184, 0.08), rgba(226, 232, 240, 0.6));
-  opacity: 0.95;
-}
 .checkin-form {
   padding: 4px 2px;
 }
@@ -1316,7 +1277,7 @@ watch(completedPage, async (val) => {
 .queue-date-picker {
   height: 44px;
   min-width: 160px;
-  /* padding: 0 14px; */
+  padding: 0 14px;
   border-radius: 12px;
   font-size: 1rem;
   background: #ffffff;

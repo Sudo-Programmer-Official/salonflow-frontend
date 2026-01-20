@@ -4,6 +4,7 @@ import { ElTable, ElTableColumn, ElSwitch, ElCard, ElMessage, ElButton, ElDialog
 import { fetchStaff, updateStaffStatus, createStaff, fetchStaffServices, assignStaffServices, fetchAvailability, saveAvailability, type StaffMember, type AvailabilityEntry } from '../../api/staff';
 import { fetchServices, type ServiceItem } from '../../api/services';
 import { fetchCategories, type ServiceCategory } from '../../api/serviceCategories';
+import { formatPhone } from '../../utils/format';
 
 function createEmptyAvailability(): Record<number, AvailabilityEntry[]> {
   return {
@@ -289,7 +290,7 @@ const saveAvailabilityChanges = async () => {
                   <span class="text-sm font-semibold text-slate-900">{{ row.name }}</span>
                   <span class="text-xs text-slate-600 flex items-center gap-1">
                     <span aria-hidden="true">📞</span>
-                    <span>{{ row.phoneE164 || '—' }}</span>
+                    <span>{{ formatPhone(row.phoneE164) }}</span>
                   </span>
                 </div>
               </div>

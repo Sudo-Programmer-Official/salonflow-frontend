@@ -7,6 +7,7 @@ export type CustomerSearchResult = {
   type: 'new' | 'regular' | 'vip';
   visitCount: number;
   lastVisitAt: string | null;
+  lastServedBy?: string | null;
   reviewSmsConsent: boolean;
   pointsBalance?: number | null;
   reviewSentAt?: string | null;
