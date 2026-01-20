@@ -48,6 +48,7 @@ const paymentAmounts = reactive<Record<'cash' | 'card' | 'gift', string>>({
   card: '',
   gift: '',
 });
+const totalAmount = ref<string>('');
 const checkoutConsent = ref(true);
 const checkoutTarget = ref<string | null>(null);
 const checkoutServedBy = ref<string | null>(null);
@@ -354,6 +355,12 @@ const checkoutSubtotal = computed(() =>
   checkoutServices.value.reduce((acc, svc) => acc + (svc.priceCents ?? 0), 0) / 100,
 );
 
+const totalNumeric = computed(() => {
+  const val = Number(totalAmount.value);
+  if (Number.isFinite(val) && val >= 0) return val;
+  return checkoutSubtotal.value || 0;
+});
+
 const enteredPayments = computed(() => {
   const entries: Array<{ method: 'cash' | 'card' | 'gift'; amount: number }> = [];
   (['cash', 'card', 'gift'] as const).forEach((key) => {
@@ -368,7 +375,7 @@ const enteredPayments = computed(() => {
 
 const enteredTotal = computed(() => enteredPayments.value.reduce((acc, cur) => acc + cur.amount, 0));
 const remainingBalance = computed(() => {
-  const remaining = checkoutSubtotal.value - enteredTotal.value;
+  const remaining = totalNumeric.value - enteredTotal.value;
   return Number.isFinite(remaining) ? Math.max(0, Number(remaining.toFixed(2))) : 0;
 });
 
@@ -388,6 +395,7 @@ const openCheckout = (id: string) => {
   const matchedService = services.value.find((s) => s.name === svcName);
   const priceCents = matchedService?.priceCents ?? null;
   checkoutServices.value = svcName ? [{ name: svcName, priceCents }] : [];
+  totalAmount.value = priceCents !== null && priceCents !== undefined ? (priceCents / 100).toFixed(2) : '';
   checkoutOpen.value = true;
 };
 
@@ -980,8 +988,8 @@ watch(completedPage, async (val) => {
                   }).format((svc.priceCents ?? 0) / 100)
                 }}
               </span>
-            </div>
           </div>
+        </div>
         <div v-else class="text-xs text-slate-600">Services will be confirmed at the counter.</div>
         <div v-if="checkoutServices.length && checkoutServices.some((s) => s.priceCents !== null)" class="text-xs text-slate-600">
           Subtotal {{
@@ -991,6 +999,20 @@ watch(completedPage, async (val) => {
           }}
         </div>
       </div>
+        <div class="space-y-1">
+          <label class="text-sm font-medium text-slate-800">Total amount</label>
+          <input
+            v-model="totalAmount"
+            type="number"
+            min="0"
+            step="0.01"
+            class="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none"
+            placeholder="e.g., 75.00"
+          />
+          <div class="text-xs text-slate-600">
+            Prefilled from service price when available; adjust if needed.
+          </div>
+        </div>
         <div class="space-y-2">
           <div class="text-sm font-medium text-slate-800">Payments</div>
           <div class="space-y-2">
@@ -1277,7 +1299,7 @@ watch(completedPage, async (val) => {
 .queue-date-picker {
   height: 44px;
   min-width: 160px;
-  padding: 0 14px;
+  /* padding: 0 14px; */
   border-radius: 12px;
   font-size: 1rem;
   background: #ffffff;

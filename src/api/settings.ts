@@ -31,6 +31,9 @@ export type BusinessSettings = {
   uiFontScale: number;
   uiGlassEnabled: boolean;
   uiFontFamily: string;
+  kioskThemeMode?: 'green' | 'milky';
+  kioskPrimaryColor?: 'moneyGreen' | 'lightGreen';
+  businessPhone?: string | null;
   defaultBookingRules: DefaultBookingRules;
   createdAt: string | null;
   updatedAt: string | null;
@@ -58,6 +61,8 @@ export type SettingsPatch = Partial<
     | 'uiFontScale'
     | 'uiGlassEnabled'
     | 'uiFontFamily'
+    | 'kioskThemeMode'
+    | 'kioskPrimaryColor'
   >
 > & {
   defaultBookingRules?: Partial<DefaultBookingRules>;

@@ -280,7 +280,7 @@ const saveAvailabilityChanges = async () => {
           :stripe="true"
           class="staff-table"
         >
-          <ElTableColumn label="Name" width="260" class-name="col-name">
+          <ElTableColumn label="Name" min-width="260" class-name="col-name">
             <template #default="{ row }">
               <div class="flex items-center gap-3">
                 <div class="name-avatar" aria-hidden="true">
@@ -296,12 +296,12 @@ const saveAvailabilityChanges = async () => {
               </div>
             </template>
           </ElTableColumn>
-          <ElTableColumn label="Nickname" width="160" class-name="col-nickname">
+          <ElTableColumn label="Nickname" min-width="160" class-name="col-nickname">
             <template #default="{ row }">
               <span class="text-sm text-slate-700">{{ row.nickname || '—' }}</span>
             </template>
           </ElTableColumn>
-          <ElTableColumn prop="phoneE164" label="Phone" width="180" class-name="col-phone">
+          <ElTableColumn prop="phoneE164" label="Phone" min-width="200" class-name="col-phone">
             <template #default="{ row }">
               <span class="text-sm text-slate-800 flex items-center gap-1">
                 <span aria-hidden="true">📞</span>
@@ -309,7 +309,7 @@ const saveAvailabilityChanges = async () => {
               </span>
             </template>
           </ElTableColumn>
-          <ElTableColumn label="Active" width="120" class-name="col-active">
+          <ElTableColumn label="Active" width="140" class-name="col-active">
             <template #default="{ row }">
               <div class="toggle-wrapper">
                 <ElSwitch
@@ -319,7 +319,7 @@ const saveAvailabilityChanges = async () => {
               </div>
             </template>
           </ElTableColumn>
-          <ElTableColumn label="Services" width="150">
+          <ElTableColumn label="Services" min-width="160">
             <template #default="{ row }">
               <ElButton
                 size="small"
@@ -469,9 +469,6 @@ const saveAvailabilityChanges = async () => {
 </template>
 
 <style scoped>
-.staff-table :deep(table) {
-  table-layout: fixed;
-}
 .staff-page {
   font-size: var(--font-md);
 }
@@ -484,13 +481,13 @@ const saveAvailabilityChanges = async () => {
   min-height: 44px;
 }
 .staff-table :deep(.col-name) {
-  width: 260px;
+  min-width: 260px;
 }
 .staff-table :deep(.col-nickname) {
-  width: 160px;
+  min-width: 160px;
 }
 .staff-table :deep(.col-active) {
-  width: 120px;
+  width: 140px;
   text-align: center;
 }
 .toggle-wrapper {

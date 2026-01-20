@@ -13,6 +13,8 @@ export type UiPreferences = {
   uiFontScale?: number | null;
   uiGlassEnabled?: boolean | null;
   uiFontFamily?: string | null;
+  kioskThemeMode?: 'green' | 'milky' | null;
+  kioskPrimaryColor?: 'moneyGreen' | 'lightGreen' | null;
 };
 
 const clamp = (val: number, min: number, max: number) => Math.min(Math.max(val, min), max);
@@ -43,6 +45,12 @@ export function applyThemeFromSettings(
     root.dataset.mode = opts.mode;
   } else if (!root.dataset.mode) {
     root.dataset.mode = 'app';
+  }
+  if (settings?.kioskThemeMode) {
+    root.dataset.kioskTheme = settings.kioskThemeMode;
+  }
+  if (settings?.kioskPrimaryColor) {
+    root.dataset.kioskPrimary = settings.kioskPrimaryColor;
   }
   const familyKey = String(settings?.uiFontFamily ?? 'system').toLowerCase();
   const resolved =

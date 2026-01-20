@@ -7,6 +7,7 @@ import { publicLookup, createPublicCheckIn, fetchGroupedServices, type ServiceOp
 import { fetchPublicAvailableStaff, type StaffMember } from '../../api/staff';
 import { startKioskIdleWatchdog } from '../../utils/kioskIdleWatchdog';
 import { applyThemeFromSettings } from '../../utils/theme';
+import { formatPhone } from '../../utils/format';
 
 type Step = 'welcome' | 'phone' | 'services' | 'staff' | 'review' | 'done';
 
@@ -80,6 +81,9 @@ const defaultSettings: BusinessSettings = {
   uiFontScale: 1,
   uiGlassEnabled: true,
   uiFontFamily: 'system',
+  kioskThemeMode: 'green',
+  kioskPrimaryColor: 'moneyGreen',
+  businessPhone: null,
   defaultBookingRules: {
     buffer_before: 0,
     buffer_after: 0,
@@ -121,6 +125,10 @@ const allowPhoneSkip = computed(() => !requirePhone.value);
 const kioskEnabled = computed(() => settings.value?.kioskEnabled ?? false);
 const publicEnabled = computed(() => settings.value?.publicCheckInEnabled !== false);
 const businessName = computed(() => settings.value?.businessName || 'Salon Kiosk');
+const businessPhone = computed(() => {
+  const phone = settings.value?.businessPhone;
+  return phone ? formatPhone(phone) : 'Front desk';
+});
 const showPoints = computed(() => {
   if (!settings.value) return true;
   const flag = settings.value.showPointsPreview ?? settings.value.showPointsOnKiosk;
@@ -223,10 +231,14 @@ const loadSettings = async () => {
     settings.value = await fetchPublicSettings();
     settingsError.value = '';
     applyThemeFromSettings(settings.value, { boost: 1.12, mode: 'kiosk', maxScale: 1.4 });
+    document.documentElement.dataset.kioskTheme = settings.value?.kioskThemeMode || 'green';
+    document.documentElement.dataset.kioskPrimary = settings.value?.kioskPrimaryColor || 'moneyGreen';
   } catch (err: any) {
     settings.value = defaultSettings;
     settingsError.value = err?.message || 'Unable to load settings.';
     applyThemeFromSettings(settings.value, { boost: 1.12, mode: 'kiosk', maxScale: 1.4 });
+    document.documentElement.dataset.kioskTheme = settings.value?.kioskThemeMode || 'green';
+    document.documentElement.dataset.kioskPrimary = settings.value?.kioskPrimaryColor || 'moneyGreen';
   }
   step.value = useClassicWelcome.value ? 'phone' : 'welcome';
 };
@@ -307,6 +319,8 @@ onUnmounted(() => {
   stopWatchdog.value?.();
   cancelIdleWarning();
   applyThemeFromSettings(settings.value, { mode: 'app' });
+  delete document.documentElement.dataset.kioskTheme;
+  delete document.documentElement.dataset.kioskPrimary;
 });
 
 const resetFlow = () => {
@@ -648,21 +662,28 @@ watch(
 
               <div v-else-if="step === 'phone'" class="space-y-5">
                 <div class="phone-hero grid gap-5 lg:grid-cols-[1fr,1.15fr]">
-                  <div v-if="showRewardsCard && showPoints" class="reward-panel glass-card">
-                    <div class="text-xs font-semibold uppercase tracking-wide text-white/70">Loyalty</div>
-                    <div class="text-3xl font-semibold text-white">300 points = $5 off</div>
-                    <p class="text-sm text-white/75 mt-1">Enter your phone to load rewards.</p>
-                    <div class="reward-body">
-                      <div v-if="lookupResult?.exists && lookupResult.customer" class="reward-stats glass-card">
-                        <div class="text-base font-semibold text-white">👋 {{ lookupResult.customer.name }}</div>
-                        <div class="text-sm text-white/80">
-                          💎 {{ lookupResult.customer.pointsBalance ?? 0 }} points
-                          <span class="ml-2 text-xs text-white/60">We’ll keep these ready.</span>
+                  <div v-if="showRewardsCard && showPoints" class="left-stack">
+                    <div class="business-card glass-card">
+                      <div class="text-xs font-semibold uppercase tracking-wide text-white/70">Salon</div>
+                      <div class="text-2xl font-semibold text-white leading-tight">{{ businessName }}</div>
+                      <div class="text-sm text-white/80 mt-1">{{ businessPhone }}</div>
+                    </div>
+                    <div class="reward-panel glass-card">
+                      <div class="text-xs font-semibold uppercase tracking-wide text-white/70">Loyalty</div>
+                      <div class="text-3xl font-semibold text-white">300 points = $5 off</div>
+                      <p class="text-sm text-white/75 mt-1">Enter your phone to load rewards.</p>
+                      <div class="reward-body">
+                        <div v-if="lookupResult?.exists && lookupResult.customer" class="reward-stats glass-card">
+                          <div class="text-base font-semibold text-white">👋 {{ lookupResult.customer.name }}</div>
+                          <div class="text-sm text-white/80">
+                            💎 {{ lookupResult.customer.pointsBalance ?? 0 }} points
+                            <span class="ml-2 text-xs text-white/60">We’ll keep these ready.</span>
+                          </div>
                         </div>
-                      </div>
-                      <div v-else class="reward-placeholder">
-                        <div class="text-base font-semibold text-white/90">Tap the keypad to load your points.</div>
-                        <div class="text-sm text-white/70">We’ll track rewards automatically.</div>
+                        <div v-else class="reward-placeholder">
+                          <div class="text-base font-semibold text-white/90">Tap the keypad to load your points.</div>
+                          <div class="text-sm text-white/70">We’ll track rewards automatically.</div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1116,14 +1137,14 @@ watch(
   gap: 16px;
   border-radius: 18px;
   padding: 28px 32px;
-  background: linear-gradient(135deg, #0ea5e9, #14b8a6 50%, #6366f1);
+  background: linear-gradient(135deg, var(--kiosk-primary), #18b46d 45%, var(--kiosk-accent));
   cursor: pointer;
   transition: transform 0.12s ease, box-shadow 0.12s ease;
-  box-shadow: 0 20px 60px rgba(14, 165, 233, 0.35);
+  box-shadow: 0 20px 60px rgba(34, 197, 94, 0.28);
 }
 .welcome-card:active {
   transform: scale(0.985);
-  box-shadow: 0 10px 30px rgba(14, 165, 233, 0.25);
+  box-shadow: 0 10px 30px rgba(34, 197, 94, 0.2);
 }
 .welcome-reward {
   max-width: 340px;
@@ -1153,24 +1174,26 @@ watch(
 }
 .keypad-key {
   border-radius: 12px;
-  background: #0ea5e9;
+  background: var(--kiosk-primary);
   color: #fff;
-  font-size: 20px;
-  font-weight: 700;
-  padding: 16px 12px;
+  font-size: 22px;
+  font-weight: 800;
+  min-height: 68px;
+  padding: 18px 12px;
   border: none;
   cursor: pointer;
-  transition: transform 0.1s ease, background 0.1s ease;
+  transition: transform 0.1s ease, background 0.12s ease, box-shadow 0.12s ease;
 }
 .keypad-key.action {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.1);
 }
 .keypad-key:hover {
   transform: translateY(-1px);
+  box-shadow: 0 10px 30px rgba(22, 163, 74, 0.25);
 }
 .keypad-key:active {
-  transform: scale(0.97);
-  background: #0284c7;
+  transform: scale(0.96);
+  background: color-mix(in srgb, var(--kiosk-primary) 85%, #000 15%);
 }
 .kiosk-label {
   display: block;
@@ -1188,6 +1211,18 @@ watch(
   flex-direction: column;
   gap: 8px;
   padding: 18px;
+}
+.business-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  border-radius: 16px;
+}
+.left-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 .reward-body {
   flex: 1;
@@ -1303,8 +1338,8 @@ watch(
   transition: border 0.12s ease, transform 0.12s ease, background 0.12s ease;
 }
 .service-row.active {
-  border-color: rgba(99, 102, 241, 0.7);
-  background: rgba(99, 102, 241, 0.1);
+  border-color: color-mix(in srgb, var(--kiosk-primary) 70%, #fff 30%);
+  background: color-mix(in srgb, var(--kiosk-primary) 12%, transparent);
   transform: translateY(-1px);
 }
 .service-checkbox {
@@ -1320,13 +1355,27 @@ watch(
   position: relative;
 }
 .service-checkbox:checked {
-  border-color: rgba(99, 102, 241, 0.8);
-  background: rgba(99, 102, 241, 0.2);
+  border-color: color-mix(in srgb, var(--kiosk-primary) 80%, #fff 20%);
+  background: color-mix(in srgb, var(--kiosk-primary) 18%, transparent);
 }
 .service-checkbox:checked::after {
   content: '✓';
   font-size: 13px;
   color: #fff;
+}
+.kiosk-shell :deep(.el-button--primary) {
+  background: var(--kiosk-primary);
+  border-color: color-mix(in srgb, var(--kiosk-primary) 90%, #000 10%);
+}
+.kiosk-shell :deep(.el-button--primary:hover) {
+  filter: brightness(1.05);
+  box-shadow: 0 10px 28px rgba(22, 163, 74, 0.25);
+}
+.kiosk-shell :deep(.el-button--primary:disabled) {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.6);
+  box-shadow: none;
 }
 .service-copy {
   display: flex;

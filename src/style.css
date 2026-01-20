@@ -37,6 +37,14 @@
   --panel-surface: rgba(255, 255, 255, 0.82);
   --sf-primary: #0ea5e9;
   --sf-text-muted: #475569;
+  --green-money: #16a34a;
+  --green-light: #22c55e;
+  --amber-light: #f5a524;
+  --surface-milky: #f8fafc;
+  --kiosk-primary: var(--green-money);
+  --kiosk-accent: var(--amber-light);
+  --kiosk-surface: rgba(255, 255, 255, 0.9);
+  --kiosk-glass: var(--glass-bg);
   color: var(--text-color);
   background-color: #f8fafc;
   font-family: var(--ui-font-family);
@@ -55,6 +63,12 @@
   --panel-radius: 16px;
   --card-radius: 16px;
   --glass-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
+}
+
+:root[data-kiosk-theme='milky'] {
+  --kiosk-surface: #ffffffee;
+  --kiosk-primary: var(--green-light);
+  --kiosk-accent: #f4a632;
 }
 
 html {

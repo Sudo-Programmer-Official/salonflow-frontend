@@ -447,6 +447,33 @@ onMounted(loadSettings);
           <div class="space-y-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
             <div class="flex items-center justify-between gap-3">
               <div>
+                <div class="text-sm font-semibold text-slate-900">Kiosk theme</div>
+                <div class="text-xs text-slate-600">Money green primary or milky white surface.</div>
+              </div>
+              <ElSelect
+                class="w-40"
+                :model-value="settings.kioskThemeMode || 'green'"
+                @change="(val: 'green' | 'milky') => scheduleSave({ kioskThemeMode: val })"
+              >
+                <ElOption label="Green (recommended)" value="green" />
+                <ElOption label="Milky white" value="milky" />
+              </ElSelect>
+            </div>
+
+            <div class="flex flex-col gap-1 rounded-md border border-slate-200 bg-white px-3 py-2">
+              <div class="text-sm font-semibold text-slate-900">Business phone (kiosk display)</div>
+              <div class="text-xs text-slate-600">Shown on kiosk salon card; leave blank to hide.</div>
+              <ElInput
+                :model-value="settings.businessPhone || ''"
+                placeholder="e.g., (361) 986-1555"
+                @change="(val: string) => scheduleSave({ businessPhone: val?.trim() || null })"
+              />
+            </div>
+          </div>
+
+          <div class="space-y-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+            <div class="flex items-center justify-between gap-3">
+              <div>
                 <div class="text-sm font-semibold text-slate-900">Welcome layout</div>
                 <div class="text-xs text-slate-600">Classic (GoCheckin-style) or modern hero.</div>
               </div>
