@@ -266,8 +266,8 @@ const saveAvailabilityChanges = async () => {
     <ElCard class="bg-white flex-1 flex flex-col">
       <div class="mb-4 flex items-center justify-between">
         <div class="text-base font-semibold text-slate-900">Team</div>
-        <ElButton type="primary" class="action-accent sf-btn" @click="openDialog">
-          <span aria-hidden="true">➕</span>
+        <ElButton type="primary" class="action-accent sf-btn sf-btn--icon" @click="openDialog">
+          <span class="text-white" aria-hidden="true">+</span>
           <span>Add Staff</span>
         </ElButton>
       </div>

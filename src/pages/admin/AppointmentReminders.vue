@@ -58,17 +58,17 @@ const handleSave = async () => {
       </p>
     </div>
 
-    <ElCard class="bg-white space-y-4" :loading="loading">
+    <ElCard class="bg-white space-y-4 reminder-card" :loading="loading">
       <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div class="text-sm font-semibold text-slate-900">Enable appointment reminders</div>
-          <div class="text-xs text-slate-600">Sends to customers who have consented to SMS.</div>
+          <div class="text-base font-semibold text-slate-900 reminder-copy">Enable appointment reminders</div>
+          <div class="text-sm text-slate-700 reminder-sub">Sends to customers who have consented to SMS.</div>
         </div>
         <ElSwitch v-model="settings.enabled" size="large" />
       </div>
 
       <div v-if="settings.enabled" class="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3">
-        <div class="text-sm font-semibold text-slate-900">When should reminders be sent?</div>
+        <div class="text-base font-semibold text-slate-900 reminder-copy">When should reminders be sent?</div>
         <div class="flex flex-col gap-2">
           <ElCheckbox v-model="settings.send24h" label="24 hours before appointment" />
           <ElCheckbox v-model="settings.send2h" label="2 hours before appointment" />
@@ -83,7 +83,7 @@ const handleSave = async () => {
       />
 
       <div class="flex justify-end">
-        <ElButton type="primary" :loading="saving" @click="handleSave">Save</ElButton>
+        <ElButton type="primary" class="sf-btn" :loading="saving" @click="handleSave">Save</ElButton>
       </div>
 
       <ElAlert
@@ -103,3 +103,24 @@ const handleSave = async () => {
     </ElCard>
   </div>
 </template>
+
+<style scoped>
+.reminder-card {
+  font-size: 1rem;
+}
+.reminder-copy {
+  font-size: 1rem;
+}
+.reminder-sub {
+  font-size: 0.95rem;
+}
+.reminder-card :deep(.el-checkbox__label) {
+  font-size: 1rem;
+  color: #0f172a;
+  font-weight: 600;
+}
+.reminder-card :deep(.el-checkbox__inner) {
+  width: 18px;
+  height: 18px;
+}
+</style>

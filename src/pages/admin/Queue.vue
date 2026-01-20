@@ -999,34 +999,37 @@ watch(completedPage, async (val) => {
       </div>
     </ElDialog>
 
-    <ElDialog v-model="checkinOpen" title="Check In" width="380px">
-      <div class="space-y-3">
-        <div>
-          <label class="text-sm font-medium text-slate-800">Name</label>
+    <ElDialog v-model="checkinOpen" title="Check In" width="460px">
+      <div class="checkin-form space-y-4">
+        <div class="space-y-1">
+          <label class="text-sm font-semibold text-slate-800">Name</label>
           <ElInput v-model="checkinName" placeholder="Customer name" />
         </div>
-        <div>
-          <label class="text-sm font-medium text-slate-800">Phone</label>
+        <div class="space-y-1">
+          <label class="text-sm font-semibold text-slate-800">Phone</label>
           <ElInput v-model="checkinPhone" placeholder="+1 555 123 4567" />
         </div>
-        <div>
-          <label class="text-sm font-medium text-slate-800">Service (optional)</label>
+        <div class="space-y-1">
+          <label class="text-sm font-semibold text-slate-800">Service (optional)</label>
           <ElSelect
             v-model="checkinServiceId"
             placeholder="Select service"
             clearable
             filterable
             :loading="loadingServices"
+            class="w-full"
           >
             <ElOption v-for="svc in services" :key="svc.id" :label="svc.name" :value="svc.id" />
           </ElSelect>
-          <div v-if="checkinPrefillService && !checkinServiceId" class="text-xs text-slate-500 mt-1">
+          <div v-if="checkinPrefillService && !checkinServiceId" class="text-xs text-slate-500">
             Prefilled from appointment: {{ checkinPrefillService }}
           </div>
         </div>
-        <div class="flex justify-end gap-2">
-          <ElButton @click="checkinOpen = false">Cancel</ElButton>
-          <ElButton type="primary" @click="submitCheckin(activeCheckinAppt || undefined)">Check in</ElButton>
+        <div class="flex justify-end gap-2 pt-1">
+          <ElButton class="sf-btn" @click="checkinOpen = false">Cancel</ElButton>
+          <ElButton type="primary" class="sf-btn action-accent" @click="submitCheckin(activeCheckinAppt || undefined)">
+            Check in
+          </ElButton>
         </div>
       </div>
     </ElDialog>
@@ -1084,6 +1087,20 @@ watch(completedPage, async (val) => {
 }
 .queue-tabs .sf-tab {
   white-space: nowrap;
+}
+.checkin-form {
+  padding: 4px 2px;
+}
+.checkin-form :deep(.el-input__wrapper),
+.checkin-form :deep(.el-select__wrapper) {
+  padding: 12px 14px;
+  min-height: 46px;
+  font-size: 1rem;
+}
+.checkin-form :deep(.el-input__inner),
+.checkin-form :deep(.el-select__selected-item),
+.checkin-form :deep(.el-select__placeholder) {
+  font-size: 1rem;
 }
 .queue-card {
   align-self: flex-start;

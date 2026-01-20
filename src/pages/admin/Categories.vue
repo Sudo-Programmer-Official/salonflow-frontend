@@ -153,8 +153,8 @@ const confirmDelete = async (cat: ServiceCategory) => {
     <ElCard class="bg-white">
       <div class="mb-4 flex items-center justify-between">
         <div class="text-base font-semibold text-slate-900">Categories</div>
-        <ElButton type="primary" size="small" class="sf-btn sf-btn--table" @click="openModal()">
-          <span aria-hidden="true">➕</span>
+        <ElButton type="primary" size="small" class="sf-btn sf-btn--table sf-btn--icon" @click="openModal()">
+          <span class="text-white" aria-hidden="true">+</span>
           <span>Add Category</span>
         </ElButton>
       </div>
