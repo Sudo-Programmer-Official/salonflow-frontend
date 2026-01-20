@@ -196,7 +196,32 @@ main {
 }
 
 .el-button {
-  padding: 0.55em 0.9em;
+  font-size: 1rem;
+  padding: 0.75em 1.25em;
+  border-radius: 0.75rem;
+  line-height: 1.1;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.el-button--small {
+  padding: 0.5em 0.9em;
+  border-radius: 0.6rem;
+  font-size: 0.9rem;
+}
+
+.el-button--large {
+  padding: 1em 1.5em;
+  border-radius: 1rem;
+  font-size: 1.1rem;
+}
+
+@media (pointer: coarse) {
+  .el-button {
+    min-height: 44px;
+  }
 }
 
 .el-date-editor input,
@@ -216,10 +241,19 @@ main {
   font-weight: 700;
 }
 .sf-btn {
-  padding: 10px 18px;
-  border-radius: 14px;
+  padding: 0.75em 1.25em;
+  border-radius: 0.75rem;
   font-weight: 600;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.01em;
+}
+.sf-btn--cta {
+  padding: 1em 1.6em;
+  border-radius: 1rem;
+  font-size: 1.1rem;
+}
+.sf-btn--subtle {
+  background: transparent;
+  border: 1px solid rgba(0, 0, 0, 0.08);
 }
 .go-btn {
   display: inline-flex;
@@ -228,23 +262,11 @@ main {
   background: linear-gradient(135deg, #0ea5e9, #0b83d9);
   border: none;
   color: #fff;
-  padding: 16px 30px;
-  border-radius: 999px;
-}
-.go-btn.el-button {
-  padding: 16px 30px;
   border-radius: 999px;
 }
 .quick-btn {
-  background: linear-gradient(135deg, #0ea5e9, #0b83d9);
-  color: #fff;
-  border: none;
-  padding: 16px 30px;
-  border-radius: 999px;
-}
-.quick-btn.el-button {
-  padding: 16px 30px;
-  border-radius: 999px;
+  padding: 0.75em 1.4em;
+  border-radius: 0.9rem;
 }
 .quick-btn:hover,
 .go-btn:hover {

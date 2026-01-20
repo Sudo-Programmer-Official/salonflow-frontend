@@ -232,9 +232,3 @@ const navigate = (name: string) => {
     </div>
   </div>
 </template>
-
-<style scoped>
-.sf-btn {
-  padding: 30px 30px;
-}
-</style>
