@@ -196,7 +196,7 @@ watch(results, () => {
     <ElCard v-if="results.length > 0" class="bg-white">
       <div class="table-shell">
         <div class="table-body">
-          <ElTable :data="displayedResults" style="width: 100%">
+          <ElTable :data="displayedResults" style="width: 70%">
             <ElTableColumn label="Customer" min-width="260">
               <template #default="{ row }">
                 <div class="flex items-center gap-3">
@@ -249,7 +249,7 @@ watch(results, () => {
               </template>
             </ElTableColumn>
 
-            <ElTableColumn label="Actions" width="240" fixed="right">
+            <ElTableColumn label="Actions" width="380" fixed="right">
               <template #default="{ row }">
                 <div class="table-actions">
                   <ElButton
