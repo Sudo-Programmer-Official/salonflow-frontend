@@ -249,7 +249,7 @@ watch(results, () => {
               </template>
             </ElTableColumn>
 
-            <ElTableColumn label="Actions" min-width="350" fixed="right">
+            <ElTableColumn label="Actions" min-width="350" fixed="right" align="right" header-align="right">
               <template #default="{ row }">
                 <div class="table-actions">
                   <ElButton
