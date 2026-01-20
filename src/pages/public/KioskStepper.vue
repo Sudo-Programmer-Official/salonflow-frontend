@@ -7,6 +7,7 @@ import { publicLookup, createPublicCheckIn, fetchGroupedServices, type ServiceOp
 import { fetchPublicAvailableStaff, type StaffMember } from '../../api/staff';
 import { startKioskIdleWatchdog } from '../../utils/kioskIdleWatchdog';
 import { applyThemeFromSettings } from '../../utils/theme';
+import { formatUSPhone } from '../../utils/format';
 import { formatPhone } from '../../utils/format';
 
 type Step = 'welcome' | 'phone' | 'services' | 'staff' | 'review' | 'done';
@@ -183,13 +184,11 @@ const serviceSections = computed(() => {
 });
 
 const formattedPhone = computed(() => {
-  if (!phone.value) return 'Not provided';
-  const digits = phone.value.replace(/\D/g, '');
-  if (digits.length === 10) return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-  if (digits.length === 11 && digits.startsWith('1'))
-    return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
-  return phone.value;
+  const formatted = formatUSPhone(phone.value);
+  return formatted || 'Not provided';
 });
+
+const displayPhone = computed(() => formatUSPhone(phone.value) || 'Tap the keypad');
 
 const keypad = [
   ['1', '2', '3'],
@@ -209,6 +208,21 @@ const rewardValue = computed(() => {
   if (points === null || points === undefined) return null;
   const perPointValue = 5 / 300; // mirrors 300 pts = $5 teaser
   return points * perPointValue;
+});
+
+const estimatedTotal = computed(() => {
+  const totalCents = selectedServiceDetails.value.reduce(
+    (acc, svc) => acc + (svc.priceCents ?? 0),
+    0,
+  );
+  const currency = settings.value?.currency || 'USD';
+  const amount = totalCents / 100;
+  const formatted = Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 2,
+  }).format(amount || 0);
+  return { amount, totalCents, formatted, currency };
 });
 
 const appendDigit = (digit: string) => {
@@ -704,7 +718,7 @@ watch(
                   </div>
                   <div class="phone-display">
                     <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">Phone number</div>
-                    <div class="text-3xl font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">{{ phone || 'Tap the keypad' }}</div>
+                    <div class="text-3xl font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">{{ displayPhone }}</div>
                   </div>
                     <div class="keypad">
                       <template v-for="(row, rowIndex) in keypad" :key="row.join('-')">
@@ -967,6 +981,11 @@ watch(
                     </ul>
                     <p v-else class="text-base" :style="{ color: 'var(--kiosk-text-secondary)' }">No services selected.</p>
                   </div>
+                  <div v-if="estimatedTotal.totalCents > 0" class="estimated-total">
+                    <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">Estimated total</div>
+                    <div class="text-lg font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">{{ estimatedTotal.formatted }}</div>
+                    <div class="text-xs" :style="{ color: 'var(--kiosk-text-secondary)' }">Final amount confirmed at checkout.</div>
+                  </div>
                   <div v-if="allowStaffSelection">
                     <p class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">Staff preference</p>
                     <p class="text-base" :style="{ color: 'var(--kiosk-text-primary)' }">
@@ -1051,6 +1070,12 @@ watch(
                   <div v-else class="text-sm text-center" :style="{ color: 'var(--kiosk-text-secondary)' }">
                     Services will be confirmed at the counter.
                   </div>
+                </div>
+
+                <div v-if="estimatedTotal.totalCents > 0" class="estimated-total text-center">
+                  <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">Estimated total</div>
+                  <div class="text-lg font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">{{ estimatedTotal.formatted }}</div>
+                  <div class="text-xs" :style="{ color: 'var(--kiosk-text-secondary)' }">Final amount confirmed at checkout.</div>
                 </div>
 
                 <div class="mt-5 flex flex-col items-center gap-2">
@@ -1584,6 +1609,13 @@ watch(
 }
 .service-chip-card span {
   color: var(--kiosk-text-primary);
+}
+.estimated-total {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--kiosk-border);
+  background: color-mix(in srgb, var(--kiosk-surface) 94%, rgba(255, 255, 255, 0.06) 6%);
 }
 .idle-banner {
   border-radius: 999px;
