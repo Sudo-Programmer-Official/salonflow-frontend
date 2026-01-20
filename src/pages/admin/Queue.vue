@@ -651,7 +651,7 @@ watch(completedPage, async (val) => {
           :key="appt.id"
           class="rounded-md border border-slate-200 bg-slate-50 p-3 shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
         >
-          <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div class="space-y-1">
               <div class="flex flex-wrap items-center gap-2 text-sm text-slate-900">
                 <span class="font-semibold">👤 {{ appt.customerName }}</span>
@@ -668,37 +668,48 @@ watch(completedPage, async (val) => {
                 </span>
               </div>
             </div>
-            <div class="flex flex-wrap gap-2">
+            <div class="appointment-actions">
               <template v-if="appt.status === 'BOOKED'">
-                <ElButton size="small" type="primary" @click="openCheckinModal(appt)">Check in</ElButton>
+                <ElButton
+                  size="small"
+                  type="primary"
+                  class="sf-btn sf-btn--table sf-btn--icon"
+                  @click="openCheckinModal(appt)"
+                >
+                  <span aria-hidden="true">✅</span>
+                  <span>Check in</span>
+                </ElButton>
               </template>
               <ElTag v-else effect="plain" type="success" size="small">Checked in</ElTag>
               <ElTooltip v-if="!isOnline" content="Available when online">
                 <span>
                   <ElButton
                     size="small"
-                    plain
+                    class="sf-btn sf-btn--table sf-btn--icon sf-btn--ghost"
                     :disabled="!isOnline"
                     :loading="sendingMap[appt.id]"
                     @click="sendReminderForAppointment(appt)"
                   >
-                    Reminder
+                    <span aria-hidden="true">🔔</span>
+                    <span>Reminder</span>
                   </ElButton>
                 </span>
               </ElTooltip>
               <ElButton
                 v-else
                 size="small"
-                plain
+                class="sf-btn sf-btn--table sf-btn--icon sf-btn--ghost"
                 :loading="sendingMap[appt.id]"
                 @click="sendReminderForAppointment(appt)"
               >
-                Reminder
+                <span aria-hidden="true">🔔</span>
+                <span>Reminder</span>
               </ElButton>
               <ElTooltip content="Send feedback after checkout">
                 <span>
-                  <ElButton size="small" plain disabled>
-                    Feedback
+                  <ElButton size="small" class="sf-btn sf-btn--table sf-btn--icon sf-btn--ghost" disabled>
+                    <span aria-hidden="true">💬</span>
+                    <span>Feedback</span>
                   </ElButton>
                 </span>
               </ElTooltip>
@@ -1055,6 +1066,14 @@ watch(completedPage, async (val) => {
   .appointment-list {
     max-height: 320px;
   }
+}
+.appointment-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  margin-left: auto;
 }
 .queue-tabs {
   display: flex;
