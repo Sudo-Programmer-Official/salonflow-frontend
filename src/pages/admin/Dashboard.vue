@@ -14,7 +14,7 @@ import { dayjs, nowInBusinessTz, setBusinessTimezone, DEFAULT_TIMEZONE } from '.
 
 const router = useRouter();
 
-// State
+// State variables
 const queue = ref<QueueItem[]>([]);
 const queueLocked = ref(false);
 const appointments = ref<TodayAppointment[]>([]);
