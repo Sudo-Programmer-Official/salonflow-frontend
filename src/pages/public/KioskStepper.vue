@@ -1059,7 +1059,7 @@ watch(
 .kiosk-shell {
   min-height: calc(100vh - 80px);
   padding: 32px 12px 40px;
-  background: transparent;
+  background: var(--bg-app);
   overscroll-behavior: none;
   touch-action: manipulation;
   -webkit-touch-callout: none;
@@ -1067,6 +1067,7 @@ watch(
   --kiosk-surface: var(--kiosk-glass-bg, var(--glass-bg));
   --kiosk-border: var(--kiosk-glass-border, var(--glass-border));
   --kiosk-blur: var(--kiosk-glass-blur, var(--glass-blur));
+  color: var(--kiosk-text-primary);
 }
 :root[data-glass='off'] .kiosk-shell {
   --kiosk-surface: rgba(17, 24, 39, 0.92);
@@ -1085,10 +1086,11 @@ watch(
   display: flex;
   align-items: center;
   justify-content: space-between;
+  color: var(--kiosk-text-primary);
 }
 .kiosk-card {
   border: 1px solid var(--kiosk-border);
-  background: var(--kiosk-surface);
+  background: color-mix(in srgb, var(--kiosk-surface) 88%, #ffffff 12%);
   backdrop-filter: blur(var(--kiosk-blur));
   -webkit-backdrop-filter: blur(var(--kiosk-blur));
   box-shadow: var(--glass-shadow);
@@ -1104,7 +1106,7 @@ watch(
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 10px;
-  background: var(--kiosk-surface);
+  background: color-mix(in srgb, var(--kiosk-surface) 85%, #ffffff 15%);
   border: 1px solid var(--kiosk-border);
   border-radius: 14px;
   padding: 8px 10px;
@@ -1113,12 +1115,12 @@ watch(
   display: flex;
   align-items: center;
   gap: 8px;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--kiosk-text-secondary);
   font-weight: 600;
   font-size: 13px;
 }
 .stepper-item.active {
-  color: #fff;
+  color: var(--kiosk-text-primary);
 }
 .stepper-dot {
   width: 26px;
@@ -1153,7 +1155,7 @@ watch(
 .kiosk-pane {
   border-radius: 16px;
   border: 1px solid var(--kiosk-border);
-  background: var(--kiosk-surface);
+  background: color-mix(in srgb, var(--kiosk-surface) 82%, #ffffff 18%);
   backdrop-filter: blur(var(--kiosk-blur));
   -webkit-backdrop-filter: blur(var(--kiosk-blur));
   padding: 16px;
@@ -1161,7 +1163,7 @@ watch(
 .phone-display {
   border-radius: 12px;
   border: 1px solid var(--kiosk-border);
-  background: var(--kiosk-surface);
+  background: color-mix(in srgb, var(--kiosk-surface) 80%, #ffffff 20%);
   backdrop-filter: blur(var(--kiosk-blur));
   -webkit-backdrop-filter: blur(var(--kiosk-blur));
   padding: 12px;
@@ -1185,7 +1187,8 @@ watch(
   transition: transform 0.1s ease, background 0.12s ease, box-shadow 0.12s ease;
 }
 .keypad-key.action {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.2);
+  color: #1f2937;
 }
 .keypad-key:hover {
   transform: translateY(-1px);
@@ -1211,6 +1214,7 @@ watch(
   flex-direction: column;
   gap: 8px;
   padding: 18px;
+  background: color-mix(in srgb, var(--kiosk-surface) 80%, #ffffff 20%);
 }
 .business-card {
   display: flex;
@@ -1218,6 +1222,7 @@ watch(
   gap: 6px;
   padding: 16px;
   border-radius: 16px;
+  background: color-mix(in srgb, var(--kiosk-surface) 80%, #ffffff 20%);
 }
 .left-stack {
   display: flex;
@@ -1315,11 +1320,11 @@ watch(
 }
 .section-title {
   font-weight: 700;
-  color: #fff;
+  color: var(--kiosk-text-primary);
 }
 .section-sub {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--kiosk-text-secondary);
 }
 .service-list {
   display: flex;
@@ -1332,7 +1337,7 @@ watch(
   align-items: center;
   gap: 12px;
   border: 1px solid var(--kiosk-border);
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.06);
   border-radius: 12px;
   padding: 12px;
   transition: border 0.12s ease, transform 0.12s ease, background 0.12s ease;
@@ -1383,7 +1388,7 @@ watch(
   gap: 4px;
 }
 .service-name {
-  color: #fff;
+  color: var(--kiosk-text-primary);
   font-weight: 700;
   font-size: 16px;
 }
@@ -1391,11 +1396,11 @@ watch(
   display: flex;
   gap: 8px;
   align-items: center;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--kiosk-text-secondary);
   font-size: 13px;
 }
 .service-empty {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--kiosk-text-secondary);
   font-size: 14px;
 }
 .service-actions {
@@ -1413,18 +1418,18 @@ watch(
 .service-card {
   border-radius: 14px;
   border: 1px solid var(--kiosk-border);
-  background: var(--kiosk-surface);
+  background: color-mix(in srgb, var(--kiosk-surface) 85%, #ffffff 15%);
   backdrop-filter: blur(var(--kiosk-blur));
   -webkit-backdrop-filter: blur(var(--kiosk-blur));
   padding: 16px;
   text-align: left;
-  color: #fff;
+  color: var(--kiosk-text-primary);
   cursor: pointer;
   transition: transform 0.12s ease, border 0.12s ease, background 0.12s ease;
 }
 .service-card.active {
   border-color: rgba(99, 102, 241, 0.8);
-  background: rgba(99, 102, 241, 0.12);
+  background: color-mix(in srgb, var(--kiosk-primary) 14%, #ffffff 86%);
 }
 .service-card:hover {
   transform: translateY(-2px);
@@ -1435,16 +1440,16 @@ watch(
 }
 .service-chip {
   padding: 4px 8px;
-  background: rgba(99, 102, 241, 0.2);
+  background: color-mix(in srgb, var(--kiosk-primary) 20%, transparent);
   border-radius: 999px;
   font-size: 12px;
-  color: #c7d2fe;
-  border: 1px solid rgba(99, 102, 241, 0.4);
+  color: var(--kiosk-text-primary);
+  border: 1px solid color-mix(in srgb, var(--kiosk-primary) 40%, #ffffff 60%);
 }
 .review-block {
   border-radius: 14px;
   border: 1px solid var(--kiosk-border);
-  background: var(--kiosk-surface);
+  background: color-mix(in srgb, var(--kiosk-surface) 86%, #ffffff 14%);
   backdrop-filter: blur(var(--kiosk-blur));
   -webkit-backdrop-filter: blur(var(--kiosk-blur));
   padding: 16px;
@@ -1453,6 +1458,7 @@ watch(
 }
 .review-block p {
   user-select: text;
+  color: var(--kiosk-text-primary);
 }
 .done-card {
   text-align: center;

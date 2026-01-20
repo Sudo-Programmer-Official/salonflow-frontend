@@ -47,6 +47,8 @@
   --kiosk-glass: var(--glass-bg);
   --kiosk-surface-milky: #ffffffee;
   --kiosk-border-milky: rgba(148, 163, 184, 0.35);
+  --kiosk-text-primary: #0f172a;
+  --kiosk-text-secondary: #475569;
   color: var(--text-color);
   background-color: #f8fafc;
   font-family: var(--ui-font-family);
