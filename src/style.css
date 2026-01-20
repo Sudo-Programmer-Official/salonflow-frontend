@@ -71,16 +71,16 @@
 }
 
 :root[data-kiosk-theme='milky'] {
-  --bg-app: #f7f9fb;
-  --kiosk-surface: var(--kiosk-surface-milky);
+  --bg-app: linear-gradient(180deg, #f7f9fb 0%, #eef2f7 50%, #f7f9fb 100%);
+  --kiosk-surface: #ffffff;
   --kiosk-glass: rgba(255, 255, 255, 0.9);
-  --kiosk-border: var(--kiosk-border-milky);
+  --kiosk-border: rgba(148, 163, 184, 0.25);
   --kiosk-primary: var(--green-light);
   --kiosk-accent: #f4a632;
-  --kiosk-glass-bg: rgba(255, 255, 255, 0.92);
-  --kiosk-glass-border: var(--kiosk-border-milky);
-  --kiosk-glass-blur: 16px;
-  --kiosk-glass-saturate: 140%;
+  --kiosk-glass-bg: rgba(255, 255, 255, 0.9);
+  --kiosk-glass-border: rgba(148, 163, 184, 0.25);
+  --kiosk-glass-blur: 12px;
+  --kiosk-glass-saturate: 125%;
   --kiosk-text-primary: #1f2937;
   --kiosk-text-secondary: #4b5563;
   --kiosk-text-muted: #6b7280;

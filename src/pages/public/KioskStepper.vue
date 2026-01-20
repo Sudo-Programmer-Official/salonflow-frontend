@@ -1091,10 +1091,10 @@ watch(
 }
 .kiosk-card {
   border: 1px solid var(--kiosk-border);
-  background: color-mix(in srgb, var(--kiosk-surface) 90%, #ffffff 10%);
+  background: color-mix(in srgb, var(--kiosk-surface) 96%, rgba(255, 255, 255, 0.04) 4%);
   backdrop-filter: blur(var(--kiosk-blur));
   -webkit-backdrop-filter: blur(var(--kiosk-blur));
-  box-shadow: var(--glass-shadow);
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.08);
 }
 .kiosk-disabled {
   border: 1px dashed var(--kiosk-border);
@@ -1156,7 +1156,7 @@ watch(
 .kiosk-pane {
   border-radius: 16px;
   border: 1px solid var(--kiosk-border);
-  background: color-mix(in srgb, var(--kiosk-surface) 82%, #ffffff 18%);
+  background: color-mix(in srgb, var(--kiosk-surface) 94%, rgba(255, 255, 255, 0.06) 6%);
   backdrop-filter: blur(var(--kiosk-blur));
   -webkit-backdrop-filter: blur(var(--kiosk-blur));
   padding: 16px;
@@ -1164,7 +1164,7 @@ watch(
 .phone-display {
   border-radius: 12px;
   border: 1px solid var(--kiosk-border);
-  background: color-mix(in srgb, var(--kiosk-surface) 80%, #ffffff 20%);
+  background: color-mix(in srgb, var(--kiosk-surface) 92%, rgba(255, 255, 255, 0.08) 8%);
   backdrop-filter: blur(var(--kiosk-blur));
   -webkit-backdrop-filter: blur(var(--kiosk-blur));
   padding: 12px;
@@ -1215,7 +1215,7 @@ watch(
   flex-direction: column;
   gap: 8px;
   padding: 18px;
-  background: color-mix(in srgb, var(--kiosk-surface) 80%, #ffffff 20%);
+  background: color-mix(in srgb, var(--kiosk-surface) 94%, rgba(255, 255, 255, 0.06) 6%);
 }
 .business-card {
   display: flex;
@@ -1223,7 +1223,7 @@ watch(
   gap: 6px;
   padding: 16px;
   border-radius: 16px;
-  background: color-mix(in srgb, var(--kiosk-surface) 80%, #ffffff 20%);
+  background: color-mix(in srgb, var(--kiosk-surface) 94%, rgba(255, 255, 255, 0.06) 6%);
 }
 .left-stack {
   display: flex;
@@ -1430,7 +1430,7 @@ watch(
 }
 .service-card.active {
   border-color: rgba(99, 102, 241, 0.8);
-  background: color-mix(in srgb, var(--kiosk-primary) 14%, #ffffff 86%);
+  background: color-mix(in srgb, var(--kiosk-primary) 12%, rgba(255, 255, 255, 0.1) 88%);
 }
 .service-card:hover {
   transform: translateY(-2px);
