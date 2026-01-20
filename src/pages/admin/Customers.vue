@@ -11,7 +11,7 @@ import {
   sendCustomerFeedback,
 } from '../../api/customers';
 import CustomerTimeline from '../../components/CustomerTimeline.vue';
-import { formatInBusinessTz } from '../../utils/dates';
+import { formatInBusinessTz, humanizeTime } from '../../utils/dates';
 
 const PAGE_SIZE = 10;
 const query = ref('');
@@ -54,6 +54,7 @@ const doSearch = async () => {
 };
 
 const formatDate = (value: string | null) => formatInBusinessTz(value, 'MMM D, YYYY');
+const relativeDate = (value: string | null) => humanizeTime(value);
 
 const openTimeline = async (customerId: string) => {
   timelineLoading.value = true;
@@ -179,14 +180,23 @@ watch(results, () => {
     </div>
 
     <ElCard class="bg-white">
-      <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+      <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 max-w-xl">
         <ElInput
           v-model="query"
           placeholder="Search by name or phone"
           clearable
+          class="sf-input flex-1"
           @keyup.enter="doSearch"
         />
-        <ElButton type="primary" class="action-accent" :loading="loading" @click="doSearch">Search</ElButton>
+        <ElButton
+          type="primary"
+          class="sf-btn sf-btn-search action-accent"
+          :loading="loading"
+          @click="doSearch"
+        >
+          <span aria-hidden="true">🔍</span>
+          <span>Search</span>
+        </ElButton>
       </div>
       <div v-if="errorMessage" class="mt-3 text-sm text-amber-700">
         {{ errorMessage }}
@@ -214,10 +224,13 @@ watch(results, () => {
             <ElTableColumn label="Activity" width="180">
               <template #default="{ row }">
                 <div class="space-y-1 text-xs text-slate-700">
-                  <div>
-                    Last visit:
-                    <ElTooltip :content="row.lastVisitAt || '—'" placement="top">
-                      <span class="font-medium">{{ formatDate(row.lastVisitAt) }}</span>
+                  <div class="flex items-center gap-1">
+                    <span class="text-slate-500">Last visit:</span>
+                    <ElTooltip :content="formatDate(row.lastVisitAt)" placement="top">
+                      <span class="flex items-center gap-1 text-slate-500">
+                        <span aria-hidden="true">🕒</span>
+                        <span class="font-semibold text-slate-700">{{ relativeDate(row.lastVisitAt) }}</span>
+                      </span>
                     </ElTooltip>
                   </div>
                   <div>Visits: {{ row.visitCount ?? 0 }}</div>

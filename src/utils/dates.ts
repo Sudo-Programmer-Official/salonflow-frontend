@@ -1,9 +1,11 @@
 import dayjsLib from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
 
 dayjsLib.extend(utc);
 dayjsLib.extend(timezone);
+dayjsLib.extend(relativeTime);
 
 export const DEFAULT_TIMEZONE = 'America/Chicago';
 export const BUSINESS_TZ_KEY = 'businessTimezone';
@@ -39,3 +41,9 @@ export function nowInBusinessTz(tz?: string) {
 }
 
 export const dayjs = dayjsLib;
+
+export function humanizeTime(date: string | number | Date | null | undefined): string {
+  if (!date) return '—';
+  const d = dayjsLib(date);
+  return d.isValid() ? d.fromNow() : '—';
+}

@@ -28,6 +28,8 @@ const loading = ref(false);
 const dialogOpen = ref(false);
 const saving = ref(false);
 const error = ref('');
+const pageSize = 10;
+const currentPage = ref(1);
 const form = reactive({
   id: '' as string | null,
   name: '',
@@ -46,11 +48,21 @@ const sortedCategories = computed(() =>
   }),
 );
 
+const paginatedCategories = computed(() => {
+  const start = (currentPage.value - 1) * pageSize;
+  return sortedCategories.value.slice(start, start + pageSize);
+});
+
+const totalCategories = computed(() => sortedCategories.value.length);
+
 const loadCategories = async () => {
   loading.value = true;
   error.value = '';
   try {
     categories.value = await fetchCategories();
+    if (currentPage.value > Math.max(1, Math.ceil(categories.value.length / pageSize))) {
+      currentPage.value = 1;
+    }
   } catch (err: any) {
     error.value = err?.message || 'Failed to load categories';
   } finally {
@@ -159,7 +171,7 @@ const confirmDelete = async (cat: ServiceCategory) => {
         </ElButton>
       </div>
 
-      <ElTable :data="sortedCategories" :loading="loading" style="width: 100%" border>
+      <ElTable :data="paginatedCategories" :loading="loading" style="width: 100%" border>
         <ElTableColumn label="Icon" width="80">
           <template #default="{ row }">
             <div class="text-xl text-center">{{ row.icon || '📋' }}</div>
@@ -212,6 +224,18 @@ const confirmDelete = async (cat: ServiceCategory) => {
           </template>
         </ElTableColumn>
       </ElTable>
+      <div class="mt-4 flex items-center justify-between text-xs text-slate-600 categories-pagination" v-if="totalCategories > pageSize">
+        <div>
+          Showing {{ (currentPage - 1) * pageSize + 1 }}–{{ Math.min(currentPage * pageSize, totalCategories) }} of {{ totalCategories }} categories
+        </div>
+        <el-pagination
+          background
+          layout="prev, pager, next"
+          :page-size="pageSize"
+          :total="totalCategories"
+          v-model:current-page="currentPage"
+        />
+      </div>
     </ElCard>
 
     <ElDialog v-model="dialogOpen" :title="form.id ? 'Edit Category' : 'Add Category'" width="480px">

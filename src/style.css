@@ -190,16 +190,23 @@ main {
   font-size: 1rem;
   font-family: var(--ui-font-family);
 }
+.el-table {
+  font-size: 0.95rem;
+}
+.el-table .cell {
+  padding: 10px 12px;
+}
 .el-input__wrapper,
 .el-select__wrapper {
-  padding: 0.75em 1em;
+  padding: 0.55em 0.9em;
+  border-radius: 10px;
 }
 
 .el-button {
-  font-size: 1rem;
-  padding: 0.75em 1.25em;
-  border-radius: 0.75rem;
-  line-height: 1.1;
+  font-size: 0.95rem;
+  padding: 0.6em 1.1em;
+  border-radius: 10px;
+  line-height: 1;
   font-weight: 600;
   display: inline-flex;
   align-items: center;
@@ -207,15 +214,15 @@ main {
 }
 
 .el-button--small {
-  padding: 0.5em 0.9em;
-  border-radius: 0.6rem;
-  font-size: 0.9rem;
+  padding: 0.55em 0.95em;
+  border-radius: 9px;
+  font-size: 0.92rem;
 }
 
 .el-button--large {
-  padding: 1em 1.5em;
-  border-radius: 1rem;
-  font-size: 1.1rem;
+  padding: 0.9em 1.4em;
+  border-radius: 12px;
+  font-size: 1.05rem;
 }
 
 @media (pointer: coarse) {
@@ -241,14 +248,23 @@ main {
   font-weight: 700;
 }
 .sf-btn {
-  padding: 1.25em 1.25em !important;
-  border-radius: 0.75rem;
-  font-weight: 600;
+  padding: 0.6em 1.1em !important;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 650;
   letter-spacing: 0.01em;
   transition: transform 120ms ease, filter 120ms ease;
 }
 .sf-btn:hover {
   transform: translateY(-1px);
+}
+.sf-btn-search {
+  min-width: 92px;
+}
+.sf-input :deep(.el-input__wrapper) {
+  padding: 0.55em 0.9em;
+  border-radius: 10px;
+  font-size: 0.95rem;
 }
 .sf-btn--cta {
   padding: 1em 1.6em;
@@ -263,6 +279,11 @@ main {
   padding: 0.6em 1em;
   font-size: 0.9rem;
   border-radius: 999px;
+}
+.sf-btn-sm {
+  font-size: 0.85rem;
+  padding: 0.45em 0.9em;
+  border-radius: 8px;
 }
 .sf-btn--icon {
   display: inline-flex;
@@ -318,6 +339,18 @@ main {
   gap: 0.6rem;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+.categories-pagination {
+  padding: 10px 12px;
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.categories-pagination .el-pagination {
+  padding: 0;
+}
+.categories-pagination :deep(.el-pager li) {
+  border-radius: 8px;
 }
 .el-table__row td {
   padding-top: 0.75rem;

@@ -279,25 +279,31 @@ const saveAvailabilityChanges = async () => {
           :stripe="true"
           class="staff-table"
         >
-          <ElTableColumn label="Name" min-width="200" class-name="col-name">
+          <ElTableColumn label="Name" width="260" class-name="col-name">
             <template #default="{ row }">
               <div class="flex items-center gap-3">
                 <div class="name-avatar" aria-hidden="true">
                   {{ staffInitial(row.name) }}
                 </div>
-                <span class="text-sm font-semibold text-slate-900">{{ row.name }}</span>
+                <div class="flex flex-col leading-tight">
+                  <span class="text-sm font-semibold text-slate-900">{{ row.name }}</span>
+                  <span class="text-xs text-slate-600 flex items-center gap-1">
+                    <span aria-hidden="true">📞</span>
+                    <span>{{ row.phoneE164 || '—' }}</span>
+                  </span>
+                </div>
               </div>
             </template>
           </ElTableColumn>
-          <ElTableColumn label="Nickname" width="180" class-name="col-nickname">
+          <ElTableColumn label="Nickname" width="160" class-name="col-nickname">
             <template #default="{ row }">
-              <span class="text-sm text-slate-800">{{ row.nickname || '—' }}</span>
+              <span class="text-sm text-slate-700">{{ row.nickname || '—' }}</span>
             </template>
           </ElTableColumn>
-          <ElTableColumn prop="phoneE164" label="Phone" min-width="180" class-name="col-phone">
+          <ElTableColumn prop="phoneE164" label="Phone" width="180" class-name="col-phone">
             <template #default="{ row }">
               <span class="text-sm text-slate-800 flex items-center gap-1">
-                📞
+                <span aria-hidden="true">📞</span>
                 <span>{{ row.phoneE164 || '—' }}</span>
               </span>
             </template>
@@ -314,7 +320,13 @@ const saveAvailabilityChanges = async () => {
           </ElTableColumn>
           <ElTableColumn label="Services" width="150">
             <template #default="{ row }">
-              <ElButton size="small" class="action-accent sf-btn sf-btn--table" @click="openAssignments(row)">Assign</ElButton>
+              <ElButton
+                size="small"
+                class="action-accent sf-btn sf-btn--table sf-btn-sm"
+                @click="openAssignments(row)"
+              >
+                Assign
+              </ElButton>
             </template>
           </ElTableColumn>
         </ElTable>
@@ -471,10 +483,10 @@ const saveAvailabilityChanges = async () => {
   min-height: 44px;
 }
 .staff-table :deep(.col-name) {
-  width: auto;
+  width: 260px;
 }
 .staff-table :deep(.col-nickname) {
-  width: 180px;
+  width: 160px;
 }
 .staff-table :deep(.col-active) {
   width: 120px;

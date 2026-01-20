@@ -28,6 +28,7 @@ import {
 } from '../../api/appointments';
 import { fetchServices, type ServiceOption, createPublicCheckIn } from '../../api/checkins';
 import { searchCustomers, sendCustomerReminder } from '../../api/customers';
+import { humanizeTime } from '../../utils/dates';
 
 const PAGE_SIZE = 10;
 
@@ -236,16 +237,6 @@ const statusLabel = (status: QueueItem['status']) => {
   return status;
 };
 
-const statusType = (status: QueueItem['status']) => {
-  if (status === 'CALLED') return 'warning';
-  if (status === 'IN_SERVICE') return 'warning';
-  if (status === 'WAITING') return 'info';
-  if (status === 'COMPLETED') return 'success';
-  if (status === 'NO_SHOW') return 'danger';
-  if (status === 'CANCELED') return 'danger';
-  return 'info';
-};
-
 const waitingItems = computed(() =>
   queue.value
     .filter((item) => item.status === 'WAITING' || item.status === 'CALLED')
@@ -333,16 +324,22 @@ const sendReminderForAppointment = async (appt: TodayAppointment) => {
   }
 };
 
-const elapsed = (item: QueueItem) => {
-  const start = item.calledAt || item.createdAt;
-  if (!start) return '';
-  const diffMs = Date.now() - new Date(start).getTime();
-  const minutes = Math.floor(diffMs / (1000 * 60));
-  if (minutes <= 0) return 'Just now';
-  if (minutes < 60) return `${minutes} min ago`;
-  const hours = Math.floor(minutes / 60);
-  const rem = minutes % 60;
-  return `${hours}h ${rem}m ago`;
+const elapsed = (item: QueueItem) => humanizeTime(item.calledAt || item.createdAt || null);
+
+const statusChip = (status: QueueItem['status']) => {
+  if (status === 'WAITING') return { icon: '🧍', tone: 'waiting', label: 'Waiting' };
+  if (status === 'CALLED') return { icon: '📣', tone: 'called', label: 'Call Next' };
+  if (status === 'IN_SERVICE') return { icon: '✂️', tone: 'in-service', label: 'In Service' };
+  if (status === 'COMPLETED') return { icon: '✅', tone: 'completed', label: 'Completed' };
+  if (status === 'NO_SHOW') return { icon: '⚪', tone: 'muted', label: 'No Show' };
+  return { icon: 'ℹ️', tone: 'muted', label: statusLabel(status) };
+};
+
+const cardToneClass = (status: QueueItem['status']) => {
+  if (status === 'IN_SERVICE') return 'queue-card--in-service';
+  if (status === 'WAITING' || status === 'CALLED') return 'queue-card--waiting';
+  if (status === 'COMPLETED') return 'queue-card--completed';
+  return '';
 };
 
 const openCheckout = (id: string) => {
@@ -751,7 +748,7 @@ watch(completedPage, async (val) => {
               :class="{ active: activeTab === 'WAITING' }"
               @click="activeTab = 'WAITING'"
             >
-              Waiting ({{ queueCounts.waiting }})
+              🧍 Waiting ({{ queueCounts.waiting }})
             </button>
             <button
               type="button"
@@ -759,7 +756,7 @@ watch(completedPage, async (val) => {
               :class="{ active: activeTab === 'IN_SERVICE' }"
               @click="activeTab = 'IN_SERVICE'"
             >
-              In Service ({{ queueCounts.inService }})
+              ✂️ In Service ({{ queueCounts.inService }})
             </button>
             <button
               type="button"
@@ -767,7 +764,7 @@ watch(completedPage, async (val) => {
               :class="{ active: activeTab === 'COMPLETED' }"
               @click="activeTab = 'COMPLETED'"
             >
-              Completed ({{ queueCounts.completed }})
+              ✅ Completed ({{ queueCounts.completed }})
             </button>
           </div>
         </div>
@@ -796,6 +793,7 @@ watch(completedPage, async (val) => {
           :key="item.id"
           shadow="hover"
           class="queue-card glass-card"
+          :class="cardToneClass(item.status)"
         >
           <div class="flex items-start gap-3">
             <div class="queue-avatar">
@@ -807,10 +805,19 @@ watch(completedPage, async (val) => {
                   {{ item.customerName || 'Unknown' }}
                 </div>
                 <div class="flex items-center gap-1">
-                  <ElTag :type="statusType(item.status)" effect="light">
-                    {{ statusLabel(item.status) }}
-                  </ElTag>
-                  <ElTag v-if="item.customerType" effect="plain" size="small">
+                  <span
+                    class="sf-status"
+                    :class="`sf-status--${statusChip(item.status).tone}`"
+                  >
+                    <span aria-hidden="true">{{ statusChip(item.status).icon }}</span>
+                    <span>{{ statusChip(item.status).label }}</span>
+                  </span>
+                  <ElTag
+                    v-if="item.customerType"
+                    effect="plain"
+                    size="small"
+                    :class="item.customerType === 'VIP' ? 'vip-tag' : ''"
+                  >
                     {{ item.customerType === 'VIP' ? 'VIP' : item.customerType === 'SECOND_TIME' ? '2nd-time' : 'Regular' }}
                   </ElTag>
                 </div>
@@ -834,7 +841,10 @@ watch(completedPage, async (val) => {
             </div>
           </div>
           <div class="mt-2 flex items-center justify-between text-sm text-slate-700 meta">
-            <div class="flex items-center gap-1">⏱ {{ elapsed(item) }}</div>
+            <div class="flex items-center gap-1 text-slate-500 text-xs">
+              <span aria-hidden="true">🕒</span>
+              <span>{{ elapsed(item) }}</span>
+            </div>
             <div class="flex items-center gap-1 text-slate-700">
               💎 <span class="font-semibold">{{ item.pointsBalance ?? 0 }}</span>
             </div>
@@ -845,10 +855,11 @@ watch(completedPage, async (val) => {
               size="small"
               type="primary"
               :loading="actionLoading === item.id"
-              class="sf-btn"
+              :class="['sf-btn', 'sf-call-next', { 'sf-call-next--attention': activeTab === 'WAITING' }]"
               @click="handleAction(item.id, () => callCheckIn(item.id))"
             >
-              Call Next
+              <span aria-hidden="true">👤➡️</span>
+              <span>Call Next</span>
             </ElButton>
             <template v-else-if="item.status === 'CALLED'">
               <ElButton
@@ -1088,6 +1099,116 @@ watch(completedPage, async (val) => {
 .queue-tabs .sf-tab {
   white-space: nowrap;
 }
+.queue-tabs .sf-tab {
+  border-radius: 999px;
+  padding: 0.55em 1.1em;
+  font-weight: 650;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(255, 255, 255, 0.6);
+  color: #0f172a;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+  transition: all 0.16s ease;
+}
+.queue-tabs .sf-tab:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.18);
+}
+.queue-tabs .sf-tab.active {
+  background: linear-gradient(135deg, #2563eb, #0ea5e9);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 8px 20px rgba(14, 165, 233, 0.35);
+  opacity: 1;
+}
+.sf-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.sf-status--waiting {
+  background: rgba(59, 130, 246, 0.12);
+  color: #1d4ed8;
+}
+.sf-status--called {
+  background: linear-gradient(120deg, rgba(59, 130, 246, 0.14), rgba(16, 185, 129, 0.16));
+  color: #0f766e;
+  box-shadow: inset 0 0 0 1px rgba(14, 165, 233, 0.18);
+}
+.sf-status--in-service {
+  background: rgba(16, 185, 129, 0.16);
+  color: #047857;
+}
+.sf-status--in-service::after {
+  content: ' ●';
+  animation: sf-status-blink 1.6s infinite;
+}
+.sf-status--completed {
+  background: rgba(100, 116, 139, 0.14);
+  color: #0f172a;
+}
+.sf-status--muted {
+  background: rgba(148, 163, 184, 0.16);
+  color: #334155;
+}
+.sf-call-next {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  padding: 0.65em 1.1em;
+  font-weight: 700;
+  box-shadow: 0 8px 18px rgba(59, 130, 246, 0.28);
+  transition: all 0.2s ease;
+}
+.sf-call-next:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(59, 130, 246, 0.35);
+}
+.sf-call-next--attention {
+  animation: sf-pulse 2s infinite;
+}
+.vip-tag {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #92400e;
+  border: none;
+  font-weight: 700;
+}
+@keyframes sf-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.35);
+  }
+  70% {
+    box-shadow: 0 0 0 12px rgba(59, 130, 246, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+}
+@keyframes sf-status-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.queue-card--waiting {
+  background: linear-gradient(145deg, rgba(14, 165, 233, 0.04), rgba(59, 130, 246, 0.03));
+}
+.queue-card--in-service {
+  background: linear-gradient(145deg, rgba(16, 185, 129, 0.08), rgba(14, 165, 233, 0.03));
+  box-shadow: 0 12px 30px rgba(16, 185, 129, 0.12);
+}
+.queue-card--completed {
+  background: linear-gradient(145deg, rgba(148, 163, 184, 0.08), rgba(226, 232, 240, 0.6));
+  opacity: 0.95;
+}
 .checkin-form {
   padding: 4px 2px;
 }
@@ -1195,7 +1316,7 @@ watch(completedPage, async (val) => {
 .queue-date-picker {
   height: 44px;
   min-width: 160px;
-  padding: 0 14px;
+  /* padding: 0 14px; */
   border-radius: 12px;
   font-size: 1rem;
   background: #ffffff;
