@@ -198,15 +198,15 @@ main {
 }
 .el-input__wrapper,
 .el-select__wrapper {
-  padding: 0.55em 0.9em;
-  border-radius: 10px;
+  padding: 0.75em 1em;
+  border-radius: 0.75rem;
 }
 
 .el-button {
-  font-size: 0.95rem;
-  padding: 0.6em 1.1em;
-  border-radius: 10px;
-  line-height: 1;
+  font-size: 1rem;
+  padding: 0.75em 1.25em;
+  border-radius: 0.75rem;
+  line-height: 1.1;
   font-weight: 600;
   display: inline-flex;
   align-items: center;
@@ -214,15 +214,15 @@ main {
 }
 
 .el-button--small {
-  padding: 0.55em 0.95em;
-  border-radius: 9px;
-  font-size: 0.92rem;
+  padding: 0.5em 0.9em;
+  border-radius: 0.6rem;
+  font-size: 0.9rem;
 }
 
 .el-button--large {
-  padding: 0.9em 1.4em;
-  border-radius: 12px;
-  font-size: 1.05rem;
+  padding: 1em 1.5em;
+  border-radius: 1rem;
+  font-size: 1.1rem;
 }
 
 @media (pointer: coarse) {
@@ -248,10 +248,10 @@ main {
   font-weight: 700;
 }
 .sf-btn {
-  padding: 0.9em 1.1em !important;
-  border-radius: 10px;
-  font-size: 0.95rem;
-  font-weight: 650;
+  padding: 1.25em 1.25em !important;
+  border-radius: 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
   letter-spacing: 0.01em;
   transition: transform 120ms ease, filter 120ms ease;
 }
