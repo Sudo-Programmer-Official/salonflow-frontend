@@ -237,7 +237,7 @@ const goToPage = (target: number) => {
         <h1 class="text-2xl font-semibold text-slate-900">Appointments</h1>
         <p class="text-sm text-slate-600">Create and manage appointments.</p>
       </div>
-      <ElButton type="primary" @click="openCreate">New Appointment</ElButton>
+      <ElButton type="primary" class="sf-btn" @click="openCreate">New Appointment</ElButton>
     </div>
 
     <ElCard class="bg-white">
@@ -270,12 +270,13 @@ const goToPage = (target: number) => {
         <ElTableColumn label="Actions" width="220">
           <template #default="{ row }">
             <div class="flex flex-wrap gap-2">
-              <ElButton size="small" type="primary" @click="openEdit(row)">Edit</ElButton>
-              <ElButton size="small" type="danger" @click="handleCancel(row.id)">Cancel</ElButton>
+              <ElButton size="small" type="primary" class="sf-btn sf-btn--table" @click="openEdit(row)">Edit</ElButton>
+              <ElButton size="small" type="danger" class="sf-btn sf-btn--table" @click="handleCancel(row.id)">Cancel</ElButton>
               <ElButton
                 v-if="row.status === 'BOOKED'"
                 size="small"
                 type="success"
+                class="sf-btn sf-btn--table"
                 @click="handleComplete(row.id)"
               >
                 Complete
@@ -290,13 +291,14 @@ const goToPage = (target: number) => {
       </div>
         </div>
         <div class="pagination-footer">
-          <ElButton size="small" plain :disabled="page <= 1" @click="goToPage(1)">«</ElButton>
-          <ElButton size="small" plain :disabled="page <= 1" @click="changePage('prev')">Prev</ElButton>
+          <ElButton size="small" plain class="sf-btn sf-btn--table" :disabled="page <= 1" @click="goToPage(1)">«</ElButton>
+          <ElButton size="small" plain class="sf-btn sf-btn--table" :disabled="page <= 1" @click="changePage('prev')">Prev</ElButton>
           <div class="page-indicator">Page {{ page }} of {{ totalPages }}</div>
           <ElButton
             size="small"
             plain
             :disabled="page >= totalPages"
+            class="sf-btn sf-btn--table"
             @click="changePage('next')"
           >
             Next
@@ -363,8 +365,8 @@ const goToPage = (target: number) => {
       </div>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <ElButton @click="dialogVisible = false">Cancel</ElButton>
-          <ElButton type="primary" :loading="saving" @click="saveAppointment">
+          <ElButton class="sf-btn" @click="dialogVisible = false">Cancel</ElButton>
+          <ElButton type="primary" class="sf-btn" :loading="saving" @click="saveAppointment">
             Save
           </ElButton>
         </div>

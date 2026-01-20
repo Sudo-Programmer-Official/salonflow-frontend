@@ -449,7 +449,9 @@ const handleCategorySelect = (val: string | null) => {
           <ElInputNumber v-model="form.minNotice" :min="0" :max="10080" :step="30" class="w-full" size="small" />
         </ElFormItem>
         <div class="sm:col-span-4 flex justify-end">
-          <ElButton type="primary" :loading="creating" size="small" @click="handleCreate">Add Service</ElButton>
+          <ElButton type="primary" :loading="creating" size="small" class="sf-btn sf-btn--table" @click="handleCreate">
+            Add Service
+          </ElButton>
         </div>
       </ElForm>
     </ElCard>
@@ -469,7 +471,7 @@ const handleCategorySelect = (val: string | null) => {
             <ElOption v-for="cat in categoryOptions" :key="cat.id" :label="`${cat.icon} ${cat.name}`" :value="cat.id" />
             <ElOption label="Uncategorized" value="__uncategorized__" />
           </ElSelect>
-          <ElButton size="small" plain @click="goToCategories()">Manage Categories</ElButton>
+          <ElButton size="small" plain class="sf-btn sf-btn--table" @click="goToCategories()">Manage Categories</ElButton>
         </div>
       </div>
 
@@ -492,11 +494,12 @@ const handleCategorySelect = (val: string | null) => {
               size="small"
               @change="(val) => handleCategoryToggle(cat.id, val as boolean)"
             />
-            <ElButton size="small" plain @click.stop="openCategoryDialog(cat)">Edit</ElButton>
+            <ElButton size="small" plain class="sf-btn sf-btn--table" @click.stop="openCategoryDialog(cat)">Edit</ElButton>
             <ElButton
               size="small"
               plain
               type="danger"
+              class="sf-btn sf-btn--table"
               @click.stop="deleteCategoryAction(cat.id)"
             >
               Delete
@@ -508,7 +511,7 @@ const handleCategorySelect = (val: string | null) => {
           class="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-600 flex items-center justify-between"
         >
           <div>Add your first category to group services.</div>
-          <ElButton size="small" type="primary" @click="openCategoryDialog()">Add</ElButton>
+          <ElButton size="small" type="primary" class="sf-btn sf-btn--table" @click="openCategoryDialog()">Add</ElButton>
         </div>
       </div>
       <ElTable
@@ -577,7 +580,7 @@ const handleCategorySelect = (val: string | null) => {
                 />
               </ElTooltip>
               <ElDropdown trigger="click" class="no-row-click">
-                <ElButton text size="small">⋮</ElButton>
+                <ElButton text size="small" class="sf-btn sf-btn--table">⋮</ElButton>
                 <template #dropdown>
                   <ElDropdownMenu>
                     <ElDropdownItem @click.prevent="openEdit(row)">Edit</ElDropdownItem>
@@ -643,8 +646,8 @@ const handleCategorySelect = (val: string | null) => {
       </div>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <ElButton @click="dialogVisible = false">Cancel</ElButton>
-          <ElButton type="primary" :loading="saving" @click="handleSaveEdit">Save</ElButton>
+          <ElButton class="sf-btn" @click="dialogVisible = false">Cancel</ElButton>
+          <ElButton type="primary" class="sf-btn" :loading="saving" @click="handleSaveEdit">Save</ElButton>
         </div>
       </template>
     </ElDialog>
@@ -672,8 +675,8 @@ const handleCategorySelect = (val: string | null) => {
       </div>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <ElButton @click="categoryDialogOpen = false">Cancel</ElButton>
-          <ElButton type="primary" @click="saveCategory">Save</ElButton>
+          <ElButton class="sf-btn" @click="categoryDialogOpen = false">Cancel</ElButton>
+          <ElButton type="primary" class="sf-btn" @click="saveCategory">Save</ElButton>
         </div>
       </template>
     </ElDialog>

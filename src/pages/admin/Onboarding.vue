@@ -222,7 +222,7 @@ const saveLocation = async () => {
           Onboarding is finished. You can review or update any step at any time.
         </p>
       </div>
-      <ElButton plain size="small" @click="quickNav('admin-dashboard')">
+      <ElButton plain size="small" class="sf-btn sf-btn--table" @click="quickNav('admin-dashboard')">
         {{ status?.completed ? 'Back to dashboard' : 'Skip for now' }}
       </ElButton>
     </div>
@@ -257,7 +257,7 @@ const saveLocation = async () => {
         </div>
       </div>
       <div class="mt-4 flex justify-end">
-        <ElButton type="primary" :loading="savingLocation" @click="saveLocation">
+        <ElButton type="primary" class="sf-btn" :loading="savingLocation" @click="saveLocation">
           Save location
         </ElButton>
       </div>
@@ -282,7 +282,7 @@ const saveLocation = async () => {
           class="mt-2 flex items-center justify-between rounded-md border border-sky-100 bg-sky-50 px-3 py-2 text-xs text-slate-700"
         >
           <div class="font-semibold text-slate-900">Next up: {{ nextStep.label }}</div>
-          <ElButton type="primary" size="small" @click="nextStep.action">
+          <ElButton type="primary" size="small" class="sf-btn sf-btn--table" @click="nextStep.action">
             {{ nextStep.cta }}
           </ElButton>
         </div>
@@ -291,7 +291,7 @@ const saveLocation = async () => {
           class="mt-2 flex items-center justify-between rounded-md border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-800"
         >
           <div class="font-semibold">Onboarding complete</div>
-          <ElButton type="primary" size="small" @click="quickNav('admin-dashboard')">
+          <ElButton type="primary" size="small" class="sf-btn sf-btn--table" @click="quickNav('admin-dashboard')">
             Go to Dashboard
           </ElButton>
         </div>
@@ -316,6 +316,7 @@ const saveLocation = async () => {
               v-if="item.label === 'QR printed' && !item.done"
               type="primary"
               size="small"
+              class="sf-btn sf-btn--table"
               :loading="markingQr"
               @click="handleMarkQrPrinted"
             >
@@ -324,6 +325,7 @@ const saveLocation = async () => {
             <ElButton
               :type="item.done ? 'default' : 'primary'"
               size="small"
+              class="sf-btn sf-btn--table"
               :disabled="item.done"
               @click="item.action"
             >
@@ -346,10 +348,10 @@ const saveLocation = async () => {
           <li>• See performance in your admin dashboards</li>
         </ul>
         <div class="flex flex-wrap gap-2">
-          <ElButton type="primary" plain @click="quickNav('admin-dashboard')">
+          <ElButton type="primary" plain class="sf-btn" @click="quickNav('admin-dashboard')">
             Go to Dashboard
           </ElButton>
-          <ElButton @click="quickNav('admin-services')">Start with Services</ElButton>
+          <ElButton class="sf-btn" @click="quickNav('admin-services')">Start with Services</ElButton>
         </div>
       </div>
     </ElCard>
@@ -367,10 +369,10 @@ const saveLocation = async () => {
               {{ bookingLink || 'Loading…' }}
             </div>
             <div class="mt-3 flex gap-2">
-              <ElButton type="primary" size="small" @click="copyLink(bookingLink)">
+              <ElButton type="primary" size="small" class="sf-btn sf-btn--table" @click="copyLink(bookingLink)">
                 Copy booking link
               </ElButton>
-              <ElButton size="small" :disabled="!bookingLink" @click="openLink(bookingLink)">
+              <ElButton size="small" class="sf-btn sf-btn--table" :disabled="!bookingLink" @click="openLink(bookingLink)">
                 Open
               </ElButton>
             </div>
@@ -381,19 +383,19 @@ const saveLocation = async () => {
               {{ checkinLink || 'Loading…' }}
             </div>
             <div class="mt-3 flex flex-wrap gap-2">
-              <ElButton type="primary" size="small" @click="copyLink(checkinLink)">
+              <ElButton type="primary" size="small" class="sf-btn sf-btn--table" @click="copyLink(checkinLink)">
                 Copy check-in link
               </ElButton>
-              <ElButton size="small" :disabled="!checkinLink" @click="openLink(checkinLink)">
+              <ElButton size="small" class="sf-btn sf-btn--table" :disabled="!checkinLink" @click="openLink(checkinLink)">
                 Open
               </ElButton>
-              <ElButton size="small" @click="quickNav('admin-qr')">Download QR</ElButton>
+              <ElButton size="small" class="sf-btn sf-btn--table" @click="quickNav('admin-qr')">Download QR</ElButton>
             </div>
           </div>
         </div>
         <div class="flex flex-wrap gap-2">
-          <ElButton size="small" @click="quickNav('admin-staff')">Invite staff</ElButton>
-          <ElButton size="small" @click="quickNav('admin-dashboard')">View dashboard</ElButton>
+          <ElButton size="small" class="sf-btn sf-btn--table" @click="quickNav('admin-staff')">Invite staff</ElButton>
+          <ElButton size="small" class="sf-btn sf-btn--table" @click="quickNav('admin-dashboard')">View dashboard</ElButton>
         </div>
       </div>
     </ElCard>

@@ -153,7 +153,7 @@ const confirmDelete = async (cat: ServiceCategory) => {
     <ElCard class="bg-white">
       <div class="mb-4 flex items-center justify-between">
         <div class="text-base font-semibold text-slate-900">Categories</div>
-        <ElButton type="primary" size="small" @click="openModal()">Add Category</ElButton>
+        <ElButton type="primary" size="small" class="sf-btn sf-btn--table" @click="openModal()">Add Category</ElButton>
       </div>
 
       <ElTable :data="sortedCategories" :loading="loading" style="width: 100%" border>
@@ -192,13 +192,14 @@ const confirmDelete = async (cat: ServiceCategory) => {
         <ElTableColumn label="Actions" width="180">
           <template #default="{ row }">
             <div class="flex items-center gap-2">
-              <ElButton size="small" plain @click="openModal(row)" :disabled="row.id === 'uncategorized'">
+              <ElButton size="small" plain class="sf-btn sf-btn--table" @click="openModal(row)" :disabled="row.id === 'uncategorized'">
                 Edit
               </ElButton>
               <ElButton
                 size="small"
                 type="danger"
                 plain
+                class="sf-btn sf-btn--table"
                 :disabled="row.id === 'uncategorized'"
                 @click="confirmDelete(row)"
               >
@@ -233,8 +234,8 @@ const confirmDelete = async (cat: ServiceCategory) => {
       </ElForm>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <ElButton @click="dialogOpen = false">Cancel</ElButton>
-          <ElButton type="primary" :loading="saving" @click="saveCategory">
+          <ElButton class="sf-btn" @click="dialogOpen = false">Cancel</ElButton>
+          <ElButton type="primary" class="sf-btn" :loading="saving" @click="saveCategory">
             {{ form.id ? 'Save changes' : 'Create category' }}
           </ElButton>
         </div>

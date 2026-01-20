@@ -266,7 +266,7 @@ const saveAvailabilityChanges = async () => {
     <ElCard class="bg-white flex-1 flex flex-col">
       <div class="mb-4 flex items-center justify-between">
         <div class="text-base font-semibold text-slate-900">Team</div>
-        <ElButton type="primary" class="action-accent" @click="openDialog">Add Staff</ElButton>
+        <ElButton type="primary" class="action-accent sf-btn" @click="openDialog">Add Staff</ElButton>
       </div>
       <div class="flex-1 overflow-auto">
         <ElTable
@@ -311,7 +311,7 @@ const saveAvailabilityChanges = async () => {
           </ElTableColumn>
           <ElTableColumn label="Services" width="150">
             <template #default="{ row }">
-              <ElButton size="small" class="action-accent" @click="openAssignments(row)">Assign</ElButton>
+              <ElButton size="small" class="action-accent sf-btn sf-btn--table" @click="openAssignments(row)">Assign</ElButton>
             </template>
           </ElTableColumn>
         </ElTable>
@@ -370,7 +370,9 @@ const saveAvailabilityChanges = async () => {
               <div v-for="day in 7" :key="day" class="rounded border border-slate-200 p-3">
                 <div class="flex items-center justify-between mb-2">
                   <div class="text-sm font-semibold text-slate-800">{{ dayLabels[day - 1] }}</div>
-                  <ElButton size="small" type="primary" plain @click="addAvailabilityBlock(day - 1)">Add window</ElButton>
+                  <ElButton size="small" type="primary" plain class="sf-btn sf-btn--table" @click="addAvailabilityBlock(day - 1)">
+                    Add window
+                  </ElButton>
                 </div>
                 <div v-if="(availability[day - 1] || []).length === 0" class="text-xs text-slate-500">
                   No availability set.
@@ -397,7 +399,9 @@ const saveAvailabilityChanges = async () => {
                   <div class="flex items-center gap-2">
                     <span class="text-xs text-slate-600">Active</span>
                     <ElSwitch v-model="block.active" />
-                    <ElButton text type="danger" size="small" @click="removeAvailabilityBlock(day - 1, idx)">Remove</ElButton>
+                    <ElButton text type="danger" size="small" class="sf-btn sf-btn--table" @click="removeAvailabilityBlock(day - 1, idx)">
+                      Remove
+                    </ElButton>
                   </div>
                 </div>
               </div>
@@ -423,11 +427,12 @@ const saveAvailabilityChanges = async () => {
       </div>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <ElButton @click="dialogOpen = false">Cancel</ElButton>
+          <ElButton class="sf-btn" @click="dialogOpen = false">Cancel</ElButton>
           <ElButton
             v-if="selectedStaffId"
             type="primary"
             :loading="dialogTab === 'services' ? assignmentsSaving : availabilitySaving"
+            class="sf-btn"
             @click="dialogTab === 'services' ? saveAssignments() : saveAvailabilityChanges()"
           >
             {{ dialogTab === 'services' ? 'Save services' : 'Save availability' }}
@@ -436,6 +441,7 @@ const saveAvailabilityChanges = async () => {
             v-else
             type="primary"
             :loading="saving"
+            class="sf-btn"
             @click="submit"
           >
             Save
