@@ -116,6 +116,14 @@ const stepItems = computed<Array<{ key: Step; label: string }>>(() => {
   base.push({ key: 'review', label: 'Review' }, { key: 'done', label: 'Done' });
   return base;
 });
+const stepIcons: Record<Step, string> = {
+  welcome: '👋',
+  phone: '📞',
+  services: '💅',
+  staff: '🧑‍🎨',
+  review: '📝',
+  done: '✅',
+};
 const currentStepIndex = computed(() => stepItems.value.findIndex((s) => s.key === step.value));
 
 const allowMultiService = computed(() => settings.value?.allowMultiService ?? false);
@@ -632,6 +640,7 @@ watch(
             :class="{ active: index <= currentStepIndex }"
           >
             <div class="stepper-dot">{{ index + 1 }}</div>
+            <span class="stepper-icon" aria-hidden="true">{{ stepIcons[item.key] }}</span>
             <span>{{ item.label }}</span>
           </div>
         </div>
@@ -992,16 +1001,19 @@ watch(
               </div>
 
               <div v-else-if="step === 'done'" class="done-card glass-card">
-                <div class="text-3xl mb-1" :style="{ color: 'var(--kiosk-text-primary)' }">Checked in!</div>
-                <div class="text-2xl font-semibold mb-2" :style="{ color: 'var(--kiosk-text-primary)' }">Thanks, {{ successName }}.</div>
-                <div class="text-sm mb-4" :style="{ color: 'var(--kiosk-text-secondary)' }">You’re all set — we’ll take it from here.</div>
+                <div class="done-header">
+                  <div class="done-check">✔</div>
+                  <h1>Checked in</h1>
+                  <p class="done-name">Thanks, {{ successName }}.</p>
+                  <p class="done-sub">You’re all set — we’ll take it from here.</p>
+                </div>
 
-                <div
-                  v-if="showPoints"
-                  class="mt-1 rounded-2xl border border-white/20 bg-white/10 px-5 py-4 text-left shadow-lg"
-                >
-                  <div class="text-xl font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">
-                    💎 {{ animatedPoints ?? lookupResult?.customer?.pointsBalance ?? 0 }} points
+                <div v-if="showPoints" class="done-rewards">
+                  <div class="rewards-header">
+                    <span class="rewards-icon" aria-hidden="true">💎</span>
+                    <div class="text-xl font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">
+                      {{ animatedPoints ?? lookupResult?.customer?.pointsBalance ?? 0 }} points
+                    </div>
                   </div>
                   <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">
                     <template v-if="rewardValue !== null">
@@ -1021,9 +1033,12 @@ watch(
                   </div>
                 </div>
 
-                <div class="mt-4 w-full max-w-2xl mx-auto text-left">
-                  <div class="text-sm mb-2" :style="{ color: 'var(--kiosk-text-secondary)' }">Services selected</div>
-                  <div v-if="successServices.length" class="flex flex-wrap gap-2">
+                <div class="final-services">
+                  <p class="label">
+                    <span class="label-icon" aria-hidden="true">📋</span>
+                    <span>You’re checked in for</span>
+                  </p>
+                  <div v-if="successServices.length" class="flex flex-wrap justify-center gap-2">
                     <div
                       v-for="svc in successServices"
                       :key="svc"
@@ -1033,7 +1048,7 @@ watch(
                       <span class="text-sm font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">{{ svc }}</span>
                     </div>
                   </div>
-                  <div v-else class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">
+                  <div v-else class="text-sm text-center" :style="{ color: 'var(--kiosk-text-secondary)' }">
                     Services will be confirmed at the counter.
                   </div>
                 </div>
@@ -1133,6 +1148,12 @@ watch(
   font-size: 12px;
   font-weight: 700;
 }
+.stepper-icon {
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  color: currentColor;
+}
 .welcome-card {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -1178,7 +1199,7 @@ watch(
 .keypad-key {
   border-radius: 12px;
   background: var(--kiosk-primary);
-  color: #fff;
+  color: var(--kiosk-text-primary);
   font-size: 22px;
   font-weight: 800;
   min-height: 68px;
@@ -1275,7 +1296,7 @@ watch(
   -webkit-backdrop-filter: blur(var(--kiosk-blur));
   padding: 16px;
   text-align: left;
-  color: #fff;
+  color: var(--kiosk-text-primary);
   cursor: pointer;
   transition: transform 0.12s ease, border 0.12s ease, background 0.12s ease;
 }
@@ -1367,7 +1388,7 @@ watch(
 .service-checkbox:checked::after {
   content: '✓';
   font-size: 13px;
-  color: #fff;
+  color: var(--kiosk-text-primary);
 }
 .kiosk-shell :deep(.el-button--primary) {
   background: var(--kiosk-primary);
@@ -1465,9 +1486,89 @@ watch(
   text-align: center;
   padding: 36px 24px;
   border-radius: 16px;
-  border: 1px solid var(--kiosk-border);
-  background: linear-gradient(120deg, rgba(34, 197, 94, 0.15), rgba(16, 185, 129, 0.12));
-  color: #fff;
+  border: 1px solid var(--kiosk-glass-border);
+  background: color-mix(in srgb, var(--kiosk-glass-bg) 94%, rgba(255, 255, 255, 0.06) 6%);
+  backdrop-filter: blur(var(--kiosk-glass-blur));
+  -webkit-backdrop-filter: blur(var(--kiosk-glass-blur));
+  box-shadow: var(--glass-shadow);
+  color: var(--kiosk-text-primary);
+}
+.done-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.done-check {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--kiosk-primary) 18%, transparent);
+  color: var(--kiosk-primary);
+  font-size: 22px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 6px;
+  animation: pop-in 160ms ease-out;
+}
+.done-header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--kiosk-heading, var(--kiosk-text-primary));
+}
+.done-name {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--kiosk-text-primary);
+}
+.done-sub {
+  font-size: 14px;
+  margin: 4px 0 0;
+  color: var(--kiosk-text-secondary);
+}
+.done-rewards {
+  margin: 0 auto;
+  max-width: 520px;
+  text-align: center;
+  padding: 18px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--kiosk-glass-border);
+  background: color-mix(in srgb, var(--kiosk-glass-bg) 92%, rgba(255, 255, 255, 0.08) 8%);
+  box-shadow: var(--glass-shadow);
+}
+.rewards-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+.rewards-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--kiosk-primary) 16%, transparent);
+  color: var(--kiosk-primary);
+  font-size: 16px;
+}
+.final-services {
+  margin: 20px auto 0;
+  max-width: 620px;
+  text-align: center;
+}
+.final-services .label {
+  font-size: 14px;
+  color: var(--kiosk-text-secondary);
+  margin-bottom: 8px;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
 }
 .service-chip-card {
   display: inline-flex;
@@ -1482,7 +1583,7 @@ watch(
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
 }
 .service-chip-card span {
-  color: #fff;
+  color: var(--kiosk-text-primary);
 }
 .idle-banner {
   border-radius: 999px;
@@ -1499,6 +1600,16 @@ watch(
 }
 .idle-banner::before {
   content: '⏳';
+}
+@keyframes pop-in {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .kiosk-shell input,
