@@ -602,10 +602,10 @@ watch(
     <div class="kiosk-inner">
       <div class="kiosk-top">
         <div>
-          <p class="text-sm uppercase tracking-wide text-white/70">Kiosk Mode</p>
-          <p class="text-2xl font-semibold text-white">{{ businessName }}</p>
+          <p class="text-sm uppercase tracking-wide" :style="{ color: 'var(--kiosk-text-secondary)' }">Kiosk Mode</p>
+          <p class="text-2xl font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">{{ businessName }}</p>
         </div>
-        <div class="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase text-white/80">
+        <div class="rounded-full bg-white/40 px-3 py-1 text-xs font-semibold uppercase" :style="{ color: 'var(--kiosk-text-primary)' }">
           Touch to start
         </div>
       </div>
@@ -618,8 +618,8 @@ watch(
         v-if="!kioskEnabled"
         class="kiosk-disabled"
       >
-        <div class="text-lg font-semibold text-white">Kiosk is disabled</div>
-        <div class="text-sm text-white/80">Enable kiosk mode in Settings to allow check-ins.</div>
+        <div class="text-lg font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">Kiosk is disabled</div>
+        <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">Enable kiosk mode in Settings to allow check-ins.</div>
         <ElButton class="mt-3" @click="resetFlow" round>Back to welcome</ElButton>
       </div>
 
@@ -645,18 +645,18 @@ watch(
             <div v-else>
               <div v-if="step === 'welcome'" class="welcome-card" @click="goToPhone">
                 <div class="space-y-2">
-                  <p class="text-sm uppercase tracking-wide text-white/70">Touch to start</p>
-                  <p class="text-4xl font-semibold text-white">Check in & earn rewards</p>
-                  <p class="text-lg text-white/85">We kept the classic flow your team already knows.</p>
+                  <p class="text-sm uppercase tracking-wide" :style="{ color: 'var(--kiosk-text-secondary)' }">Touch to start</p>
+                  <p class="text-4xl font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">Check in & earn rewards</p>
+                  <p class="text-lg" :style="{ color: 'var(--kiosk-text-secondary)' }">We kept the classic flow your team already knows.</p>
                   <ElButton type="primary" size="large">Start</ElButton>
                 </div>
                 <div
                   v-if="showRewardsCard && showPoints"
                   class="welcome-reward glass-card"
                 >
-                  <div class="text-xs font-semibold uppercase tracking-wide text-white/70">Loyalty</div>
-                  <div class="text-2xl font-semibold text-white">300 points = $5 off</div>
-                  <div class="text-sm text-white/75">Tap to begin and keep earning.</div>
+                  <div class="text-xs font-semibold uppercase tracking-wide" :style="{ color: 'var(--kiosk-text-secondary)' }">Loyalty</div>
+                  <div class="text-2xl font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">300 points = $5 off</div>
+                  <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">Tap to begin and keep earning.</div>
                 </div>
               </div>
 
@@ -664,39 +664,39 @@ watch(
                 <div class="phone-hero grid gap-5 lg:grid-cols-[1fr,1.15fr]">
                   <div v-if="showRewardsCard && showPoints" class="left-stack">
                     <div class="business-card glass-card">
-                      <div class="text-xs font-semibold uppercase tracking-wide text-white/70">Salon</div>
-                      <div class="text-2xl font-semibold text-white leading-tight">{{ businessName }}</div>
-                      <div class="text-sm text-white/80 mt-1">{{ businessPhone }}</div>
-                    </div>
-                    <div class="reward-panel glass-card">
-                      <div class="text-xs font-semibold uppercase tracking-wide text-white/70">Loyalty</div>
-                      <div class="text-3xl font-semibold text-white">300 points = $5 off</div>
-                      <p class="text-sm text-white/75 mt-1">Enter your phone to load rewards.</p>
-                      <div class="reward-body">
-                        <div v-if="lookupResult?.exists && lookupResult.customer" class="reward-stats glass-card">
-                          <div class="text-base font-semibold text-white">👋 {{ lookupResult.customer.name }}</div>
-                          <div class="text-sm text-white/80">
-                            💎 {{ lookupResult.customer.pointsBalance ?? 0 }} points
-                            <span class="ml-2 text-xs text-white/60">We’ll keep these ready.</span>
-                          </div>
+                    <div class="text-xs font-semibold uppercase tracking-wide" :style="{ color: 'var(--kiosk-text-secondary)' }">Salon</div>
+                    <div class="text-2xl font-semibold leading-tight" :style="{ color: 'var(--kiosk-text-primary)' }">{{ businessName }}</div>
+                    <div class="text-sm mt-1" :style="{ color: 'var(--kiosk-text-secondary)' }">{{ businessPhone }}</div>
+                  </div>
+                  <div class="reward-panel glass-card">
+                    <div class="text-xs font-semibold uppercase tracking-wide" :style="{ color: 'var(--kiosk-text-secondary)' }">Loyalty</div>
+                    <div class="text-3xl font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">300 points = $5 off</div>
+                    <p class="text-sm mt-1" :style="{ color: 'var(--kiosk-text-secondary)' }">Enter your phone to load rewards.</p>
+                    <div class="reward-body">
+                      <div v-if="lookupResult?.exists && lookupResult.customer" class="reward-stats glass-card">
+                        <div class="text-base font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">👋 {{ lookupResult.customer.name }}</div>
+                        <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">
+                          💎 {{ lookupResult.customer.pointsBalance ?? 0 }} points
+                          <span class="ml-2 text-xs" :style="{ color: 'var(--kiosk-text-muted)' }">We’ll keep these ready.</span>
                         </div>
-                        <div v-else class="reward-placeholder">
-                          <div class="text-base font-semibold text-white/90">Tap the keypad to load your points.</div>
-                          <div class="text-sm text-white/70">We’ll track rewards automatically.</div>
-                        </div>
+                      </div>
+                      <div v-else class="reward-placeholder">
+                        <div class="text-base font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">Tap the keypad to load your points.</div>
+                        <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">We’ll track rewards automatically.</div>
                       </div>
                     </div>
                   </div>
-                  <div class="phone-panel kiosk-pane glass-card">
-                    <div class="phone-heading">
-                      <p class="text-xs uppercase tracking-wide text-white/60">Step 1 • Phone</p>
-                      <p class="text-2xl font-semibold text-white">Please enter your phone number</p>
-                      <p class="text-sm text-white/70">We’ll use this to find your rewards.</p>
-                    </div>
-                    <div class="phone-display">
-                      <div class="text-sm text-white/70">Phone number</div>
-                      <div class="text-3xl font-semibold text-white">{{ phone || 'Tap the keypad' }}</div>
-                    </div>
+                </div>
+                <div class="phone-panel kiosk-pane glass-card">
+                  <div class="phone-heading">
+                    <p class="text-xs uppercase tracking-wide" :style="{ color: 'var(--kiosk-text-secondary)' }">Step 1 • Phone</p>
+                    <p class="text-2xl font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">Please enter your phone number</p>
+                    <p class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">We’ll use this to find your rewards.</p>
+                  </div>
+                  <div class="phone-display">
+                    <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">Phone number</div>
+                    <div class="text-3xl font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">{{ phone || 'Tap the keypad' }}</div>
+                  </div>
                     <div class="keypad">
                       <template v-for="(row, rowIndex) in keypad" :key="row.join('-')">
                         <button
@@ -747,18 +747,18 @@ watch(
                       <ElInput v-model="name" size="large" placeholder="Your name" />
                     </div>
                     <div class="space-y-2">
-                      <div v-if="showPoints" class="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white min-h-[90px] flex flex-col justify-center">
-                        <div v-if="lookupLoading" class="text-sm text-white/80">Checking rewards…</div>
+                      <div v-if="showPoints" class="rounded-xl border border-white/40 bg-white/10 px-4 py-3 min-h-[90px] flex flex-col justify-center" :style="{ color: 'var(--kiosk-text-primary)' }">
+                        <div v-if="lookupLoading" class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">Checking rewards…</div>
                         <template v-else-if="lookupResult?.exists && lookupResult.customer">
                           <div class="text-base font-semibold">💎 {{ lookupResult.customer.pointsBalance ?? 0 }} points</div>
-                          <div class="text-sm text-white/80">Keep earning rewards every visit.</div>
+                          <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">Keep earning rewards every visit.</div>
                         </template>
                         <template v-else>
                           <div class="text-base font-semibold">💎 Earn rewards</div>
-                          <div class="text-sm text-white/70">Check in today to start earning points.</div>
+                          <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">Check in today to start earning points.</div>
                         </template>
                       </div>
-                      <div v-if="lookupError" class="rounded-xl border border-amber-300 bg-amber-100/20 px-4 py-3 text-sm text-amber-100">
+                      <div v-if="lookupError" class="rounded-xl border border-amber-300 bg-amber-100/20 px-4 py-3 text-sm text-amber-700">
                         {{ lookupError }}
                       </div>
                     </div>
@@ -769,8 +769,8 @@ watch(
               <div v-else-if="step === 'services'" class="space-y-5">
                 <div class="kiosk-heading">
                   <div>
-                    <p class="text-xl font-semibold text-white">Select services</p>
-                    <p class="text-sm text-white/70">
+                    <p class="text-xl font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">Select services</p>
+                    <p class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">
                       {{ allowMultiService ? 'Tap all that apply.' : 'Choose one service.' }}
                     </p>
                   </div>
@@ -828,9 +828,9 @@ watch(
                     <div v-else class="service-empty">No services in this category yet.</div>
                   </div>
                 </div>
-                <div v-else class="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white/80">
-                  No services published yet.
-                </div>
+                  <div v-else class="rounded-xl border border-white/10 bg-white/5 px-4 py-3" :style="{ color: 'var(--kiosk-text-secondary)' }">
+                    No services published yet.
+                  </div>
 
                 <div class="service-actions">
                   <ElButton size="large" @click="step = 'phone'">Back</ElButton>
@@ -851,19 +851,19 @@ watch(
               <div v-else-if="step === 'staff' && showStaffStep" class="space-y-5">
                 <div class="kiosk-heading">
                   <div>
-                    <p class="text-xl font-semibold text-white">Choose a staff member</p>
-                    <p class="text-sm text-white/70">
+                    <p class="text-xl font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">Choose a staff member</p>
+                    <p class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">
                       {{ enforceStaffAvailability ? 'Available staff shown based on today’s schedule.' : 'Pick anyone or continue without preference.' }}
                     </p>
                   </div>
                   <ElButton size="large" @click="step = 'services'">Back</ElButton>
                 </div>
 
-                <div v-if="staffError" class="rounded-xl border border-amber-300 bg-amber-100/20 px-4 py-3 text-amber-100">
+                <div v-if="staffError" class="rounded-xl border border-amber-300 bg-amber-100/20 px-4 py-3 text-amber-800">
                   {{ staffError }}
                 </div>
 
-                <div v-if="staffLoading" class="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white/80">
+                <div v-if="staffLoading" class="rounded-xl border border-white/10 bg-white/5 px-4 py-3" :style="{ color: 'var(--kiosk-text-secondary)' }">
                   Loading staff…
                 </div>
 
@@ -877,8 +877,8 @@ watch(
                       <div class="text-2xl">🤝</div>
                       <div class="service-chip" v-if="selectedStaffId === null">Selected</div>
                     </div>
-                    <div class="text-lg font-semibold text-white">No preference</div>
-                    <div class="text-sm text-white/80">We will assign the best available staff.</div>
+                    <div class="text-lg font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">No preference</div>
+                    <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">We will assign the best available staff.</div>
                   </button>
 
                   <button
@@ -893,17 +893,17 @@ watch(
                       <div class="text-2xl">👤</div>
                       <div class="service-chip" v-if="selectedStaffId === staff.id">Selected</div>
                     </div>
-                    <div class="text-lg font-semibold text-white">
+                    <div class="text-lg font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">
                       {{ staff.name }}
-                      <span v-if="staff.nickname" class="text-white/60">({{ staff.nickname }})</span>
+                      <span v-if="staff.nickname" :style="{ color: 'var(--kiosk-text-secondary)' }">({{ staff.nickname }})</span>
                     </div>
-                    <div class="text-sm text-white/70">
+                    <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">
                       {{ staff.active ? 'Available' : 'Unavailable' }}
                     </div>
                   </button>
                 </div>
 
-                <div v-if="!staffList.length && !staffLoading" class="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white/80">
+                <div v-if="!staffList.length && !staffLoading" class="rounded-xl border border-white/10 bg-white/5 px-4 py-3" :style="{ color: 'var(--kiosk-text-secondary)' }">
                   No staff available right now — we'll assign for you.
                 </div>
 
@@ -931,45 +931,45 @@ watch(
               <div v-else-if="step === 'review'" class="space-y-4">
                 <div class="kiosk-heading">
                   <div>
-                    <p class="text-xl font-semibold text-white">Review</p>
-                    <p class="text-sm text-white/70">Confirm before checking in.</p>
+                    <p class="text-xl font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">Review</p>
+                    <p class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">Confirm before checking in.</p>
                   </div>
                   <ElButton size="large" @click="step = 'services'">Back</ElButton>
                 </div>
 
                 <div class="review-block glass-card">
                   <div>
-                    <p class="text-sm text-white/70">Name</p>
-                    <p class="text-lg font-semibold text-white">{{ name || 'Guest' }}</p>
+                    <p class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">Name</p>
+                    <p class="text-lg font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">{{ name || 'Guest' }}</p>
                   </div>
                   <div>
-                    <p class="text-sm text-white/70">Phone</p>
-                    <p class="text-lg font-semibold text-white">{{ formattedPhone }}</p>
+                    <p class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">Phone</p>
+                    <p class="text-lg font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">{{ formattedPhone }}</p>
                   </div>
                   <div>
-                    <p class="text-sm text-white/70">Services</p>
-                    <ul v-if="selectedServiceDetails.length" class="list-inside list-disc text-white">
+                    <p class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">Services</p>
+                    <ul v-if="selectedServiceDetails.length" class="list-inside list-disc" :style="{ color: 'var(--kiosk-text-primary)' }">
                       <li v-for="service in selectedServiceDetails" :key="service.id" class="text-base">
                         {{ service.name }}
-                        <span v-if="service.durationMinutes" class="text-white/70">
+                        <span v-if="service.durationMinutes" :style="{ color: 'var(--kiosk-text-secondary)' }">
                           · {{ service.durationMinutes }} min
                         </span>
                       </li>
                     </ul>
-                    <p v-else class="text-base text-white/80">No services selected.</p>
+                    <p v-else class="text-base" :style="{ color: 'var(--kiosk-text-secondary)' }">No services selected.</p>
                   </div>
                   <div v-if="allowStaffSelection">
-                    <p class="text-sm text-white/70">Staff preference</p>
-                    <p class="text-base text-white">
+                    <p class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">Staff preference</p>
+                    <p class="text-base" :style="{ color: 'var(--kiosk-text-primary)' }">
                       {{ selectedStaffName || 'No preference' }}
                     </p>
                   </div>
                   <div v-if="showPoints && lookupResult?.exists && lookupResult.customer">
-                    <p class="text-sm text-white/70">Rewards preview</p>
-                    <p class="text-base text-white">
+                    <p class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">Rewards preview</p>
+                    <p class="text-base" :style="{ color: 'var(--kiosk-text-primary)' }">
                       💎 {{ lookupResult.customer.pointsBalance ?? 0 }} points
                     </p>
-                    <p class="text-sm text-white/70">
+                    <p class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">
                       Keep earning rewards every visit.
                     </p>
                   </div>
@@ -992,18 +992,18 @@ watch(
               </div>
 
               <div v-else-if="step === 'done'" class="done-card glass-card">
-                <div class="text-4xl mb-1">✅ Checked in!</div>
-                <div class="text-2xl font-semibold text-white mb-2">Thanks, {{ successName }}.</div>
-                <div class="text-sm text-white/70 mb-4">You’re all set — we’ll take it from here.</div>
+                <div class="text-3xl mb-1" :style="{ color: 'var(--kiosk-text-primary)' }">Checked in!</div>
+                <div class="text-2xl font-semibold mb-2" :style="{ color: 'var(--kiosk-text-primary)' }">Thanks, {{ successName }}.</div>
+                <div class="text-sm mb-4" :style="{ color: 'var(--kiosk-text-secondary)' }">You’re all set — we’ll take it from here.</div>
 
                 <div
                   v-if="showPoints"
                   class="mt-1 rounded-2xl border border-white/20 bg-white/10 px-5 py-4 text-left shadow-lg"
                 >
-                  <div class="text-xl font-semibold text-white">
+                  <div class="text-xl font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">
                     💎 {{ animatedPoints ?? lookupResult?.customer?.pointsBalance ?? 0 }} points
                   </div>
-                  <div class="text-sm text-white/80">
+                  <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">
                     <template v-if="rewardValue !== null">
                       ≈
                       {{
@@ -1022,7 +1022,7 @@ watch(
                 </div>
 
                 <div class="mt-4 w-full max-w-2xl mx-auto text-left">
-                  <div class="text-sm text-white/70 mb-2">Services selected</div>
+                  <div class="text-sm mb-2" :style="{ color: 'var(--kiosk-text-secondary)' }">Services selected</div>
                   <div v-if="successServices.length" class="flex flex-wrap gap-2">
                     <div
                       v-for="svc in successServices"
@@ -1030,16 +1030,16 @@ watch(
                       class="service-chip-card"
                     >
                       <span class="text-lg">💅</span>
-                      <span class="text-sm font-semibold text-white">{{ svc }}</span>
+                      <span class="text-sm font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">{{ svc }}</span>
                     </div>
                   </div>
-                  <div v-else class="text-sm text-white/60">
+                  <div v-else class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">
                     Services will be confirmed at the counter.
                   </div>
                 </div>
 
                 <div class="mt-5 flex flex-col items-center gap-2">
-                  <div class="text-sm text-white/70">
+                  <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">
                     Restarting for next guest in {{ doneCountdown ?? autoResetSeconds }}s
                   </div>
                   <ElButton class="mt-1" type="primary" size="large" @click="resetFlow">

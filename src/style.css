@@ -48,8 +48,9 @@
   --kiosk-surface-milky: #ffffffee;
   --kiosk-border-milky: rgba(148, 163, 184, 0.35);
   --kiosk-text-primary: var(--text-color);
-  --kiosk-text-secondary: var(--muted-text);
-  --kiosk-text-muted: var(--muted-text);
+  --kiosk-text-secondary: color-mix(in srgb, var(--text-color) 70%, transparent);
+  --kiosk-text-muted: color-mix(in srgb, var(--text-color) 45%, transparent);
+  --kiosk-heading: color-mix(in srgb, var(--text-color) 92%, #000 8%);
   color: var(--text-color);
   background-color: #f8fafc;
   font-family: var(--ui-font-family);
@@ -93,6 +94,10 @@
   --kiosk-surface: #ffffffee;
   --kiosk-primary: var(--green-light);
   --kiosk-accent: #f4a632;
+  --kiosk-text-primary: #1f2937;
+  --kiosk-text-secondary: color-mix(in srgb, #1f2937 70%, transparent);
+  --kiosk-text-muted: color-mix(in srgb, #1f2937 45%, transparent);
+  --kiosk-heading: color-mix(in srgb, #1f2937 92%, #000 8%);
 }
 
 html {
