@@ -63,6 +63,7 @@ export type SettingsPatch = Partial<
     | 'uiFontFamily'
     | 'kioskThemeMode'
     | 'kioskPrimaryColor'
+    | 'businessPhone'
   >
 > & {
   defaultBookingRules?: Partial<DefaultBookingRules>;
