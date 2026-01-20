@@ -197,81 +197,85 @@ watch(results, () => {
       <div class="table-shell">
         <div class="table-body">
           <ElTable :data="displayedResults" style="width: 100%">
-            <ElTableColumn label="Customer">
-          <template #default="{ row }">
-            <div class="flex items-center gap-3">
-              <div class="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">
-                {{ row.name?.charAt(0)?.toUpperCase() || '?' }}
-              </div>
-              <div class="space-y-1">
-                <div class="text-sm font-semibold text-slate-900">👤 {{ row.name }}</div>
-                <div class="text-xs text-slate-700">📞 {{ row.phoneE164 || '—' }}</div>
-              </div>
-            </div>
-          </template>
-        </ElTableColumn>
+            <ElTableColumn label="Customer" min-width="260">
+              <template #default="{ row }">
+                <div class="flex items-center gap-3">
+                  <div class="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">
+                    {{ row.name?.charAt(0)?.toUpperCase() || '?' }}
+                  </div>
+                  <div class="space-y-1">
+                    <div class="text-sm font-semibold text-slate-900">👤 {{ row.name }}</div>
+                    <div class="text-xs text-slate-700">📞 {{ row.phoneE164 || '—' }}</div>
+                  </div>
+                </div>
+              </template>
+            </ElTableColumn>
 
-        <ElTableColumn label="Activity" width="200">
-          <template #default="{ row }">
-            <div class="space-y-1 text-xs text-slate-700">
-              <div>
-                Last visit:
-                <ElTooltip :content="row.lastVisitAt || '—'" placement="top">
-                  <span class="font-medium">{{ formatDate(row.lastVisitAt) }}</span>
-                </ElTooltip>
-              </div>
-              <div>Visits: {{ row.visitCount ?? 0 }}</div>
-            </div>
-          </template>
-        </ElTableColumn>
+            <ElTableColumn label="Activity" width="180">
+              <template #default="{ row }">
+                <div class="space-y-1 text-xs text-slate-700">
+                  <div>
+                    Last visit:
+                    <ElTooltip :content="row.lastVisitAt || '—'" placement="top">
+                      <span class="font-medium">{{ formatDate(row.lastVisitAt) }}</span>
+                    </ElTooltip>
+                  </div>
+                  <div>Visits: {{ row.visitCount ?? 0 }}</div>
+                </div>
+              </template>
+            </ElTableColumn>
 
-        <ElTableColumn label="Loyalty" width="200">
-          <template #default="{ row }">
-            <div class="space-y-1 text-xs text-slate-700">
-              <div class="flex items-center gap-1">
-                <span>⭐</span>
-                <span :class="(row.pointsBalance ?? 0) >= 300 ? 'text-emerald-600 font-semibold' : 'text-slate-700'">
-                  {{ row.pointsBalance ?? 0 }} pts
-                </span>
-              </div>
-              <ElTag effect="light">
-                {{ row.type.toUpperCase() }}
-              </ElTag>
-            </div>
-          </template>
-        </ElTableColumn>
+            <ElTableColumn label="Loyalty" width="150">
+              <template #default="{ row }">
+                <div class="space-y-1 text-xs text-slate-700">
+                  <div class="flex items-center gap-1">
+                    <span>⭐</span>
+                    <span :class="(row.pointsBalance ?? 0) >= 300 ? 'text-emerald-600 font-semibold' : 'text-slate-700'">
+                      {{ row.pointsBalance ?? 0 }} pts
+                    </span>
+                  </div>
+                  <ElTag effect="light">
+                    {{ row.type.toUpperCase() }}
+                  </ElTag>
+                </div>
+              </template>
+            </ElTableColumn>
 
-        <ElTableColumn label="Consent" width="100">
-          <template #default="{ row }">
-            <ElTag :type="row.reviewSmsConsent ? 'success' : 'info'" effect="light">
-              {{ row.reviewSmsConsent ? 'Yes' : 'No' }}
-            </ElTag>
-          </template>
-        </ElTableColumn>
+            <ElTableColumn label="Consent" width="110">
+              <template #default="{ row }">
+                <ElTag :type="row.reviewSmsConsent ? 'success' : 'info'" effect="light">
+                  {{ row.reviewSmsConsent ? 'Yes' : 'No' }}
+                </ElTag>
+              </template>
+            </ElTableColumn>
 
-        <ElTableColumn label="Actions" width="260">
-          <template #default="{ row }">
-            <div class="flex flex-wrap gap-2 action-stack">
-              <ElButton
-                size="small"
-                class="action-accent"
-                :disabled="!canSendReminder(row)"
-                @click="sendReminderAction(row)"
-              >
-                🔔 Reminder
-              </ElButton>
-              <ElButton
-                size="small"
-                class="action-accent"
-                :disabled="!canSendFeedback(row)"
-                @click="sendFeedbackAction(row)"
-              >
-                📩 Feedback
-              </ElButton>
-              <ElButton size="small" class="action-accent" @click="openTimeline(row.id)">👁 View</ElButton>
-            </div>
-          </template>
-        </ElTableColumn>
+            <ElTableColumn label="Actions" width="240" fixed="right">
+              <template #default="{ row }">
+                <div class="table-actions">
+                  <ElButton
+                    size="small"
+                    type="primary"
+                    class="sf-btn sf-btn--table"
+                    :disabled="!canSendReminder(row)"
+                    @click="sendReminderAction(row)"
+                  >
+                    🔔 Reminder
+                  </ElButton>
+                  <ElButton
+                    size="small"
+                    type="primary"
+                    class="sf-btn sf-btn--table"
+                    :disabled="!canSendFeedback(row)"
+                    @click="sendFeedbackAction(row)"
+                  >
+                    📩 Feedback
+                  </ElButton>
+                  <ElButton size="small" class="sf-btn sf-btn--table" @click="openTimeline(row.id)">
+                    👁 View
+                  </ElButton>
+                </div>
+              </template>
+            </ElTableColumn>
           </ElTable>
         </div>
         <div class="pagination-footer">
@@ -345,9 +349,5 @@ watch(results, () => {
   padding: 6px 10px;
   border-radius: 12px;
   background: #f1f5f9;
-}
-.action-stack :deep(.el-button) {
-  border-radius: 12px;
-  padding: 10px 14px;
 }
 </style>
