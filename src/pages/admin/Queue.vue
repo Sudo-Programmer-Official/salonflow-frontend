@@ -30,6 +30,7 @@ import { fetchServices, type ServiceOption, createPublicCheckIn } from '../../ap
 import { searchCustomers, sendCustomerReminder } from '../../api/customers';
 import { humanizeTime } from '../../utils/dates';
 import { formatPhone } from '../../utils/format';
+import { fetchGiftCard } from '../../api/giftCards';
 
 const PAGE_SIZE = 10;
 
@@ -48,6 +49,10 @@ const paymentAmounts = reactive<Record<'cash' | 'card' | 'gift', string>>({
   card: '',
   gift: '',
 });
+const giftCardNumber = ref('');
+const giftCardBalance = ref<number | null>(null);
+const giftCardStatus = ref<'idle' | 'valid' | 'invalid' | 'insufficient'>('idle');
+const giftCardLoading = ref(false);
 const totalAmount = ref<string>('');
 const checkoutConsent = ref(true);
 const checkoutTarget = ref<string | null>(null);
@@ -390,6 +395,10 @@ const openCheckout = (id: string) => {
   paymentAmounts.cash = '';
   paymentAmounts.card = '';
   paymentAmounts.gift = '';
+  giftCardNumber.value = '';
+  giftCardBalance.value = null;
+  giftCardStatus.value = 'idle';
+  giftCardLoading.value = false;
   const targetItem = queue.value.find((q) => q.id === id);
   const svcName = targetItem?.serviceName || '';
   const matchedService = services.value.find((s) => s.name === svcName);
@@ -406,6 +415,62 @@ const togglePayment = (key: 'cash' | 'card' | 'gift', checked: boolean) => {
     paymentAmounts[key] = rem > 0 ? rem.toFixed(2) : '';
   } else {
     paymentAmounts[key] = '';
+    if (key === 'gift') {
+      giftCardNumber.value = '';
+      giftCardBalance.value = null;
+      giftCardStatus.value = 'idle';
+      giftCardLoading.value = false;
+    }
+  }
+};
+
+const recomputeGiftCardStatus = () => {
+  if (!paymentOptions.gift) {
+    giftCardStatus.value = 'idle';
+    return;
+  }
+  if (giftCardBalance.value === null) {
+    giftCardStatus.value = 'idle';
+    return;
+  }
+  const giftAmount = Number(paymentAmounts.gift);
+  const total = totalNumeric.value || 0;
+  if (!Number.isFinite(giftAmount) || giftAmount <= 0) {
+    giftCardStatus.value = 'valid';
+    return;
+  }
+  if (giftAmount > total) {
+    giftCardStatus.value = 'invalid';
+    return;
+  }
+  giftCardStatus.value = giftAmount <= giftCardBalance.value ? 'valid' : 'insufficient';
+};
+
+watch(
+  () => paymentAmounts.gift,
+  () => recomputeGiftCardStatus(),
+);
+watch(totalNumeric, () => recomputeGiftCardStatus());
+watch(giftCardBalance, () => recomputeGiftCardStatus());
+
+const checkGiftCardBalance = async () => {
+  if (!paymentOptions.gift) return;
+  if (!giftCardNumber.value.trim()) {
+    ElMessage.warning('Enter a gift card number');
+    return;
+  }
+  giftCardLoading.value = true;
+  try {
+    const card = await fetchGiftCard(giftCardNumber.value.trim());
+    giftCardBalance.value = card.balance;
+    recomputeGiftCardStatus();
+    ElMessage.success('Gift card found');
+  } catch (err) {
+    giftCardBalance.value = null;
+    giftCardStatus.value = 'invalid';
+    ElMessage.error(err instanceof Error ? err.message : 'Gift card not found');
+  } finally {
+    giftCardLoading.value = false;
   }
 };
 
@@ -522,6 +587,24 @@ const submitCheckout = async () => {
       }
       entries.push({ method: key, amount: val });
     });
+    const giftAmount = paymentOptions.gift ? Number(paymentAmounts.gift) : null;
+    if (paymentOptions.gift) {
+      if (!giftCardNumber.value.trim()) {
+        throw new Error('Gift card number is required when using gift card payment');
+      }
+      if (giftAmount === null || Number.isNaN(giftAmount) || giftAmount <= 0) {
+        throw new Error('Enter a gift card amount');
+      }
+      if (giftAmount > totalNumeric.value) {
+        throw new Error('Gift card amount cannot exceed the checkout total');
+      }
+      if (giftCardBalance.value !== null && giftAmount > giftCardBalance.value) {
+        throw new Error('Gift card balance is insufficient');
+      }
+      if (giftCardBalance.value === null) {
+        throw new Error('Check gift card balance before checkout');
+      }
+    }
     if (!entries.length) {
       throw new Error('Add at least one payment amount');
     }
@@ -532,7 +615,9 @@ const submitCheckout = async () => {
       servedByName: checkoutServedBy.value || null,
       redeemPoints: checkoutRedeem.value,
       payments: entries,
-    } as any);
+      giftCardNumber: paymentOptions.gift ? giftCardNumber.value.trim() : null,
+      giftCardAmount: paymentOptions.gift ? giftAmount : null,
+    });
     checkoutOpen.value = false;
     await loadQueue();
     ElMessage.success('Checkout completed');
@@ -1055,6 +1140,34 @@ watch(completedPage, async (val) => {
           </div>
           <div class="text-xs text-slate-600">
             Enter amounts per payment type. Remaining balance: {{ remainingBalance.toFixed(2) }}
+          </div>
+        </div>
+        <div v-if="paymentOptions.gift" class="space-y-2 rounded-md border border-slate-200 bg-white px-3 py-2">
+          <div class="text-sm font-semibold text-slate-900">Gift Card Details</div>
+          <div class="grid gap-2">
+            <div class="flex flex-col gap-1">
+              <label class="text-xs font-semibold text-slate-700">Gift card number</label>
+              <input
+                v-model="giftCardNumber"
+                type="text"
+                class="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none"
+                placeholder="Enter gift card number"
+              />
+            </div>
+            <div class="flex items-center gap-2">
+              <ElButton size="small" :loading="giftCardLoading" class="sf-btn sf-btn--table" @click="checkGiftCardBalance">
+                Check balance
+              </ElButton>
+              <div class="text-xs" :class="giftCardStatus === 'valid' ? 'text-emerald-600' : giftCardStatus === 'insufficient' ? 'text-amber-600' : giftCardStatus === 'invalid' ? 'text-red-600' : 'text-slate-600'">
+                <span v-if="giftCardStatus === 'valid'">Valid</span>
+                <span v-else-if="giftCardStatus === 'insufficient'">Insufficient balance</span>
+                <span v-else-if="giftCardStatus === 'invalid'">Invalid card</span>
+                <span v-else>Awaiting balance check</span>
+              </div>
+            </div>
+            <div v-if="giftCardBalance !== null" class="text-xs text-slate-700">
+              Current balance: {{ Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(giftCardBalance) }}
+            </div>
           </div>
         </div>
         <div>

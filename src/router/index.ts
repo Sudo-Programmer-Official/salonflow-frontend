@@ -28,6 +28,7 @@ import AdminBillingSuccessPage from "../pages/admin/BillingSuccess.vue";
 import AdminSettingsPage from "../pages/admin/Settings.vue";
 import AdminCategoriesPage from "../pages/admin/Categories.vue";
 import AdminAnalyticsPage from "../pages/admin/Analytics.vue";
+import AdminGiftCardsPage from "../pages/admin/GiftCards.vue";
 import MarketingLayout from "../layouts/MarketingLayout.vue";
 import MarketingHome from "../pages/MarketingHome.vue";
 import SalonLoginPage from "../pages/SalonLogin.vue";
@@ -240,6 +241,12 @@ const routes = [
         path: "customers",
         name: "admin-customers",
         component: AdminCustomersPage,
+        meta: { requiresAuth: true, roles: ["OWNER"] },
+      },
+      {
+        path: "gift-cards",
+        name: "admin-gift-cards",
+        component: AdminGiftCardsPage,
         meta: { requiresAuth: true, roles: ["OWNER"] },
       },
       {

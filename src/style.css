@@ -37,6 +37,10 @@
   --panel-radius: 16px;
   --card-radius: 14px;
   --panel-surface: rgba(255, 255, 255, 0.82);
+  --brand-logo-size: 64px;
+  --brand-logo-radius: 14px;
+  --brand-logo-padding: 8px;
+  --brand-logo-shadow: 0 12px 34px rgba(15, 23, 42, 0.14);
   --sf-primary: #0ea5e9;
   --sf-text-muted: #475569;
   --green-money: #16a34a;
@@ -57,6 +61,16 @@
   background-color: #f8fafc;
   font-family: var(--ui-font-family);
   text-rendering: optimizeLegibility;
+}
+
+:root[data-kiosk-primary='lightGreen'] {
+  --kiosk-primary: var(--green-light);
+  --kiosk-accent: #22c55e;
+}
+
+:root[data-kiosk-primary='gold'] {
+  --kiosk-primary: #d6b25e;
+  --kiosk-accent: #f0c674;
 }
 
 :root[data-glass='off'] {
@@ -87,6 +101,25 @@
   --kiosk-text-primary: #1f2937;
   --kiosk-text-secondary: #4b5563;
   --kiosk-text-muted: #6b7280;
+}
+
+:root[data-kiosk-theme='black-glass'] {
+  --bg-app: radial-gradient(circle at 10% 20%, rgba(255, 215, 128, 0.06), transparent 28%),
+    radial-gradient(circle at 86% 16%, rgba(214, 178, 94, 0.08), transparent 24%),
+    linear-gradient(180deg, #0b0f18 0%, #0f131f 45%, #0a0d15 100%);
+  --kiosk-surface: rgba(16, 18, 26, 0.88);
+  --kiosk-glass: rgba(20, 22, 32, 0.78);
+  --kiosk-border: rgba(255, 215, 128, 0.16);
+  --kiosk-primary: #d6b25e;
+  --kiosk-accent: #f0c674;
+  --kiosk-glass-bg: rgba(15, 17, 25, 0.86);
+  --kiosk-glass-border: rgba(255, 255, 255, 0.1);
+  --kiosk-glass-blur: 18px;
+  --kiosk-glass-saturate: 180%;
+  --kiosk-text-primary: #f7f5ef;
+  --kiosk-text-secondary: color-mix(in srgb, #f7f5ef 72%, transparent);
+  --kiosk-text-muted: color-mix(in srgb, #f7f5ef 52%, transparent);
+  --kiosk-heading: color-mix(in srgb, #f7f5ef 92%, #d6b25e 8%);
 }
 
 [data-kiosk-theme] body {
@@ -164,6 +197,17 @@ main {
 [data-mode='kiosk'] .glass-surface {
   background: var(--kiosk-glass-bg);
   border-color: var(--kiosk-glass-border);
+}
+
+.brand-logo {
+  width: var(--brand-logo-size);
+  height: var(--brand-logo-size);
+  padding: var(--brand-logo-padding);
+  border-radius: var(--brand-logo-radius);
+  background: #fff;
+  object-fit: contain;
+  box-shadow: var(--brand-logo-shadow);
+  display: block;
 }
 
 .text-soft {

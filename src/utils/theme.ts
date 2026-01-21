@@ -13,8 +13,8 @@ export type UiPreferences = {
   uiFontScale?: number | null;
   uiGlassEnabled?: boolean | null;
   uiFontFamily?: string | null;
-  kioskThemeMode?: 'green' | 'milky' | null;
-  kioskPrimaryColor?: 'moneyGreen' | 'lightGreen' | null;
+  kioskThemeMode?: 'green' | 'milky' | 'black-glass' | null;
+  kioskPrimaryColor?: 'moneyGreen' | 'lightGreen' | 'gold' | null;
 };
 
 const clamp = (val: number, min: number, max: number) => Math.min(Math.max(val, min), max);
@@ -46,11 +46,17 @@ export function applyThemeFromSettings(
   } else if (!root.dataset.mode) {
     root.dataset.mode = 'app';
   }
+  const existingTheme = root.dataset.kioskTheme;
   if (settings?.kioskThemeMode) {
     root.dataset.kioskTheme = settings.kioskThemeMode;
+  } else if (!existingTheme) {
+    root.dataset.kioskTheme = 'green';
   }
+  const existingPrimary = root.dataset.kioskPrimary;
   if (settings?.kioskPrimaryColor) {
     root.dataset.kioskPrimary = settings.kioskPrimaryColor;
+  } else if (!existingPrimary) {
+    root.dataset.kioskPrimary = 'moneyGreen';
   }
   const familyKey = String(settings?.uiFontFamily ?? 'system').toLowerCase();
   const resolved =

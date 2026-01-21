@@ -159,6 +159,9 @@ export async function checkoutCheckIn(
     reviewSmsConsent: boolean;
     servedByName?: string | null;
     redeemPoints?: boolean;
+    giftCardNumber?: string | null;
+    giftCardAmount?: number | null;
+    payments?: Array<{ method: 'cash' | 'card' | 'gift'; amount: number }>;
   },
 ) {
   const res = await fetch(`${apiBase}/${checkInId}/checkout`, {

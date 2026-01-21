@@ -448,15 +448,16 @@ onMounted(loadSettings);
             <div class="flex items-center justify-between gap-3">
               <div>
                 <div class="text-sm font-semibold text-slate-900">Kiosk theme</div>
-                <div class="text-xs text-slate-600">Money green primary or milky white surface.</div>
+                <div class="text-xs text-slate-600">Money green, milky white, or premium black glass.</div>
               </div>
               <ElSelect
                 class="w-40"
                 :model-value="settings.kioskThemeMode || 'green'"
-                @change="(val: 'green' | 'milky') => scheduleSave({ kioskThemeMode: val })"
+                @change="(val: 'green' | 'milky' | 'black-glass') => scheduleSave({ kioskThemeMode: val })"
               >
                 <ElOption label="Green (recommended)" value="green" />
                 <ElOption label="Milky white" value="milky" />
+                <ElOption label="Premium black glass" value="black-glass" />
               </ElSelect>
             </div>
 

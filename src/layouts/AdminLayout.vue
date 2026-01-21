@@ -144,6 +144,7 @@ const navItems = computed(() => {
     { label: 'Analytics', name: 'admin-analytics', roles: ['OWNER'] },
     { label: 'Staff', name: 'admin-staff', roles: ['OWNER'] },
     { label: 'Customers', name: 'admin-customers', roles: ['OWNER'] },
+    { label: '🎁 Gift Cards', name: 'admin-gift-cards', roles: ['OWNER'] },
     { label: 'Appointments', name: 'admin-appointments', roles: ['OWNER'] },
     {
       label: 'Appointment Reminders',
@@ -166,7 +167,7 @@ const navItems = computed(() => {
   <div class="flex min-h-screen text-slate-900">
     <aside class="sidebar">
       <div class="sidebar__brand">
-        <img src="/icons/icon-128x128.png" alt="SalonFlow logo" class="sidebar__logo" />
+        <img src="/icons/icon-128x128.png" alt="SalonFlow logo" class="brand-logo sidebar__logo" />
         <div class="sidebar__brand-text">
           <span class="sidebar__brand-name">SalonFlow</span>
           <span class="sidebar__brand-sub">Admin</span>
@@ -351,20 +352,17 @@ const navItems = computed(() => {
   font-family: var(--ui-font-family);
 }
 .sidebar__brand {
-  height: 64px;
+  min-height: 96px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 16px;
+  gap: 12px;
+  padding: 12px 16px;
   font-weight: 800;
   font-size: var(--font-lg);
   white-space: nowrap;
 }
 .sidebar__logo {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+  flex-shrink: 0;
 }
 .sidebar__brand-text {
   display: flex;

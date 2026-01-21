@@ -253,14 +253,10 @@ const loadSettings = async () => {
     settings.value = await fetchPublicSettings();
     settingsError.value = '';
     applyThemeFromSettings(settings.value, { boost: 1.12, mode: 'kiosk', maxScale: 1.4 });
-    document.documentElement.dataset.kioskTheme = settings.value?.kioskThemeMode || 'green';
-    document.documentElement.dataset.kioskPrimary = settings.value?.kioskPrimaryColor || 'moneyGreen';
   } catch (err: any) {
     settings.value = defaultSettings;
     settingsError.value = err?.message || 'Unable to load settings.';
     applyThemeFromSettings(settings.value, { boost: 1.12, mode: 'kiosk', maxScale: 1.4 });
-    document.documentElement.dataset.kioskTheme = settings.value?.kioskThemeMode || 'green';
-    document.documentElement.dataset.kioskPrimary = settings.value?.kioskPrimaryColor || 'moneyGreen';
   }
   step.value = useClassicWelcome.value ? 'phone' : 'welcome';
 };

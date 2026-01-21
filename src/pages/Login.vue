@@ -45,7 +45,7 @@ const handleSubmit = async () => {
     <div class="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
       <div class="mb-6 text-center">
         <div class="mx-auto mb-4 flex items-center justify-center">
-          <img :src="logo" alt="SalonFlow" class="h-10 w-auto rounded-lg shadow-sm" />
+          <img :src="logo" alt="SalonFlow" class="brand-logo" />
         </div>
         <h1 class="text-2xl font-semibold text-slate-900">Sign in to SalonFlow</h1>
         <p class="mt-2 text-sm text-slate-600">

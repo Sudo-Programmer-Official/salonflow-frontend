@@ -31,8 +31,8 @@ export type BusinessSettings = {
   uiFontScale: number;
   uiGlassEnabled: boolean;
   uiFontFamily: string;
-  kioskThemeMode?: 'green' | 'milky';
-  kioskPrimaryColor?: 'moneyGreen' | 'lightGreen';
+  kioskThemeMode?: 'green' | 'milky' | 'black-glass';
+  kioskPrimaryColor?: 'moneyGreen' | 'lightGreen' | 'gold';
   businessPhone?: string | null;
   defaultBookingRules: DefaultBookingRules;
   createdAt: string | null;

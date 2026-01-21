@@ -13,9 +13,10 @@ const savingLocation = ref(false);
 const countryCode = ref('US');
 const postalCode = ref('');
 const timezone = ref(DEFAULT_TIMEZONE);
-const liveDomain =
+const rawLiveDomain =
   (import.meta.env.VITE_PUBLIC_APP_DOMAIN as string | undefined)?.replace(/^\s+|\s+$/g, '') ||
   'salonflow.app';
+const liveDomain = rawLiveDomain.replace(/^https?:\/\//i, '').replace(/\/+$/, '');
 
 const timezoneOptions = [
   { value: 'America/New_York', label: 'America/New_York (Eastern)' },
@@ -93,7 +94,7 @@ onBeforeUnmount(() => {
 const buildLiveLink = (path: string) => {
   if (!status.value?.subdomain) return '';
   const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-  const isLocal = hostname.includes('localhost');
+  const isLocal = hostname.includes('localhost') || hostname.startsWith('127.');
   if (isLocal) {
     return `${window.location.origin}/${path}`;
   }
@@ -102,6 +103,7 @@ const buildLiveLink = (path: string) => {
 
 const bookingLink = computed(() => buildLiveLink('book'));
 const checkinLink = computed(() => buildLiveLink('check-in'));
+const kioskLink = computed(() => buildLiveLink('check-in/kiosk'));
 
 const copyLink = async (link: string) => {
   if (!link) return;
@@ -362,7 +364,7 @@ const saveLocation = async () => {
         <p class="text-sm text-slate-600">
           Share these with customers. Booking is public; check-in can be placed behind a QR.
         </p>
-        <div class="grid gap-3 md:grid-cols-2">
+        <div class="grid gap-3 md:grid-cols-3">
           <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
             <div class="text-sm font-semibold text-slate-900">Booking</div>
             <div class="mt-1 break-words text-sm text-slate-700">
@@ -390,6 +392,20 @@ const saveLocation = async () => {
                 Open
               </ElButton>
               <ElButton size="small" class="sf-btn sf-btn--table" @click="quickNav('admin-qr')">Download QR</ElButton>
+            </div>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div class="text-sm font-semibold text-slate-900">Kiosk</div>
+            <div class="mt-1 break-words text-sm text-slate-700">
+              {{ kioskLink || 'Loading…' }}
+            </div>
+            <div class="mt-3 flex flex-wrap gap-2">
+              <ElButton type="primary" size="small" class="sf-btn sf-btn--table" @click="copyLink(kioskLink)">
+                Copy kiosk link
+              </ElButton>
+              <ElButton size="small" class="sf-btn sf-btn--table" :disabled="!kioskLink" @click="openLink(kioskLink)">
+                Open
+              </ElButton>
             </div>
           </div>
         </div>
