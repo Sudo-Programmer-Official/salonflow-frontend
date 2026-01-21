@@ -47,30 +47,10 @@
   --green-light: #22c55e;
   --amber-light: #f5a524;
   --surface-milky: #f8fafc;
-  --kiosk-primary: var(--green-money);
-  --kiosk-accent: var(--amber-light);
-  --kiosk-surface: rgba(255, 255, 255, 0.9);
-  --kiosk-glass: var(--glass-bg);
-  --kiosk-surface-milky: #ffffffee;
-  --kiosk-border-milky: rgba(148, 163, 184, 0.35);
-  --kiosk-text-primary: var(--text-color);
-  --kiosk-text-secondary: color-mix(in srgb, var(--text-color) 70%, transparent);
-  --kiosk-text-muted: color-mix(in srgb, var(--text-color) 45%, transparent);
-  --kiosk-heading: color-mix(in srgb, var(--text-color) 92%, #000 8%);
   color: var(--text-color);
   background-color: #f8fafc;
   font-family: var(--ui-font-family);
   text-rendering: optimizeLegibility;
-}
-
-:root[data-kiosk-primary='lightGreen'] {
-  --kiosk-primary: var(--green-light);
-  --kiosk-accent: #22c55e;
-}
-
-:root[data-kiosk-primary='gold'] {
-  --kiosk-primary: #d6b25e;
-  --kiosk-accent: #f0c674;
 }
 
 :root[data-glass='off'] {
@@ -81,29 +61,10 @@
   --glass-saturate: 100%;
 }
 
-:root[data-mode='kiosk'] {
+.kiosk-app {
   --panel-radius: 16px;
   --card-radius: 16px;
   --glass-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
-}
-
-:root[data-kiosk-theme='milky'] {
-  --bg-app: linear-gradient(180deg, #f7f9fb 0%, #eef2f7 50%, #f7f9fb 100%);
-  --kiosk-surface: #ffffff;
-  --kiosk-glass: rgba(255, 255, 255, 0.9);
-  --kiosk-border: rgba(148, 163, 184, 0.25);
-  --kiosk-primary: var(--green-light);
-  --kiosk-accent: #f4a632;
-  --kiosk-glass-bg: rgba(255, 255, 255, 0.9);
-  --kiosk-glass-border: rgba(148, 163, 184, 0.25);
-  --kiosk-glass-blur: 12px;
-  --kiosk-glass-saturate: 125%;
-  --kiosk-text-primary: #1f2937;
-  --kiosk-text-secondary: #4b5563;
-  --kiosk-text-muted: #6b7280;
-}
-
-:root[data-kiosk-theme='black-glass'] {
   --bg-app: radial-gradient(circle at 10% 20%, rgba(255, 215, 128, 0.06), transparent 28%),
     radial-gradient(circle at 86% 16%, rgba(214, 178, 94, 0.08), transparent 24%),
     linear-gradient(180deg, #0b0f18 0%, #0f131f 45%, #0a0d15 100%);
@@ -120,19 +81,35 @@
   --kiosk-text-secondary: color-mix(in srgb, #f7f5ef 72%, transparent);
   --kiosk-text-muted: color-mix(in srgb, #f7f5ef 52%, transparent);
   --kiosk-heading: color-mix(in srgb, #f7f5ef 92%, #d6b25e 8%);
-}
-
-[data-kiosk-theme] body {
+  color: var(--kiosk-text-primary);
   background: var(--bg-app);
 }
-:root[data-kiosk-theme='milky'] {
-  --kiosk-surface: #ffffffee;
+
+.kiosk-app[data-kiosk-theme='milky'] {
+  --bg-app: linear-gradient(180deg, #f7f9fb 0%, #eef2f7 50%, #f7f9fb 100%);
+  --kiosk-surface: #ffffff;
+  --kiosk-glass: rgba(255, 255, 255, 0.9);
+  --kiosk-border: rgba(148, 163, 184, 0.25);
   --kiosk-primary: var(--green-light);
   --kiosk-accent: #f4a632;
+  --kiosk-glass-bg: rgba(255, 255, 255, 0.9);
+  --kiosk-glass-border: rgba(148, 163, 184, 0.25);
+  --kiosk-glass-blur: 12px;
+  --kiosk-glass-saturate: 125%;
   --kiosk-text-primary: #1f2937;
-  --kiosk-text-secondary: color-mix(in srgb, #1f2937 70%, transparent);
-  --kiosk-text-muted: color-mix(in srgb, #1f2937 45%, transparent);
+  --kiosk-text-secondary: #4b5563;
+  --kiosk-text-muted: #6b7280;
   --kiosk-heading: color-mix(in srgb, #1f2937 92%, #000 8%);
+}
+
+.kiosk-app[data-kiosk-primary='lightGreen'] {
+  --kiosk-primary: var(--green-light);
+  --kiosk-accent: #22c55e;
+}
+
+.kiosk-app[data-kiosk-primary='gold'] {
+  --kiosk-primary: #d6b25e;
+  --kiosk-accent: #f0c674;
 }
 
 html {
@@ -181,7 +158,7 @@ main {
   transform: translateZ(0);
   will-change: backdrop-filter;
 }
-[data-mode='kiosk'] .glass-card {
+.kiosk-app .glass-card {
   --glass-card-bg: var(--kiosk-glass-bg);
   --glass-card-border: var(--kiosk-glass-border);
   --glass-card-blur: var(--kiosk-glass-blur);
@@ -194,7 +171,7 @@ main {
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.3);
 }
-[data-mode='kiosk'] .glass-surface {
+.kiosk-app .glass-surface {
   background: var(--kiosk-glass-bg);
   border-color: var(--kiosk-glass-border);
 }
@@ -257,7 +234,7 @@ main {
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
 }
 
-[data-mode='kiosk'] .sf-tab {
+.kiosk-app .sf-tab {
   min-height: 52px;
   font-size: 1.1rem;
 }
@@ -449,11 +426,4 @@ main {
 .el-table--small .el-table__row td {
   padding-top: 0.5rem;
   padding-bottom: 0.5rem;
-}
-
-:root[data-mode='kiosk'] body {
-  background:
-    radial-gradient(1200px 600px at 20% 10%, rgba(0, 120, 255, 0.18), transparent),
-    radial-gradient(1000px 800px at 80% 30%, rgba(0, 80, 200, 0.14), transparent),
-    linear-gradient(180deg, #0a1630, #050b1a);
 }

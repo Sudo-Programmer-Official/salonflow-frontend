@@ -134,33 +134,134 @@ const dismissOnboarding = () => {
   });
 };
 
-const navItems = computed(() => {
-  const items = [
-    { label: 'Dashboard', name: 'admin-dashboard', roles: ['OWNER'] },
-    { label: 'Queue', name: 'admin-queue', roles: ['OWNER', 'STAFF'] },
-    { label: 'Onboarding', name: 'admin-onboarding', roles: ['OWNER'] },
-    { label: 'Services', name: 'admin-services', roles: ['OWNER'] },
-    { label: 'Categories', name: 'admin-categories', roles: ['OWNER'] },
-    { label: 'Analytics', name: 'admin-analytics', roles: ['OWNER'] },
-    { label: 'Staff', name: 'admin-staff', roles: ['OWNER'] },
-    { label: 'Customers', name: 'admin-customers', roles: ['OWNER'] },
-    { label: '🎁 Gift Cards', name: 'admin-gift-cards', roles: ['OWNER'] },
-    { label: 'Appointments', name: 'admin-appointments', roles: ['OWNER'] },
-    {
-      label: 'Appointment Reminders',
-      name: 'admin-appointment-reminders',
-      roles: ['OWNER'],
-    },
-    { label: 'Review SMS', name: 'admin-review-sms', roles: ['OWNER'] },
-    { label: 'Settings', name: 'admin-settings', roles: ['OWNER'] },
-    { label: 'SMS', name: 'admin-sms', roles: ['OWNER'] },
-    { label: 'QR Codes', name: 'admin-qr', roles: ['OWNER'] },
-    { label: 'Billing', name: 'admin-billing', roles: ['OWNER'] },
-    { label: 'Demo Requests', name: 'admin-demo-requests', roles: ['SUPER_ADMIN'] },
-  ];
+const STORAGE_KEY = 'adminSidebarGroups';
+const groupState = ref<Record<string, boolean>>({});
 
-  return items.filter((item) => !item.roles || item.roles.includes(role.value));
+const sidebarGroups = computed(() => [
+  {
+    key: 'core',
+    label: 'Core',
+    defaultOpen: true,
+    items: [
+      { label: 'Dashboard', name: 'admin-dashboard', icon: '📊', roles: ['OWNER'] },
+      { label: 'Queue', name: 'admin-queue', icon: '⏳', roles: ['OWNER', 'STAFF'] },
+    ],
+  },
+  {
+    key: 'customers',
+    label: 'Customers',
+    defaultOpen: true,
+    items: [
+      { label: 'Customers', name: 'admin-customers', icon: '🧍', roles: ['OWNER'] },
+      { label: 'Gift Cards', name: 'admin-gift-cards', icon: '🎁', roles: ['OWNER'] },
+      { label: 'Appointments', name: 'admin-appointments', icon: '📅', roles: ['OWNER'] },
+      {
+        label: 'Appointment Reminders',
+        name: 'admin-appointment-reminders',
+        icon: '🔔',
+        roles: ['OWNER'],
+      },
+    ],
+  },
+  {
+    key: 'operations',
+    label: 'Operations',
+    defaultOpen: true,
+    items: [
+      { label: 'Services', name: 'admin-services', icon: '🛠', roles: ['OWNER'] },
+      { label: 'Categories', name: 'admin-categories', icon: '🗂', roles: ['OWNER'] },
+      { label: 'Staff', name: 'admin-staff', icon: '👩‍💼', roles: ['OWNER'] },
+    ],
+  },
+  {
+    key: 'engagement',
+    label: 'Engagement',
+    defaultOpen: true,
+    items: [
+      { label: 'Review SMS', name: 'admin-review-sms', icon: '⭐', roles: ['OWNER'] },
+      { label: 'SMS', name: 'admin-sms', icon: '💬', roles: ['OWNER'] },
+    ],
+  },
+  {
+    key: 'insights',
+    label: 'Insights',
+    defaultOpen: true,
+    items: [{ label: 'Analytics', name: 'admin-analytics', icon: '📈', roles: ['OWNER'] }],
+  },
+  {
+    key: 'system',
+    label: 'System',
+    defaultOpen: false,
+    items: [
+      { label: 'Settings', name: 'admin-settings', icon: '⚙️', roles: ['OWNER'] },
+      { label: 'QR Codes', name: 'admin-qr', icon: '🔗', roles: ['OWNER'] },
+      { label: 'Billing', name: 'admin-billing', icon: '💳', roles: ['OWNER'] },
+      { label: 'Demo Requests', name: 'admin-demo-requests', icon: '🧪', roles: ['SUPER_ADMIN'] },
+    ],
+  },
+  {
+    key: 'onboarding',
+    label: 'Onboarding',
+    defaultOpen: true,
+    items: [{ label: 'Onboarding', name: 'admin-onboarding', icon: '🚀', roles: ['OWNER'] }],
+  },
+]);
+
+const visibleGroups = computed(() =>
+  sidebarGroups.value
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => !item.roles || item.roles.includes(role.value)),
+    }))
+    .filter((group) => group.items.length > 0),
+);
+
+const isGroupOpen = (key: string, defaultOpen = false) =>
+  groupState.value[key] !== undefined ? groupState.value[key] : defaultOpen;
+
+const persistGroupState = () => {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(groupState.value));
+};
+
+const loadGroupState = () => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      groupState.value = parsed;
+    }
+  } catch {
+    groupState.value = {};
+  }
+};
+
+const toggleGroup = (key: string, defaultOpen = false) => {
+  const open = isGroupOpen(key, defaultOpen);
+  groupState.value = { ...groupState.value, [key]: !open };
+  persistGroupState();
+};
+
+const openGroupForRoute = (routeName: string | null) => {
+  if (!routeName) return;
+  const match = visibleGroups.value.find((g) =>
+    g.items.some((item) => item.name === routeName),
+  );
+  if (match) {
+    groupState.value = { ...groupState.value, [match.key]: true };
+    persistGroupState();
+  }
+};
+
+onMounted(() => {
+  loadGroupState();
+  openGroupForRoute(route.name as string);
 });
+
+watch(
+  () => route.name,
+  (val) => openGroupForRoute(val as string),
+);
 </script>
 
 <template>
@@ -174,17 +275,45 @@ const navItems = computed(() => {
         </div>
       </div>
       <div class="sidebar__nav">
-        <nav class="space-y-1">
-          <RouterLink
-            v-for="item in navItems"
-            :key="item.name"
-            :to="{ name: item.name }"
-            class="nav-link"
-            :class="route.name === item.name ? 'nav-link--active' : 'nav-link--idle'"
+        <nav class="space-y-2">
+          <div
+            v-for="group in visibleGroups"
+            :key="group.key"
+            class="sidebar__section"
           >
-            <span>{{ item.label }}</span>
-            <span v-if="route.name === item.name" class="nav-link__badge">Current</span>
-          </RouterLink>
+            <button
+              type="button"
+              class="sidebar__section-header"
+              @click="toggleGroup(group.key, group.defaultOpen)"
+            >
+              <span>{{ group.label }}</span>
+              <span class="sidebar__section-caret">{{ isGroupOpen(group.key, group.defaultOpen) ? '▾' : '▸' }}</span>
+            </button>
+            <div
+              v-if="isGroupOpen(group.key, group.defaultOpen)"
+              class="sidebar__section-body"
+            >
+              <RouterLink
+                v-for="item in group.items"
+                :key="item.name"
+                :to="{ name: item.name }"
+                class="nav-link"
+                :class="route.name === item.name ? 'nav-link--active' : 'nav-link--idle'"
+              >
+                <div class="nav-link__left">
+                  <span class="nav-link__icon" aria-hidden="true">{{ item.icon }}</span>
+                  <span>{{ item.label }}</span>
+                </div>
+                <span v-if="route.name === item.name" class="nav-link__badge">Current</span>
+                <span
+                  v-else-if="item.name === 'admin-onboarding' && showOnboardingBanner"
+                  class="nav-link__badge nav-link__badge--info"
+                >
+                  Setup
+                </span>
+              </RouterLink>
+            </div>
+          </div>
         </nav>
       </div>
     </aside>
@@ -379,15 +508,45 @@ const navItems = computed(() => {
 }
 .sidebar__nav {
   flex: 1;
-  padding: 0 12px 16px 12px;
+  padding: 4px 12px 16px 12px;
   font-size: var(--font-md);
+}
+.sidebar__section {
+  background: rgba(255, 255, 255, 0.42);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+.sidebar__section-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.01em;
+  color: #0f172a;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+.sidebar__section-caret {
+  font-size: 12px;
+  color: #64748b;
+}
+.sidebar__section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 8px 10px 8px;
 }
 .nav-link {
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-radius: 12px;
-  padding: 10px 12px;
+  padding: 9px 10px;
   font-weight: 600;
   transition: all 0.15s ease;
   font-size: var(--font-md);
@@ -408,6 +567,19 @@ const navItems = computed(() => {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: #e2e8f0;
+}
+.nav-link__badge--info {
+  color: #0ea5e9;
+}
+.nav-link__left {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.nav-link__icon {
+  width: 20px;
+  text-align: center;
+  font-size: 14px;
 }
 .admin-header {
   display: flex;
