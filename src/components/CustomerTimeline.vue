@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import type { CustomerTimeline } from '../api/customers';
 import { formatInBusinessTz } from '../utils/dates';
+import { formatPhone } from '../utils/format';
 
 const props = defineProps<{
   timeline: CustomerTimeline | null;
@@ -22,7 +23,7 @@ const formatAmount = (val: number | null) => {
   <div class="space-y-4">
     <div v-if="customer" class="space-y-1">
       <div class="text-lg font-semibold text-slate-900">{{ customer.name }}</div>
-      <div class="text-sm text-slate-600">{{ customer.phoneE164 }}</div>
+      <div class="text-sm text-slate-600">{{ formatPhone(customer.phoneE164) }}</div>
       <div class="text-sm text-slate-700">Points: {{ customer.pointsBalance ?? 0 }}</div>
     </div>
 

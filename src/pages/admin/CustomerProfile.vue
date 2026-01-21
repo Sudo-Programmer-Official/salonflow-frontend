@@ -14,6 +14,7 @@ import {
 } from '../../api/customerProfile';
 import { ElCard, ElAlert, ElTable, ElTableColumn, ElTag, ElButton, ElSelect, ElOption, ElMessage, ElDialog } from 'element-plus';
 import { formatInBusinessTz } from '../../utils/dates';
+import { formatPhone } from '../../utils/format';
 
 const route = useRoute();
 const customerId = route.params.customerId as string;
@@ -90,7 +91,7 @@ const confirmRedeem = async () => {
       <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div class="text-lg font-semibold text-slate-900">{{ profile.customer.name }}</div>
-          <div class="text-sm text-slate-600">{{ profile.customer.phoneE164 }}</div>
+          <div class="text-sm text-slate-600">{{ formatPhone(profile.customer.phoneE164) }}</div>
           <div class="text-xs text-slate-500">Member since: {{ formatInBusinessTz(profile.customer.createdAt, 'MMM D, YYYY') }}</div>
         </div>
         <div class="flex items-center gap-3">

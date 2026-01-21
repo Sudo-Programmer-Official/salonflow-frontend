@@ -26,6 +26,7 @@ import {
 import { fetchServices, type ServiceItem } from '../../api/services';
 import { fetchStaff, type StaffMember } from '../../api/staff';
 import { formatInBusinessTz } from '../../utils/dates';
+import { formatPhone } from '../../utils/format';
 
 const PAGE_SIZE = 10;
 const appointments = ref<Appointment[]>([]);
@@ -255,36 +256,40 @@ const goToPage = (target: number) => {
       <div class="table-shell">
         <div class="table-body">
           <ElTable :data="displayedAppointments" :loading="loading" stripe>
-      <ElTableColumn prop="customerName" label="Customer" min-width="140" />
-      <ElTableColumn prop="phoneE164" label="Phone" min-width="120" />
-      <ElTableColumn prop="serviceName" label="Service" min-width="140" />
-      <ElTableColumn prop="staffName" label="Staff" min-width="120" />
-      <ElTableColumn prop="preferredTech" label="Preferred Tech" min-width="140" />
-      <ElTableColumn
-        prop="scheduledAt"
-        label="Time"
-        min-width="110"
-        :formatter="formatTime"
-        />
-        <ElTableColumn prop="status" label="Status" width="110" />
-        <ElTableColumn label="Actions" min-width="300">
-          <template #default="{ row }">
-            <div class="flex flex-wrap gap-2">
-              <ElButton size="small" type="primary" class="sf-btn sf-btn--table" @click="openEdit(row)">Edit</ElButton>
-              <ElButton size="small" type="danger" class="sf-btn sf-btn--table" @click="handleCancel(row.id)">Cancel</ElButton>
-              <ElButton
-                v-if="row.status === 'BOOKED'"
-                size="small"
-                type="success"
-                class="sf-btn sf-btn--table"
-                @click="handleComplete(row.id)"
-              >
-                Complete
-              </ElButton>
-            </div>
-          </template>
-        </ElTableColumn>
-      </ElTable>
+            <ElTableColumn prop="customerName" label="Customer" min-width="140" />
+            <ElTableColumn label="Phone" min-width="140">
+              <template #default="{ row }">
+                <span>{{ formatPhone(row.phoneE164) }}</span>
+              </template>
+            </ElTableColumn>
+            <ElTableColumn prop="serviceName" label="Service" min-width="140" />
+            <ElTableColumn prop="staffName" label="Staff" min-width="120" />
+            <ElTableColumn prop="preferredTech" label="Preferred Tech" min-width="140" />
+            <ElTableColumn
+              prop="scheduledAt"
+              label="Time"
+              min-width="110"
+              :formatter="formatTime"
+            />
+            <ElTableColumn prop="status" label="Status" width="110" />
+            <ElTableColumn label="Actions" min-width="300">
+              <template #default="{ row }">
+                <div class="flex flex-wrap gap-2">
+                  <ElButton size="small" type="primary" class="sf-btn sf-btn--table" @click="openEdit(row)">Edit</ElButton>
+                  <ElButton size="small" type="danger" class="sf-btn sf-btn--table" @click="handleCancel(row.id)">Cancel</ElButton>
+                  <ElButton
+                    v-if="row.status === 'BOOKED'"
+                    size="small"
+                    type="success"
+                    class="sf-btn sf-btn--table"
+                    @click="handleComplete(row.id)"
+                  >
+                    Complete
+                  </ElButton>
+                </div>
+              </template>
+            </ElTableColumn>
+          </ElTable>
 
           <div v-if="!loading && appointments.length === 0" class="py-6 text-center text-sm text-slate-500">
         No appointments for this date.

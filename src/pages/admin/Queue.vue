@@ -707,7 +707,7 @@ watch(completedPage, async (val) => {
               <div class="flex flex-wrap items-center gap-2 text-sm text-slate-900">
                 <span class="font-semibold">👤 {{ appt.customerName }}</span>
                 <span class="flex items-center gap-1 text-slate-700">
-                  📞 <span>{{ appt.phoneE164 }}</span>
+                  📞 <span>{{ formatPhone(appt.phoneE164) }}</span>
                 </span>
               </div>
               <div class="flex flex-wrap items-center gap-2 text-xs text-slate-700">

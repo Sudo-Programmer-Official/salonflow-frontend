@@ -7,6 +7,7 @@ import {
   type Appointment,
 } from '../../api/appointments';
 import { formatInBusinessTz } from '../../utils/dates';
+import { formatPhone } from '../../utils/format';
 
 const appointments = ref<Appointment[]>([]);
 const loading = ref(false);
@@ -54,7 +55,11 @@ const formatTime = (_: unknown, __: unknown, val: string) =>
     <ElCard class="bg-white">
       <ElTable :data="appointments" :loading="loading" stripe>
         <ElTableColumn prop="customerName" label="Customer" min-width="140" />
-        <ElTableColumn prop="phoneE164" label="Phone" min-width="120" />
+        <ElTableColumn label="Phone" min-width="140">
+          <template #default="{ row }">
+            <span>{{ formatPhone(row.phoneE164) }}</span>
+          </template>
+        </ElTableColumn>
         <ElTableColumn prop="serviceName" label="Service" min-width="140" />
         <ElTableColumn
           prop="scheduledAt"
