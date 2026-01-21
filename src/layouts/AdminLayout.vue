@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import OnboardingProgress from '../components/OnboardingProgress.vue';
 import { trialExpired, trialEndedAt, trialDaysRemaining, resetTrialState } from '../api/trialBanner';
@@ -260,7 +260,7 @@ onMounted(() => {
 
 watch(
   () => route.name,
-  (val) => openGroupForRoute(val as string),
+  (val: string | null | undefined) => openGroupForRoute(val ?? null),
 );
 </script>
 
