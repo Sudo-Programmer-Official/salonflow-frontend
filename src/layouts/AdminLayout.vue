@@ -258,10 +258,9 @@ onMounted(() => {
   openGroupForRoute(route.name as string);
 });
 
-watch(
-  () => route.name,
-  (val: string | null | undefined) => openGroupForRoute(val ?? null),
-);
+const currentRouteName = computed(() => (route.name ? String(route.name) : null));
+
+watch(currentRouteName, (val) => openGroupForRoute(val));
 </script>
 
 <template>
