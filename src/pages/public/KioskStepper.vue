@@ -193,10 +193,6 @@ const keypad = [
 ];
 
 const primaryServiceId = computed(() => selectedServiceIds.value[0] ?? null);
-const selectedStaffName = computed(() => {
-  if (!selectedStaffId.value) return null;
-  return staffList.value.find((s) => s.id === selectedStaffId.value)?.name ?? null;
-});
 const rewardValue = computed(() => {
   if (!showPoints.value) return null;
   const points = animatedPoints.value ?? lookupResult.value?.customer?.pointsBalance;
