@@ -544,15 +544,36 @@ const openCheckinModal = (appt?: TodayAppointment) => {
   checkinOpen.value = true;
 };
 
+const normalizePhoneInput = (raw: string) => {
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  const digits = trimmed.replace(/\D/g, '');
+  if (trimmed.startsWith('+') && digits.length >= 10) return `+${digits}`;
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+  return trimmed;
+};
+
+const isValidPhoneInput = (raw: string) => {
+  const digits = raw.replace(/\D/g, '');
+  return digits.length >= 10;
+};
+
 const submitCheckin = async (appt?: TodayAppointment) => {
-  if (!checkinName.value.trim() || !checkinPhone.value.trim()) {
-    ElMessage.warning('Name and phone are required');
+  if (!checkinName.value.trim()) {
+    ElMessage.warning('Name is required');
     return;
   }
+  if (!isValidPhoneInput(checkinPhone.value)) {
+    ElMessage.warning('Enter a valid 10-digit phone number');
+    return;
+  }
+  const normalizedPhone = normalizePhoneInput(checkinPhone.value);
   try {
+    actionLoading.value = 'checkin-modal';
     await createPublicCheckIn({
       name: checkinName.value.trim(),
-      phoneE164: checkinPhone.value.trim(),
+      phoneE164: normalizedPhone,
       serviceId: checkinServiceId.value || undefined,
       appointmentId: appt?.id ?? activeCheckinAppt.value?.id,
     });
@@ -568,7 +589,10 @@ const submitCheckin = async (appt?: TodayAppointment) => {
     await Promise.all([loadQueue(), loadAppointments()]);
     ElMessage.success('Checked in');
   } catch (err) {
+    console.error('Check-in failed', err);
     ElMessage.error(err instanceof Error ? err.message : 'Failed to check in');
+  } finally {
+    actionLoading.value = null;
   }
 };
 
@@ -1250,7 +1274,12 @@ watch(completedPage, async (val) => {
         </div>
         <div class="flex justify-end gap-2 pt-1">
           <ElButton class="sf-btn" @click="checkinOpen = false">Cancel</ElButton>
-          <ElButton type="primary" class="sf-btn action-accent" @click="submitCheckin(activeCheckinAppt || undefined)">
+          <ElButton
+            type="primary"
+            class="sf-btn action-accent"
+            :loading="actionLoading === 'checkin-modal'"
+            @click="submitCheckin(activeCheckinAppt || undefined)"
+          >
             Check in
           </ElButton>
         </div>
