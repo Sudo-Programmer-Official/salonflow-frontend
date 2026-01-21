@@ -10,7 +10,7 @@ import { applyThemeFromSettings } from '../../utils/theme';
 import { formatUSPhone } from '../../utils/format';
 import { formatPhone } from '../../utils/format';
 
-type Step = 'welcome' | 'phone' | 'services' | 'staff' | 'review' | 'done';
+type Step = 'welcome' | 'phone' | 'name' | 'services' | 'staff' | 'done';
 
 type ServiceGroup = {
   categoryId: string | null;
@@ -110,19 +110,19 @@ const stepItems = computed<Array<{ key: Step; label: string }>>(() => {
   if (!useClassicWelcome.value) {
     base.push({ key: 'welcome', label: 'Welcome' });
   }
-  base.push({ key: 'phone', label: 'Phone' }, { key: 'services', label: 'Services' });
+  base.push({ key: 'phone', label: 'Phone' }, { key: 'name', label: 'Name' }, { key: 'services', label: 'Services' });
   if (showStaffStep.value) {
     base.push({ key: 'staff', label: 'Staff' });
   }
-  base.push({ key: 'review', label: 'Review' }, { key: 'done', label: 'Done' });
+  base.push({ key: 'done', label: 'Done' });
   return base;
 });
 const stepIcons: Record<Step, string> = {
   welcome: '👋',
   phone: '📞',
+  name: '👤',
   services: '💅',
   staff: '🧑‍🎨',
-  review: '📝',
   done: '✅',
 };
 const currentStepIndex = computed(() => stepItems.value.findIndex((s) => s.key === step.value));
@@ -375,6 +375,8 @@ const canAdvanceFromPhone = computed(() => {
   return true;
 });
 
+const canAdvanceFromName = computed(() => !!name.value.trim());
+
 const canAdvanceFromServices = computed(() => {
   if (requireService.value) return selectedServiceIds.value.length > 0;
   if (!allowServiceSkip.value && selectedServiceIds.value.length === 0) return false;
@@ -394,6 +396,15 @@ const skipPhoneStep = () => {
 const proceedFromPhone = () => {
   if (!canAdvanceFromPhone.value) {
     errorMessage.value = 'Phone number is required.';
+    return;
+  }
+  errorMessage.value = '';
+  step.value = 'name';
+};
+
+const proceedFromName = () => {
+  if (!canAdvanceFromName.value) {
+    errorMessage.value = 'Name is required.';
     return;
   }
   errorMessage.value = '';
@@ -417,10 +428,12 @@ const skipServiceSelection = () => {
   if (!allowServiceSkip.value) return;
   selectedServiceIds.value = [];
   errorMessage.value = '';
-  step.value = showStaffStep.value ? 'staff' : 'review';
   if (showStaffStep.value) {
+    step.value = 'staff';
     loadStaff();
+    return;
   }
+  confirmCheckIn();
 };
 
 const goNextFromServices = async () => {
@@ -438,7 +451,7 @@ const goNextFromServices = async () => {
     await loadStaff();
     return;
   }
-  step.value = 'review';
+  await confirmCheckIn();
 };
 
 const selectStaff = (staffId: string | null) => {
@@ -446,19 +459,19 @@ const selectStaff = (staffId: string | null) => {
   errorMessage.value = '';
 };
 
-const goFromStaffToReview = () => {
+const goFromStaffToReview = async () => {
   if (requireStaffStep.value && !selectedStaffId.value) {
     errorMessage.value = 'Please choose a staff member.';
     return;
   }
-  step.value = 'review';
+  await confirmCheckIn();
 };
 
-const skipStaffSelection = () => {
+const skipStaffSelection = async () => {
   if (!allowStaffSkip.value || requireStaffStep.value) return;
   selectedStaffId.value = null;
   errorMessage.value = '';
-  step.value = 'review';
+  await confirmCheckIn();
 };
 
 const startDoneCountdown = () => {
@@ -513,6 +526,14 @@ const confirmCheckIn = async () => {
     step.value = 'phone';
     return;
   }
+  const personName =
+    lookupResult.value?.customer?.name?.trim() ||
+    name.value.trim();
+  if (!personName) {
+    errorMessage.value = 'Name is required.';
+    step.value = 'name';
+    return;
+  }
   if (requireService.value && selectedServiceIds.value.length === 0) {
     errorMessage.value = 'Please select at least one service.';
     step.value = 'services';
@@ -533,17 +554,14 @@ const confirmCheckIn = async () => {
       : null;
     const serviceName = matchedService?.name || null;
     await createPublicCheckIn({
-      name:
-        lookupResult.value?.customer?.name?.trim() ||
-        name.value.trim() ||
-        'Guest',
+      name: personName,
       phoneE164: requirePhone.value ? normalizedPhone : normalizedPhone || null,
       serviceId: primaryServiceId,
       serviceName,
       staffId: selectedStaffId.value,
     });
-    successName.value =
-      lookupResult.value?.customer?.name?.trim() || name.value.trim() || 'Guest';
+    name.value = personName;
+    successName.value = personName;
     successServices.value = selectedServiceDetails.value.map((s) => s.name).filter(Boolean);
     startPointsAnimation(lookupResult.value?.customer?.pointsBalance ?? null);
     step.value = 'done';
@@ -757,31 +775,37 @@ watch(
                     </div>
                   </div>
                 </div>
-                <div class="kiosk-pane phone-bottom glass-card">
-                  <div class="grid gap-4 lg:grid-cols-[1.1fr,0.9fr] items-start">
-                    <div>
-                      <label class="kiosk-label">
-                        Name
-                      </label>
-                      <ElInput v-model="name" size="large" placeholder="Your name" />
-                    </div>
-                    <div class="space-y-2">
-                      <div v-if="showPoints" class="rounded-xl border border-white/40 bg-white/10 px-4 py-3 min-h-[90px] flex flex-col justify-center" :style="{ color: 'var(--kiosk-text-primary)' }">
-                        <div v-if="lookupLoading" class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">Checking rewards…</div>
-                        <template v-else-if="lookupResult?.exists && lookupResult.customer">
-                          <div class="text-base font-semibold">💎 {{ lookupResult.customer.pointsBalance ?? 0 }} points</div>
-                          <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">Keep earning rewards every visit.</div>
-                        </template>
-                        <template v-else>
-                          <div class="text-base font-semibold">💎 Earn rewards</div>
-                          <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">Check in today to start earning points.</div>
-                        </template>
-                      </div>
-                      <div v-if="lookupError" class="rounded-xl border border-amber-300 bg-amber-100/20 px-4 py-3 text-sm text-amber-700">
-                        {{ lookupError }}
-                      </div>
-                    </div>
+              </div>
+
+              <div v-else-if="step === 'name'" class="space-y-5">
+                <div class="kiosk-heading">
+                  <div>
+                    <p class="text-xl font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">Your name</p>
+                    <p class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">We’ll use this to call you when it’s your turn.</p>
                   </div>
+                  <ElButton size="large" @click="step = 'phone'">Back</ElButton>
+                </div>
+
+                <div class="kiosk-pane glass-card space-y-4">
+                  <label class="kiosk-label">
+                    Name
+                  </label>
+                  <ElInput v-model="name" size="large" placeholder="Your name" />
+                  <div v-if="lookupResult?.customer?.name" class="text-xs" :style="{ color: 'var(--kiosk-text-secondary)' }">
+                    Loaded from your profile. You can edit it if needed.
+                  </div>
+                </div>
+
+                <div class="flex justify-end gap-3">
+                  <ElButton size="large" @click="step = 'phone'">Back</ElButton>
+                  <ElButton
+                    type="primary"
+                    size="large"
+                    :disabled="!canAdvanceFromName"
+                    @click="proceedFromName"
+                  >
+                    Next
+                  </ElButton>
                 </div>
               </div>
 
@@ -849,10 +873,10 @@ watch(
                 </div>
                   <div v-else class="rounded-xl border border-white/10 bg-white/5 px-4 py-3" :style="{ color: 'var(--kiosk-text-secondary)' }">
                     No services published yet.
-                  </div>
+                </div>
 
                 <div class="service-actions">
-                  <ElButton size="large" @click="step = 'phone'">Back</ElButton>
+                  <ElButton size="large" @click="step = 'name'">Back</ElButton>
                   <ElButton v-if="allowServiceSkip" size="large" plain @click="skipServiceSelection">
                     Skip
                   </ElButton>
@@ -942,75 +966,7 @@ watch(
                     :disabled="requireStaffStep && !selectedStaffId"
                     @click="goFromStaffToReview"
                   >
-                    Next
-                  </ElButton>
-                </div>
-              </div>
-
-              <div v-else-if="step === 'review'" class="space-y-4">
-                <div class="kiosk-heading">
-                  <div>
-                    <p class="text-xl font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">Review</p>
-                    <p class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">Confirm before checking in.</p>
-                  </div>
-                  <ElButton size="large" @click="step = 'services'">Back</ElButton>
-                </div>
-
-                <div class="review-block glass-card">
-                  <div>
-                    <p class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">Name</p>
-                    <p class="text-lg font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">{{ name || 'Guest' }}</p>
-                  </div>
-                  <div>
-                    <p class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">Phone</p>
-                    <p class="text-lg font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">{{ formattedPhone }}</p>
-                  </div>
-                  <div>
-                    <p class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">Services</p>
-                    <ul v-if="selectedServiceDetails.length" class="list-inside list-disc" :style="{ color: 'var(--kiosk-text-primary)' }">
-                      <li v-for="service in selectedServiceDetails" :key="service.id" class="text-base">
-                        {{ service.name }}
-                        <span v-if="service.durationMinutes" :style="{ color: 'var(--kiosk-text-secondary)' }">
-                          · {{ service.durationMinutes }} min
-                        </span>
-                      </li>
-                    </ul>
-                    <p v-else class="text-base" :style="{ color: 'var(--kiosk-text-secondary)' }">No services selected.</p>
-                  </div>
-                  <div v-if="estimatedTotal.totalCents > 0" class="estimated-total">
-                    <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">Estimated total</div>
-                    <div class="text-lg font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">{{ estimatedTotal.formatted }}</div>
-                    <div class="text-xs" :style="{ color: 'var(--kiosk-text-secondary)' }">Final amount confirmed at checkout.</div>
-                  </div>
-                  <div v-if="allowStaffSelection">
-                    <p class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">Staff preference</p>
-                    <p class="text-base" :style="{ color: 'var(--kiosk-text-primary)' }">
-                      {{ selectedStaffName || 'No preference' }}
-                    </p>
-                  </div>
-                  <div v-if="showPoints && lookupResult?.exists && lookupResult.customer">
-                    <p class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">Rewards preview</p>
-                    <p class="text-base" :style="{ color: 'var(--kiosk-text-primary)' }">
-                      💎 {{ lookupResult.customer.pointsBalance ?? 0 }} points
-                    </p>
-                    <p class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">
-                      Keep earning rewards every visit.
-                    </p>
-                  </div>
-                </div>
-
-                <ElAlert
-                  v-if="errorMessage"
-                  type="error"
-                  :closable="false"
-                  :title="errorMessage"
-                  class="mb-2"
-                />
-
-                <div class="flex justify-end gap-3">
-                  <ElButton size="large" @click="step = showStaffStep ? 'staff' : 'services'">Back</ElButton>
-                  <ElButton type="primary" size="large" :loading="submitting" @click="confirmCheckIn">
-                    Confirm check-in
+                    Complete check-in
                   </ElButton>
                 </div>
               </div>
