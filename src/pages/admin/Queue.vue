@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onBeforeUnmount, ref, watch, nextTick, reactive } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import {
   ElCard,
   ElButton,
@@ -28,7 +29,7 @@ import {
 } from '../../api/appointments';
 import { fetchServices, type ServiceOption, createPublicCheckIn } from '../../api/checkins';
 import { searchCustomers, sendCustomerReminder } from '../../api/customers';
-import { humanizeTime } from '../../utils/dates';
+import { humanizeTime, formatInBusinessTz } from '../../utils/dates';
 import { formatPhone } from '../../utils/format';
 import { fetchGiftCard } from '../../api/giftCards';
 
@@ -220,6 +221,8 @@ onMounted(() => {
   window.addEventListener('focus', handleFocus);
   window.addEventListener('online', updateOnline);
   window.addEventListener('offline', updateOnline);
+  window.addEventListener('open-manual-checkin', handleManualCheckinEvent);
+  consumeNewCheckinQuery();
 });
 
 onBeforeUnmount(() => {
@@ -228,6 +231,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('focus', handleFocus);
   window.removeEventListener('online', updateOnline);
   window.removeEventListener('offline', updateOnline);
+  window.removeEventListener('open-manual-checkin', handleManualCheckinEvent);
 });
 
 const handleAction = async (id: string, action: () => Promise<unknown>) => {
@@ -672,6 +676,22 @@ const stopPolling = () => {
   }
 };
 
+const route = useRoute();
+const router = useRouter();
+
+const handleManualCheckinEvent = () => {
+  openCheckinModal();
+};
+
+const consumeNewCheckinQuery = async () => {
+  if (route.query.newCheckin === '1') {
+    openCheckinModal();
+    const nextQuery = { ...route.query };
+    delete (nextQuery as any).newCheckin;
+    await router.replace({ query: nextQuery });
+  }
+};
+
 const handleVisibility = () => {
   if (document.visibilityState === 'visible') {
     loadQueue({ silent: true });
@@ -821,7 +841,7 @@ watch(completedPage, async (val) => {
               </div>
               <div class="flex flex-wrap items-center gap-2 text-xs text-slate-700">
                 <span>💇 {{ appt.serviceName || 'No service' }}</span>
-                <span>🕒 {{ appt.scheduledAt.slice(11, 16) }}</span>
+                <span>🕒 {{ formatInBusinessTz(appt.scheduledAt, 'h:mm A') }}</span>
                 <span class="flex items-center gap-1">
                   👩‍🎨
                   <span>{{ appt.staffName || 'Unassigned' }}</span>

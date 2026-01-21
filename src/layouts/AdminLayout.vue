@@ -60,6 +60,17 @@ const exitImpersonation = () => {
 
 const handleLogout = () => logout('/app/login');
 
+const triggerManualCheckin = () => {
+  const evt = new CustomEvent('open-manual-checkin');
+  if (route.name === 'admin-queue') {
+    window.dispatchEvent(evt);
+    return;
+  }
+  router.push({ name: 'admin-queue', query: { newCheckin: '1' } }).then(() => {
+    window.dispatchEvent(evt);
+  });
+};
+
 const publicCheckInUrl = computed(() => {
   if (typeof window === 'undefined') return '/check-in';
   return `${window.location.origin}/check-in`;
@@ -332,6 +343,14 @@ watch(currentRouteName, (val) => openGroupForRoute(val));
           </el-button>
           <el-button type="primary" plain size="small" @click="openPublicCheckIn">
             Public Check-In
+          </el-button>
+          <el-button
+            v-if="isOwner"
+            type="primary"
+            size="small"
+            @click="triggerManualCheckin"
+          >
+            + New Check-In
           </el-button>
           <el-button class="logout-btn" type="danger" size="small" @click="handleLogout">
             Logout
