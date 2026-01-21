@@ -1226,6 +1226,12 @@ watch(completedPage, async (val) => {
           <label class="text-sm font-semibold text-slate-800">Phone</label>
           <ElInput v-model="checkinPhone" placeholder="+1 555 123 4567" />
         </div>
+        <div class="text-xs text-slate-600 leading-relaxed">
+          By entering the customer’s phone number and clicking Check in, they agree to receive appointment reminders and notifications from SalonFlow. Message frequency varies. Reply STOP to opt out. Reply HELP for help. Consent is not required to check in or make a purchase. See
+          <a href="/terms" target="_blank" rel="noopener" class="text-sky-600 hover:underline">Terms of Service</a>
+          and
+          <a href="/privacy" target="_blank" rel="noopener" class="text-sky-600 hover:underline">Privacy Policy</a>.
+        </div>
         <div class="space-y-1">
           <label class="text-sm font-semibold text-slate-800">Service (optional)</label>
           <ElSelect

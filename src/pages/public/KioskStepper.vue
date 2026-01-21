@@ -764,6 +764,15 @@ watch(
                         Next
                       </ElButton>
                     </div>
+                    <div class="kiosk-opt-in">
+                      <p>
+                        By entering your phone number and clicking Next, you give SalonFlow express written consent to contact you at the number provided for appointment reminders and notifications.
+                        Message frequency varies. Reply STOP to opt out. Reply HELP for help. Consent is not required to check in or make a purchase. You also agree to our
+                        <a href="/terms" target="_blank" rel="noopener" class="link">Terms of Service</a>
+                        and
+                        <a href="/privacy" target="_blank" rel="noopener" class="link">Privacy Policy</a>.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1187,6 +1196,19 @@ watch(
 .keypad-key:active {
   transform: scale(0.96);
   background: color-mix(in srgb, var(--kiosk-primary) 85%, #000 15%);
+}
+.kiosk-opt-in {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--kiosk-surface, #0f1119) 85%, rgba(255, 255, 255, 0.05) 15%);
+  color: var(--kiosk-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.kiosk-opt-in .link {
+  color: var(--kiosk-primary);
+  text-decoration: underline;
 }
 .kiosk-label {
   display: block;
