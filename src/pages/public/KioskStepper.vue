@@ -183,11 +183,6 @@ const serviceSections = computed(() => {
   return [...active, ...uncategorized];
 });
 
-const formattedPhone = computed(() => {
-  const formatted = formatUSPhone(phone.value);
-  return formatted || 'Not provided';
-});
-
 const displayPhone = computed(() => formatUSPhone(phone.value) || 'Tap the keypad');
 
 const keypad = [
