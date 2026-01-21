@@ -3,6 +3,7 @@ import { onMounted, reactive, ref } from 'vue';
 import { ElForm, ElFormItem, ElInput, ElSelect, ElOption, ElDatePicker, ElTimeSelect, ElButton, ElAlert } from 'element-plus';
 import { fetchServices, type ServiceItem } from '../../api/services';
 import { createPublicAppointment } from '../../api/appointments';
+import { dayjs, getBusinessTimezone } from '../../utils/dates';
 
 const services = ref<ServiceItem[]>([]);
 const loadingServices = ref(false);
@@ -34,16 +35,28 @@ onMounted(() => {
   loadServices();
 });
 
+const buildScheduledAt = () => {
+  if (!form.date || !form.time) return '';
+  const zone = getBusinessTimezone();
+  const composed = dayjs.tz(`${form.date}T${form.time}:00`, zone);
+  return composed.isValid() ? composed.utc().toISOString() : '';
+};
+
 const onSubmit = async () => {
   errorMessage.value = '';
   success.value = false;
+  const scheduledAt = buildScheduledAt();
+  if (!scheduledAt) {
+    errorMessage.value = 'Please pick a valid date and time.';
+    return;
+  }
   submitting.value = true;
   try {
     await createPublicAppointment({
       name: form.name.trim(),
       phoneE164: form.phoneE164.trim(),
       serviceId: form.serviceId,
-      scheduledAt: form.date && form.time ? `${form.date}T${form.time}:00` : '',
+      scheduledAt,
       notes: form.notes || undefined,
     });
     success.value = true;
@@ -101,7 +114,13 @@ const onSubmit = async () => {
         </ElFormItem>
 
         <ElFormItem label="Date" required>
-          <ElDatePicker v-model="form.date" type="date" placeholder="Select date" />
+          <ElDatePicker
+            v-model="form.date"
+            type="date"
+            placeholder="Select date"
+            format="YYYY-MM-DD"
+            value-format="YYYY-MM-DD"
+          />
         </ElFormItem>
 
         <ElFormItem label="Time" required>

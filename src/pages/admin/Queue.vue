@@ -21,13 +21,13 @@ import {
   markNoShow,
   type QueueItem,
 } from '../../api/queue';
-import { fetchStaff, type StaffMember } from '../../api/staff';
+import { fetchStaff, type StaffMember, fetchPublicAvailableStaff, type PublicStaffResponse } from '../../api/staff';
 import {
   fetchTodayAppointments,
   type TodayAppointment,
   type TodayAppointmentsResponse,
 } from '../../api/appointments';
-import { fetchServices, type ServiceOption, createPublicCheckIn } from '../../api/checkins';
+import { fetchServices, type ServiceOption, createPublicCheckIn, publicLookup } from '../../api/checkins';
 import { searchCustomers, sendCustomerReminder } from '../../api/customers';
 import { humanizeTime, formatInBusinessTz } from '../../utils/dates';
 import { formatPhone } from '../../utils/format';
@@ -95,6 +95,22 @@ const checkinName = ref('');
 const checkinPhone = ref('');
 const checkinServiceId = ref('');
 const checkinPrefillService = ref('');
+const checkinStaffId = ref('');
+const checkinLookupResult = ref<
+  | null
+  | { exists: boolean; customer?: { id: string; name: string; pointsBalance: number | null } }
+>(null);
+const checkinLookupLoading = ref(false);
+const checkinLookupError = ref('');
+const checkinLookupTimer = ref<number | null>(null);
+const manualStaff = ref<StaffMember[]>([]);
+const manualStaffLoading = ref(false);
+const allowManualStaffSelection = ref(false);
+const requireManualStaffSelection = ref(false);
+const pendingStaffName = ref<string | null>(null);
+const formattedCheckinPhone = computed(() =>
+  checkinPhone.value ? formatPhone(checkinPhone.value) : '',
+);
 const isOnline = ref(typeof navigator !== 'undefined' ? navigator.onLine : true);
 const activeCheckinAppt = ref<TodayAppointment | null>(null);
 
@@ -216,6 +232,7 @@ onMounted(() => {
   loadStaff();
   loadAppointments();
   loadServices();
+  loadManualStaff();
   startPolling();
   document.addEventListener('visibilitychange', handleVisibility);
   window.addEventListener('focus', handleFocus);
@@ -545,6 +562,9 @@ const openCheckinModal = (appt?: TodayAppointment) => {
     ? services.value.find((s) => s.name === appt.serviceName)?.id || ''
     : '';
   checkinPrefillService.value = appt?.serviceName || '';
+  pendingStaffName.value = appt?.staffName || null;
+  loadManualStaff(checkinServiceId.value || undefined);
+  triggerLookup();
   checkinOpen.value = true;
 };
 
@@ -563,8 +583,74 @@ const isValidPhoneInput = (raw: string) => {
   return digits.length >= 10;
 };
 
+const triggerLookup = () => {
+  if (checkinLookupTimer.value) {
+    clearTimeout(checkinLookupTimer.value);
+  }
+  if (!checkinPhone.value.trim()) {
+    checkinLookupResult.value = null;
+    checkinLookupError.value = '';
+    return;
+  }
+  const digits = checkinPhone.value.replace(/\D/g, '');
+  if (digits.length < 10) {
+    checkinLookupResult.value = null;
+    checkinLookupError.value = '';
+    return;
+  }
+  checkinLookupTimer.value = window.setTimeout(runLookup, 400);
+};
+
+const runLookup = async () => {
+  if (!checkinPhone.value.trim()) return;
+  checkinLookupLoading.value = true;
+  try {
+    const normalizedPhone = normalizePhoneInput(checkinPhone.value);
+    const res = await publicLookup(normalizedPhone);
+    checkinLookupResult.value = res;
+    checkinLookupError.value = '';
+    if (res.exists && res.customer?.name && !checkinName.value) {
+      checkinName.value = res.customer.name;
+    }
+  } catch {
+    checkinLookupResult.value = null;
+    checkinLookupError.value = 'Could not load loyalty right now.';
+  } finally {
+    checkinLookupLoading.value = false;
+  }
+};
+
+const loadManualStaff = async (serviceId?: string) => {
+  manualStaffLoading.value = true;
+  try {
+    const res: PublicStaffResponse = await fetchPublicAvailableStaff(serviceId);
+    manualStaff.value = res.staff || [];
+    allowManualStaffSelection.value = res.allowStaffSelection !== false;
+    requireManualStaffSelection.value = res.enforceAvailability === true;
+    if (pendingStaffName.value) {
+      const match = manualStaff.value.find(
+        (s) =>
+          s.name?.toLowerCase() === pendingStaffName.value?.toLowerCase() ||
+          s.nickname?.toLowerCase() === pendingStaffName.value?.toLowerCase(),
+      );
+      if (match) {
+        checkinStaffId.value = match.id;
+      }
+      pendingStaffName.value = null;
+    }
+  } catch {
+    manualStaff.value = [];
+    allowManualStaffSelection.value = false;
+    requireManualStaffSelection.value = false;
+  } finally {
+    manualStaffLoading.value = false;
+  }
+};
+
 const submitCheckin = async (appt?: TodayAppointment) => {
-  if (!checkinName.value.trim()) {
+  const resolvedName =
+    checkinLookupResult.value?.customer?.name?.trim() || checkinName.value.trim();
+  if (!resolvedName) {
     ElMessage.warning('Name is required');
     return;
   }
@@ -572,18 +658,26 @@ const submitCheckin = async (appt?: TodayAppointment) => {
     ElMessage.warning('Enter a valid 10-digit phone number');
     return;
   }
+  if (allowManualStaffSelection.value && requireManualStaffSelection.value && !checkinStaffId.value) {
+    ElMessage.warning('Select a staff member');
+    return;
+  }
   const normalizedPhone = normalizePhoneInput(checkinPhone.value);
   try {
     actionLoading.value = 'checkin-modal';
     await createPublicCheckIn({
-      name: checkinName.value.trim(),
+      name: resolvedName,
       phoneE164: normalizedPhone,
       serviceId: checkinServiceId.value || undefined,
+      staffId: checkinStaffId.value || undefined,
       appointmentId: appt?.id ?? activeCheckinAppt.value?.id,
     });
     checkinOpen.value = false;
     checkinServiceId.value = '';
     checkinPrefillService.value = '';
+    checkinStaffId.value = '';
+    checkinLookupResult.value = null;
+    checkinLookupError.value = '';
     if (appt) {
       appt.status = 'CHECKED_IN';
     } else if (activeCheckinAppt.value) {
@@ -711,6 +805,18 @@ watch(checkoutOpen, async (open) => {
     await nextTick();
   }
 });
+
+watch(
+  () => checkinPhone.value,
+  () => triggerLookup(),
+);
+
+watch(
+  () => checkinServiceId.value,
+  (val) => {
+    loadManualStaff(val || undefined);
+  },
+);
 
 watch(activeTab, () => {
   if (activeTab.value === 'COMPLETED') {
@@ -1268,7 +1374,31 @@ watch(completedPage, async (val) => {
         </div>
         <div class="space-y-1">
           <label class="text-sm font-semibold text-slate-800">Phone</label>
-          <ElInput v-model="checkinPhone" placeholder="+1 555 123 4567" />
+          <ElInput v-model="checkinPhone" placeholder="+1 555 123 4567" @blur="runLookup" />
+          <div v-if="formattedCheckinPhone" class="text-xs text-slate-500">
+            {{ formattedCheckinPhone }}
+          </div>
+        </div>
+        <div v-if="checkinLookupResult && !checkinLookupLoading" class="rounded-lg bg-slate-50 p-3 text-sm text-slate-800">
+          <template v-if="checkinLookupResult.exists && checkinLookupResult.customer">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-base font-semibold">👋 {{ checkinLookupResult.customer.name }}</span>
+              <span class="text-sm text-slate-700">
+                💎 {{ checkinLookupResult.customer.pointsBalance ?? 0 }} points
+              </span>
+            </div>
+            <div class="text-xs text-slate-600">Customer found. Loyalty loaded.</div>
+          </template>
+          <template v-else>
+            <div class="text-sm font-semibold text-slate-800">💎 Earn rewards</div>
+            <div class="text-xs text-slate-600">Check in today to start earning points.</div>
+          </template>
+        </div>
+        <div v-else-if="checkinLookupLoading" class="rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
+          Looking up loyalty…
+        </div>
+        <div v-if="checkinLookupError" class="rounded-lg bg-amber-50 p-3 text-sm text-amber-700">
+          ⚠️ {{ checkinLookupError }}
         </div>
         <div class="text-xs text-slate-600 leading-relaxed">
           By entering the customer’s phone number and clicking Check in, they agree to receive appointment reminders and notifications from SalonFlow. Message frequency varies. Reply STOP to opt out. Reply HELP for help. Consent is not required to check in or make a purchase. See
@@ -1291,6 +1421,33 @@ watch(completedPage, async (val) => {
           <div v-if="checkinPrefillService && !checkinServiceId" class="text-xs text-slate-500">
             Prefilled from appointment: {{ checkinPrefillService }}
           </div>
+        </div>
+        <div
+          v-if="allowManualStaffSelection"
+          class="space-y-1"
+        >
+          <label class="text-sm font-semibold text-slate-800">
+            Staff
+            <span v-if="requireManualStaffSelection" class="text-amber-600">(required)</span>
+            <span v-else class="text-slate-500">(optional)</span>
+          </label>
+          <ElSelect
+            v-model="checkinStaffId"
+            placeholder="Select staff"
+            clearable
+            filterable
+            :loading="manualStaffLoading"
+            class="w-full"
+          >
+            <ElOption
+              v-for="member in manualStaff"
+              :key="member.id"
+              :label="member.nickname || member.name"
+              :value="member.id"
+            />
+          </ElSelect>
+          <div v-if="manualStaffLoading" class="text-xs text-slate-500">Loading staff…</div>
+          <div v-else-if="!manualStaff.length" class="text-xs text-slate-500">No staff available.</div>
         </div>
         <div class="flex justify-end gap-2 pt-1">
           <ElButton class="sf-btn" @click="checkinOpen = false">Cancel</ElButton>

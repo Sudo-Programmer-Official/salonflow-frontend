@@ -25,7 +25,7 @@ import {
 } from '../../api/appointments';
 import { fetchServices, type ServiceItem } from '../../api/services';
 import { fetchStaff, type StaffMember } from '../../api/staff';
-import { formatInBusinessTz } from '../../utils/dates';
+import { formatInBusinessTz, dayjs, getBusinessTimezone } from '../../utils/dates';
 import { formatPhone } from '../../utils/format';
 
 const PAGE_SIZE = 10;
@@ -38,7 +38,7 @@ const loadingStaff = ref(false);
 const page = ref(1);
 const totalPages = ref(1);
 
-const selectedDate = ref(new Date().toISOString().slice(0, 10));
+const selectedDate = ref(dayjs().tz(getBusinessTimezone()).format('YYYY-MM-DD'));
 
 const dialogVisible = ref(false);
 const dialogMode = ref<'create' | 'edit'>('create');
@@ -69,12 +69,24 @@ const resetForm = () => {
 };
 
 const formatDate = (d: Date | string) => {
-  if (d instanceof Date) return d.toISOString().slice(0, 10);
-  if (typeof d === 'string' && d.length >= 10) return d.slice(0, 10);
+  const zone = getBusinessTimezone();
+  if (d instanceof Date) return dayjs(d).tz(zone).format('YYYY-MM-DD');
+  if (typeof d === 'string' && d.length >= 10) {
+    const parsed = dayjs.tz(d, zone);
+    return parsed.isValid() ? parsed.format('YYYY-MM-DD') : '';
+  }
   return '';
 };
-const toDate = (iso: string) => iso.slice(0, 10);
-const toTime = (iso: string) => iso.slice(11, 16);
+const toDate = (iso: string) => {
+  const zone = getBusinessTimezone();
+  const parsed = dayjs.tz(iso, zone);
+  return parsed.isValid() ? parsed.format('YYYY-MM-DD') : '';
+};
+const toTime = (iso: string) => {
+  const zone = getBusinessTimezone();
+  const parsed = dayjs.tz(iso, zone);
+  return parsed.isValid() ? parsed.format('HH:mm') : '';
+};
 
 const loadAppointments = async () => {
   loading.value = true;
@@ -149,7 +161,9 @@ const openEdit = (appt: Appointment) => {
 
 const buildScheduledAt = () => {
   if (!form.date || !form.time) return '';
-  return `${form.date}T${form.time}:00`;
+  const zone = getBusinessTimezone();
+  const composed = dayjs.tz(`${form.date}T${form.time}:00`, zone);
+  return composed.isValid() ? composed.utc().toISOString() : '';
 };
 
 const formatTime = (_: unknown, __: unknown, val: string) =>
@@ -161,6 +175,10 @@ const saveAppointment = async () => {
     return;
   }
   const scheduledAt = buildScheduledAt();
+  if (!scheduledAt) {
+    ElMessage.error('Invalid date/time. Please pick a valid slot.');
+    return;
+  }
   saving.value = true;
   try {
     if (dialogMode.value === 'create') {

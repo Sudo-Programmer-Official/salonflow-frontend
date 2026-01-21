@@ -4,6 +4,7 @@ import { ElForm, ElFormItem, ElInput, ElSelect, ElOption, ElOptionGroup, ElButto
 import { useRoute } from 'vue-router';
 import { createPublicCheckIn, fetchGroupedServices, publicLookup } from '../../api/checkins';
 import type { ServiceOption } from '../../api/checkins';
+import { fetchPublicAvailableStaff, type StaffMember } from '../../api/staff';
 import { apiUrl, buildHeaders } from '../../api/client';
 import { startKioskIdleWatchdog } from '../../utils/kioskIdleWatchdog';
 import { fetchPublicSettings, type BusinessSettings } from '../../api/settings';
@@ -13,6 +14,7 @@ const form = reactive({
   name: '',
   phoneE164: '',
   serviceId: '',
+  staffId: '',
 });
 
 const groupedServices = ref<
@@ -40,6 +42,9 @@ const lookupTimer = ref<number | null>(null);
 const rewardText = ref('Get $5 off');
 const settings = ref<BusinessSettings | null>(null);
 const settingsError = ref('');
+const staffList = ref<StaffMember[]>([]);
+const staffLoading = ref(false);
+const staffError = ref('');
 const route = useRoute();
 const tenant = computed(
   () =>
@@ -92,6 +97,10 @@ const showPoints = computed(() => {
   return flag !== false;
 });
 const publicEnabled = computed(() => (settings.value ? settings.value.publicCheckInEnabled !== false : true));
+const allowStaffSelection = computed(() => settings.value?.allowStaffSelection === true);
+const requireStaffSelection = computed(
+  () => allowStaffSelection.value && settings.value?.requireStaffSelection === true,
+);
 
 onMounted(async () => {
   if (tenant.value) {
@@ -108,6 +117,7 @@ onMounted(async () => {
   }
   loadingServices.value = true;
   await refreshServices();
+  await loadStaff();
 
   try {
     const res = await fetch(
@@ -156,10 +166,29 @@ const refreshServices = async () => {
   }
 };
 
+const loadStaff = async (serviceId?: string) => {
+  if (!allowStaffSelection.value) return;
+  staffLoading.value = true;
+  staffError.value = '';
+  try {
+    const res = await fetchPublicAvailableStaff(serviceId);
+    staffList.value = res.staff || [];
+    if (serviceId && staffList.value.length === 0 && res.allowStaffSelection) {
+      staffError.value = 'No staff available for this service.';
+    }
+  } catch (err: any) {
+    staffList.value = [];
+    staffError.value = err?.message || 'Unable to load staff.';
+  } finally {
+    staffLoading.value = false;
+  }
+};
+
 const resetForm = (clearFeedback = false) => {
   form.name = '';
   form.phoneE164 = '';
   form.serviceId = '';
+  form.staffId = '';
   if (clearFeedback) {
     success.value = false;
     successPoints.value = null;
@@ -192,6 +221,10 @@ const onSubmit = async () => {
     errorMessage.value = 'Please select a service to continue.';
     return;
   }
+  if (allowStaffSelection.value && requireStaffSelection.value && !form.staffId) {
+    errorMessage.value = 'Please select a staff member.';
+    return;
+  }
   submitting.value = true;
   try {
     const normalizedPhone = normalizePhone(form.phoneE164);
@@ -213,6 +246,7 @@ const onSubmit = async () => {
       phoneE164: phoneRequired.value ? normalizedPhone : normalizedPhone || null,
       serviceId: form.serviceId || undefined,
       serviceName,
+      staffId: allowStaffSelection.value ? form.staffId || undefined : undefined,
     });
     success.value = true;
     successName.value = nameToUse;
@@ -269,6 +303,28 @@ watch(
     lookupTimer.value = window.setTimeout(() => {
       onLookup();
     }, 400);
+  },
+);
+
+watch(
+  () => form.serviceId,
+  (val) => {
+    loadStaff(val || undefined);
+    if (allowStaffSelection.value && val === '') {
+      form.staffId = '';
+    }
+  },
+);
+
+watch(
+  allowStaffSelection,
+  (allowed) => {
+    if (allowed) {
+      loadStaff(form.serviceId || undefined);
+    } else {
+      form.staffId = '';
+      staffList.value = [];
+    }
   },
 );
 </script>
@@ -372,6 +428,29 @@ watch(
           </ElSelect>
         </ElFormItem>
 
+        <ElFormItem
+          v-if="allowStaffSelection"
+          :label="requireStaffSelection ? 'Staff (required)' : 'Staff (optional)'"
+          :required="requireStaffSelection"
+        >
+          <ElSelect
+            v-model="form.staffId"
+            placeholder="Select staff"
+            size="large"
+            clearable
+            filterable
+            :loading="staffLoading"
+          >
+            <ElOption
+              v-for="member in staffList"
+              :key="member.id"
+              :label="member.nickname || member.name"
+              :value="member.id"
+            />
+          </ElSelect>
+          <div v-if="staffError" class="text-xs text-amber-700 mt-1">{{ staffError }}</div>
+        </ElFormItem>
+
         <div class="space-y-3">
           <div
             v-if="showPoints"
@@ -398,6 +477,7 @@ watch(
               (!form.name && !lookupResult?.exists) ||
               (phoneRequired && !form.phoneE164) ||
               (serviceRequired && !form.serviceId) ||
+              (allowStaffSelection && requireStaffSelection && !form.staffId) ||
               submitting ||
               !publicEnabled
             "
