@@ -9,8 +9,11 @@ import {
   ElButton,
   ElMessage,
   ElTooltip,
+  ElInput,
+  ElCheckbox,
 } from 'element-plus';
 import { fetchTenantDetail, impersonateTenant, type TenantOverview, type TenantMetrics } from '../../api/superadmin';
+import { fetchPlatformLimits, updatePlatformLimits } from '../../api/platform';
 import { useRoute } from 'vue-router';
 
 const route = useRoute();
@@ -20,6 +23,10 @@ const metrics = ref<TenantMetrics | null>(null);
 const loading = ref(false);
 const error = ref('');
 const impersonating = ref(false);
+const limits = ref<any | null>(null);
+const limitsLoading = ref(false);
+const limitsDialog = ref(false);
+const savingLimits = ref(false);
 const statusType = (status: string) => (status === 'active' ? 'success' : 'danger');
 
 const load = async () => {
@@ -28,6 +35,7 @@ const load = async () => {
     const res = await fetchTenantDetail(businessId);
     tenant.value = res.tenant;
     metrics.value = res.metrics;
+    await loadLimits();
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load tenant';
   } finally {
@@ -67,6 +75,35 @@ const impersonate = async () => {
 };
 
 const isPlatformTenant = computed(() => tenant.value?.subdomain === 'platform');
+
+const loadLimits = async () => {
+  limitsLoading.value = true;
+  try {
+    limits.value = await fetchPlatformLimits(businessId);
+  } catch (err) {
+    // silent
+  } finally {
+    limitsLoading.value = false;
+  }
+};
+
+const openLimits = () => {
+  limitsDialog.value = true;
+};
+
+const saveLimits = async () => {
+  if (!limits.value) return;
+  savingLimits.value = true;
+  try {
+    await updatePlatformLimits(businessId, limits.value);
+    ElMessage.success('Limits updated');
+    limitsDialog.value = false;
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : 'Failed to update limits');
+  } finally {
+    savingLimits.value = false;
+  }
+};
 </script>
 
 <template>
@@ -103,6 +140,9 @@ const isPlatformTenant = computed(() => tenant.value?.subdomain === 'platform');
         >
           Login as tenant
         </ElButton>
+        <ElButton class="ml-2" @click="openLimits" :loading="limitsLoading">
+          Edit limits
+        </ElButton>
       </div>
     </ElCard>
 
@@ -132,5 +172,32 @@ const isPlatformTenant = computed(() => tenant.value?.subdomain === 'platform');
         <ElDescriptionsItem label="Avg Lifetime Points">{{ metrics.avgLifetimePoints }}</ElDescriptionsItem>
       </ElDescriptions>
     </ElCard>
+
+    <ElDialog v-model="limitsDialog" title="Messaging limits" width="520px">
+      <div v-if="limits" class="space-y-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <div class="text-sm text-slate-700">SMS monthly cap</div>
+            <ElInput v-model.number="limits.sms_cap" type="number" />
+          </div>
+          <div>
+            <div class="text-sm text-slate-700">Email monthly cap</div>
+            <ElInput v-model.number="limits.email_cap" type="number" />
+          </div>
+          <div>
+            <ElCheckbox v-model="limits.sms_hard_block">Hard block SMS when cap reached</ElCheckbox>
+          </div>
+          <div>
+            <ElCheckbox v-model="limits.email_hard_block">Hard block Email when cap reached</ElCheckbox>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <ElButton @click="limitsDialog = false">Cancel</ElButton>
+          <ElButton type="primary" :loading="savingLimits" @click="saveLimits">Save</ElButton>
+        </div>
+      </template>
+    </ElDialog>
   </div>
 </template>

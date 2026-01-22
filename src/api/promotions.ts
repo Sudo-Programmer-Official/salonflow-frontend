@@ -89,6 +89,7 @@ export async function fetchPromotionStats(id: string): Promise<{
   pending: number;
   sent: number;
   failed: number;
+  blocked_cap?: number;
   canceled?: number;
   simulated: number;
   redeemed: number;

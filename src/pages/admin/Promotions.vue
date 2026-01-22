@@ -350,7 +350,11 @@ loadPromotions();
                   <div v-if="statsMap[promo.id] && statsMap[promo.id].total" class="progress-row">
                     <div class="text-xs text-slate-600 flex justify-between">
                       <span>Pending {{ statsMap[promo.id].pending ?? 0 }}</span>
-                      <span>Sent {{ statsMap[promo.id].sent ?? 0 }} | Failed {{ statsMap[promo.id].failed ?? 0 }}</span>
+                      <span>
+                        Sent {{ statsMap[promo.id].sent ?? 0 }}
+                        | Blocked {{ statsMap[promo.id].blocked_cap ?? 0 }}
+                        | Failed {{ statsMap[promo.id].failed ?? 0 }}
+                      </span>
                     </div>
                     <div class="progress-bar">
                       <div
@@ -361,7 +365,8 @@ loadPromotions();
                             Math.round(
                               ((statsMap[promo.id].sent ?? 0) +
                                 (statsMap[promo.id].failed ?? 0) +
-                                (statsMap[promo.id].simulated ?? 0)) /
+                                (statsMap[promo.id].simulated ?? 0) +
+                                (statsMap[promo.id].blocked_cap ?? 0)) /
                                 (statsMap[promo.id].total || 1) *
                                 100,
                             ),
@@ -446,6 +451,9 @@ loadPromotions();
           <div class="text-xs text-slate-700">Pending: {{ statsMap[viewDrawer.promo.id].pending }}</div>
           <div class="text-xs text-slate-700">Sent: {{ statsMap[viewDrawer.promo.id].sent }}</div>
           <div class="text-xs text-slate-700">Failed: {{ statsMap[viewDrawer.promo.id].failed }}</div>
+          <div class="text-xs text-slate-700">Blocked (cap): {{ statsMap[viewDrawer.promo.id].blocked_cap ?? 0 }}</div>
+          <div class="text-xs text-slate-700">Excluded (no consent): {{ statsMap[viewDrawer.promo.id].excluded_no_consent ?? 0 }}</div>
+          <div class="text-xs text-slate-700">Excluded (no phone): {{ statsMap[viewDrawer.promo.id].excluded_no_phone ?? 0 }}</div>
           <div class="text-xs text-slate-700">Simulated: {{ statsMap[viewDrawer.promo.id].simulated }}</div>
           <div class="text-xs text-slate-700">Status: {{ statsMap[viewDrawer.promo.id].status }}</div>
         </div>
