@@ -40,6 +40,23 @@ export function nowInBusinessTz(tz?: string) {
   return zone ? dayjsLib().tz(zone) : dayjsLib();
 }
 
+export function isWithinTcpaWindow(
+  instant?: string | number | Date,
+  tz?: string,
+  startHour = 8,
+  endHour = 20,
+): boolean {
+  const zone = tz?.trim() || getBusinessTimezone();
+  const d = instant ? dayjsLib(instant) : dayjsLib();
+  const local = zone ? d.tz(zone) : d;
+  if (!local.isValid()) return false;
+  const hour = local.hour();
+  const minute = local.minute();
+  const afterStart = hour > startHour || (hour === startHour && minute >= 0);
+  const beforeEnd = hour < endHour;
+  return afterStart && beforeEnd;
+}
+
 export const dayjs = dayjsLib;
 
 export function humanizeTime(date: string | number | Date | null | undefined): string {

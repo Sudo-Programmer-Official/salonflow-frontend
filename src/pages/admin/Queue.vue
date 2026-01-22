@@ -694,7 +694,7 @@ const submitCheckout = async () => {
     }
     const giftCardNumber = paymentOptions.gift
       ? giftCards.value
-          .map((g) => g.number.trim())
+          .map((g) => (g?.number ? String(g.number).trim() : ''))
           .filter(Boolean)
           .join(', ')
       : null;
@@ -1167,170 +1167,184 @@ watch(completedPage, async (val) => {
       <span v-else>No active check-ins.</span>
     </div>
 
-    <ElDialog v-model="checkoutOpen" title="Checkout" width="520px" class="checkout-modal">
-      <div class="space-y-3 checkout-body">
-        <div class="rounded-md border border-slate-200 bg-slate-50 p-2 text-xs text-slate-700">
-          Points available: {{ currentCheckoutItem?.pointsBalance ?? 0 }}
-        </div>
-        <div class="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800 space-y-2">
-          <div class="text-xs font-semibold text-slate-700">Services (from check-in)</div>
-          <div v-if="checkoutServices.length" class="flex flex-wrap gap-2">
-            <div
-              v-for="svc in checkoutServices"
-              :key="svc.name"
-              class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 shadow-sm"
-            >
-              <span class="text-base">💅</span>
-              <span class="text-sm font-semibold">{{ svc.name }}</span>
-              <span v-if="svc.priceCents !== null" class="text-xs text-slate-600">
-                {{
-                  Intl.NumberFormat('en-US', {
-                    style: 'currency',
-                    currency: 'USD',
-                    minimumFractionDigits: 2,
-                  }).format((svc.priceCents ?? 0) / 100)
+    <ElDialog v-model="checkoutOpen" title="Checkout" width="960px" class="checkout-modal">
+      <div class="checkout-body space-y-4">
+        <div class="checkout-grid">
+          <div class="checkout-col space-y-3">
+            <div class="rounded-md border border-slate-200 bg-slate-50 p-2 text-xs text-slate-700">
+              Points available: {{ currentCheckoutItem?.pointsBalance ?? 0 }}
+            </div>
+            <div class="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800 space-y-2">
+              <div class="text-xs font-semibold text-slate-700">Services (from check-in)</div>
+              <div v-if="checkoutServices.length" class="flex flex-wrap gap-2">
+                <div
+                  v-for="svc in checkoutServices"
+                  :key="svc.name"
+                  class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 shadow-sm"
+                >
+                  <span class="text-base">💅</span>
+                  <span class="text-sm font-semibold">{{ svc.name }}</span>
+                  <span v-if="svc.priceCents !== null" class="text-xs text-slate-600">
+                    {{
+                      Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency: 'USD',
+                        minimumFractionDigits: 2,
+                      }).format((svc.priceCents ?? 0) / 100)
+                    }}
+                  </span>
+                </div>
+              </div>
+              <div v-else class="text-xs text-slate-600">Services will be confirmed at the counter.</div>
+              <div v-if="checkoutServices.length && checkoutServices.some((s) => s.priceCents !== null)" class="text-xs text-slate-600">
+                Subtotal {{
+                  Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(
+                    checkoutServices.reduce((acc, svc) => acc + (svc.priceCents ?? 0), 0) / 100,
+                  )
                 }}
-              </span>
-          </div>
-        </div>
-        <div v-else class="text-xs text-slate-600">Services will be confirmed at the counter.</div>
-        <div v-if="checkoutServices.length && checkoutServices.some((s) => s.priceCents !== null)" class="text-xs text-slate-600">
-          Subtotal {{
-            Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(
-              checkoutServices.reduce((acc, svc) => acc + (svc.priceCents ?? 0), 0) / 100,
-            )
-          }}
-        </div>
-      </div>
-        <div class="space-y-1">
-          <label class="text-sm font-medium text-slate-800">Total amount</label>
-          <input
-            v-model="totalAmount"
-            type="number"
-            min="0"
-            step="0.01"
-            class="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none"
-            placeholder="e.g., 75.00"
-          />
-          <div class="text-xs text-slate-600">
-            Prefilled from service price when available; adjust if needed.
-          </div>
-        </div>
-        <div class="space-y-2">
-          <div class="text-sm font-medium text-slate-800">Payments</div>
-          <div class="space-y-2">
-            <label class="flex items-center gap-2 text-sm text-slate-800">
-              <input type="checkbox" class="h-4 w-4" :checked="paymentOptions.cash" @change="(e: any) => togglePayment('cash', e.target.checked)" />
-              <span>Cash</span>
-            </label>
-            <input
-              v-if="paymentOptions.cash"
-              v-model="paymentAmounts.cash"
-              type="number"
-              min="0"
-              class="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none"
-              placeholder="Amount"
-            />
-            <label class="flex items-center gap-2 text-sm text-slate-800">
-              <input type="checkbox" class="h-4 w-4" :checked="paymentOptions.card" @change="(e: any) => togglePayment('card', e.target.checked)" />
-              <span>Credit Card</span>
-            </label>
-            <input
-              v-if="paymentOptions.card"
-              v-model="paymentAmounts.card"
-              type="number"
-              min="0"
-              class="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none"
-              placeholder="Amount"
-            />
-            <label class="flex items-center gap-2 text-sm text-slate-800">
-              <input type="checkbox" class="h-4 w-4" :checked="paymentOptions.gift" @change="(e: any) => togglePayment('gift', e.target.checked)" />
-              <span>Gift Card</span>
-            </label>
-          </div>
-          <div class="text-xs text-slate-600">
-            Enter amounts per payment type. Remaining balance: {{ remainingBalance.toFixed(2) }}
-          </div>
-        </div>
-        <div v-if="paymentOptions.gift" class="space-y-2 rounded-md border border-slate-200 bg-white px-3 py-2">
-          <div class="text-sm font-semibold text-slate-900">Gift Cards</div>
-          <div class="space-y-2">
-            <div
-              v-for="card in giftCards"
-              :key="card.id"
-              class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 space-y-2"
-            >
-              <div class="text-xs font-semibold text-slate-700">Gift Card #{{ card.id }}</div>
-              <div class="grid gap-2 md:grid-cols-2">
-                <input
-                  v-model="card.number"
-                  type="text"
-                  class="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none"
-                  placeholder="Card number"
+              </div>
+            </div>
+            <div class="space-y-1">
+              <label class="text-sm font-medium text-slate-800">Total amount</label>
+              <input
+                v-model="totalAmount"
+                type="number"
+                min="0"
+                step="0.01"
+                class="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none"
+                placeholder="e.g., 75.00"
+              />
+              <div class="text-xs text-slate-600">
+                Prefilled from service price when available; adjust if needed.
+              </div>
+            </div>
+            <div>
+              <label class="text-sm font-medium text-slate-800">Served by (optional)</label>
+              <ElSelect
+                v-model="checkoutServedBy"
+                placeholder="Select staff"
+                clearable
+                filterable
+                :loading="loadingStaff"
+                class="mt-1 w-full"
+              >
+                <ElOption
+                  v-for="name in activeStaffNames"
+                  :key="name"
+                  :label="name"
+                  :value="name"
                 />
+              </ElSelect>
+            </div>
+          </div>
+
+          <div class="checkout-col space-y-3">
+            <div class="space-y-2 rounded-md border border-slate-200 bg-white px-3 py-2">
+              <div class="text-sm font-medium text-slate-800">Payments</div>
+              <div class="space-y-2">
+                <label class="flex items-center gap-2 text-sm text-slate-800">
+                  <input type="checkbox" class="h-4 w-4" :checked="paymentOptions.cash" @change="(e: any) => togglePayment('cash', e.target.checked)" />
+                  <span>Cash</span>
+                </label>
                 <input
-                  v-model="card.amount"
+                  v-if="paymentOptions.cash"
+                  v-model="paymentAmounts.cash"
                   type="number"
                   min="0"
                   class="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none"
-                  placeholder="Amount to apply"
+                  placeholder="Amount"
                 />
+                <label class="flex items-center gap-2 text-sm text-slate-800">
+                  <input type="checkbox" class="h-4 w-4" :checked="paymentOptions.card" @change="(e: any) => togglePayment('card', e.target.checked)" />
+                  <span>Credit Card</span>
+                </label>
+                <input
+                  v-if="paymentOptions.card"
+                  v-model="paymentAmounts.card"
+                  type="number"
+                  min="0"
+                  class="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none"
+                  placeholder="Amount"
+                />
+                <label class="flex items-center gap-2 text-sm text-slate-800">
+                  <input type="checkbox" class="h-4 w-4" :checked="paymentOptions.gift" @change="(e: any) => togglePayment('gift', e.target.checked)" />
+                  <span>Gift Card</span>
+                </label>
               </div>
-              <div class="flex justify-end">
-                <ElButton
-                  v-if="giftCards.length > 1"
-                  size="small"
-                  type="danger"
-                  plain
-                  class="sf-btn sf-btn--table"
-                  @click="removeGiftCard(card.id)"
+              <div class="text-xs text-slate-600">
+                Enter amounts per payment type. Remaining balance: {{ remainingBalance.toFixed(2) }}
+              </div>
+            </div>
+
+            <div v-if="paymentOptions.gift" class="space-y-2 rounded-md border border-slate-200 bg-white px-3 py-2">
+              <div class="text-sm font-semibold text-slate-900">Gift Cards</div>
+              <div class="space-y-2">
+                <div
+                  v-for="card in giftCards"
+                  :key="card.id"
+                  class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 space-y-2"
                 >
-                  Remove
-                </ElButton>
+                  <div class="text-xs font-semibold text-slate-700">Gift Card #{{ card.id }}</div>
+                  <div class="grid gap-2 md:grid-cols-2">
+                    <input
+                      v-model="card.number"
+                      type="text"
+                      class="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none"
+                      placeholder="Card number"
+                    />
+                    <input
+                      v-model="card.amount"
+                      type="number"
+                      min="0"
+                      class="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none"
+                      placeholder="Amount to apply"
+                    />
+                  </div>
+                  <div class="flex justify-end">
+                    <ElButton
+                      v-if="giftCards.length > 1"
+                      size="small"
+                      type="danger"
+                      plain
+                      class="sf-btn sf-btn--table"
+                      @click="removeGiftCard(card.id)"
+                    >
+                      Remove
+                    </ElButton>
+                  </div>
+                </div>
+              </div>
+              <ElButton size="small" class="sf-btn sf-btn--table" @click="addGiftCard">
+                + Add another gift card
+              </ElButton>
+            </div>
+
+            <div class="space-y-2 rounded-md border border-slate-200 bg-white px-3 py-2">
+              <label class="flex items-center gap-2 text-sm text-slate-800">
+                <input type="checkbox" v-model="checkoutConsent" class="h-4 w-4" />
+                Ask for Google review (send SMS)
+              </label>
+              <div v-if="canRedeem" class="space-y-1">
+                <label class="flex items-center gap-2 text-sm text-slate-800">
+                  <input
+                    type="checkbox"
+                    v-model="checkoutRedeem"
+                    class="h-4 w-4"
+                    :disabled="!isOnline"
+                  />
+                  Redeem 300 points on this visit
+                </label>
+                <div v-if="!isOnline" class="text-xs text-slate-500">
+                  Redemption requires internet connection.
+                </div>
+              </div>
+              <div v-else class="text-xs text-slate-500">
+                Earn {{ Math.max(0, 300 - (currentCheckoutItem?.pointsBalance ?? 0)) }} more points to redeem.
               </div>
             </div>
           </div>
-          <ElButton size="small" class="sf-btn sf-btn--table" @click="addGiftCard">
-            + Add another gift card
-          </ElButton>
         </div>
-        <div>
-          <label class="text-sm font-medium text-slate-800">Served by (optional)</label>
-          <ElSelect
-            v-model="checkoutServedBy"
-            placeholder="Select staff"
-            clearable
-            filterable
-            :loading="loadingStaff"
-            class="mt-1 w-full"
-          >
-            <ElOption
-              v-for="name in activeStaffNames"
-              :key="name"
-              :label="name"
-              :value="name"
-            />
-          </ElSelect>
-        </div>
-        <label class="flex items-center gap-2 text-sm text-slate-800">
-          <input type="checkbox" v-model="checkoutConsent" class="h-4 w-4" />
-          Ask for Google review (send SMS)
-        </label>
-        <label class="flex items-center gap-2 text-sm text-slate-800">
-          <input
-            type="checkbox"
-            v-model="checkoutRedeem"
-            class="h-4 w-4"
-            :disabled="!canRedeem || !isOnline"
-          />
-          Redeem 300 points on this visit
-        </label>
-        <div v-if="!canRedeem" class="text-xs text-slate-500">
-          Earn {{ Math.max(0, 300 - (currentCheckoutItem?.pointsBalance ?? 0)) }} more points to redeem.
-        </div>
-        <div v-else-if="!isOnline" class="text-xs text-slate-500">
-          Redemption requires internet connection.
-        </div>
+
         <div class="flex justify-end gap-2 checkout-actions">
           <ElButton @click="checkoutOpen = false">Cancel</ElButton>
           <ElButton type="primary" :loading="actionLoading === checkoutTarget" @click="submitCheckout">
@@ -1535,11 +1549,22 @@ watch(completedPage, async (val) => {
   letter-spacing: 0.01em;
 }
 .checkout-modal :deep(.el-dialog) {
-  max-width: 520px;
+  max-width: 960px;
   width: 92%;
 }
 .checkout-body {
   padding: 24px 28px;
+  max-height: 75vh;
+}
+.checkout-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+@media (min-width: 900px) {
+  .checkout-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 .checkout-body label {
   font-size: 15px;
