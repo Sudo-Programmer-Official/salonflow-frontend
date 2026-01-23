@@ -84,6 +84,21 @@ export async function testPromotion(id: string, phone: string): Promise<{ ok: tr
   return res.json();
 }
 
+export async function testPromotionMessage(phone: string, message: string): Promise<{ ok: true }> {
+  const res = await fetch(apiUrl('/promotions/test-sms'), {
+    method: 'POST',
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
+    body: JSON.stringify({ phone, message }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const error = new Error(err.message || 'Failed to send test') as any;
+    error.code = err.code;
+    throw error;
+  }
+  return res.json();
+}
+
 export async function fetchPromotionStats(id: string): Promise<{
   total: number;
   pending: number;

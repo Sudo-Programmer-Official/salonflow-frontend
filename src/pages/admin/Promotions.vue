@@ -23,6 +23,7 @@ import {
   type Promotion,
   fetchPromotionStats,
   disablePromotion,
+  testPromotionMessage,
 } from '../../api/promotions';
 import { isWithinTcpaWindow, getBusinessTimezone } from '../../utils/dates';
 
@@ -32,6 +33,7 @@ const saving = ref(false);
 const loading = ref(false);
 const sending = ref<string | null>(null);
 const testing = ref<string | null>(null);
+const testingCreate = ref(false);
 
 const promotions = ref<Promotion[]>([]);
 const statsMap = ref<Record<string, any>>({});
@@ -269,6 +271,32 @@ const handleTest = async (id: string, phone: string) => {
     }
   } finally {
     testing.value = null;
+  }
+};
+
+const handleCreateTest = async () => {
+  if (!form.testPhone?.trim()) {
+    ElMessage.warning('Enter a test phone number');
+    return;
+  }
+  if (!form.message?.trim()) {
+    ElMessage.warning('Enter a message to test');
+    return;
+  }
+  testingCreate.value = true;
+  try {
+    await testPromotionMessage(form.testPhone.trim(), form.message.trim());
+    ElMessage.success('Test sent');
+  } catch (err: any) {
+    if (err?.code === 'TCPA_BLOCKED') {
+      ElMessage.error('Messages can only be sent between 8am–8pm local time.');
+    } else if (err?.code === 'CAP_EXCEEDED') {
+      ElMessage.error('SMS cap exceeded for this tenant.');
+    } else {
+      ElMessage.error(err?.message || 'Failed to send test');
+    }
+  } finally {
+    testingCreate.value = false;
   }
 };
 
@@ -557,7 +585,16 @@ loadPromotions();
               <div>
                 <label class="text-sm font-medium text-slate-800">Test phone (optional)</label>
                 <ElInput v-model="form.testPhone" placeholder="+1 555 123 4567" />
-                <ElButton class="sf-btn sf-btn--ghost mt-2" size="small">Send test</ElButton>
+                <ElButton
+                  class="sf-btn sf-btn--ghost mt-2"
+                  size="small"
+                  native-type="button"
+                  :loading="testingCreate"
+                  :disabled="!form.testPhone || !form.message || testingCreate"
+                  @click="handleCreateTest"
+                >
+                  Send test
+                </ElButton>
               </div>
             </div>
           </ElCard>
