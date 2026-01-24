@@ -43,7 +43,9 @@ const doneCountdown = ref<number | null>(null);
 const doneTimer = ref<number | null>(null);
 const stopWatchdog = ref<(() => void) | null>(null);
 const idleWarning = ref(false);
+const idleWarningCountdown = ref<number | null>(null);
 const idleWarningTimer = ref<number | null>(null);
+const idleInterval = ref<number | null>(null);
 const staffList = ref<StaffMember[]>([]);
 const staffLoading = ref(false);
 const staffError = ref('');
@@ -183,7 +185,7 @@ const serviceSections = computed(() => {
   return [...active, ...uncategorized];
 });
 
-const displayPhone = computed(() => formatUSPhone(phone.value) || 'Tap the keypad');
+const displayPhone = computed(() => formatUSPhone(phone.value) || '• • • •');
 
 const keypad = [
   ['1', '2', '3'],
@@ -191,6 +193,8 @@ const keypad = [
   ['7', '8', '9'],
   ['clear', '0', 'backspace'],
 ];
+
+const backspaceTimer = ref<number | null>(null);
 
 const primaryServiceId = computed(() => selectedServiceIds.value[0] ?? null);
 const rewardValue = computed(() => {
@@ -227,6 +231,21 @@ const clearPhone = () => {
 
 const handleBackspace = () => {
   phone.value = phone.value.slice(0, -1);
+};
+
+const startBackspaceHold = () => {
+  if (backspaceTimer.value !== null) return;
+  backspaceTimer.value = window.setTimeout(() => {
+    clearPhone();
+    stopBackspaceHold();
+  }, 650);
+};
+
+const stopBackspaceHold = () => {
+  if (backspaceTimer.value !== null) {
+    clearTimeout(backspaceTimer.value);
+    backspaceTimer.value = null;
+  }
 };
 
 const normalizePhone = (raw: string) => {
@@ -285,7 +304,12 @@ const cancelIdleWarning = () => {
     clearTimeout(idleWarningTimer.value);
     idleWarningTimer.value = null;
   }
+  if (idleInterval.value !== null) {
+    clearInterval(idleInterval.value);
+    idleInterval.value = null;
+  }
   idleWarning.value = false;
+  idleWarningCountdown.value = null;
   ['touchstart', 'mousedown', 'keydown'].forEach((evt) =>
     window.removeEventListener(evt, cancelIdleWarning),
   );
@@ -294,21 +318,31 @@ const cancelIdleWarning = () => {
 const triggerIdleReset = () => {
   cancelIdleWarning();
   idleWarning.value = true;
+  idleWarningCountdown.value = 10;
   ['touchstart', 'mousedown', 'keydown'].forEach((evt) =>
     window.addEventListener(evt, cancelIdleWarning),
   );
-  idleWarningTimer.value = window.setTimeout(() => {
-    cancelIdleWarning();
-    resetFlow();
-    refreshServices();
-  }, 2000);
+  idleInterval.value = window.setInterval(() => {
+    if (idleWarningCountdown.value === null) return;
+    idleWarningCountdown.value = Math.max(0, idleWarningCountdown.value - 1);
+    if (idleWarningCountdown.value === 0) {
+      cancelIdleWarning();
+      resetFlow();
+      refreshServices();
+    }
+  }, 1000);
 };
+
+const preventTouch = (e: Event) => e.preventDefault();
 
 onMounted(async () => {
   if (tenant.value) {
     localStorage.setItem('tenantSubdomain', tenant.value);
     localStorage.setItem('tenantId', tenant.value);
   }
+  window.addEventListener('touchmove', preventTouch, { passive: false });
+  window.addEventListener('wheel', preventTouch, { passive: false });
+  window.addEventListener('gesturestart', preventTouch as EventListener);
   await loadSettings();
   await refreshServices();
   await loadStaff();
@@ -330,6 +364,9 @@ onUnmounted(() => {
   applyThemeFromSettings(settings.value, { mode: 'app' });
   delete document.documentElement.dataset.kioskTheme;
   delete document.documentElement.dataset.kioskPrimary;
+  window.removeEventListener('touchmove', preventTouch);
+  window.removeEventListener('wheel', preventTouch);
+  window.removeEventListener('gesturestart', preventTouch as EventListener);
 });
 
 const resetFlow = () => {
@@ -637,7 +674,9 @@ watch(
         </div>
       </div>
 
-      <div v-if="idleWarning" class="idle-banner">Resetting due to inactivity…</div>
+      <div v-if="idleWarning" class="idle-banner">
+        Returning to start in {{ idleWarningCountdown ?? 10 }}s — tap anywhere to stay on this step.
+      </div>
 
       <ElAlert v-if="settingsError" :closable="false" type="warning" :title="settingsError" class="mb-3" />
 
@@ -709,8 +748,7 @@ watch(
                         </div>
                       </div>
                       <div v-else class="reward-placeholder">
-                        <div class="text-base font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">Tap the keypad to load your points.</div>
-                        <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">We’ll track rewards automatically.</div>
+                        <div class="text-base font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">Ready when you are.</div>
                       </div>
                     </div>
                   </div>
@@ -718,8 +756,7 @@ watch(
                 <div class="phone-panel kiosk-pane glass-card">
                   <div class="phone-heading">
                     <p class="text-xs uppercase tracking-wide" :style="{ color: 'var(--kiosk-text-secondary)' }">Step 1 • Phone</p>
-                    <p class="text-2xl font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">Please enter your phone number</p>
-                    <p class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">We’ll use this to find your rewards.</p>
+                    <p class="text-2xl font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">Enter your phone</p>
                   </div>
                   <div class="phone-display">
                     <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">Phone number</div>
@@ -731,6 +768,10 @@ watch(
                           v-for="key in row"
                           :key="`${rowIndex}-${key}`"
                           :class="['keypad-key', { action: key === 'backspace' || key === 'clear' }]"
+                          @mousedown="key === 'backspace' ? startBackspaceHold() : undefined"
+                          @mouseup="key === 'backspace' ? stopBackspaceHold() : undefined"
+                          @touchstart.prevent="key === 'backspace' ? startBackspaceHold() : undefined"
+                          @touchend.prevent="key === 'backspace' ? stopBackspaceHold() : undefined"
                           @click="
                             key === 'backspace'
                               ? handleBackspace()
@@ -1172,26 +1213,31 @@ watch(
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
+  justify-items: center;
 }
 .keypad-key {
-  border-radius: 12px;
-  background: var(--kiosk-primary);
+  width: 82px;
+  height: 82px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.12), transparent 40%), var(--kiosk-primary);
   color: var(--kiosk-text-primary);
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 800;
-  min-height: 68px;
-  padding: 18px 12px;
   border: none;
   cursor: pointer;
-  transition: transform 0.1s ease, background 0.12s ease, box-shadow 0.12s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.3);
+  transition: transform 0.12s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 .keypad-key.action {
-  background: rgba(255, 255, 255, 0.2);
-  color: #1f2937;
+  background: rgba(255, 255, 255, 0.14);
+  color: #f8fafc;
 }
 .keypad-key:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 30px rgba(22, 163, 74, 0.25);
+  transform: translateY(-2px);
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.35);
 }
 .keypad-key:active {
   transform: scale(0.96);
@@ -1583,17 +1629,22 @@ watch(
   background: color-mix(in srgb, var(--kiosk-surface) 94%, rgba(255, 255, 255, 0.06) 6%);
 }
 .idle-banner {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
   border-radius: 999px;
-  background: var(--kiosk-surface);
-  border: 1px solid var(--kiosk-border);
-  color: var(--kiosk-text-primary);
+  background: linear-gradient(120deg, #f97316, #fb923c);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: #0f172a;
   font-weight: 700;
   font-size: 13px;
-  padding: 10px 14px;
+  padding: 10px 16px;
   display: inline-flex;
   align-items: center;
   gap: 8px;
   width: fit-content;
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28);
 }
 .idle-banner::before {
   content: '⏳';

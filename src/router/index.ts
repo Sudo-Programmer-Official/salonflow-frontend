@@ -19,6 +19,7 @@ import PlatformDashboardPage from "../pages/platform/Dashboard.vue";
 import PlatformTenantDetailPage from "../pages/platform/TenantDetail.vue";
 import PlatformCreateTenantPage from "../pages/platform/CreateTenant.vue";
 import PlatformDemoRequestsPage from "../pages/platform/DemoRequests.vue";
+import PlatformNumbersPage from "../pages/platform/Numbers.vue";
 import CustomerProfilePage from "../pages/admin/CustomerProfile.vue";
 import AdminOnboardingPage from "../pages/admin/Onboarding.vue";
 import AdminDemoRequestsPage from "../pages/admin/DemoRequests.vue";
@@ -165,6 +166,12 @@ const routes = [
         path: "",
         name: "platform-dashboard",
         component: PlatformDashboardPage,
+        meta: { requiresAuth: true, roles: ["SUPER_ADMIN"] },
+      },
+      {
+        path: "messaging/numbers",
+        name: "platform-numbers",
+        component: PlatformNumbersPage,
         meta: { requiresAuth: true, roles: ["SUPER_ADMIN"] },
       },
       {

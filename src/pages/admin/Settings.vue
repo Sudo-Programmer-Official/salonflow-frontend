@@ -19,6 +19,8 @@ import {
   type BusinessSettings,
   type DefaultBookingRules,
   type SettingsPatch,
+  fetchMessagingSettings,
+  type MessagingSettings,
 } from '../../api/settings';
 import { applyThemeFromSettings, defaultUiPreferences, fontFamilyOptions, themeBounds } from '../../utils/theme';
 
@@ -28,6 +30,7 @@ const error = ref('');
 const settings = ref<BusinessSettings | null>(null);
 const pendingPatch = ref<SettingsPatch>({});
 const saveTimer = ref<number | null>(null);
+const messaging = ref<MessagingSettings | null>(null);
 
 const defaultRules: DefaultBookingRules = {
   buffer_before: 0,
@@ -203,6 +206,7 @@ const loadSettings = async () => {
       {},
     );
     applyThemeFromSettings(settings.value);
+    messaging.value = await fetchMessagingSettings();
   } catch (err: any) {
     error.value = err?.message || 'Failed to load settings';
     if (err?.status === 401 || err?.status === 403) {
@@ -236,6 +240,35 @@ onMounted(loadSettings);
     <ElSkeleton v-if="loading && !settings" animated :rows="4" />
 
     <div v-if="settings" class="space-y-6">
+      <ElCard>
+        <div class="flex flex-col gap-1">
+          <div class="text-lg font-semibold text-slate-900">Messaging</div>
+          <div class="text-sm text-slate-600">SMS number is managed by SalonFlow.</div>
+        </div>
+        <div class="mt-3 grid gap-3 md:grid-cols-3 text-sm text-slate-700">
+          <div class="rounded-lg border border-slate-200 p-3">
+            <div class="text-xs uppercase text-slate-500">Assigned number</div>
+            <div class="font-semibold text-slate-900">
+              {{ messaging?.phoneE164 || 'Not assigned' }}
+            </div>
+          </div>
+          <div class="rounded-lg border border-slate-200 p-3">
+            <div class="text-xs uppercase text-slate-500">Provider</div>
+            <div class="font-semibold text-slate-900">{{ messaging?.provider || 'Twilio' }}</div>
+          </div>
+          <div class="rounded-lg border border-slate-200 p-3">
+            <div class="text-xs uppercase text-slate-500">Status</div>
+            <div class="font-semibold text-slate-900">
+              {{ messaging?.active === false ? 'Paused' : 'Active' }}
+            </div>
+          </div>
+        </div>
+        <div class="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
+          Customers can opt out by replying STOP. Send START to re-enable. To change this number,
+          contact support.
+        </div>
+      </ElCard>
+
       <ElCard class="glass bg-white">
         <div class="flex items-center justify-between">
           <div>

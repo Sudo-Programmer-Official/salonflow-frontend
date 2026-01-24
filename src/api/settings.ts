@@ -39,6 +39,12 @@ export type BusinessSettings = {
   updatedAt: string | null;
 };
 
+export type MessagingSettings = {
+  phoneE164: string | null;
+  provider: string | null;
+  active: boolean;
+};
+
 export type SettingsPatch = Partial<
   Pick<
     BusinessSettings,
@@ -101,4 +107,11 @@ export async function fetchPublicSettings(): Promise<BusinessSettings> {
     headers: buildHeaders({ tenant: true, json: true }),
   });
   return handleResponse<BusinessSettings>(res, 'Failed to load settings');
+}
+
+export async function fetchMessagingSettings(): Promise<MessagingSettings> {
+  const res = await fetch(apiUrl('/settings/messaging'), {
+    headers: buildHeaders({ auth: true, tenant: true }),
+  });
+  return handleResponse<MessagingSettings>(res, 'Failed to load messaging settings');
 }

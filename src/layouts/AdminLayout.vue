@@ -210,6 +210,7 @@ const sidebarGroups = computed(() => [
       { label: 'QR Codes', name: 'admin-qr', icon: '🔗', roles: ['OWNER'] },
       { label: 'Billing', name: 'admin-billing', icon: '💳', roles: ['OWNER'] },
       { label: 'Demo Requests', name: 'admin-demo-requests', icon: '🧪', roles: ['SUPER_ADMIN'] },
+      { label: 'Messaging Numbers', name: 'platform-numbers', icon: '☎️', roles: ['SUPER_ADMIN'] },
     ],
   },
   {
