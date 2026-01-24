@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue';
+import { onMounted, onUnmounted, ref, computed } from 'vue';
 import { ElButton, ElCard, ElEmpty, ElInput, ElMessage, ElSkeleton, ElTag } from 'element-plus';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -17,6 +17,7 @@ const selectedId = ref<string | null>(null);
 const messages = ref<Message[]>([]);
 const selectedConversation = computed(() => conversations.value.find((c) => c.id === selectedId.value) || null);
 const replyText = ref('');
+const pollId = ref<number | null>(null);
 
 const formatTime = (ts?: string | null) => (ts ? dayjs(ts).fromNow() : '');
 
@@ -35,11 +36,27 @@ const loadConversations = async () => {
   }
 };
 
-const loadMessages = async (id: string) => {
+const mergeMessages = (existing: Message[], incoming: Message[]) => {
+  const key = (m: Message) => m.providerMessageId || `${m.created_at}|${m.direction}|${m.body}`;
+  const seen = new Set(existing.map(key));
+  const merged = [...existing];
+  for (const m of incoming) {
+    const k = key(m);
+    if (!seen.has(k)) {
+      merged.push(m);
+      seen.add(k);
+    }
+  }
+  return merged.sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  );
+};
+
+const loadMessages = async (id: string, merge = false) => {
   loadingThread.value = true;
   try {
     const data = await fetchMessages(id);
-    messages.value = data.messages;
+    messages.value = merge ? mergeMessages(messages.value, data.messages) : data.messages;
     await markConversationRead(id);
   } catch (err: any) {
     ElMessage.error(err?.message || 'Failed to load messages');
@@ -96,6 +113,16 @@ const messageTone = (m: Message) => (m.direction === 'outbound' ? 'bg-sky-100 te
 
 onMounted(() => {
   loadConversations();
+  pollId.value = window.setInterval(() => {
+    loadConversations();
+    if (selectedId.value) {
+      loadMessages(selectedId.value, true);
+    }
+  }, 5000);
+});
+
+onUnmounted(() => {
+  if (pollId.value) window.clearInterval(pollId.value);
 });
 </script>
 
