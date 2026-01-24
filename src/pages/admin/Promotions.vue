@@ -647,6 +647,7 @@ loadPromotions();
                 >
                   Send test email
                 </ElButton>
+                <p class="mt-1 text-xs text-slate-500">Test messages are one-time and not saved.</p>
               </div>
             </div>
           </ElCard>
