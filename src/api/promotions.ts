@@ -99,6 +99,21 @@ export async function testPromotionMessage(phone: string, message: string): Prom
   return res.json();
 }
 
+export async function testPromotionEmail(email: string, subject: string, message: string): Promise<{ ok: true }> {
+  const res = await fetch(apiUrl('/promotions/test-email'), {
+    method: 'POST',
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
+    body: JSON.stringify({ email, subject, message }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const error = new Error(err.message || 'Failed to send test email') as any;
+    error.code = err.code;
+    throw error;
+  }
+  return res.json();
+}
+
 export async function fetchPromotionStats(id: string): Promise<{
   total: number;
   pending: number;

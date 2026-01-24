@@ -24,6 +24,7 @@ import {
   fetchPromotionStats,
   disablePromotion,
   testPromotionMessage,
+  testPromotionEmail,
 } from '../../api/promotions';
 import { isWithinTcpaWindow, getBusinessTimezone } from '../../utils/dates';
 
@@ -34,6 +35,7 @@ const loading = ref(false);
 const sending = ref<string | null>(null);
 const testing = ref<string | null>(null);
 const testingCreate = ref(false);
+const testingEmail = ref(false);
 
 const promotions = ref<Promotion[]>([]);
 const statsMap = ref<Record<string, any>>({});
@@ -69,6 +71,7 @@ const form = reactive({
   sendWhen: 'now' as 'now' | 'schedule',
   scheduleAt: '',
   testPhone: '',
+  testEmail: '',
 });
 
 const charCount = computed(() => form.message.length);
@@ -102,6 +105,7 @@ const resetForm = () => {
   form.sendWhen = 'now';
   form.scheduleAt = '';
   form.testPhone = '';
+  form.testEmail = '';
   evaluateTcpa();
 };
 
@@ -297,6 +301,40 @@ const handleCreateTest = async () => {
     }
   } finally {
     testingCreate.value = false;
+  }
+};
+
+const isValidEmail = (val: string) => /\S+@\S+\.\S+/.test(val);
+
+const handleCreateTestEmail = async () => {
+  if (!form.testEmail?.trim()) {
+    ElMessage.warning('Enter a test email');
+    return;
+  }
+  if (!isValidEmail(form.testEmail.trim())) {
+    ElMessage.warning('Enter a valid email');
+    return;
+  }
+  if (!form.message?.trim()) {
+    ElMessage.warning('Enter a message to test');
+    return;
+  }
+  testingEmail.value = true;
+  try {
+    await testPromotionEmail(form.testEmail.trim(), 'SalonFlow test email', form.message.trim());
+    ElMessage.success('Test email sent');
+  } catch (err: any) {
+    if (err?.code === 'COMMS_PAUSED') {
+      ElMessage.error('Comms are paused. Enable before sending emails.');
+    } else if (err?.code === 'EMAIL_DISABLED') {
+      ElMessage.error('Email sending is disabled for this environment.');
+    } else if (err?.code === 'CAP_EXCEEDED') {
+      ElMessage.error('Email cap exceeded for this tenant.');
+    } else {
+      ElMessage.error(err?.message || 'Failed to send test email');
+    }
+  } finally {
+    testingEmail.value = false;
   }
 };
 
@@ -594,6 +632,20 @@ loadPromotions();
                   @click="handleCreateTest"
                 >
                   Send test
+                </ElButton>
+              </div>
+              <div>
+                <label class="text-sm font-medium text-slate-800">Test email (optional)</label>
+                <ElInput v-model="form.testEmail" placeholder="you@example.com" />
+                <ElButton
+                  class="sf-btn sf-btn--ghost mt-2"
+                  size="small"
+                  native-type="button"
+                  :loading="testingEmail"
+                  :disabled="!form.testEmail || !isValidEmail(form.testEmail) || !form.message || testingEmail"
+                  @click="handleCreateTestEmail"
+                >
+                  Send test email
                 </ElButton>
               </div>
             </div>
