@@ -192,6 +192,7 @@ const sidebarGroups = computed(() => [
     items: [
       { label: 'Review SMS', name: 'admin-review-sms', icon: '⭐', roles: ['OWNER'] },
       { label: 'SMS', name: 'admin-sms', icon: '💬', roles: ['OWNER'] },
+      { label: 'Inbox', name: 'admin-inbox', icon: '📥', roles: ['OWNER', 'STAFF'] },
     ],
   },
   {

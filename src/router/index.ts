@@ -30,6 +30,7 @@ import AdminCategoriesPage from "../pages/admin/Categories.vue";
 import AdminAnalyticsPage from "../pages/admin/Analytics.vue";
 import AdminGiftCardsPage from "../pages/admin/GiftCards.vue";
 import AdminPromotionsPage from "../pages/admin/Promotions.vue";
+import AdminInboxPage from "../pages/admin/Inbox.vue";
 import MarketingLayout from "../layouts/MarketingLayout.vue";
 import MarketingHome from "../pages/MarketingHome.vue";
 import SalonLoginPage from "../pages/SalonLogin.vue";
@@ -255,6 +256,12 @@ const routes = [
         name: "admin-promotions",
         component: AdminPromotionsPage,
         meta: { requiresAuth: true, roles: ["OWNER"] },
+      },
+      {
+        path: "inbox",
+        name: "admin-inbox",
+        component: AdminInboxPage,
+        meta: { requiresAuth: true, roles: ["OWNER", "STAFF"] },
       },
       {
         path: "appointments",
