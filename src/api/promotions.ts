@@ -15,6 +15,8 @@ export type Promotion = {
   status: PromotionStatus;
   sentCount: number;
   redeemedCount: number;
+  audienceSnapshotJson?: any;
+  recipientTotal?: number | null;
 };
 
 export async function fetchPromotions(status?: 'active' | 'expired'): Promise<Promotion[]> {

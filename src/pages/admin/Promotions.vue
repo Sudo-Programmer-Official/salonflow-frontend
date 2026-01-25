@@ -72,6 +72,8 @@ const form = reactive({
   scheduleAt: '',
   testPhone: '',
   testEmail: '',
+  channel: 'sms' as 'sms' | 'email',
+  emailSubject: 'SalonFlow promotion',
 });
 
 const charCount = computed(() => form.message.length);
@@ -106,6 +108,8 @@ const resetForm = () => {
   form.scheduleAt = '';
   form.testPhone = '';
   form.testEmail = '';
+  form.channel = 'sms';
+  form.emailSubject = 'SalonFlow promotion';
   evaluateTcpa();
 };
 
@@ -120,6 +124,17 @@ const loadPromotions = async () => {
   try {
     const status = activeTab.value === 'active' ? 'active' : 'expired';
     promotions.value = await fetchPromotions(status as any);
+    // Warm stats map so we have totals for audience counts/summary bars.
+    await Promise.all(
+      promotions.value.map(async (p) => {
+        try {
+          const stats = await fetchPromotionStats(p.id);
+          statsMap.value[p.id] = stats;
+        } catch {
+          // ignore individual failures to avoid blocking list render
+        }
+      }),
+    );
     promotions.value.forEach((p) => {
       const stat = statsMap.value[p.id];
       if (p.status === 'SENDING' || (stat && stat.pending > 0)) {
@@ -188,6 +203,10 @@ const submit = async () => {
   }
   if (!form.message.trim()) {
     ElMessage.warning('Message is required');
+    return;
+  }
+  if (form.channel === 'email' && !form.emailSubject.trim()) {
+    ElMessage.warning('Email subject is required');
     return;
   }
   saving.value = true;
@@ -279,6 +298,10 @@ const handleTest = async (id: string, phone: string) => {
 };
 
 const handleCreateTest = async () => {
+  if (form.channel === 'email') {
+    await handleCreateTestEmail();
+    return;
+  }
   if (!form.testPhone?.trim()) {
     ElMessage.warning('Enter a test phone number');
     return;
@@ -321,7 +344,11 @@ const handleCreateTestEmail = async () => {
   }
   testingEmail.value = true;
   try {
-    await testPromotionEmail(form.testEmail.trim(), 'SalonFlow test email', form.message.trim());
+    await testPromotionEmail(
+      form.testEmail.trim(),
+      form.emailSubject.trim() || 'SalonFlow promotion',
+      form.message.trim(),
+    );
     ElMessage.success('Test email sent');
   } catch (err: any) {
     if (err?.code === 'COMMS_PAUSED') {
@@ -336,6 +363,29 @@ const handleCreateTestEmail = async () => {
   } finally {
     testingEmail.value = false;
   }
+};
+
+const recipientTotal = (promo: Promotion) => {
+  const stats = statsMap.value[promo.id];
+  if (stats && typeof stats.total === 'number') return stats.total;
+  const total = (promo as any).recipientTotal;
+  return typeof total === 'number' ? total : null;
+};
+
+const recipientSummaryLabel = (promo: Promotion) => {
+  const total = recipientTotal(promo);
+  if (total === 0) return 'Recipients: 0 (none match audience)';
+  if (total) return `Recipients: ${total}`;
+  return 'Recipients: not calculated yet';
+};
+
+const sendDisabledReason = (promo: Promotion) => {
+  const total = recipientTotal(promo);
+  if (total === 0) return 'No recipients match this audience';
+  if ((statsMap.value[promo.id]?.pending ?? 0) > 0 || promo.status === 'SENDING') {
+    return 'Send in progress';
+  }
+  return '';
 };
 
 loadPromotions();
@@ -413,6 +463,39 @@ loadPromotions();
               </td>
               <td class="text-right">
                 <div class="flex flex-col gap-2">
+                  <div class="audience-summary">
+                    <div class="flex justify-between text-xs text-slate-600">
+                      <span>{{ recipientSummaryLabel(promo) }}</span>
+                      <span v-if="statsMap[promo.id]">
+                        Sent {{ statsMap[promo.id].sent ?? 0 }} · Pending {{ statsMap[promo.id].pending ?? 0 }}
+                      </span>
+                    </div>
+                    <div
+                      v-if="recipientTotal(promo)"
+                      class="audience-bar"
+                    >
+                      <div
+                        class="seg seg-sent"
+                        :style="{ width: `${Math.max(0, Math.min(100, Math.round(((statsMap[promo.id]?.sent ?? 0) / (recipientTotal(promo) || 1)) * 100)))}%` }"
+                        v-if="statsMap[promo.id]?.sent"
+                      />
+                      <div
+                        class="seg seg-pending"
+                        :style="{ width: `${Math.max(0, Math.min(100, Math.round(((statsMap[promo.id]?.pending ?? 0) / (recipientTotal(promo) || 1)) * 100)))}%` }"
+                        v-if="statsMap[promo.id]?.pending"
+                      />
+                      <div
+                        class="seg seg-failed"
+                        :style="{ width: `${Math.max(0, Math.min(100, Math.round(((statsMap[promo.id]?.failed ?? 0) / (recipientTotal(promo) || 1)) * 100)))}%` }"
+                        v-if="statsMap[promo.id]?.failed"
+                      />
+                      <div
+                        class="seg seg-blocked"
+                        :style="{ width: `${Math.max(0, Math.min(100, Math.round(((statsMap[promo.id]?.blocked_cap ?? 0) / (recipientTotal(promo) || 1)) * 100)))}%` }"
+                        v-if="statsMap[promo.id]?.blocked_cap"
+                      />
+                    </div>
+                  </div>
                   <div v-if="statsMap[promo.id] && statsMap[promo.id].total" class="progress-row">
                     <div class="text-xs text-slate-600 flex justify-between">
                       <span>Pending {{ statsMap[promo.id].pending ?? 0 }}</span>
@@ -473,7 +556,8 @@ loadPromotions();
                       size="small"
                       type="primary"
                       class="sf-btn sf-btn--table sf-btn--icon"
-                      :disabled="(statsMap[promo.id]?.pending ?? 0) > 0 || promo.status === 'SENDING'"
+                      :disabled="(statsMap[promo.id]?.pending ?? 0) > 0 || promo.status === 'SENDING' || recipientTotal(promo) === 0"
+                      :title="sendDisabledReason(promo) || 'Send promotion'"
                       :loading="sending === promo.id"
                       @click="handleSend(promo.id)"
                     >
@@ -587,21 +671,36 @@ loadPromotions();
                 <ElInput v-model="form.businessName" placeholder="SalonFlow Demo" />
               </div>
               <div>
-                <label class="text-sm font-medium text-slate-800">Message (SMS)</label>
+                <label class="text-sm font-medium text-slate-800">Channel</label>
+                <ElRadioGroup v-model="form.channel" size="small" class="mt-1">
+                  <ElRadioButton label="sms">SMS</ElRadioButton>
+                  <ElRadioButton label="email">Email</ElRadioButton>
+                </ElRadioGroup>
+              </div>
+              <div>
+                <label class="text-sm font-medium text-slate-800">
+                  Message ({{ form.channel === 'sms' ? 'SMS' : 'Email' }})
+                </label>
                 <ElInput
                   v-model="form.message"
                   type="textarea"
                   :rows="4"
-                  placeholder="Hi {{first_name}}, enjoy 10% off your next visit..."
+                  :placeholder="form.channel === 'sms' ? 'Hi {{first_name}}, enjoy 10% off your next visit...' : 'Write the email body here'"
                 />
                 <div class="flex items-center justify-between text-xs text-slate-500">
-                  <span>Include offer and expiration details.</span>
+                  <span>
+                    {{ form.channel === 'sms' ? 'Include offer and expiration details.' : 'Plain-text or simple HTML is fine.' }}
+                  </span>
                   <span>{{ charCount }} chars</span>
                 </div>
               </div>
-              <div class="flex flex-col gap-2">
+              <div v-if="form.channel === 'sms'" class="flex flex-col gap-2">
                 <ElCheckbox v-model="form.appendStop">Auto-append “Reply STOP to opt out”</ElCheckbox>
                 <ElCheckbox v-model="form.appendExpiry">Include expiry text</ElCheckbox>
+              </div>
+              <div v-else class="space-y-2">
+                <label class="text-sm font-medium text-slate-800">Email subject</label>
+                <ElInput v-model="form.emailSubject" placeholder="MTV Nails · Special offer inside" />
               </div>
               <div>
                 <label class="text-sm font-medium text-slate-800">Send timing</label>
@@ -620,7 +719,7 @@ loadPromotions();
                   class="mt-2 w-full"
                 />
               </div>
-              <div>
+              <div v-if="form.channel === 'sms'">
                 <label class="text-sm font-medium text-slate-800">Test phone (optional)</label>
                 <ElInput v-model="form.testPhone" placeholder="+1 555 123 4567" />
                 <ElButton
@@ -634,7 +733,7 @@ loadPromotions();
                   Send test
                 </ElButton>
               </div>
-              <div>
+              <div v-else>
                 <label class="text-sm font-medium text-slate-800">Test email (optional)</label>
                 <ElInput v-model="form.testEmail" placeholder="you@example.com" />
                 <ElButton
@@ -717,5 +816,33 @@ loadPromotions();
   height: 100%;
   background: linear-gradient(90deg, #0ea5e9, #6366f1);
   transition: width 0.3s ease;
+}
+.audience-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.audience-bar {
+  display: flex;
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #e2e8f0;
+}
+.audience-bar .seg {
+  height: 100%;
+}
+.seg-sent {
+  background: #16a34a;
+}
+.seg-pending {
+  background: #0ea5e9;
+}
+.seg-failed {
+  background: #f97316;
+}
+.seg-blocked {
+  background: #475569;
 }
 </style>
