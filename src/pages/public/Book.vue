@@ -4,6 +4,7 @@ import { ElForm, ElFormItem, ElInput, ElSelect, ElOption, ElDatePicker, ElTimeSe
 import { fetchServices, type ServiceItem } from '../../api/services';
 import { createPublicAppointment } from '../../api/appointments';
 import { dayjs, getBusinessTimezone } from '../../utils/dates';
+import { maintenanceActive } from '../../api/maintenance';
 
 const services = ref<ServiceItem[]>([]);
 const loadingServices = ref(false);
@@ -45,6 +46,10 @@ const buildScheduledAt = () => {
 const onSubmit = async () => {
   errorMessage.value = '';
   success.value = false;
+  if (maintenanceActive.value) {
+    errorMessage.value = 'Maintenance in progress. Please try again later.';
+    return;
+  }
   const scheduledAt = buildScheduledAt();
   if (!scheduledAt) {
     errorMessage.value = 'Please pick a valid date and time.';
@@ -143,7 +148,7 @@ const onSubmit = async () => {
             size="large"
             class="w-full"
             :loading="submitting"
-            :disabled="!form.name || !form.phoneE164 || !form.serviceId || !form.date || !form.time || submitting"
+            :disabled="maintenanceActive || !form.name || !form.phoneE164 || !form.serviceId || !form.date || !form.time || submitting"
             @click="onSubmit"
           >
             Book Appointment

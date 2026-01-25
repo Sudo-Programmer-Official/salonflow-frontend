@@ -9,6 +9,7 @@ import { apiUrl, buildHeaders } from '../../api/client';
 import { startKioskIdleWatchdog } from '../../utils/kioskIdleWatchdog';
 import { fetchPublicSettings, type BusinessSettings } from '../../api/settings';
 import { applyThemeFromSettings } from '../../utils/theme';
+import { maintenanceActive } from '../../api/maintenance';
 
 const form = reactive({
   name: '',
@@ -213,6 +214,10 @@ const normalizePhone = (raw: string) => {
 const onSubmit = async () => {
   errorMessage.value = '';
   success.value = false;
+  if (maintenanceActive.value) {
+    errorMessage.value = 'Maintenance in progress. Please try again later.';
+    return;
+  }
   if (!publicEnabled.value) {
     errorMessage.value = 'Public check-in is disabled right now.';
     return;
@@ -479,7 +484,8 @@ watch(
               (serviceRequired && !form.serviceId) ||
               (allowStaffSelection && requireStaffSelection && !form.staffId) ||
               submitting ||
-              !publicEnabled
+              !publicEnabled ||
+              maintenanceActive
             "
             @click="onSubmit"
           >

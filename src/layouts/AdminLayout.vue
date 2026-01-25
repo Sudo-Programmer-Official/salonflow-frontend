@@ -9,6 +9,7 @@ import SiteFooter from '../components/SiteFooter.vue';
 import { fetchSettings, fetchPublicSettings } from '../api/settings';
 import { applyThemeFromSettings } from '../utils/theme';
 import { useInboxNotifications } from '../utils/inboxNotifications';
+import { maintenanceActive, maintenanceMessage, clearMaintenanceBanner } from '../api/maintenance';
 
 const role = computed(() => localStorage.getItem('role') || '');
 const isOwner = computed(() => role.value === 'OWNER');
@@ -154,6 +155,8 @@ const showOnboardingBanner = computed(
     !onboardingBannerDismissed.value &&
     onboardingStatus.value?.onboardingBannerDismissed !== true,
 );
+
+const showMaintenanceBanner = computed(() => maintenanceActive.value);
 
 const goOnboarding = () => {
   onboardingBannerDismissed.value = false;
@@ -396,6 +399,23 @@ watch(currentRouteName, (val) => openGroupForRoute(val));
       </header>
 
       <main class="flex-1 space-y-4 overflow-y-auto px-6 py-5">
+        <div
+          v-if="showMaintenanceBanner"
+          class="flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+        >
+          <div class="flex items-center justify-between gap-3">
+            <div class="font-semibold">Maintenance mode</div>
+            <button
+              type="button"
+              class="text-amber-800 transition hover:text-amber-600"
+              @click="clearMaintenanceBanner"
+            >
+              ✕
+            </button>
+          </div>
+          <div>{{ maintenanceMessage || 'Maintenance in progress' }}</div>
+        </div>
+
         <div
           v-if="isImpersonating"
           class="flex flex-col gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900"

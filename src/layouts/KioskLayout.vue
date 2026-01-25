@@ -1,15 +1,20 @@
 <template>
   <div
-    class="kiosk-app kiosk-frame"
+    class="kiosk-app kiosk-frame relative"
     :data-kiosk-theme="kioskTheme"
     :data-kiosk-primary="kioskPrimary"
   >
-    <router-view />
+    <router-view v-if="!maintenanceActive" />
+    <div v-else class="absolute inset-0 flex items-center justify-center">
+      <MaintenanceBanner :message="maintenanceMessage || undefined" mode="fullscreen" />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { maintenanceActive, maintenanceMessage } from '../api/maintenance';
+import MaintenanceBanner from '../components/MaintenanceBanner.vue';
 
 const kioskTheme = ref('black-glass');
 const kioskPrimary = ref('gold');

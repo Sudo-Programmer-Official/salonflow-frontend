@@ -5,6 +5,7 @@ import './style.css';
 import App from './App.vue';
 import router from './router';
 import { setupTrialInterceptor } from './api/trialBanner';
+import { setupMaintenanceInterceptor } from './api/maintenance';
 import { fetchOnboardingStatus } from './api/onboarding';
 import { setBusinessTimezone } from './utils/dates';
 import { applyThemeFromSettings } from './utils/theme';
@@ -12,6 +13,7 @@ import { applyThemeFromSettings } from './utils/theme';
 const app = createApp(App);
 
 setupTrialInterceptor();
+setupMaintenanceInterceptor();
 app.use(router);
 app.use(ElementPlus);
 

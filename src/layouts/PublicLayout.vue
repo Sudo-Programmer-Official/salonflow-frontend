@@ -14,6 +14,12 @@
       </div>
     </header>
     <main class="mx-auto flex w-full max-w-xl flex-1 flex-col px-4 py-8 sm:px-6">
+      <MaintenanceBanner
+        v-if="maintenanceActive"
+        class="mb-4"
+        :message="maintenanceMessage || undefined"
+        mode="banner"
+      />
       <router-view />
     </main>
     <SiteFooter />
@@ -22,6 +28,8 @@
 
 <script setup lang="ts">
 import { RouterLink } from 'vue-router';
+import { maintenanceActive, maintenanceMessage } from '../api/maintenance';
 import SiteFooter from '../components/SiteFooter.vue';
+import MaintenanceBanner from '../components/MaintenanceBanner.vue';
 import logo from '../assets/images/salonflow-logo.png';
 </script>

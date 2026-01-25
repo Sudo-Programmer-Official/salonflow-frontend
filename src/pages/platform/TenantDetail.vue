@@ -11,9 +11,24 @@ import {
   ElTooltip,
   ElInput,
   ElCheckbox,
+  ElTable,
+  ElTableColumn,
+  ElSwitch,
+  ElDialog,
+  ElForm,
+  ElFormItem,
 } from 'element-plus';
 import { fetchTenantDetail, impersonateTenant, type TenantOverview, type TenantMetrics } from '../../api/superadmin';
 import { fetchPlatformLimits, updatePlatformLimits } from '../../api/platform';
+import {
+  fetchTenantControl,
+  fetchTenantAudit,
+  forceLogoutTenant,
+  resetTenantUsage,
+  updateTenantControl,
+  type TenantControl,
+  type PlatformAuditRow,
+} from '../../api/platformTenantControls';
 import { useRoute, useRouter } from 'vue-router';
 
 const route = useRoute();
@@ -28,7 +43,30 @@ const limits = ref<any | null>(null);
 const limitsLoading = ref(false);
 const limitsDialog = ref(false);
 const savingLimits = ref(false);
+
+const controls = ref<TenantControl | null>(null);
+const controlDraft = ref<Partial<TenantControl>>({});
+const savingControls = ref(false);
+const audit = ref<PlatformAuditRow[]>([]);
+const reasonDialog = ref(false);
+const pendingPayload = ref<Record<string, any> | null>(null);
+const pendingAction = ref<'controls' | 'force-logout' | 'reset-usage' | null>(null);
+const reasonText = ref('');
+const reasonDialogTitle = computed(() => {
+  if (pendingAction.value === 'force-logout') return 'Reason for force logout';
+  if (pendingAction.value === 'reset-usage') return 'Reason for reset usage';
+  return 'Reason required';
+});
+
 const statusType = (status: string) => (status === 'active' ? 'success' : 'danger');
+
+const reasonRequiredFields: (keyof TenantControl)[] = [
+  'status',
+  'sms_blocked',
+  'email_blocked',
+  'allow_transactional_only',
+  'frozen',
+];
 
 const load = async () => {
   if (!businessId.value) {
@@ -40,7 +78,7 @@ const load = async () => {
     const res = await fetchTenantDetail(businessId.value);
     tenant.value = res.tenant;
     metrics.value = res.metrics;
-    await loadLimits();
+    await Promise.all([loadLimits(), loadControls(), loadAudit()]);
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load tenant';
   } finally {
@@ -82,6 +120,24 @@ const impersonate = async () => {
 
 const isPlatformTenant = computed(() => tenant.value?.subdomain === 'platform');
 
+const openTenantAdmin = () => {
+  if (!tenant.value) return;
+  const subdomain = tenant.value.subdomain ?? '';
+  const host = typeof window !== 'undefined' ? window.location.host : '';
+  const baseDomain = host.split('.').slice(1).join('.') || 'localhost:5173';
+  const target = subdomain ? `http://${subdomain}.${baseDomain}/admin` : '/admin';
+  window.open(target, '_blank', 'noopener,noreferrer');
+};
+
+const openKiosk = () => {
+  if (!tenant.value) return;
+  const subdomain = tenant.value.subdomain ?? '';
+  const host = typeof window !== 'undefined' ? window.location.host : '';
+  const baseDomain = host.split('.').slice(1).join('.') || 'localhost:5173';
+  const target = subdomain ? `http://${subdomain}.${baseDomain}/check-in/kiosk` : '/check-in/kiosk';
+  window.open(target, '_blank', 'noopener,noreferrer');
+};
+
 const loadLimits = async () => {
   limitsLoading.value = true;
   try {
@@ -111,13 +167,173 @@ const saveLimits = async () => {
     savingLimits.value = false;
   }
 };
+
+const loadControls = async () => {
+  if (!businessId.value) return;
+  try {
+    const res = await fetchTenantControl(businessId.value);
+    controls.value = res.control;
+    controlDraft.value = { ...res.control };
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : 'Failed to load controls');
+  }
+};
+
+const loadAudit = async () => {
+  if (!businessId.value) return;
+  try {
+    audit.value = await fetchTenantAudit(businessId.value, 50);
+  } catch {
+    audit.value = [];
+  }
+};
+
+const fields: (keyof TenantControl)[] = [
+  'status',
+  'maintenance_message',
+  'disabled_reason',
+  'sms_blocked',
+  'email_blocked',
+  'allow_promotions',
+  'allow_transactional_only',
+  'is_demo',
+  'demo_expires_at',
+  'sms_daily_cap',
+  'email_daily_cap',
+  'frozen',
+];
+
+const isDirty = computed(() => {
+  if (!controls.value) return false;
+  return fields.some((f) => controlDraft.value[f] !== controls.value?.[f]);
+});
+
+const buildPayload = () => {
+  if (!controls.value) return {};
+  const payload: Record<string, any> = {};
+  fields.forEach((f) => {
+    if (controlDraft.value[f] !== controls.value?.[f]) {
+      payload[f] = controlDraft.value[f];
+    }
+  });
+  return payload;
+};
+
+const needsReason = (payload: Record<string, any>) =>
+  reasonRequiredFields.some((f) => Object.prototype.hasOwnProperty.call(payload, f));
+
+const persistControls = async (payload: Record<string, any>, reason?: string) => {
+  if (!businessId.value) return;
+  savingControls.value = true;
+  try {
+    const updated = await updateTenantControl(businessId.value, {
+      ...payload,
+      ...(reason ? { reason } : {}),
+    });
+    controls.value = updated;
+    controlDraft.value = { ...updated };
+    reasonText.value = '';
+    await loadAudit();
+    ElMessage.success('Controls saved');
+  } catch (err: any) {
+    ElMessage.error(err?.message || 'Failed to save controls');
+  } finally {
+    savingControls.value = false;
+    pendingPayload.value = null;
+    reasonDialog.value = false;
+    pendingAction.value = null;
+  }
+};
+
+const openReasonModal = (action: 'controls' | 'force-logout' | 'reset-usage', payload?: Record<string, any>) => {
+  pendingAction.value = action;
+  pendingPayload.value = payload ?? null;
+  reasonText.value = '';
+  reasonDialog.value = true;
+};
+
+const saveControls = async () => {
+  const payload = buildPayload();
+  if (Object.keys(payload).length === 0) return;
+  if (needsReason(payload) && !reasonText.value.trim()) {
+    openReasonModal('controls', payload);
+    return;
+  }
+  await persistControls(payload, reasonText.value.trim() || undefined);
+};
+
+const confirmReasonAndSave = async () => {
+  const reason = reasonText.value.trim();
+  if (!reason) {
+    ElMessage.warning('Reason is required');
+    return;
+  }
+  if (pendingAction.value === 'controls' && pendingPayload.value) {
+    await persistControls(pendingPayload.value, reason);
+    return;
+  }
+  if (pendingAction.value === 'force-logout') {
+    await performForceLogout(reason);
+    return;
+  }
+  if (pendingAction.value === 'reset-usage') {
+    await performResetUsage(reason);
+  }
+};
+
+const resetDraft = () => {
+  if (controls.value) {
+    controlDraft.value = { ...controls.value };
+    reasonText.value = '';
+    pendingPayload.value = null;
+    pendingAction.value = null;
+  }
+};
+
+const performForceLogout = async (reason: string) => {
+  if (!businessId.value) return;
+  try {
+    const version = await forceLogoutTenant(businessId.value, reason.trim());
+    ElMessage.success(`Forced logout. Session version ${version}`);
+  } catch (err: any) {
+    ElMessage.error(err?.message || 'Force logout failed');
+  } finally {
+    reasonDialog.value = false;
+    pendingAction.value = null;
+    reasonText.value = '';
+  }
+};
+
+const performResetUsage = async (reason: string) => {
+  if (!businessId.value) return;
+  try {
+    await resetTenantUsage(businessId.value, reason.trim());
+    ElMessage.success('Usage reset timestamp updated');
+    await loadControls();
+    await loadAudit();
+  } catch (err: any) {
+    ElMessage.error(err?.message || 'Reset usage failed');
+  } finally {
+    reasonDialog.value = false;
+    pendingAction.value = null;
+    reasonText.value = '';
+  }
+};
+
+const forceLogout = () => {
+  openReasonModal('force-logout');
+};
+
+const resetUsage = () => {
+  openReasonModal('reset-usage');
+};
 </script>
 
 <template>
   <div class="space-y-4">
     <div>
       <h1 class="text-2xl font-semibold text-slate-900">Tenant Detail</h1>
-      <p class="text-sm text-slate-600">Read-only metrics.</p>
+      <p class="text-sm text-slate-600">Control plane and metrics.</p>
     </div>
 
     <ElAlert v-if="error" type="error" :title="error" :closable="false" />
@@ -150,7 +366,128 @@ const saveLimits = async () => {
         <ElButton class="ml-2" @click="openLimits" :loading="limitsLoading">
           Edit limits
         </ElButton>
+        <ElButton class="ml-2" type="success" plain @click="openTenantAdmin">
+          Open tenant admin
+        </ElButton>
+        <ElButton class="ml-2" plain @click="openKiosk">
+          Open kiosk
+        </ElButton>
       </div>
+    </ElCard>
+
+    <ElCard v-if="controls" class="bg-white">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <div class="text-lg font-semibold">Tenant Controls</div>
+          <div class="text-xs text-slate-500">Status, maintenance, messaging, caps</div>
+        </div>
+        <div class="flex gap-2 items-center">
+          <ElButton @click="resetDraft" :disabled="!isDirty || savingControls">Reset</ElButton>
+          <ElButton type="primary" :loading="savingControls" :disabled="!isDirty" @click="saveControls">
+            Save changes
+          </ElButton>
+        </div>
+      </div>
+
+      <div class="grid gap-4 md:grid-cols-2">
+        <div class="border rounded-lg p-3">
+          <div class="text-sm font-semibold mb-2">Status & Maintenance</div>
+          <ElForm label-position="top" size="small">
+            <ElFormItem label="Status">
+              <select
+                class="w-full border rounded px-2 py-1"
+                v-model="controlDraft.status"
+              >
+                <option value="active">Active</option>
+                <option value="maintenance">Maintenance</option>
+                <option value="disabled">Disabled</option>
+              </select>
+            </ElFormItem>
+            <ElFormItem label="Maintenance message">
+              <ElInput
+                type="textarea"
+                :rows="2"
+                v-model="controlDraft.maintenance_message"
+                placeholder="Shown to tenant during maintenance"
+              />
+            </ElFormItem>
+            <ElFormItem label="Disabled reason (required when disabled)">
+              <ElInput
+                v-model="controlDraft.disabled_reason"
+                placeholder="Reason shown to admins"
+              />
+            </ElFormItem>
+          </ElForm>
+        </div>
+
+        <div class="border rounded-lg p-3">
+          <div class="text-sm font-semibold mb-2">Messaging Controls</div>
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <span>SMS blocked</span>
+              <ElSwitch v-model="controlDraft.sms_blocked" />
+            </div>
+            <div class="flex items-center justify-between">
+              <span>Email blocked</span>
+              <ElSwitch v-model="controlDraft.email_blocked" />
+            </div>
+            <div class="flex items-center justify-between">
+              <span>Allow promotions</span>
+              <ElSwitch v-model="controlDraft.allow_promotions" />
+            </div>
+            <div class="flex items-center justify-between">
+              <span>Transactional only</span>
+              <ElSwitch v-model="controlDraft.allow_transactional_only" />
+            </div>
+          </div>
+        </div>
+
+        <div class="border rounded-lg p-3">
+          <div class="text-sm font-semibold mb-2">Caps & Freeze</div>
+          <ElForm label-position="top" size="small">
+            <ElFormItem label="SMS daily cap">
+              <ElInput v-model.number="controlDraft.sms_daily_cap" type="number" placeholder="e.g. 500" />
+            </ElFormItem>
+            <ElFormItem label="Email daily cap">
+              <ElInput v-model.number="controlDraft.email_daily_cap" type="number" placeholder="e.g. 500" />
+            </ElFormItem>
+            <ElFormItem label="Freeze all messaging">
+              <ElSwitch v-model="controlDraft.frozen" />
+            </ElFormItem>
+            <ElButton size="small" @click="resetUsage">Reset usage timestamp</ElButton>
+          </ElForm>
+        </div>
+
+        <div class="border rounded-lg p-3">
+          <div class="text-sm font-semibold mb-2">Session & Demo</div>
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <span>Demo tenant</span>
+              <ElSwitch v-model="controlDraft.is_demo" />
+            </div>
+            <ElForm label-position="top" size="small">
+              <ElFormItem label="Demo expires at">
+                <ElInput v-model="controlDraft.demo_expires_at" type="date" />
+              </ElFormItem>
+            </ElForm>
+            <ElButton type="warning" size="small" @click="forceLogout">Force logout</ElButton>
+            <div class="text-2xs text-slate-500">Session version: {{ controls.session_version }}</div>
+          </div>
+        </div>
+      </div>
+    </ElCard>
+
+    <ElCard v-if="audit.length" class="bg-white">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-sm font-semibold">Audit log (latest {{ audit.length }})</div>
+        <ElButton size="small" @click="loadAudit">Refresh</ElButton>
+      </div>
+      <ElTable :data="audit" size="small" height="260">
+        <ElTableColumn prop="created_at" label="When" width="160" />
+        <ElTableColumn prop="actor_email" label="Actor" width="180" />
+        <ElTableColumn prop="action" label="Action" width="200" />
+        <ElTableColumn prop="reason" label="Reason" />
+      </ElTable>
     </ElCard>
 
     <ElCard v-if="metrics" class="bg-white">
@@ -203,6 +540,24 @@ const saveLimits = async () => {
         <div class="flex justify-end gap-2">
           <ElButton @click="limitsDialog = false">Cancel</ElButton>
           <ElButton type="primary" :loading="savingLimits" @click="saveLimits">Save</ElButton>
+        </div>
+      </template>
+    </ElDialog>
+
+    <ElDialog v-model="reasonDialog" :title="reasonDialogTitle" width="420px">
+      <p class="text-sm text-slate-600 mb-2">
+        A reason is required for this change. It will be stored in the audit log.
+      </p>
+      <ElInput
+        type="textarea"
+        :rows="3"
+        v-model="reasonText"
+        placeholder="Enter reason"
+      />
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <ElButton @click="reasonDialog = false">Cancel</ElButton>
+          <ElButton type="primary" :loading="savingControls" @click="confirmReasonAndSave">Save</ElButton>
         </div>
       </template>
     </ElDialog>
