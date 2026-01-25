@@ -1,5 +1,5 @@
 <template>
-  <div class="flex min-h-screen flex-col text-slate-900">
+  <div class="public-shell flex flex-col text-slate-900">
     <header class="border-b border-white/30 bg-white/70 backdrop-blur font-[var(--ui-font-family)]">
       <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
         <RouterLink to="/" class="flex items-center gap-1.5">
@@ -13,7 +13,7 @@
         </nav>
       </div>
     </header>
-    <main class="mx-auto flex w-full max-w-xl flex-1 flex-col px-4 py-8 sm:px-6">
+    <main class="public-content mx-auto flex w-full max-w-xl flex-1 flex-col px-4 py-8 sm:px-6">
       <MaintenanceBanner
         v-if="maintenanceActive"
         class="mb-4"
@@ -33,3 +33,15 @@ import SiteFooter from '../components/SiteFooter.vue';
 import MaintenanceBanner from '../components/MaintenanceBanner.vue';
 import logo from '../assets/images/salonflow-logo.png';
 </script>
+
+<style scoped>
+.public-shell {
+  height: 100vh;
+  overflow: hidden;
+}
+.public-content {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+</style>

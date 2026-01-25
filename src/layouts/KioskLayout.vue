@@ -46,6 +46,10 @@ onBeforeUnmount(() => {
 <style scoped>
 .kiosk-frame {
   min-height: 100vh;
+  height: 100vh;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
   background: var(--bg-app);
   color: var(--kiosk-text-primary, #fff);
 }

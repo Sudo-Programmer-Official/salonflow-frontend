@@ -1,6 +1,6 @@
 <template>
-  <div class="flex min-h-screen flex-col bg-white text-slate-900">
-    <div class="flex flex-1">
+  <div class="platform-shell flex flex-col bg-white text-slate-900">
+    <div class="platform-body flex flex-1">
       <aside class="hidden w-64 border-r border-slate-200 bg-slate-50/70 p-4 sm:block">
         <div class="mb-6 text-sm font-semibold text-slate-700">Platform</div>
         <nav class="space-y-2 text-sm font-medium text-slate-700">
@@ -27,7 +27,7 @@
         </RouterLink>
       </nav>
       </aside>
-      <main class="flex-1 p-4 sm:p-6">
+      <main class="platform-content flex-1 p-4 sm:p-6">
         <div class="mb-4 flex items-center justify-between">
           <div class="text-sm text-slate-600">Signed in as Platform Admin</div>
           <button
@@ -51,3 +51,18 @@ import { logout } from '../utils/auth';
 
 const handleLogout = () => logout('/app/login');
 </script>
+
+<style scoped>
+.platform-shell {
+  height: 100vh;
+  overflow: hidden;
+}
+.platform-body {
+  min-height: 0;
+}
+.platform-content {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+</style>

@@ -33,7 +33,7 @@ export type SmartReminderLog = {
   reason: string | null;
 };
 
-const headers = () => buildHeaders({ auth: true, json: true });
+const headers = () => buildHeaders({ auth: true, json: true, tenant: true });
 
 export type SmartReminderStats = Record<
   string,

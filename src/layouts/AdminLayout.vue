@@ -14,6 +14,7 @@ import { maintenanceActive, maintenanceMessage, clearMaintenanceBanner } from '.
 const role = computed(() => localStorage.getItem('role') || '');
 const isOwner = computed(() => role.value === 'OWNER');
 const dismissBanner = ref(false);
+const sidebarOpen = ref(false);
 const onboardingBannerDismissed = ref(false);
 const onboardingStatus = ref<Awaited<ReturnType<typeof fetchOnboardingStatus>> | null>(null);
 const router = useRouter();
@@ -303,12 +304,23 @@ onMounted(() => {
 
 const currentRouteName = computed(() => (route.name ? String(route.name) : null));
 
-watch(currentRouteName, (val) => openGroupForRoute(val));
+watch(currentRouteName, (val) => {
+  openGroupForRoute(val);
+  sidebarOpen.value = false;
+});
+
+const toggleSidebar = () => {
+  sidebarOpen.value = !sidebarOpen.value;
+};
+
+const closeSidebar = () => {
+  sidebarOpen.value = false;
+};
 </script>
 
 <template>
-  <div class="flex min-h-screen text-slate-900">
-    <aside class="sidebar">
+  <div class="admin-shell text-slate-900">
+    <aside :class="['sidebar', { open: sidebarOpen }]">
       <div class="sidebar__brand">
         <img src="/icons/icon-128x128.png" alt="SalonFlow logo" class="brand-logo sidebar__logo" />
         <div class="sidebar__brand-text">
@@ -368,10 +380,21 @@ watch(currentRouteName, (val) => openGroupForRoute(val));
         </nav>
       </div>
     </aside>
+    <div v-if="sidebarOpen" class="sidebar-backdrop" @click="closeSidebar"></div>
 
-    <div class="flex min-h-screen flex-1 flex-col">
+    <div class="admin-main">
       <header class="admin-header">
-        <div class="text-sm font-semibold text-slate-900">Admin</div>
+        <div class="flex items-center gap-3">
+          <button
+            class="sidebar-toggle lg:hidden"
+            type="button"
+            aria-label="Toggle menu"
+            @click="toggleSidebar"
+          >
+            ☰
+          </button>
+          <div class="text-sm font-semibold text-slate-900">Admin</div>
+        </div>
         <div class="flex items-center gap-3">
           <el-button
             v-if="isOwner && kioskEnabled"
@@ -399,7 +422,7 @@ watch(currentRouteName, (val) => openGroupForRoute(val));
         </div>
       </header>
 
-      <main class="flex-1 space-y-4 overflow-y-auto px-6 py-5">
+      <main class="admin-content">
         <div
           v-if="showMaintenanceBanner"
           class="flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
@@ -546,15 +569,44 @@ watch(currentRouteName, (val) => openGroupForRoute(val));
 </template>
 
 <style scoped>
-.sidebar {
-  width: 16rem;
+.admin-shell {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background: var(--bg-app);
+}
+.admin-main {
+  flex: 1;
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  height: 100vh;
+  overflow: hidden;
+}
+.admin-content {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 24px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.sidebar {
+  width: 16rem;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
   border-right: 1px solid rgba(148, 163, 184, 0.35);
   background: var(--sidebar-bg);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
   font-family: var(--ui-font-family);
+  overflow: hidden;
 }
 .sidebar__brand {
   min-height: 96px;
@@ -584,8 +636,11 @@ watch(currentRouteName, (val) => openGroupForRoute(val));
 }
 .sidebar__nav {
   flex: 1;
+  min-height: 0;
   padding: 4px 12px 16px 12px;
   font-size: var(--font-md);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .sidebar__section {
   background: rgba(255, 255, 255, 0.42);
@@ -701,6 +756,7 @@ watch(currentRouteName, (val) => openGroupForRoute(val));
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-shrink: 0;
   border-bottom: 1px solid rgba(148, 163, 184, 0.35);
   background: var(--header-surface, var(--main-surface));
   backdrop-filter: blur(var(--glass-blur));
@@ -730,5 +786,50 @@ watch(currentRouteName, (val) => openGroupForRoute(val));
 .admin-header :deep(.el-button:hover),
 .admin-header :deep(.el-button:focus) {
   filter: brightness(1.08);
+}
+
+.sidebar-toggle {
+  height: 38px;
+  width: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: rgba(255, 255, 255, 0.85);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sidebar-backdrop {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: -16rem;
+    z-index: 60;
+    transition: left 0.2s ease;
+    box-shadow: 16px 0 40px rgba(15, 23, 42, 0.18);
+  }
+  .sidebar.open {
+    left: 0;
+  }
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.35);
+    backdrop-filter: blur(2px);
+    z-index: 55;
+  }
+  .admin-shell,
+  .admin-main {
+    width: 100vw;
+  }
 }
 </style>
