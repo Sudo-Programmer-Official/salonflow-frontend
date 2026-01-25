@@ -27,12 +27,18 @@ import {
   testPromotionEmail,
 } from '../../api/promotions';
 import { isWithinTcpaWindow, getBusinessTimezone } from '../../utils/dates';
+import dayjs from 'dayjs';
 
 const activeTab = ref<'active' | 'expired'>('active');
 const dialogOpen = ref(false);
 const saving = ref(false);
 const loading = ref(false);
 const sending = ref<string | null>(null);
+const sendConfirm = ref<{ open: boolean; promo: Promotion | null; stats: any | null }>({
+  open: false,
+  promo: null,
+  stats: null,
+});
 const testing = ref<string | null>(null);
 const testingCreate = ref(false);
 const testingEmail = ref(false);
@@ -72,7 +78,7 @@ const form = reactive({
   scheduleAt: '',
   testPhone: '',
   testEmail: '',
-  channel: 'sms' as 'sms' | 'email',
+  channel: 'sms' as 'sms' | 'email' | 'both',
   emailSubject: 'SalonFlow promotion',
 });
 
@@ -205,18 +211,31 @@ const submit = async () => {
     ElMessage.warning('Message is required');
     return;
   }
-  if (form.channel === 'email' && !form.emailSubject.trim()) {
+  if ((form.channel === 'email' || form.channel === 'both') && !form.emailSubject.trim()) {
     ElMessage.warning('Email subject is required');
     return;
   }
+  if (form.sendWhen === 'schedule' && form.scheduleAt) {
+    const scheduled = dayjs(form.scheduleAt);
+    if (!scheduled.isValid() || scheduled.isBefore(dayjs())) {
+      ElMessage.warning('Schedule time must be in the future');
+      return;
+    }
+  }
   saving.value = true;
   try {
+    const channels: ('sms' | 'email')[] =
+      form.channel === 'sms' ? ['sms'] : form.channel === 'email' ? ['email'] : ['sms', 'email'];
     const payload = {
       name: form.name.trim(),
       offerType: form.offerType,
       offerValue: form.offerValue,
       audience: form.audiences,
       message: form.message.trim(),
+      channels,
+      emailSubject: form.channel === 'email' || form.channel === 'both' ? form.emailSubject.trim() : null,
+      emailBody: form.channel === 'email' || form.channel === 'both' ? form.message.trim() : null,
+      emailBodyText: form.channel === 'email' || form.channel === 'both' ? form.message.trim() : null,
       startAt: form.startDate,
       endAt: form.endDate,
       oneTimeUse: form.oneTimeUse,
@@ -227,26 +246,6 @@ const submit = async () => {
     ElMessage.success('Promotion saved');
   } finally {
     saving.value = false;
-  }
-};
-
-const handleSend = async (id: string) => {
-  sending.value = id;
-  try {
-    await sendPromotion(id);
-    ElMessage.success('Promotion send started');
-    ensurePolling(id);
-    await loadPromotions();
-  } catch (err: any) {
-    if (err?.code === 'WEEKLY_LIMIT_EXCEEDED') {
-      ElMessage.error('Only one promotion per week is allowed.');
-    } else if (err?.code === 'TCPA_BLOCKED') {
-      ElMessage.error('Messages can only be sent between 8am–8pm local time.');
-    } else {
-      ElMessage.error(err?.message || 'Failed to send promotion');
-    }
-  } finally {
-    sending.value = null;
   }
 };
 
@@ -300,6 +299,35 @@ const handleTest = async (id: string, phone: string) => {
 const handleCreateTest = async () => {
   if (form.channel === 'email') {
     await handleCreateTestEmail();
+    return;
+  }
+  if (form.channel === 'both') {
+    // send SMS if phone present
+    if (form.testPhone?.trim()) {
+      const phoneVal = form.testPhone.trim();
+      if (!form.message?.trim()) {
+        ElMessage.warning('Enter a message to test');
+        return;
+      }
+      testingCreate.value = true;
+      try {
+        await testPromotionMessage(phoneVal, form.message.trim());
+        ElMessage.success('Test SMS sent');
+      } catch (err: any) {
+        if (err?.code === 'TCPA_BLOCKED') {
+          ElMessage.error('Messages can only be sent between 8am–8pm local time.');
+        } else if (err?.code === 'CAP_EXCEEDED') {
+          ElMessage.error('SMS cap exceeded for this tenant.');
+        } else {
+          ElMessage.error(err?.message || 'Failed to send SMS test');
+        }
+      } finally {
+        testingCreate.value = false;
+      }
+    }
+    if (form.testEmail?.trim()) {
+      await handleCreateTestEmail();
+    }
     return;
   }
   if (!form.testPhone?.trim()) {
@@ -379,6 +407,13 @@ const recipientSummaryLabel = (promo: Promotion) => {
   return 'Recipients: not calculated yet';
 };
 
+const channelCounts = (promo: Promotion) => {
+  const stats = statsMap.value[promo.id];
+  const sms = stats?.per_channel?.sms?.total ?? 0;
+  const email = stats?.per_channel?.email?.total ?? 0;
+  return { sms, email, total: sms + email };
+};
+
 const sendDisabledReason = (promo: Promotion) => {
   const total = recipientTotal(promo);
   if (total === 0) return 'No recipients match this audience';
@@ -386,6 +421,51 @@ const sendDisabledReason = (promo: Promotion) => {
     return 'Send in progress';
   }
   return '';
+};
+
+const softCap = 1000;
+
+const handleSend = async (id: string) => {
+  try {
+    const stats = await fetchPromotionStats(id);
+    statsMap.value[id] = stats;
+    const promo = promotions.value.find((p) => p.id === id) || null;
+    const total = stats.total ?? 0;
+    if (total === 0) {
+      ElMessage.warning('Cannot send: no recipients for this promotion.');
+      return;
+    }
+    sendConfirm.value = { open: true, promo, stats };
+  } catch (err: any) {
+    ElMessage.error(err?.message || 'Failed to load promotion stats');
+  }
+};
+
+const confirmSend = async () => {
+  if (!sendConfirm.value.promo) return;
+  const id = sendConfirm.value.promo.id;
+  sendConfirm.value.open = false;
+  sending.value = id;
+  try {
+    await sendPromotion(id);
+    ElMessage.success('Promotion send started');
+    ensurePolling(id);
+    await loadPromotions();
+  } catch (err: any) {
+    if (err?.code === 'WEEKLY_LIMIT_EXCEEDED') {
+      ElMessage.error('Only one promotion per week is allowed.');
+    } else if (err?.code === 'TCPA_BLOCKED') {
+      ElMessage.error('Messages can only be sent between 8am–8pm local time.');
+    } else if (err?.code === 'EMAIL_SUBJECT_MISSING') {
+      ElMessage.error('Add an email subject before sending this promotion.');
+    } else if (err?.code === 'SCHEDULED_IN_FUTURE') {
+      ElMessage.error('This promotion is scheduled for the future. Adjust the schedule to send now.');
+    } else {
+      ElMessage.error(err?.message || 'Failed to send promotion');
+    }
+  } finally {
+    sending.value = null;
+  }
 };
 
 loadPromotions();
@@ -587,6 +667,34 @@ loadPromotions();
       </template>
     </ElDialog>
 
+    <ElDialog v-model="sendConfirm.open" title="Confirm send" width="420px">
+      <div v-if="sendConfirm.promo" class="space-y-3 text-sm text-slate-800">
+        <div class="font-semibold">{{ sendConfirm.promo.name }}</div>
+        <div class="rounded-md bg-slate-50 border border-slate-200 p-3 space-y-1">
+          <div>SMS recipients: {{ sendConfirm.stats?.per_channel?.sms?.total ?? 0 }}</div>
+          <div>Email recipients: {{ sendConfirm.stats?.per_channel?.email?.total ?? 0 }}</div>
+          <div class="text-xs text-slate-600">Total: {{ sendConfirm.stats?.total ?? 0 }}</div>
+          <div
+            v-if="(sendConfirm.stats?.total ?? 0) > softCap"
+            class="mt-2 rounded-md bg-amber-50 px-3 py-2 text-amber-800 text-xs"
+          >
+            Large send: {{ sendConfirm.stats?.total ?? 0 }} recipients. Proceed?
+          </div>
+        </div>
+        <p class="text-xs text-slate-600">
+          This will send via all selected channels. This action cannot be undone.
+        </p>
+      </div>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <ElButton @click="sendConfirm.open = false">Cancel</ElButton>
+          <ElButton type="primary" :loading="sending === sendConfirm.promo?.id" @click="confirmSend">
+            Confirm send
+          </ElButton>
+        </div>
+      </template>
+    </ElDialog>
+
     <ElDialog v-model="viewDrawer.open" title="Promotion details" width="640px">
       <div v-if="viewDrawer.promo" class="space-y-3 text-sm text-slate-800">
         <div class="text-base font-semibold">{{ viewDrawer.promo.name }}</div>
@@ -670,16 +778,21 @@ loadPromotions();
                 <label class="text-sm font-medium text-slate-800">Business name</label>
                 <ElInput v-model="form.businessName" placeholder="SalonFlow Demo" />
               </div>
-              <div>
+              <div class="space-y-1">
                 <label class="text-sm font-medium text-slate-800">Channel</label>
                 <ElRadioGroup v-model="form.channel" size="small" class="mt-1">
                   <ElRadioButton label="sms">SMS</ElRadioButton>
                   <ElRadioButton label="email">Email</ElRadioButton>
+                  <ElRadioButton label="both">Both</ElRadioButton>
                 </ElRadioGroup>
+                <p class="text-xs text-slate-600">
+                  Recipients (saved promos): SMS {{ channelCounts(form as any).sms || 0 }} · Email
+                  {{ channelCounts(form as any).email || 0 }}
+                </p>
               </div>
               <div>
                 <label class="text-sm font-medium text-slate-800">
-                  Message ({{ form.channel === 'sms' ? 'SMS' : 'Email' }})
+                  Message ({{ form.channel === 'sms' ? 'SMS' : form.channel === 'email' ? 'Email' : 'SMS + Email' }})
                 </label>
                 <ElInput
                   v-model="form.message"
@@ -694,7 +807,7 @@ loadPromotions();
                   <span>{{ charCount }} chars</span>
                 </div>
               </div>
-              <div v-if="form.channel === 'sms'" class="flex flex-col gap-2">
+              <div v-if="form.channel !== 'email'" class="flex flex-col gap-2">
                 <ElCheckbox v-model="form.appendStop">Auto-append “Reply STOP to opt out”</ElCheckbox>
                 <ElCheckbox v-model="form.appendExpiry">Include expiry text</ElCheckbox>
               </div>
@@ -719,7 +832,7 @@ loadPromotions();
                   class="mt-2 w-full"
                 />
               </div>
-              <div v-if="form.channel === 'sms'">
+              <div v-if="form.channel !== 'email'">
                 <label class="text-sm font-medium text-slate-800">Test phone (optional)</label>
                 <ElInput v-model="form.testPhone" placeholder="+1 555 123 4567" />
                 <ElButton
@@ -733,7 +846,7 @@ loadPromotions();
                   Send test
                 </ElButton>
               </div>
-              <div v-else>
+              <div v-if="form.channel !== 'sms'">
                 <label class="text-sm font-medium text-slate-800">Test email (optional)</label>
                 <ElInput v-model="form.testEmail" placeholder="you@example.com" />
                 <ElButton

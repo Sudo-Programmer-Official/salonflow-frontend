@@ -4,6 +4,7 @@ import { ElButton, ElCard, ElEmpty, ElInput, ElMessage, ElSkeleton, ElTag } from
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { fetchConversations, fetchMessages, replyToConversation, closeConversation, markConversationRead, type Conversation, type Message } from '../../api/inbox';
+import { useInboxNotifications } from '../../utils/inboxNotifications';
 
 dayjs.extend(relativeTime);
 
@@ -13,18 +14,20 @@ const loadingThread = ref(false);
 const sending = ref(false);
 const closing = ref(false);
 const statusFilter = ref<'open' | 'closed'>('open');
+const channelFilter = ref<'all' | 'sms' | 'email'>('all');
 const selectedId = ref<string | null>(null);
 const messages = ref<Message[]>([]);
 const selectedConversation = computed(() => conversations.value.find((c) => c.id === selectedId.value) || null);
 const replyText = ref('');
 const pollId = ref<number | null>(null);
+const { refreshUnread: refreshUnreadCount } = useInboxNotifications();
 
 const formatTime = (ts?: string | null) => (ts ? dayjs(ts).fromNow() : '');
 
 const loadConversations = async () => {
   loading.value = true;
   try {
-    conversations.value = await fetchConversations(statusFilter.value);
+    conversations.value = await fetchConversations(statusFilter.value, channelFilter.value);
     const first = conversations.value[0];
     if (!selectedId.value && first) {
       selectConversation(first.id);
@@ -58,6 +61,7 @@ const loadMessages = async (id: string, merge = false) => {
     const data = await fetchMessages(id);
     messages.value = merge ? mergeMessages(messages.value, data.messages) : data.messages;
     await markConversationRead(id);
+    await refreshUnreadCount({ silent: true });
   } catch (err: any) {
     ElMessage.error(err?.message || 'Failed to load messages');
   } finally {
@@ -107,6 +111,8 @@ const closeThread = async () => {
 
 const badgeText = (c: Conversation) => (c.status === 'open' ? 'Open' : 'Closed');
 const badgeType = (c: Conversation) => (c.status === 'open' ? 'success' : 'info');
+const channelBadgeType = (c: Conversation) => (c.channel === 'email' ? 'info' : 'warning');
+const channelBadgeText = (c: Conversation) => (c.channel === 'email' ? 'Email' : 'SMS');
 
 const messageAlign = (m: Message) => (m.direction === 'outbound' ? 'flex-row-reverse' : 'flex-row');
 const messageTone = (m: Message) => (m.direction === 'outbound' ? 'bg-sky-100 text-sky-900' : 'bg-slate-100 text-slate-900');
@@ -148,6 +154,29 @@ onUnmounted(() => {
           </ElButton>
         </div>
       </div>
+      <div class="flex gap-2 mb-3 text-sm">
+        <ElButton
+          size="small"
+          :type="channelFilter === 'all' ? 'primary' : 'default'"
+          @click="() => { channelFilter = 'all'; loadConversations(); }"
+        >
+          All
+        </ElButton>
+        <ElButton
+          size="small"
+          :type="channelFilter === 'sms' ? 'primary' : 'default'"
+          @click="() => { channelFilter = 'sms'; loadConversations(); }"
+        >
+          SMS
+        </ElButton>
+        <ElButton
+          size="small"
+          :type="channelFilter === 'email' ? 'primary' : 'default'"
+          @click="() => { channelFilter = 'email'; loadConversations(); }"
+        >
+          Email
+        </ElButton>
+      </div>
       <div class="flex-1 overflow-y-auto">
         <ElSkeleton v-if="loading" animated :rows="6" />
         <template v-else>
@@ -162,7 +191,10 @@ onUnmounted(() => {
             >
               <div class="flex items-center justify-between">
                 <div class="font-semibold">{{ c.contactName || c.contactPhone || 'Unknown' }}</div>
-                <ElTag size="small" :type="badgeType(c)">{{ badgeText(c) }}</ElTag>
+                <div class="flex gap-1">
+                  <ElTag size="small" :type="channelBadgeType(c)">{{ channelBadgeText(c) }}</ElTag>
+                  <ElTag size="small" :type="badgeType(c)">{{ badgeText(c) }}</ElTag>
+                </div>
               </div>
               <div class="text-xs text-slate-500">{{ formatTime(c.lastMessageAt) }}</div>
               <div class="mt-1 text-sm text-slate-700 line-clamp-2">{{ c.lastMessagePreview || '...' }}</div>
@@ -182,8 +214,11 @@ onUnmounted(() => {
             <div class="font-semibold text-slate-900">
               {{ selectedConversation?.contactName || selectedConversation?.contactPhone || 'Select a conversation' }}
             </div>
-            <div class="text-xs text-slate-500">
-              {{ selectedConversation ? badgeText(selectedConversation) : '' }}
+            <div class="text-xs text-slate-500 flex gap-2 items-center">
+              <span v-if="selectedConversation">{{ badgeText(selectedConversation) }}</span>
+              <ElTag v-if="selectedConversation" size="small" :type="channelBadgeType(selectedConversation)">
+                {{ channelBadgeText(selectedConversation) }}
+              </ElTag>
             </div>
           </div>
           <div class="flex gap-2">

@@ -6,9 +6,13 @@ export type Promotion = {
   id: string;
   name: string;
   audience: string[];
+  channels: ('sms' | 'email')[];
   offerType: 'percent' | 'amount';
   offerValue: number;
   message: string;
+  emailSubject?: string | null;
+  emailBody?: string | null;
+  emailBodyText?: string | null;
   startAt: string;
   endAt: string;
   oneTimeUse: boolean;
@@ -37,6 +41,10 @@ export async function createPromotion(payload: {
   offerValue: number;
   audience: string[];
   message: string;
+  channels: ('sms' | 'email')[];
+  emailSubject?: string | null;
+  emailBody?: string | null;
+  emailBodyText?: string | null;
   startAt: string;
   endAt: string;
   oneTimeUse?: boolean;

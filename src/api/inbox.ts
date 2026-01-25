@@ -23,8 +23,9 @@ export type Message = {
   created_at: string;
 };
 
-export async function fetchConversations(status: 'open' | 'closed' = 'open') {
-  const res = await fetch(apiUrl(`/inbox/conversations?status=${status}&channel=sms`), {
+export async function fetchConversations(status: 'open' | 'closed' = 'open', channel: 'sms' | 'email' | 'all' = 'all') {
+  const channelParam = channel === 'all' ? '' : `&channel=${channel}`;
+  const res = await fetch(apiUrl(`/inbox/conversations?status=${status}${channelParam}`), {
     headers: buildHeaders({ auth: true, tenant: true }),
   });
   if (!res.ok) throw new Error('Failed to load conversations');
@@ -69,4 +70,13 @@ export async function markConversationRead(conversationId: string) {
     method: 'POST',
     headers: buildHeaders({ auth: true, tenant: true }),
   });
+}
+
+export async function fetchUnreadCount() {
+  const res = await fetch(apiUrl('/inbox/unread-count'), {
+    headers: buildHeaders({ auth: true, tenant: true }),
+  });
+  if (!res.ok) throw new Error('Failed to load unread count');
+  const data = await res.json();
+  return typeof data?.count === 'number' ? data.count : 0;
 }

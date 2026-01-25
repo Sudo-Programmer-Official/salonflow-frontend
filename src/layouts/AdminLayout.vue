@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import OnboardingProgress from '../components/OnboardingProgress.vue';
 import { trialExpired, trialEndedAt, trialDaysRemaining, resetTrialState } from '../api/trialBanner';
@@ -8,6 +8,7 @@ import { logout } from '../utils/auth';
 import SiteFooter from '../components/SiteFooter.vue';
 import { fetchSettings, fetchPublicSettings } from '../api/settings';
 import { applyThemeFromSettings } from '../utils/theme';
+import { useInboxNotifications } from '../utils/inboxNotifications';
 
 const role = computed(() => localStorage.getItem('role') || '');
 const isOwner = computed(() => role.value === 'OWNER');
@@ -91,6 +92,19 @@ const openKioskMode = () => {
   window.location.href = kioskUrl.value;
 };
 
+const {
+  state: inboxState,
+  startPolling: startInboxPolling,
+  stopPolling: stopInboxPolling,
+  ensureAudioPrimed,
+} = useInboxNotifications();
+
+const primeAudioOnInteraction = () => {
+  ensureAudioPrimed();
+  window.removeEventListener('click', primeAudioOnInteraction);
+  window.removeEventListener('keydown', primeAudioOnInteraction);
+};
+
 const loadOnboarding = async () => {
   if (!isOwner.value) return;
   try {
@@ -120,6 +134,15 @@ const loadSettingsFlags = async () => {
 onMounted(() => {
   loadOnboarding();
   loadSettingsFlags();
+  startInboxPolling(currentRouteName);
+  window.addEventListener('click', primeAudioOnInteraction, { once: true });
+  window.addEventListener('keydown', primeAudioOnInteraction, { once: true });
+});
+
+onUnmounted(() => {
+  window.removeEventListener('click', primeAudioOnInteraction);
+  window.removeEventListener('keydown', primeAudioOnInteraction);
+  stopInboxPolling();
 });
 
 const showOnboardingBanner = computed(
@@ -317,13 +340,22 @@ watch(currentRouteName, (val) => openGroupForRoute(val));
                   <span class="nav-link__icon" aria-hidden="true">{{ item.icon }}</span>
                   <span>{{ item.label }}</span>
                 </div>
-                <span v-if="route.name === item.name" class="nav-link__badge">Current</span>
-                <span
-                  v-else-if="item.name === 'admin-onboarding' && showOnboardingBanner"
-                  class="nav-link__badge nav-link__badge--info"
-                >
-                  Setup
-                </span>
+                <div class="nav-link__right">
+                  <span
+                    v-if="item.name === 'admin-inbox' && inboxState.unreadCount > 0"
+                    class="nav-link__pill"
+                    :title="`You have ${inboxState.unreadCount} unread messages`"
+                  >
+                    {{ inboxState.unreadCount > 99 ? '99+' : inboxState.unreadCount }}
+                  </span>
+                  <span v-if="route.name === item.name" class="nav-link__badge">Current</span>
+                  <span
+                    v-else-if="item.name === 'admin-onboarding' && showOnboardingBanner"
+                    class="nav-link__badge nav-link__badge--info"
+                  >
+                    Setup
+                  </span>
+                </div>
               </RouterLink>
             </div>
           </div>
@@ -601,6 +633,22 @@ watch(currentRouteName, (val) => openGroupForRoute(val));
   width: 20px;
   text-align: center;
   font-size: 14px;
+}
+.nav-link__right {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.nav-link__pill {
+  min-width: 20px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 6px 14px rgba(220, 38, 38, 0.25);
+  text-align: center;
 }
 .admin-header {
   display: flex;
