@@ -16,8 +16,6 @@ const state = reactive<UnreadState>({
   pollId: null,
 });
 
-const isInboxRoute = (routeName?: string | null) => routeName === 'admin-inbox';
-
 const refreshUnread = async (opts: { silent?: boolean; routeName?: string | null } = {}) => {
   const previous = state.unreadCount;
   const count = await fetchUnreadCount().catch(() => previous);
@@ -29,7 +27,7 @@ const refreshUnread = async (opts: { silent?: boolean; routeName?: string | null
   }
 
   const delta = count - previous;
-  if (delta > 0 && !opts.silent && !isInboxRoute(opts.routeName)) {
+  if (delta > 0 && !opts.silent) {
     await playInboxChime();
   }
 };

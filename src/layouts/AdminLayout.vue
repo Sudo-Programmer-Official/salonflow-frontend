@@ -137,11 +137,13 @@ onMounted(() => {
   startInboxPolling(currentRouteName);
   window.addEventListener('click', primeAudioOnInteraction, { once: true });
   window.addEventListener('keydown', primeAudioOnInteraction, { once: true });
+  window.addEventListener('touchstart', primeAudioOnInteraction, { once: true });
 });
 
 onUnmounted(() => {
   window.removeEventListener('click', primeAudioOnInteraction);
   window.removeEventListener('keydown', primeAudioOnInteraction);
+  window.removeEventListener('touchstart', primeAudioOnInteraction);
   stopInboxPolling();
 });
 
@@ -649,6 +651,30 @@ watch(currentRouteName, (val) => openGroupForRoute(val));
   font-weight: 700;
   box-shadow: 0 6px 14px rgba(220, 38, 38, 0.25);
   text-align: center;
+  position: relative;
+}
+.nav-link__pill::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 999px;
+  border: 2px solid rgba(220, 38, 38, 0.4);
+  animation: pulse 1.4s ease-out infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.9;
+  }
+  70% {
+    transform: scale(1.15);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.15);
+    opacity: 0;
+  }
 }
 .admin-header {
   display: flex;

@@ -787,7 +787,8 @@ loadPromotions();
                 </ElRadioGroup>
                 <p class="text-xs text-slate-600">
                   Recipients (saved promos): SMS {{ channelCounts(form as any).sms || 0 }} · Email
-                  {{ channelCounts(form as any).email || 0 }}
+                  {{ channelCounts(form as any).email || 0 }} —
+                  <span class="text-slate-500">Counts appear after save/send.</span>
                 </p>
               </div>
               <div>
