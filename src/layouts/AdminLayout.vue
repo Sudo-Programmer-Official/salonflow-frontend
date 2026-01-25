@@ -5,7 +5,6 @@ import OnboardingProgress from '../components/OnboardingProgress.vue';
 import { trialExpired, trialEndedAt, trialDaysRemaining, resetTrialState } from '../api/trialBanner';
 import { fetchOnboardingStatus, dismissOnboardingBanner } from '../api/onboarding';
 import { logout } from '../utils/auth';
-import SiteFooter from '../components/SiteFooter.vue';
 import { fetchSettings, fetchPublicSettings } from '../api/settings';
 import { applyThemeFromSettings } from '../utils/theme';
 import { useInboxNotifications } from '../utils/inboxNotifications';
@@ -563,7 +562,6 @@ const closeSidebar = () => {
         <OnboardingProgress v-if="isOwner" />
         <RouterView />
       </main>
-      <SiteFooter />
     </div>
   </div>
 </template>

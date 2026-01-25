@@ -41,12 +41,10 @@
         <RouterView />
       </main>
     </div>
-    <SiteFooter />
   </div>
 </template>
 
 <script setup lang="ts">
-import SiteFooter from '../components/SiteFooter.vue';
 import { logout } from '../utils/auth';
 
 const handleLogout = () => logout('/app/login');
