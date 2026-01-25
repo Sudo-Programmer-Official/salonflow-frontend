@@ -673,7 +673,7 @@ const submitCheckout = async () => {
     const entries: Array<{ method: 'cash' | 'card' | 'gift'; amount: number }> = [];
     (['cash', 'card'] as const).forEach((key) => {
       if (!paymentOptions[key]) return;
-      const raw = paymentAmounts[key].trim();
+      const raw = `${paymentAmounts[key] ?? ''}`.trim();
       if (raw === '') return;
       const val = Number(raw);
       if (!Number.isFinite(val) || val < 0) {
