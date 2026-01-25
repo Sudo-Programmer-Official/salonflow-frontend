@@ -14,10 +14,11 @@ import {
 } from 'element-plus';
 import { fetchTenantDetail, impersonateTenant, type TenantOverview, type TenantMetrics } from '../../api/superadmin';
 import { fetchPlatformLimits, updatePlatformLimits } from '../../api/platform';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 const route = useRoute();
-const businessId = route.params.businessId as string;
+const router = useRouter();
+const businessId = computed(() => route.params.businessId as string | undefined);
 const tenant = ref<TenantOverview | null>(null);
 const metrics = ref<TenantMetrics | null>(null);
 const loading = ref(false);
@@ -30,9 +31,13 @@ const savingLimits = ref(false);
 const statusType = (status: string) => (status === 'active' ? 'success' : 'danger');
 
 const load = async () => {
+  if (!businessId.value) {
+    router.replace({ name: 'platform-dashboard' });
+    return;
+  }
   loading.value = true;
   try {
-    const res = await fetchTenantDetail(businessId);
+    const res = await fetchTenantDetail(businessId.value);
     tenant.value = res.tenant;
     metrics.value = res.metrics;
     await loadLimits();
@@ -46,9 +51,10 @@ const load = async () => {
 onMounted(load);
 
 const impersonate = async () => {
+  if (!businessId.value) return;
   impersonating.value = true;
   try {
-    const result = await impersonateTenant(businessId);
+    const result = await impersonateTenant(businessId.value);
     localStorage.setItem('impersonationOriginalToken', localStorage.getItem('token') || '');
     localStorage.setItem('impersonationOriginalRole', localStorage.getItem('role') || '');
     localStorage.setItem('impersonationOriginalTenant', localStorage.getItem('tenantId') || '');
@@ -79,7 +85,8 @@ const isPlatformTenant = computed(() => tenant.value?.subdomain === 'platform');
 const loadLimits = async () => {
   limitsLoading.value = true;
   try {
-    limits.value = await fetchPlatformLimits(businessId);
+    if (!businessId.value) return;
+    limits.value = await fetchPlatformLimits(businessId.value);
   } catch (err) {
     // silent
   } finally {
@@ -92,10 +99,10 @@ const openLimits = () => {
 };
 
 const saveLimits = async () => {
-  if (!limits.value) return;
+  if (!limits.value || !businessId.value) return;
   savingLimits.value = true;
   try {
-    await updatePlatformLimits(businessId, limits.value);
+    await updatePlatformLimits(businessId.value, limits.value);
     ElMessage.success('Limits updated');
     limitsDialog.value = false;
   } catch (err) {

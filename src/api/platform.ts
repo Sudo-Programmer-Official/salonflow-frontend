@@ -2,6 +2,7 @@ import { apiUrl, buildHeaders } from './client';
 
 export type PlatformTenantRow = {
   id: string;
+  businessId?: string; // some endpoints return businessId; use as primary when present
   name: string;
   subdomain: string;
   status: string;

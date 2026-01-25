@@ -30,8 +30,9 @@ onMounted(load);
 
 const statusType = (status: string) => (status === 'active' ? 'success' : 'danger');
 
-const goTo = (id: string) => {
-  router.push({ name: 'platform-tenant', params: { businessId: id } });
+const goTo = (id: string, businessId?: string) => {
+  const targetId = businessId || id;
+  router.push({ name: 'platform-tenant', params: { businessId: targetId } });
 };
 
 const smsProgress = (row: PlatformTenantRow) => {
@@ -87,7 +88,13 @@ const smsProgress = (row: PlatformTenantRow) => {
         </ElTableColumn>
         <ElTableColumn label="Details" width="120">
           <template #default="{ row }">
-            <a class="text-slate-700 underline" @click.prevent="goTo(row.businessId)">View</a>
+            <button
+              type="button"
+              class="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium"
+              @click="goTo(row.id, row.businessId)"
+            >
+              View
+            </button>
           </template>
         </ElTableColumn>
       </ElTable>
