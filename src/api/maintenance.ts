@@ -5,6 +5,11 @@ export const maintenanceMessage = ref<string | null>(null);
 
 const alreadyPatched = typeof window !== 'undefined' && (window as any).__maintenanceInterceptor;
 
+export const clearMaintenanceBanner = () => {
+  maintenanceActive.value = false;
+  maintenanceMessage.value = null;
+};
+
 export const setupMaintenanceInterceptor = () => {
   if (typeof window === 'undefined') return;
   if (alreadyPatched) return;
@@ -27,13 +32,10 @@ export const setupMaintenanceInterceptor = () => {
         maintenanceActive.value = true;
         maintenanceMessage.value = 'Maintenance in progress';
       }
+    } else if (res.ok && maintenanceActive.value) {
+      clearMaintenanceBanner();
     }
 
     return res;
   };
-};
-
-export const clearMaintenanceBanner = () => {
-  maintenanceActive.value = false;
-  maintenanceMessage.value = null;
 };

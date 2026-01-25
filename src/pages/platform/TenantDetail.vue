@@ -30,6 +30,7 @@ import {
   type PlatformAuditRow,
 } from '../../api/platformTenantControls';
 import { useRoute, useRouter } from 'vue-router';
+import MaintenanceBanner from '../../components/MaintenanceBanner.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -226,12 +227,12 @@ const persistControls = async (payload: Record<string, any>, reason?: string) =>
   if (!businessId.value) return;
   savingControls.value = true;
   try {
-    const updated = await updateTenantControl(businessId.value, {
+    await updateTenantControl(businessId.value, {
       ...payload,
       ...(reason ? { reason } : {}),
     });
-    controls.value = updated;
-    controlDraft.value = { ...updated };
+    // Re-fetch to ensure DB/UI consistency
+    await loadControls();
     reasonText.value = '';
     await loadAudit();
     ElMessage.success('Controls saved');
@@ -383,7 +384,7 @@ const resetUsage = () => {
         </div>
         <div class="flex gap-2 items-center">
           <ElButton @click="resetDraft" :disabled="!isDirty || savingControls">Reset</ElButton>
-          <ElButton type="primary" :loading="savingControls" :disabled="!isDirty" @click="saveControls">
+          <ElButton type="primary" :loading="savingControls" :disabled="!isDirty || savingControls" @click="saveControls">
             Save changes
           </ElButton>
         </div>
@@ -397,6 +398,7 @@ const resetUsage = () => {
               <select
                 class="w-full border rounded px-2 py-1"
                 v-model="controlDraft.status"
+                :disabled="savingControls"
               >
                 <option value="active">Active</option>
                 <option value="maintenance">Maintenance</option>
@@ -409,14 +411,21 @@ const resetUsage = () => {
                 :rows="2"
                 v-model="controlDraft.maintenance_message"
                 placeholder="Shown to tenant during maintenance"
+                :disabled="savingControls"
               />
             </ElFormItem>
             <ElFormItem label="Disabled reason (required when disabled)">
               <ElInput
                 v-model="controlDraft.disabled_reason"
                 placeholder="Reason shown to admins"
+                :disabled="savingControls"
               />
             </ElFormItem>
+            <MaintenanceBanner
+              class="mt-2"
+              mode="banner"
+              :message="controlDraft.maintenance_message || undefined"
+            />
           </ElForm>
         </div>
 
@@ -425,20 +434,25 @@ const resetUsage = () => {
           <div class="space-y-2">
             <div class="flex items-center justify-between">
               <span>SMS blocked</span>
-              <ElSwitch v-model="controlDraft.sms_blocked" />
+              <ElSwitch v-model="controlDraft.sms_blocked" :disabled="savingControls" />
             </div>
+            <p class="text-2xs text-slate-500">Stops all outgoing SMS immediately.</p>
             <div class="flex items-center justify-between">
               <span>Email blocked</span>
-              <ElSwitch v-model="controlDraft.email_blocked" />
+              <ElSwitch v-model="controlDraft.email_blocked" :disabled="savingControls" />
             </div>
+            <p class="text-2xs text-slate-500">Stops all outgoing email immediately.</p>
             <div class="flex items-center justify-between">
               <span>Allow promotions</span>
-              <ElSwitch v-model="controlDraft.allow_promotions" />
+              <ElSwitch v-model="controlDraft.allow_promotions" :disabled="savingControls" />
             </div>
             <div class="flex items-center justify-between">
               <span>Transactional only</span>
-              <ElSwitch v-model="controlDraft.allow_transactional_only" />
+              <ElSwitch v-model="controlDraft.allow_transactional_only" :disabled="savingControls" />
             </div>
+            <p class="text-2xs text-slate-500">
+              If transactional only is on, marketing/promo sends are blocked even if promotions are allowed.
+            </p>
           </div>
         </div>
 
@@ -446,15 +460,16 @@ const resetUsage = () => {
           <div class="text-sm font-semibold mb-2">Caps & Freeze</div>
           <ElForm label-position="top" size="small">
             <ElFormItem label="SMS daily cap">
-              <ElInput v-model.number="controlDraft.sms_daily_cap" type="number" placeholder="e.g. 500" />
+              <ElInput v-model.number="controlDraft.sms_daily_cap" type="number" placeholder="e.g. 500" :disabled="savingControls" />
             </ElFormItem>
             <ElFormItem label="Email daily cap">
-              <ElInput v-model.number="controlDraft.email_daily_cap" type="number" placeholder="e.g. 500" />
+              <ElInput v-model.number="controlDraft.email_daily_cap" type="number" placeholder="e.g. 500" :disabled="savingControls" />
             </ElFormItem>
             <ElFormItem label="Freeze all messaging">
-              <ElSwitch v-model="controlDraft.frozen" />
+              <ElSwitch v-model="controlDraft.frozen" :disabled="savingControls" />
             </ElFormItem>
-            <ElButton size="small" @click="resetUsage">Reset usage timestamp</ElButton>
+            <p class="text-2xs text-slate-500 mb-2">Freeze halts SMS and email regardless of caps.</p>
+            <ElButton size="small" @click="resetUsage" :disabled="savingControls">Reset usage timestamp</ElButton>
           </ElForm>
         </div>
 
@@ -463,14 +478,14 @@ const resetUsage = () => {
           <div class="space-y-3">
             <div class="flex items-center justify-between">
               <span>Demo tenant</span>
-              <ElSwitch v-model="controlDraft.is_demo" />
+              <ElSwitch v-model="controlDraft.is_demo" :disabled="savingControls" />
             </div>
             <ElForm label-position="top" size="small">
               <ElFormItem label="Demo expires at">
-                <ElInput v-model="controlDraft.demo_expires_at" type="date" />
+                <ElInput v-model="controlDraft.demo_expires_at" type="date" :disabled="savingControls" />
               </ElFormItem>
             </ElForm>
-            <ElButton type="warning" size="small" @click="forceLogout">Force logout</ElButton>
+            <ElButton type="warning" size="small" @click="forceLogout" :disabled="savingControls">Force logout</ElButton>
             <div class="text-2xs text-slate-500">Session version: {{ controls.session_version }}</div>
           </div>
         </div>
