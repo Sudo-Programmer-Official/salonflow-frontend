@@ -46,7 +46,15 @@ onBeforeUnmount(() => {
 });
 
 const steps = computed(() => {
-  if (!status.value) return { services: false, staff: false, qrPrinted: false, reviewSmsEnabled: false, billingReady: false };
+  if (!status.value) {
+    return {
+      services: false,
+      staff: false,
+      qrPrinted: false,
+      reviewSmsEnabled: false,
+      billingReady: false,
+    };
+  }
   return {
     services: status.value.servicesAdded,
     staff: status.value.staffAdded,
@@ -61,6 +69,10 @@ const progress = computed(() => {
   const done = values.filter(Boolean).length;
   return Math.round((done / values.length) * 100);
 });
+
+const showProgress = computed(
+  () => !!status.value && !status.value.completed && !status.value.onboardingBannerDismissed,
+);
 </script>
 
 <template>
@@ -72,7 +84,10 @@ const progress = computed(() => {
       {{ error }}
     </div>
 
-    <div v-if="status && !status.completed" class="rounded-lg border border-slate-200 bg-slate-50 p-4 shadow-sm">
+    <div
+      v-if="showProgress"
+      class="rounded-lg border border-slate-200 bg-slate-50 p-4 shadow-sm"
+    >
       <div class="flex items-center justify-between">
         <div>
           <div class="text-sm font-semibold text-slate-900">
@@ -106,8 +121,17 @@ const progress = computed(() => {
       </div>
     </div>
 
-    <div v-else-if="status && status.completed" class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-      Onboarding complete. You’re good to go!
+    <div
+      v-else-if="status && (status.completed || status.onboardingBannerDismissed)"
+      class="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm"
+    >
+      <div class="flex items-center justify-between">
+        <div class="font-semibold text-slate-900">Admin alerts</div>
+        <span class="text-xs text-slate-500">Coming soon</span>
+      </div>
+      <div class="mt-1 text-xs text-slate-600">
+        Appointment reminders and important notices will appear here. You can dismiss onboarding anytime in Settings.
+      </div>
     </div>
 
     <div v-if="loading" class="text-xs text-slate-500">Loading onboarding...</div>
