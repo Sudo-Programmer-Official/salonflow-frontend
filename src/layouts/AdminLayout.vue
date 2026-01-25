@@ -195,6 +195,7 @@ const sidebarGroups = computed(() => [
       { label: 'Gift Cards', name: 'admin-gift-cards', icon: '🎁', roles: ['OWNER'] },
       { label: 'Promotions', name: 'admin-promotions', icon: '🏷️', roles: ['OWNER'] },
       { label: 'Smart Reminders', name: 'admin-smart-reminders', icon: '📣', roles: ['OWNER'] },
+      { label: 'Notifications', name: 'admin-notifications', icon: '🔔', roles: ['OWNER'] },
     ],
   },
   {

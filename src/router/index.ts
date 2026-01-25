@@ -33,6 +33,7 @@ import AdminGiftCardsPage from "../pages/admin/GiftCards.vue";
 import AdminPromotionsPage from "../pages/admin/Promotions.vue";
 import AdminInboxPage from "../pages/admin/Inbox.vue";
 import AdminSmartRemindersPage from "../pages/admin/SmartReminders.vue";
+import AdminNotificationsPage from "../pages/admin/Notifications.vue";
 import MarketingLayout from "../layouts/MarketingLayout.vue";
 import MarketingHome from "../pages/MarketingHome.vue";
 import SalonLoginPage from "../pages/SalonLogin.vue";
@@ -269,6 +270,12 @@ const routes = [
         path: "smart-reminders",
         name: "admin-smart-reminders",
         component: AdminSmartRemindersPage,
+        meta: { requiresAuth: true, roles: ["OWNER"] },
+      },
+      {
+        path: "notifications",
+        name: "admin-notifications",
+        component: AdminNotificationsPage,
         meta: { requiresAuth: true, roles: ["OWNER"] },
       },
       {
