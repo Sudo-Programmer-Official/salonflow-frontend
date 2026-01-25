@@ -124,6 +124,28 @@ export async function testPromotionEmail(email: string, subject: string, message
   return res.json();
 }
 
+export async function previewPromotion(payload: {
+  audience: string[];
+  channels: ('sms' | 'email')[];
+}): Promise<{
+  smsCount: number;
+  emailCount: number;
+  excluded: { sms: { noPhone: number; noConsent: number }; email: { noEmail: number; noConsent: number } };
+}> {
+  const res = await fetch(apiUrl('/promotions/preview'), {
+    method: 'POST',
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const error = new Error(err.message || 'Failed to preview promotion') as any;
+    error.code = err.code;
+    throw error;
+  }
+  return res.json();
+}
+
 export async function fetchPromotionStats(id: string): Promise<{
   total: number;
   pending: number;

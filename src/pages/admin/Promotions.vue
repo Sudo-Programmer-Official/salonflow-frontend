@@ -25,6 +25,7 @@ import {
   disablePromotion,
   testPromotionMessage,
   testPromotionEmail,
+  previewPromotion,
 } from '../../api/promotions';
 import { isWithinTcpaWindow, getBusinessTimezone } from '../../utils/dates';
 import dayjs from 'dayjs';
@@ -42,6 +43,9 @@ const sendConfirm = ref<{ open: boolean; promo: Promotion | null; stats: any | n
 const testing = ref<string | null>(null);
 const testingCreate = ref(false);
 const testingEmail = ref(false);
+const previewing = ref(false);
+const previewCounts = ref<{ sms: number; email: number } | null>(null);
+const previewExcluded = ref<any>(null);
 
 const promotions = ref<Promotion[]>([]);
 const statsMap = ref<Record<string, any>>({});
@@ -407,11 +411,24 @@ const recipientSummaryLabel = (promo: Promotion) => {
   return 'Recipients: not calculated yet';
 };
 
-const channelCounts = (promo: Promotion) => {
-  const stats = statsMap.value[promo.id];
-  const sms = stats?.per_channel?.sms?.total ?? 0;
-  const email = stats?.per_channel?.email?.total ?? 0;
-  return { sms, email, total: sms + email };
+const handlePreview = async () => {
+  previewing.value = true;
+  previewCounts.value = null;
+  previewExcluded.value = null;
+  try {
+    const channels: ('sms' | 'email')[] =
+      form.channel === 'sms' ? ['sms'] : form.channel === 'email' ? ['email'] : ['sms', 'email'];
+    const result = await previewPromotion({
+      audience: form.audiences,
+      channels,
+    });
+    previewCounts.value = { sms: result.smsCount, email: result.emailCount };
+    previewExcluded.value = result.excluded;
+  } catch (err: any) {
+    ElMessage.error(err?.message || 'Failed to preview audience');
+  } finally {
+    previewing.value = false;
+  }
 };
 
 const sendDisabledReason = (promo: Promotion) => {
@@ -786,9 +803,23 @@ loadPromotions();
                   <ElRadioButton label="both">Both</ElRadioButton>
                 </ElRadioGroup>
                 <p class="text-xs text-slate-600">
-                  Recipients (saved promos): SMS {{ channelCounts(form as any).sms || 0 }} · Email
-                  {{ channelCounts(form as any).email || 0 }} —
-                  <span class="text-slate-500">Counts appear after save/send.</span>
+                  Preview recipients:
+                  <span class="font-semibold">SMS {{ previewCounts?.sms ?? '—' }}</span>
+                  ·
+                  <span class="font-semibold">Email {{ previewCounts?.email ?? '—' }}</span>
+                  <ElButton
+                    size="small"
+                    class="ml-2"
+                    :loading="previewing"
+                    @click="handlePreview"
+                  >
+                    Refresh count
+                  </ElButton>
+                </p>
+                <p v-if="previewExcluded" class="text-[11px] text-slate-500">
+                  Excluded — SMS: no phone {{ previewExcluded.sms.noPhone }}, no consent
+                  {{ previewExcluded.sms.noConsent }} · Email: no email {{ previewExcluded.email.noEmail }}, no consent
+                  {{ previewExcluded.email.noConsent }}
                 </p>
               </div>
               <div>
