@@ -155,7 +155,10 @@ const useSuggestion = (s: string) => {
         </ElTableColumn>
         <ElTableColumn label="Enabled" width="120">
           <template #default="{ row }">
-            <ElSwitch :model-value="row.enabled" @change="(val: boolean) => toggleEnabled(row, val)" />
+            <ElSwitch
+              :model-value="row.enabled"
+              @change="(val: string | number | boolean) => toggleEnabled(row, Boolean(val))"
+            />
           </template>
         </ElTableColumn>
         <ElTableColumn label="Preview" min-width="260">
@@ -177,7 +180,7 @@ const useSuggestion = (s: string) => {
       <div class="space-y-3">
         <div class="flex items-center justify-between">
           <div>
-            <div class="text-sm font-semibold text-slate-900">{{ eventLabels[selected.event as any] }}</div>
+            <div class="text-sm font-semibold text-slate-900">{{ selected.event ? eventLabels[selected.event] : '' }}</div>
             <div class="text-xs text-slate-500">Channel: SMS</div>
           </div>
           <ElSwitch v-model="selected.enabled" active-text="Enabled" inactive-text="Disabled" />
@@ -195,7 +198,7 @@ const useSuggestion = (s: string) => {
               <div class="flex flex-wrap gap-1">
                 <span class="text-slate-600">Variables:</span>
                 <button
-                  v-for="v in eventHelpers[selected.event as any] || []"
+                  v-for="v in (selected.event ? eventHelpers[selected.event] : [])"
                   :key="v"
                   class="var-chip"
                   type="button"

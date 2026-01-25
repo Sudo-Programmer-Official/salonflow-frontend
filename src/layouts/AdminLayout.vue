@@ -187,18 +187,6 @@ const sidebarGroups = computed(() => [
     ],
   },
   {
-    key: 'customers',
-    label: 'Customers',
-    defaultOpen: true,
-    items: [
-      { label: 'Customers', name: 'admin-customers', icon: '🧍', roles: ['OWNER'] },
-      { label: 'Gift Cards', name: 'admin-gift-cards', icon: '🎁', roles: ['OWNER'] },
-      { label: 'Promotions', name: 'admin-promotions', icon: '🏷️', roles: ['OWNER'] },
-      { label: 'Smart Reminders', name: 'admin-smart-reminders', icon: '📣', roles: ['OWNER'] },
-      { label: 'Notifications', name: 'admin-notifications', icon: '🔔', roles: ['OWNER'] },
-    ],
-  },
-  {
     key: 'appointments',
     label: 'Appointments',
     defaultOpen: true,
@@ -230,6 +218,8 @@ const sidebarGroups = computed(() => [
       { label: 'Review SMS', name: 'admin-review-sms', icon: '⭐', roles: ['OWNER'] },
       { label: 'SMS', name: 'admin-sms', icon: '💬', roles: ['OWNER'] },
       { label: 'Inbox', name: 'admin-inbox', icon: '📥', roles: ['OWNER', 'STAFF'] },
+      { label: 'Smart Reminders', name: 'admin-smart-reminders', icon: '📣', roles: ['OWNER'] },
+      { label: 'Notifications', name: 'admin-notifications', icon: '🔔', roles: ['OWNER'] },
     ],
   },
   {
