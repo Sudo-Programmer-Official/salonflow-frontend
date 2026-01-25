@@ -29,6 +29,7 @@ import {
 } from '../../api/promotions';
 import { isWithinTcpaWindow, getBusinessTimezone } from '../../utils/dates';
 import dayjs from 'dayjs';
+import { generateAiSuggestions } from '../../api/smartReminders';
 
 const activeTab = ref<'active' | 'expired'>('active');
 const dialogOpen = ref(false);
@@ -46,6 +47,11 @@ const testingEmail = ref(false);
 const previewing = ref(false);
 const previewCounts = ref<{ sms: number; email: number } | null>(null);
 const previewExcluded = ref<any>(null);
+const aiDialog = ref(false);
+const aiLoading = ref(false);
+const aiSuggestions = ref<string[]>([]);
+const aiTone = ref<'FRIENDLY' | 'URGENT' | 'PREMIUM' | 'CASUAL'>('FRIENDLY');
+const aiShort = ref(false);
 
 const promotions = ref<Promotion[]>([]);
 const statsMap = ref<Record<string, any>>({});
@@ -485,6 +491,35 @@ const confirmSend = async () => {
   }
 };
 
+const openAi = async () => {
+  aiDialog.value = true;
+  aiSuggestions.value = [];
+  aiLoading.value = true;
+  try {
+    const suggestions = await generateAiSuggestions({
+      context: 'PROMOTION',
+      trigger: 'PROMO_SEND',
+      audience: (form.audiences[0] || 'all').toString().toUpperCase(),
+      channel: form.channel === 'email' ? 'EMAIL' : 'SMS',
+      discount: `${form.offerValue}${form.offerType === 'percent' ? '%' : '$'}`,
+      expiry: form.endDate ? `Ends ${form.endDate}` : '',
+      tone: aiTone.value,
+      short: aiShort.value,
+      businessName: form.businessName || '',
+    });
+    aiSuggestions.value = suggestions;
+  } catch (err: any) {
+    ElMessage.error(err?.message || 'AI generation failed');
+  } finally {
+    aiLoading.value = false;
+  }
+};
+
+const useSuggestion = (s: string) => {
+  form.message = s;
+  aiDialog.value = false;
+};
+
 loadPromotions();
 </script>
 
@@ -836,7 +871,10 @@ loadPromotions();
                   <span>
                     {{ form.channel === 'sms' ? 'Include offer and expiration details.' : 'Plain-text or simple HTML is fine.' }}
                   </span>
-                  <span>{{ charCount }} chars</span>
+                  <div class="flex items-center gap-2">
+                    <ElButton size="small" type="info" plain @click="openAi">Generate with AI</ElButton>
+                    <span>{{ charCount }} chars</span>
+                  </div>
                 </div>
               </div>
               <div v-if="form.channel !== 'email'" class="flex flex-col gap-2">
@@ -904,6 +942,27 @@ loadPromotions();
           <ElButton type="primary" :loading="saving" @click="submit">Save</ElButton>
         </div>
       </template>
+    </ElDialog>
+
+    <ElDialog v-model="aiDialog" title="AI Suggestions" width="520px">
+      <div class="flex gap-3 items-center mb-3">
+        <ElSelect v-model="aiTone" size="small" style="width: 160px" placeholder="Tone">
+          <ElOption label="Friendly" value="FRIENDLY" />
+          <ElOption label="Urgent" value="URGENT" />
+          <ElOption label="Premium" value="PREMIUM" />
+          <ElOption label="Casual" value="CASUAL" />
+        </ElSelect>
+        <ElSwitch v-model="aiShort" active-text="Short & punchy" />
+        <ElButton size="small" :loading="aiLoading" @click="openAi">Refresh</ElButton>
+      </div>
+      <div v-if="aiLoading" class="text-sm text-slate-500">Generating…</div>
+      <div v-else class="space-y-2">
+        <ElCard v-for="s in aiSuggestions" :key="s" class="cursor-pointer" @click="useSuggestion(s)">
+          <div class="text-sm text-slate-800">{{ s }}</div>
+          <div class="mt-1 text-2xs text-slate-500">Click to use</div>
+        </ElCard>
+        <div v-if="!aiSuggestions.length" class="text-sm text-slate-500">No suggestions yet.</div>
+      </div>
     </ElDialog>
   </div>
 </template>
