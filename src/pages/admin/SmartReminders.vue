@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { ElButton, ElCard, ElDialog, ElForm, ElFormItem, ElInput, ElInputNumber, ElSelect, ElOption, ElSwitch, ElTable, ElTableColumn, ElTag, ElMessage } from 'element-plus';
 import {
   listReminders,
@@ -17,6 +17,7 @@ const loading = ref(false);
 const saving = ref(false);
 const logs = ref<SmartReminderLog[]>([]);
 const logsDialog = ref(false);
+const currentReminder = ref<SmartReminder | null>(null);
 const formDialog = ref(false);
 const form = reactive<Partial<SmartReminder>>({
   id: undefined,
@@ -108,6 +109,7 @@ const toggle = async (row: SmartReminder) => {
 };
 
 const viewLogs = async (row: SmartReminder) => {
+  currentReminder.value = row;
   try {
     logs.value = await fetchReminderLogs(row.id, 100);
     logsDialog.value = true;
@@ -155,6 +157,20 @@ const runNow = async () => {
     ElMessage.error(err?.message || 'Failed to run reminders');
   }
 };
+
+const logSummary = computed(() => {
+  const sent = logs.value.filter((l) => l.status === 'sent').length;
+  const skipped = logs.value.length - sent;
+  const noConsent = logs.value.filter((l) => (l.reason || '').toLowerCase().includes('consent')).length;
+  return {
+    sent,
+    skipped,
+    noConsent,
+  };
+});
+
+const logCountFor = (row: SmartReminder) =>
+  (statsMap.value[row.id]?.sent_7d ?? 0) + (statsMap.value[row.id]?.skipped_7d ?? 0);
 </script>
 
 <template>
@@ -221,7 +237,16 @@ const runNow = async () => {
         <ElTableColumn label="Actions" width="200">
           <template #default="{ row }">
             <ElButton size="small" @click="edit(row)">Edit</ElButton>
-            <ElButton size="small" type="info" @click="viewLogs(row)">Logs</ElButton>
+            <ElButton size="small" type="primary" plain @click="viewLogs(row)">
+              📊 Logs
+              <span v-if="logCountFor(row) > 0" class="ml-1 text-2xs text-slate-600">
+                ({{ logCountFor(row) }})
+              </span>
+              <span
+                v-if="row.auto_disabled_reason"
+                class="ml-1 inline-flex h-2 w-2 rounded-full bg-rose-500"
+              />
+            </ElButton>
           </template>
         </ElTableColumn>
       </ElTable>
@@ -290,7 +315,20 @@ const runNow = async () => {
       </template>
     </ElDialog>
 
-    <ElDialog v-model="logsDialog" title="Reminder Logs" width="720px">
+    <ElDialog v-model="logsDialog" title="Reminder Logs" width="780px">
+      <div class="mb-3 grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800 sm:grid-cols-3">
+        <div><strong>Sent (7d):</strong> {{ statsMap[currentReminder?.id || '']?.sent_7d ?? 0 }}</div>
+        <div><strong>Skipped (7d):</strong> {{ statsMap[currentReminder?.id || '']?.skipped_7d ?? 0 }}</div>
+        <div v-if="currentReminder?.auto_disabled_reason">
+          <strong>Auto-disabled:</strong> {{ currentReminder.auto_disabled_reason }}
+        </div>
+        <div v-else>
+          <strong>Latest run:</strong> {{ currentReminder?.last_run_at || '—' }}
+        </div>
+        <div><strong>Session:</strong> sent {{ logSummary.sent }} / skipped {{ logSummary.skipped }}</div>
+        <div><strong>Consent blocks:</strong> {{ logSummary.noConsent }}</div>
+      </div>
+
       <ElTable :data="logs" height="360">
         <ElTableColumn prop="sent_at" label="Sent at" width="180" />
         <ElTableColumn prop="channel" label="Channel" width="100" />
@@ -300,6 +338,11 @@ const runNow = async () => {
           </template>
         </ElTableColumn>
         <ElTableColumn prop="reason" label="Reason" />
+        <ElTableColumn label="AI" width="80">
+          <template #default="{ row }">
+            <ElTag v-if="row.ai_generated" type="warning" effect="light">AI</ElTag>
+          </template>
+        </ElTableColumn>
       </ElTable>
     </ElDialog>
 

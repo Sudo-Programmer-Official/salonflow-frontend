@@ -31,6 +31,8 @@ export type SmartReminderLog = {
   channel: string;
   status: string;
   reason: string | null;
+  ai_generated?: boolean;
+  ai_prompt_version?: string | null;
 };
 
 const headers = () => buildHeaders({ auth: true, json: true, tenant: true });
@@ -71,7 +73,7 @@ export async function toggleReminder(id: string, active: boolean) {
 
 export async function fetchReminderLogs(id: string, limit = 100): Promise<SmartReminderLog[]> {
   const res = await fetch(apiUrl(`/smart-reminders/${id}/logs?limit=${limit}`), {
-    headers: buildHeaders({ auth: true }),
+    headers: buildHeaders({ auth: true, tenant: true }),
   });
   const body = await res.json();
   if (!res.ok) throw new Error(body.error || 'Failed to load logs');

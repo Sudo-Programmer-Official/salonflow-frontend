@@ -52,11 +52,20 @@ const handleSave = async () => {
 <template>
   <div class="space-y-6">
     <div>
-      <h1 class="text-2xl font-semibold text-slate-900">Appointment SMS Reminders</h1>
+      <h1 class="text-2xl font-semibold text-slate-900">Appointment Reminders (Operational)</h1>
       <p class="text-sm text-slate-600">
-        Automatically send reminders before appointments. Consent and SMS rules apply.
+        Day-of operational reminders for scheduled appointments. For win-back / marketing, use Smart Reminders.
       </p>
     </div>
+
+    <ElAlert
+      type="info"
+      :closable="false"
+      class="w-full"
+      title="Looking for win-back or promotions? Use Smart Reminders instead."
+      description="Smart Reminders handle inactivity-based outreach, discounts, and AI copy. Appointment Reminders stay simple and reliable for same-day visits."
+      show-icon
+    />
 
     <ElCard class="bg-white space-y-4 reminder-card" :loading="loading">
       <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
