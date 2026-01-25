@@ -786,7 +786,7 @@ watch(
                         </button>
                       </template>
                     </div>
-                    <div class="flex flex-wrap gap-3 justify-end">
+                    <div class="keypad-actions flex flex-wrap gap-4 justify-end">
                       <ElButton size="large" @click="resetFlow">Start over</ElButton>
                       <ElButton
                         v-if="allowPhoneSkip"
@@ -1212,7 +1212,7 @@ watch(
   margin-top: 12px;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 14px;
   justify-items: center;
 }
 .keypad-key {
@@ -1242,6 +1242,9 @@ watch(
 .keypad-key:active {
   transform: scale(0.96);
   background: color-mix(in srgb, var(--kiosk-primary) 85%, #000 15%);
+}
+.keypad-actions {
+  margin-top: 18px;
 }
 .kiosk-opt-in {
   margin-top: 12px;
