@@ -193,7 +193,7 @@ const sidebarGroups = computed(() => [
     items: [
       { label: 'Appointments', name: 'admin-appointments', icon: '📅', roles: ['OWNER'] },
       {
-        label: 'Appointment Reminders (Operational)',
+        label: 'Appointment Reminders',
         name: 'admin-appointment-reminders',
         icon: '🔔',
         roles: ['OWNER'],
