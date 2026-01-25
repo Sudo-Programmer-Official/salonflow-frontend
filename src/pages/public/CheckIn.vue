@@ -202,13 +202,12 @@ const resetForm = (clearFeedback = false) => {
 };
 
 const normalizePhone = (raw: string) => {
-  const trimmed = raw.trim();
-  if (!trimmed) return '';
-  const digits = trimmed.replace(/\D/g, '');
-  if (trimmed.startsWith('+')) return trimmed;
-  if (digits.length === 10) return `+1${digits}`;
-  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
-  return trimmed;
+  const digits = raw.replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.length !== 10) {
+    throw new Error('Enter a valid 10-digit phone number');
+  }
+  return `+1${digits}`;
 };
 
 const onSubmit = async () => {
@@ -272,9 +271,15 @@ const onSubmit = async () => {
 };
 
 const onLookup = async () => {
-  if (!form.phoneE164.trim()) {
+  const digits = form.phoneE164.replace(/\D/g, '');
+  if (!digits) {
     lookupResult.value = null;
     lookupError.value = '';
+    return;
+  }
+  if (digits.length !== 10) {
+    lookupResult.value = null;
+    lookupError.value = 'Enter a valid 10-digit phone number';
     return;
   }
   lookupLoading.value = true;

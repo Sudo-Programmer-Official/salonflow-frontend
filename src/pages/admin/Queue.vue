@@ -541,18 +541,17 @@ const openCheckinModal = (appt?: TodayAppointment) => {
 };
 
 const normalizePhoneInput = (raw: string) => {
-  const trimmed = raw.trim();
-  if (!trimmed) return '';
-  const digits = trimmed.replace(/\D/g, '');
-  if (trimmed.startsWith('+') && digits.length >= 10) return `+${digits}`;
-  if (digits.length === 10) return `+1${digits}`;
-  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
-  return trimmed;
+  const digits = raw.replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.length !== 10) {
+    throw new Error('Phone must have exactly 10 digits');
+  }
+  return `+1${digits}`;
 };
 
 const isValidPhoneInput = (raw: string) => {
   const digits = raw.replace(/\D/g, '');
-  return digits.length >= 10;
+  return digits.length === 10;
 };
 
 const triggerLookup = () => {
@@ -584,9 +583,12 @@ const runLookup = async () => {
     if (res.exists && res.customer?.name && !checkinName.value) {
       checkinName.value = res.customer.name;
     }
-  } catch {
+  } catch (err) {
     checkinLookupResult.value = null;
-    checkinLookupError.value = 'Could not load loyalty right now.';
+    checkinLookupError.value =
+      err instanceof Error && err.message.includes('10 digits')
+        ? 'Enter a valid 10-digit phone number'
+        : 'Could not load loyalty right now.';
   } finally {
     checkinLookupLoading.value = false;
   }
