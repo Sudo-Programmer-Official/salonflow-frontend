@@ -249,13 +249,12 @@ const stopBackspaceHold = () => {
 };
 
 const normalizePhone = (raw: string) => {
-  const trimmed = raw.trim();
-  if (!trimmed) return '';
-  const digits = trimmed.replace(/\D/g, '');
-  if (trimmed.startsWith('+')) return trimmed;
-  if (digits.length === 10) return `+1${digits}`;
-  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
-  return trimmed;
+  const digits = raw.replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.length !== 10) {
+    throw new Error('Enter a valid 10-digit phone number');
+  }
+  return `+1${digits}`;
 };
 
 const loadSettings = async () => {
@@ -399,8 +398,9 @@ const resetFlow = () => {
 };
 
 const canAdvanceFromPhone = computed(() => {
-  if (requirePhone.value) return !!phone.value.trim();
-  return true;
+  if (!requirePhone.value) return true;
+  const digits = phone.value.replace(/\D/g, '');
+  return digits.length === 10;
 });
 
 const canAdvanceFromName = computed(() => !!name.value.trim());
@@ -423,7 +423,7 @@ const skipPhoneStep = () => {
 
 const proceedFromPhone = () => {
   if (!canAdvanceFromPhone.value) {
-    errorMessage.value = 'Phone number is required.';
+    errorMessage.value = 'Enter a valid 10-digit phone number.';
     return;
   }
   errorMessage.value = '';
@@ -549,8 +549,8 @@ const confirmCheckIn = async () => {
     step.value = 'welcome';
     return;
   }
-  if (requirePhone.value && !phone.value.trim()) {
-    errorMessage.value = 'Phone number is required.';
+  if (requirePhone.value && !canAdvanceFromPhone.value) {
+    errorMessage.value = 'Enter a valid 10-digit phone number.';
     step.value = 'phone';
     return;
   }
@@ -602,9 +602,15 @@ const confirmCheckIn = async () => {
 };
 
 const onLookup = async () => {
-  if (!phone.value.trim()) {
+  const digits = phone.value.replace(/\D/g, '');
+  if (!digits) {
     lookupResult.value = null;
     lookupError.value = '';
+    return;
+  }
+  if (digits.length !== 10) {
+    lookupResult.value = null;
+    lookupError.value = 'Enter a valid 10-digit phone number';
     return;
   }
   lookupLoading.value = true;
@@ -630,9 +636,15 @@ watch(
     if (lookupTimer.value) {
       clearTimeout(lookupTimer.value);
     }
-    if (!phone.value.trim()) {
+    const digits = phone.value.replace(/\D/g, '');
+    if (!digits) {
       lookupResult.value = null;
       lookupError.value = '';
+      return;
+    }
+    if (digits.length !== 10) {
+      lookupResult.value = null;
+      lookupError.value = 'Enter a valid 10-digit phone number';
       return;
     }
     lookupTimer.value = window.setTimeout(onLookup, 400);
