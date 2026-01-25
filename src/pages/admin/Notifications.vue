@@ -31,16 +31,29 @@ const aiLoading = ref(false);
 const aiSuggestions = ref<string[]>([]);
 const aiTone = ref<'FRIENDLY' | 'URGENT' | 'PREMIUM' | 'CASUAL'>('FRIENDLY');
 const aiShort = ref(false);
-const selected = reactive<Partial<NotificationTemplate>>({});
+type NotificationEvent = NotificationTemplate['event'];
 
-const eventLabels: Record<NotificationTemplate['event'], string> = {
+type SelectedTemplate = {
+  id?: string;
+  event: NotificationEvent;
+  body?: string;
+  enabled?: boolean;
+  channel?: 'sms';
+  updated_at?: string;
+};
+
+const selected = reactive<SelectedTemplate>({
+  event: 'checkin',
+});
+
+const eventLabels: Record<NotificationEvent, string> = {
   checkin: 'Check-in confirmation',
   service_started: 'Service started',
   checkout: 'Checkout complete',
   review_request: 'Review request',
 };
 
-const eventHelpers: Record<NotificationTemplate['event'], string[]> = {
+const eventHelpers: Record<NotificationEvent, string[]> = {
   checkin: ['customer_name', 'business_name', 'queue_position', 'service'],
   service_started: ['customer_name', 'business_name', 'service', 'staff_name'],
   checkout: ['customer_name', 'business_name', 'total', 'points_earned', 'points_balance'],
@@ -147,7 +160,7 @@ const useSuggestion = (s: string) => {
         <ElTableColumn prop="event" label="Event" min-width="180">
           <template #default="{ row }">
             <div class="flex items-center gap-2">
-              <span class="font-semibold text-slate-900">{{ eventLabels[row.event] }}</span>
+              <span class="font-semibold text-slate-900">{{ eventLabels[row.event as NotificationEvent] }}</span>
               <ElTag size="small" effect="plain">{{ row.channel.toUpperCase() }}</ElTag>
             </div>
             <div class="text-2xs text-slate-500">Updated {{ dayjs(row.updated_at).fromNow() }}</div>
@@ -180,7 +193,9 @@ const useSuggestion = (s: string) => {
       <div class="space-y-3">
         <div class="flex items-center justify-between">
           <div>
-            <div class="text-sm font-semibold text-slate-900">{{ selected.event ? eventLabels[selected.event] : '' }}</div>
+            <div class="text-sm font-semibold text-slate-900">
+              {{ selected.event ? eventLabels[selected.event] : '' }}
+            </div>
             <div class="text-xs text-slate-500">Channel: SMS</div>
           </div>
           <ElSwitch v-model="selected.enabled" active-text="Enabled" inactive-text="Disabled" />
@@ -198,7 +213,7 @@ const useSuggestion = (s: string) => {
               <div class="flex flex-wrap gap-1">
                 <span class="text-slate-600">Variables:</span>
                 <button
-                  v-for="v in (selected.event ? eventHelpers[selected.event] : [])"
+                  v-for="v in (selected.event ? eventHelpers[selected.event as NotificationEvent] : [])"
                   :key="v"
                   class="var-chip"
                   type="button"
