@@ -174,7 +174,33 @@
   box-shadow: 0 14px 30px rgba(0, 0, 0, 0.25);
   color: var(--kiosk-key-text);
 }
+/* KIOSK KEYPAD COLOR OVERRIDES — BLACK GLASS ONLY */
+.kiosk-app[data-kiosk-theme="black-glass"] 
+[data-kiosk-keypad="glass"] 
+.keypad-key {
+  background: rgba(0, 0, 0, 0.85);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
 
+.kiosk-app[data-kiosk-theme="black-glass"] 
+[data-kiosk-keypad="glass"] 
+.keypad-key.action,
+.kiosk-app[data-kiosk-theme="black-glass"] 
+[data-kiosk-keypad="glass"] 
+.keypad-key.secondary {
+  background: rgba(0, 0, 0, 0.9);
+  color: #ffffff;
+}
+.kiosk-app[data-kiosk-theme="black-glass"] .kiosk-btn-secondary {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.kiosk-app[data-kiosk-theme="black-glass"] .kiosk-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
 /* Premium Black Glass — keypad only */
 .kiosk-app[data-kiosk-theme='black-glass'][data-kiosk-keypad='glass'] .keypad-key {
   background: rgba(0, 0, 0, 0.7);            /* true black */
