@@ -742,21 +742,15 @@ watch(useClassicWelcome, (isClassic) => {
 <template>
   <div class="kiosk-shell">
     <div class="kiosk-inner">
-      <div class="kiosk-top">
-        <div>
-          <p
-            class="text-sm uppercase tracking-wide"
-            :style="{ color: 'var(--kiosk-text-secondary)' }"
-          >
-            Kiosk Mode
-          </p>
-          <p
-            class="text-2xl font-semibold"
-            :style="{ color: 'var(--kiosk-text-primary)' }"
-          >
-            {{ businessName }}
-          </p>
-        </div>
+        <div class="kiosk-top">
+          <div>
+            <p
+              class="text-sm uppercase tracking-wide"
+              :style="{ color: 'var(--kiosk-text-secondary)' }"
+            >
+              Kiosk Mode
+            </p>
+          </div>
         <div
           class="rounded-full bg-white/40 px-3 py-1 text-xs font-semibold uppercase"
           :style="{ color: 'var(--kiosk-text-primary)' }"
@@ -878,24 +872,22 @@ watch(useClassicWelcome, (isClassic) => {
                   <div v-if="showRewardsCard && showPoints" class="left-stack">
                     <div class="business-card glass-card">
                       <div
-                        class="text-xs font-semibold uppercase tracking-wide"
-                        :style="{ color: 'var(--kiosk-text-secondary)' }"
-                      >
-                        Salon
-                      </div>
-                      <div
-                        class="text-2xl font-semibold leading-tight"
-                        :style="{ color: 'var(--kiosk-text-primary)' }"
-                      >
-                        {{ businessName }}
-                      </div>
-                      <div
-                        class="text-sm mt-1"
-                        :style="{ color: 'var(--kiosk-text-secondary)' }"
-                      >
-                        {{ businessPhone }}
-                      </div>
+                      class="text-xs font-semibold uppercase tracking-wide"
+                      :style="{ color: 'var(--kiosk-text-secondary)' }"
+                    >
+                      Salon
                     </div>
+                    <div
+                      class="text-2xl font-semibold leading-tight salon-name"
+                      :style="{ color: 'var(--kiosk-text-primary)' }"
+                    >
+                      {{ businessName }}
+                    </div>
+                    <div class="salon-phone-row">
+                      <span class="salon-phone-icon">📞</span>
+                      <span class="salon-phone-text">{{ businessPhone }}</span>
+                    </div>
+                  </div>
                     <div class="reward-panel glass-card">
                       <div
                         class="text-xs font-semibold uppercase tracking-wide"
@@ -1778,6 +1770,33 @@ watch(useClassicWelcome, (isClassic) => {
     var(--kiosk-surface) 94%,
     rgba(255, 255, 255, 0.06) 6%
   );
+}
+.salon-name {
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.salon-phone-row {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0.82;
+}
+.salon-phone-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+.salon-phone-text {
+  font-size: 1.05rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--kiosk-text-primary);
+}
+.kiosk-app[data-kiosk-theme='milky'] .salon-phone-text {
+  color: #111827;
+}
+.kiosk-app[data-kiosk-theme='black-glass'] .salon-phone-row {
+  opacity: 0.76;
 }
 .loyalty-bonus {
   display: inline-flex;
