@@ -145,8 +145,8 @@
     inset 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 .kiosk-app[data-kiosk-theme='black-glass'] .keypad-key.secondary {
-  background: rgba(245, 245, 245, 0.75);
-  color: #222;
+  background: rgba(16, 16, 16, 0.75);
+  color: #fff;
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
@@ -168,11 +168,11 @@
 }
 
 .kiosk-app[data-kiosk-keypad='glass'] {
-  --kiosk-key-text: #0f172a;
+  --kiosk-key-text: #e5e8ee;
 }
 
 .kiosk-app[data-kiosk-keypad='glass'] .keypad-key {
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(16, 15, 15, 0.14);
   border: 1px solid rgba(255, 255, 255, 0.2);
   backdrop-filter: blur(14px) saturate(160%);
   -webkit-backdrop-filter: blur(14px) saturate(160%);
