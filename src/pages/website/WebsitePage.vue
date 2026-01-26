@@ -90,22 +90,22 @@ const canonicalUrl = computed(() => {
 });
 
 const navItems = computed(() => {
-  const items = (data.value?.nav || []).filter((n: any) => n.visible !== false);
-  if (items.length) return items;
-  if (locale.value === 'es') {
-    return [
-      { label: 'Inicio', path: '/es' },
-      { label: 'Servicios', path: '/es/services' },
-      { label: 'Nosotros', path: '/es/about' },
-      { label: 'Contacto', path: '/es/contact' },
-    ];
-  }
-  return [
-    { label: 'Home', path: '/' },
-    { label: 'Services', path: '/services' },
-    { label: 'About', path: '/about' },
-    { label: 'Contact', path: '/contact' },
-  ];
+  const raw = Array.isArray(data.value?.nav) ? data.value.nav : [];
+  const items = raw
+    .filter((n: any) => n && n.visible !== false)
+    .map((n: any) => ({
+      label: String(n.label ?? ''),
+      path: String(n.path ?? '/'),
+      position: Number.isFinite(n.position) ? n.position : 0,
+    }))
+    .sort((a: any, b: any) => a.position - b.position);
+
+  const seen = new Set<string>();
+  return items.filter((i) => {
+    if (seen.has(i.path)) return false;
+    seen.add(i.path);
+    return true;
+  });
 });
 
 const injectHead = () => {
