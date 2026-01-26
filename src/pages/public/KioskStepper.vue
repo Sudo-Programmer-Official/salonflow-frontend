@@ -846,11 +846,11 @@ watch(
                   <ElButton size="large" @click="step = 'phone'">Back</ElButton>
                 </div>
 
-                <div class="kiosk-pane glass-card space-y-4">
-                  <label class="kiosk-label">
-                    Name
-                  </label>
-                  <ElInput v-model="name" size="large" placeholder="Your name" />
+                  <div class="kiosk-pane glass-card space-y-4 name-input-wrap">
+                    <label class="kiosk-label">
+                      Name
+                    </label>
+                    <ElInput v-model="name" size="large" placeholder="Your name" />
                   <div v-if="lookupResult?.customer?.name" class="text-xs" :style="{ color: 'var(--kiosk-text-secondary)' }">
                     Loaded from your profile. You can edit it if needed.
                   </div>
@@ -1228,6 +1228,12 @@ watch(
   -webkit-backdrop-filter: blur(var(--kiosk-blur));
   padding: 16px;
 }
+.name-input-wrap {
+  width: 60%;
+  min-width: 320px;
+  max-width: 820px;
+  margin: 0 auto;
+}
 .kiosk-pane :deep(.el-input__wrapper) {
   min-height: 56px;
   padding: 10px 14px;
@@ -1248,7 +1254,7 @@ watch(
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   row-gap: 10px;
-  column-gap: 12px;
+  column-gap: 8px;
   justify-items: center;
 }
 .keypad-key {

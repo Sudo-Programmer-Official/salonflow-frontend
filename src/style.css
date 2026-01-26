@@ -152,16 +152,6 @@
   background: rgba(0, 0, 0, 0.12);
 }
 
-.kiosk-app[data-kiosk-keypad='glass'] .keypad-actions .el-button--primary {
-  background: rgba(0, 0, 0, 0.08);
-  color: #111827;
-  border-color: transparent;
-}
-
-.kiosk-app[data-kiosk-keypad='glass'] .keypad-actions .el-button--primary:hover {
-  background: rgba(0, 0, 0, 0.12);
-  color: #0b1220;
-}
 .kiosk-next-btn {
   min-width: 120px;
   border-radius: 999px;
