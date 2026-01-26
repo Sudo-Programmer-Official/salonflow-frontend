@@ -178,13 +178,20 @@
 .kiosk-app[data-kiosk-theme="black-glass"] 
 [data-kiosk-keypad="glass"] 
 .keypad-key {
-  background: rgba(0, 0, 0, 0.85);
-  color: #ffffff;
+  background: rgba(0, 0, 0, 0.85) !important;
+  color: #ffffff !important;
   border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .kiosk-app[data-kiosk-theme="black-glass"] 
 [data-kiosk-keypad="glass"] 
+.keypad-key.action,
+.kiosk-app[data-kiosk-theme="black-glass"] 
+[data-kiosk-keypad="glass"] 
+.keypad-key.secondary {
+  background: rgba(0, 0, 0, 0.9);
+  color: #ffffff;
+}
 .keypad-key.action,
 .kiosk-app[data-kiosk-theme="black-glass"] 
 [data-kiosk-keypad="glass"] 
@@ -247,6 +254,21 @@
   background: rgba(0, 0, 0, 0.08);
   color: #111827;
   border-color: transparent;
+}
+/* KIOSK KEYPAD COLOR OVERRIDES — BLACK GLASS ONLY */
+.kiosk-app[data-kiosk-theme="black-glass"] 
+[data-kiosk-keypad="glass"] 
+.keypad-actions 
+.el-button:not(.el-button--primary) {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+.kiosk-app[data-kiosk-theme="black-glass"] 
+[data-kiosk-keypad="glass"] 
+.keypad-actions 
+.el-button:not(.el-button--primary):hover {
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .kiosk-app[data-kiosk-keypad='glass'] .keypad-actions .el-button:not(.el-button--primary):hover {
