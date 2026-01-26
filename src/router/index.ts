@@ -34,6 +34,13 @@ import AdminPromotionsPage from "../pages/admin/Promotions.vue";
 import AdminInboxPage from "../pages/admin/Inbox.vue";
 import AdminSmartRemindersPage from "../pages/admin/SmartReminders.vue";
 import AdminNotificationsPage from "../pages/admin/Notifications.vue";
+import AdminWebsiteOverviewPage from "../pages/admin/Website/AdminWebsiteOverview.vue";
+import AdminWebsitePagesPage from "../pages/admin/Website/AdminWebsitePages.vue";
+import AdminWebsitePageEditorPage from "../pages/admin/Website/AdminWebsitePageEditor.vue";
+import AdminWebsiteDomainsPage from "../pages/admin/Website/AdminWebsiteDomains.vue";
+import AdminWebsiteLeadsPage from "../pages/admin/Website/AdminWebsiteLeads.vue";
+import AdminWebsiteAnalyticsPage from "../pages/admin/Website/AdminWebsiteAnalytics.vue";
+import WebsitePage from "../pages/website/WebsitePage.vue";
 import MarketingLayout from "../layouts/MarketingLayout.vue";
 import MarketingHome from "../pages/MarketingHome.vue";
 import SalonLoginPage from "../pages/SalonLogin.vue";
@@ -44,6 +51,7 @@ import PrivacyPage from "../pages/Privacy.vue";
 import TermsPage from "../pages/Terms.vue";
 import { clearAuthState } from "../utils/auth";
 import { defaultRouteForRole } from "../utils/navigation";
+import { isPlatformHost } from "../api/client";
 
 const LOGIN_ROUTE: RouteLocationRaw = { name: "login" };
 
@@ -82,7 +90,29 @@ const hasValidSession = () => {
   return true;
 };
 
-const routes = [
+const isWebsiteHost = (() => {
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname.toLowerCase();
+  const preview = window.location.search.includes("websitePreview=1");
+  const hasToken = Boolean(localStorage.getItem("token"));
+  if (preview && hasToken) return true;
+  if (host.includes("localhost")) return false;
+  return !isPlatformHost();
+})();
+
+const websiteRoutes = [
+  { path: "/", name: "website-home", component: WebsitePage },
+  { path: "/services", name: "website-services", component: WebsitePage },
+  { path: "/about", name: "website-about", component: WebsitePage },
+  { path: "/contact", name: "website-contact", component: WebsitePage },
+  { path: "/es", name: "website-home-es", component: WebsitePage },
+  { path: "/es/services", name: "website-services-es", component: WebsitePage },
+  { path: "/es/about", name: "website-about-es", component: WebsitePage },
+  { path: "/es/contact", name: "website-contact-es", component: WebsitePage },
+  { path: "/:pathMatch(.*)*", redirect: "/" },
+];
+
+const appRoutes = [
   {
     path: "/",
     component: MarketingLayout,
@@ -279,6 +309,42 @@ const routes = [
         meta: { requiresAuth: true, roles: ["OWNER"] },
       },
       {
+        path: "website",
+        name: "admin-website",
+        component: AdminWebsiteOverviewPage,
+        meta: { requiresAuth: true, roles: ["OWNER"] },
+      },
+      {
+        path: "website/pages",
+        name: "admin-website-pages",
+        component: AdminWebsitePagesPage,
+        meta: { requiresAuth: true, roles: ["OWNER"] },
+      },
+      {
+        path: "website/pages/:slug",
+        name: "admin-website-page-editor",
+        component: AdminWebsitePageEditorPage,
+        meta: { requiresAuth: true, roles: ["OWNER"] },
+      },
+      {
+        path: "website/domains",
+        name: "admin-website-domains",
+        component: AdminWebsiteDomainsPage,
+        meta: { requiresAuth: true, roles: ["OWNER"] },
+      },
+      {
+        path: "website/leads",
+        name: "admin-website-leads",
+        component: AdminWebsiteLeadsPage,
+        meta: { requiresAuth: true, roles: ["OWNER"] },
+      },
+      {
+        path: "website/analytics",
+        name: "admin-website-analytics",
+        component: AdminWebsiteAnalyticsPage,
+        meta: { requiresAuth: true, roles: ["OWNER"] },
+      },
+      {
         path: "inbox",
         name: "admin-inbox",
         component: AdminInboxPage,
@@ -348,7 +414,7 @@ const routes = [
 
 const router = createRouter({
   history: createWebHistory(),
-  routes,
+  routes: isWebsiteHost ? websiteRoutes : appRoutes,
 });
 
 router.beforeEach(async (to, _from, next) => {
