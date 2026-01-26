@@ -40,6 +40,7 @@ import AdminWebsitePageEditorPage from "../pages/admin/Website/AdminWebsitePageE
 import AdminWebsiteDomainsPage from "../pages/admin/Website/AdminWebsiteDomains.vue";
 import AdminWebsiteLeadsPage from "../pages/admin/Website/AdminWebsiteLeads.vue";
 import AdminWebsiteAnalyticsPage from "../pages/admin/Website/AdminWebsiteAnalytics.vue";
+import AdminWebsiteNavigationPage from "../pages/admin/Website/AdminWebsiteNavigation.vue";
 import WebsitePage from "../pages/website/WebsitePage.vue";
 import MarketingLayout from "../layouts/MarketingLayout.vue";
 import MarketingHome from "../pages/MarketingHome.vue";
@@ -317,6 +318,12 @@ const appRoutes = [
         path: "website/pages",
         name: "admin-website-pages",
         component: AdminWebsitePagesPage,
+        meta: { requiresAuth: true, roles: ["OWNER"] },
+      },
+      {
+        path: "website/navigation",
+        name: "admin-website-navigation",
+        component: AdminWebsiteNavigationPage,
         meta: { requiresAuth: true, roles: ["OWNER"] },
       },
       {

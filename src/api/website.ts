@@ -46,6 +46,34 @@ export type WebsiteLead = {
   updated_at: string;
 };
 
+export type WebsiteMedia = {
+  id: string;
+  business_id: string;
+  original_url: string;
+  width?: number | null;
+  height?: number | null;
+  mime_type?: string | null;
+  variants: Record<
+    string,
+    {
+      url: string;
+      width: number;
+      height: number;
+      mimeType: string;
+    }
+  >;
+  created_at: string;
+};
+
+export type WebsiteNavItem = {
+  id?: string;
+  label: string;
+  path: string;
+  visible: boolean;
+  position: number;
+  locale: string;
+};
+
 const headers = () => buildHeaders({ auth: true, tenant: true, json: true });
 
 export async function fetchWebsiteSite(locale?: string) {
@@ -140,6 +168,42 @@ export async function updateWebsiteLeadStatus(
   const body = await res.json();
   if (!res.ok) throw new Error(body.error || 'Failed to update lead');
   return body.lead as WebsiteLead;
+}
+
+export async function listWebsiteMedia(limit = 50) {
+  const res = await fetch(apiUrl(`/website/media?limit=${limit}`), { headers: headers() });
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.error || 'Failed to load media');
+  return body.media as WebsiteMedia[];
+}
+
+export async function uploadWebsiteMedia(form: FormData) {
+  const res = await fetch(apiUrl('/website/media/upload'), {
+    method: 'POST',
+    headers: { ...buildHeaders({ auth: true, tenant: true }), Accept: 'application/json' },
+    body: form,
+  });
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.error || 'Failed to upload');
+  return body.media as WebsiteMedia;
+}
+
+export async function fetchWebsiteNav(locale = 'en') {
+  const res = await fetch(apiUrl(`/website/nav?locale=${locale}`), { headers: headers() });
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.error || 'Failed to load navigation');
+  return body.items as WebsiteNavItem[];
+}
+
+export async function saveWebsiteNav(locale: string, items: WebsiteNavItem[]) {
+  const res = await fetch(apiUrl(`/website/nav?locale=${locale}`), {
+    method: 'PUT',
+    headers: headers(),
+    body: JSON.stringify({ items }),
+  });
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.error || 'Failed to save navigation');
+  return body.items as WebsiteNavItem[];
 }
 
 export async function fetchWebsiteAnalyticsSummary(days = 30, locale?: string) {

@@ -19,6 +19,12 @@ const slug = computed(() => {
 
 const { data, loading, error, fetchSite } = useWebsite(locale.value as 'en' | 'es');
 
+const mediaMap = computed(() => {
+  const map = new Map<string, any>();
+  (data.value?.media || []).forEach((m: any) => map.set(m.id, m));
+  return map;
+});
+
 const page = computed(() => {
   const pages = data.value?.pages || [];
   let p = pages.find((pg) => pg.slug === slug.value && pg.locale === locale.value);
@@ -32,6 +38,41 @@ const hero = computed(() => page.value?.content?.hero || {});
 const services = computed(() => page.value?.content?.services || []);
 const contact = computed(() => page.value?.content?.contact || {});
 const gallery = computed(() => page.value?.content?.gallery || []);
+const resolvedGallery = computed(() => {
+  const ids = Array.isArray(gallery.value) ? gallery.value : [];
+  return ids.map((item: string) => {
+    const isUuid = /^[0-9a-fA-F-]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(
+      item,
+    );
+    if (isUuid && mediaMap.value.has(item)) {
+      const media = mediaMap.value.get(item);
+      const buildSrcSet = (keys: string[]) =>
+        keys
+          .map((k) => media?.variants?.[k])
+          .filter((v: any) => v?.url && v?.width)
+          .map((v: any) => `${v.url} ${v.width}w`)
+          .join(', ');
+      const srcsetWebp = buildSrcSet(['lg_webp', 'md_webp', 'sm_webp']);
+      const srcsetFallback = buildSrcSet(['lg', 'md', 'sm']);
+      const fallback =
+        media?.variants?.md ||
+        media?.variants?.lg ||
+        media?.variants?.sm ||
+        media?.variants?.thumbnail ||
+        { url: media?.original_url };
+      return {
+        id: item,
+        src: fallback.url,
+        srcsetWebp,
+        srcset: srcsetFallback,
+        type: fallback?.mimeType || 'image/jpeg',
+        alt: '',
+      };
+    }
+    return { id: item, src: item, srcset: '', srcsetWebp: '', type: 'image/jpeg', alt: '' };
+  });
+});
+const firstGalleryImage = computed(() => resolvedGallery.value?.[0]?.src);
 const seo = computed(() => page.value?.seo || {});
 const publishedLocales = computed(() => data.value?.meta?.locales || []);
 const basePath = computed(() => route.path.replace(/^\/es/, '') || '/');
@@ -46,6 +87,25 @@ const canonicalUrl = computed(() => {
   const host = typeof window !== 'undefined' ? window.location.host : '';
   const prefix = locale.value === 'es' ? '/es' : '';
   return `https://${host}${prefix}${basePath.value === '/' ? '' : basePath.value}`;
+});
+
+const navItems = computed(() => {
+  const items = (data.value?.nav || []).filter((n: any) => n.visible !== false);
+  if (items.length) return items;
+  if (locale.value === 'es') {
+    return [
+      { label: 'Inicio', path: '/es' },
+      { label: 'Servicios', path: '/es/services' },
+      { label: 'Nosotros', path: '/es/about' },
+      { label: 'Contacto', path: '/es/contact' },
+    ];
+  }
+  return [
+    { label: 'Home', path: '/' },
+    { label: 'Services', path: '/services' },
+    { label: 'About', path: '/about' },
+    { label: 'Contact', path: '/contact' },
+  ];
 });
 
 const injectHead = () => {
@@ -100,7 +160,7 @@ const injectHead = () => {
           streetAddress: contactData.address,
         }
       : undefined,
-    image: (page.value?.content?.gallery || [])[0],
+    image: firstGalleryImage.value,
     openingHours: contactData.hours ? [contactData.hours] : undefined,
   };
   const ldScript = document.createElement('script');
@@ -215,14 +275,23 @@ watch(
       <div class="flex items-center gap-2">
         <div class="h-9 w-9 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold">SF</div>
         <div class="text-base font-semibold leading-tight">{{ hero.brand || 'SalonFlow' }}</div>
+        <span
+          v-if="isPreview"
+          class="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 border border-amber-200"
+        >
+          Preview
+        </span>
       </div>
     </template>
     <template #nav>
-      <a class="hover:text-slate-900" href="/">Home</a>
-      <a class="hover:text-slate-900" href="/services">Services</a>
-      <a class="hover:text-slate-900" href="/about">About</a>
-      <a class="hover:text-slate-900" href="/contact">Contact</a>
-      <a class="hover:text-slate-900" href="/es">ES</a>
+      <a
+        v-for="item in navItems"
+        :key="item.path"
+        class="hover:text-slate-900"
+        :href="item.path"
+      >
+        {{ item.label }}
+      </a>
     </template>
 
     <div class="mx-auto max-w-5xl px-4 py-10 space-y-12">
@@ -338,14 +407,20 @@ watch(
       <section v-if="gallery.length" class="space-y-3">
         <h2 class="text-2xl font-semibold text-slate-900">Gallery</h2>
         <div class="grid gap-3 sm:grid-cols-2">
-          <img
-            v-for="(img, idx) in gallery"
+          <picture
+            v-for="(img, idx) in resolvedGallery"
             :key="idx"
-            :src="img"
-            class="w-full rounded-xl border border-slate-200 object-cover aspect-[4/3]"
-            loading="lazy"
-            alt=""
-          />
+            class="block"
+          >
+            <source v-if="img.srcsetWebp" :srcset="img.srcsetWebp" type="image/webp" />
+            <source v-if="img.srcset" :srcset="img.srcset" :type="img.type" />
+            <img
+              :src="img.src"
+              class="w-full rounded-xl border border-slate-200 object-cover aspect-[4/3]"
+              loading="lazy"
+              :alt="img.alt || ''"
+            />
+          </picture>
         </div>
       </section>
 

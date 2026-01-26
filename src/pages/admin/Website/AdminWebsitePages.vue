@@ -64,6 +64,11 @@ const editPage = (row: WebsitePage) => {
 
 <template>
   <div class="space-y-4">
+    <div class="text-xs text-slate-500 flex items-center gap-2">
+      <RouterLink class="hover:underline" :to="{ name: 'admin-website' }">Website</RouterLink>
+      <span>/</span>
+      <span>Pages</span>
+    </div>
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-2xl font-semibold text-slate-900">Website Pages</h1>

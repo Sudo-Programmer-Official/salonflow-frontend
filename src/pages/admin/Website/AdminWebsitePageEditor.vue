@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import {
   ElCard,
   ElForm,
@@ -11,8 +11,10 @@ import {
   ElMessage,
 } from 'element-plus';
 import { fetchWebsitePages, upsertWebsitePage, type WebsitePage } from '../../../api/website';
+import MediaPicker from '../../../components/website/MediaPicker.vue';
 
 const route = useRoute();
+const router = useRouter();
 const slug = computed(() => (route.params.slug as string) || 'home');
 const locale = computed(() => (route.query.locale as string) || 'en');
 
@@ -28,7 +30,7 @@ const form = ref({
   address: '',
   phone: '',
   hours: '',
-  gallery: [''],
+  gallery: [] as string[], // media ids
   published: false,
 });
 
@@ -47,7 +49,7 @@ const load = async () => {
       form.value.address = c.contact?.address || '';
       form.value.phone = c.contact?.phone || '';
       form.value.hours = c.contact?.hours || '';
-      form.value.gallery = c.gallery || [''];
+      form.value.gallery = Array.isArray(c.gallery) ? c.gallery : [];
       form.value.published = match.published;
     }
   } catch (err: any) {
@@ -60,7 +62,15 @@ const load = async () => {
 onMounted(load);
 
 const sanitizeServices = () => form.value.services.filter((s) => s.trim());
-const sanitizeGallery = () => form.value.gallery.filter((s) => s.trim());
+const isUuid = (val: string) =>
+  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(
+    val,
+  );
+
+const sanitizeGallery = () =>
+  form.value.gallery
+    .map((s) => (s || '').trim())
+    .filter((s) => isUuid(s));
 
 const save = async (publish: boolean) => {
   saving.value = true;
@@ -77,7 +87,7 @@ const save = async (publish: boolean) => {
         phone: form.value.phone,
         hours: form.value.hours,
       },
-      gallery: sanitizeGallery(),
+      gallery: sanitizeGallery(), // store media IDs
     };
     const saved = await upsertWebsitePage(slug.value, locale.value as string, {
       content,
@@ -95,21 +105,37 @@ const save = async (publish: boolean) => {
 };
 
 const addService = () => form.value.services.push('');
-const addGallery = () => form.value.gallery.push('');
+
+const previewPath = computed(() => {
+  const prefix = locale.value === 'es' ? '/es' : '';
+  const path = slug.value === 'home' ? '' : `/${slug.value}`;
+  return `${prefix}${path || '/'}`;
+});
 
 const preview = () => {
-  window.open('/', '_blank');
+  window.open(`${previewPath.value}?websitePreview=1`, '_blank');
 };
+
+const goBack = () =>
+  router.push({ name: 'admin-website-pages', query: { locale: locale.value } });
 </script>
 
 <template>
   <div class="space-y-4">
+    <div class="flex items-center gap-2 text-xs text-slate-500">
+      <RouterLink class="hover:underline" :to="{ name: 'admin-website' }">Website</RouterLink>
+      <span>/</span>
+      <RouterLink class="hover:underline" :to="{ name: 'admin-website-pages', query: { locale } }">Pages</RouterLink>
+      <span>/</span>
+      <span class="text-slate-700 font-semibold">{{ slug }}</span>
+    </div>
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-2xl font-semibold text-slate-900">Edit Page</h1>
         <p class="text-sm text-slate-600">Slug: {{ slug }} • Locale: {{ locale.toUpperCase() }}</p>
       </div>
       <div class="flex gap-2">
+        <ElButton plain @click="goBack">Back to pages</ElButton>
         <ElButton plain @click="preview">Preview</ElButton>
         <ElButton :loading="saving" @click="save(false)">Save Draft</ElButton>
         <ElButton type="primary" :loading="saving" @click="save(true)">Publish</ElButton>
@@ -150,13 +176,8 @@ const preview = () => {
           <ElInput v-model="form.hours" />
         </ElFormItem>
 
-        <ElFormItem label="Gallery (image URLs)" class="md:col-span-2">
-          <div class="space-y-2 w-full">
-            <div v-for="(_, idx) in form.gallery" :key="idx" class="flex gap-2">
-              <ElInput v-model="form.gallery[idx]" placeholder="https://…" />
-            </div>
-            <ElButton size="small" type="primary" plain @click="addGallery">Add image</ElButton>
-          </div>
+        <ElFormItem label="Gallery" class="md:col-span-2">
+          <MediaPicker v-model="form.gallery" />
         </ElFormItem>
       </ElForm>
     </ElCard>

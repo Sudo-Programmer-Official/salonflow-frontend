@@ -221,6 +221,7 @@ const sidebarGroups = computed(() => [
       { label: 'Smart Reminders', name: 'admin-smart-reminders', icon: '📣', roles: ['OWNER'] },
       { label: 'Notifications', name: 'admin-notifications', icon: '🔔', roles: ['OWNER'] },
       { label: 'Website', name: 'admin-website', icon: '🌐', roles: ['OWNER'] },
+      { label: 'Website Navigation', name: 'admin-website-navigation', icon: '🧭', roles: ['OWNER'] },
       { label: 'Website Leads', name: 'admin-website-leads', icon: '📨', roles: ['OWNER'] },
       { label: 'Website Analytics', name: 'admin-website-analytics', icon: '📊', roles: ['OWNER'] },
     ],
