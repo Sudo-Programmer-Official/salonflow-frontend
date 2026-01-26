@@ -517,6 +517,24 @@ onMounted(loadSettings);
                 @change="(val: string) => scheduleSave({ businessPhone: val?.trim() || null })"
               />
             </div>
+            <div class="flex flex-col gap-1 rounded-md border border-slate-200 bg-white px-3 py-2">
+              <div class="text-sm font-semibold text-slate-900">Business display name (kiosk)</div>
+              <div class="text-xs text-slate-600">Shown on kiosk header and identity card.</div>
+              <ElInput
+                :model-value="settings.kioskBusinessName || settings.businessName || ''"
+                placeholder="e.g., MTV Nails Spa Corpus Christi"
+                @change="(val: string) => scheduleSave({ kioskBusinessName: val?.trim() || null })"
+              />
+            </div>
+            <div class="flex flex-col gap-1 rounded-md border border-slate-200 bg-white px-3 py-2">
+              <div class="text-sm font-semibold text-slate-900">Front desk phone (kiosk card)</div>
+              <div class="text-xs text-slate-600">Overrides business phone just for kiosk identity card.</div>
+              <ElInput
+                :model-value="settings.kioskBusinessPhone || ''"
+                placeholder="e.g., (361) 123-4567"
+                @change="(val: string) => scheduleSave({ kioskBusinessPhone: val?.trim() || null })"
+              />
+            </div>
           </div>
 
           <div class="space-y-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">

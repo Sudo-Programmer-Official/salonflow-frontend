@@ -34,6 +34,8 @@ export type BusinessSettings = {
   kioskThemeMode?: 'green' | 'milky' | 'black-glass';
   kioskPrimaryColor?: 'moneyGreen' | 'lightGreen' | 'gold';
   kioskKeypadStyle?: 'solid' | 'glass';
+  kioskBusinessName?: string | null;
+  kioskBusinessPhone?: string | null;
   businessPhone?: string | null;
   defaultBookingRules: DefaultBookingRules;
   createdAt: string | null;
@@ -71,6 +73,8 @@ export type SettingsPatch = Partial<
     | 'kioskThemeMode'
     | 'kioskPrimaryColor'
     | 'kioskKeypadStyle'
+    | 'kioskBusinessName'
+    | 'kioskBusinessPhone'
     | 'businessPhone'
   >
 > & {

@@ -135,9 +135,11 @@ const requirePhone = computed(() => settings.value?.requirePhone !== false);
 const allowPhoneSkip = computed(() => !requirePhone.value);
 const kioskEnabled = computed(() => settings.value?.kioskEnabled ?? false);
 const publicEnabled = computed(() => settings.value?.publicCheckInEnabled !== false);
-const businessName = computed(() => settings.value?.businessName || 'Salon Kiosk');
+const businessName = computed(
+  () => settings.value?.kioskBusinessName || settings.value?.businessName || 'Salon Kiosk',
+);
 const businessPhone = computed(() => {
-  const phone = settings.value?.businessPhone;
+  const phone = settings.value?.kioskBusinessPhone || settings.value?.businessPhone;
   return phone ? formatPhone(phone) : 'Front desk';
 });
 const showPoints = computed(() => {
@@ -754,6 +756,10 @@ watch(
                     <div class="text-xs font-semibold uppercase tracking-wide" :style="{ color: 'var(--kiosk-text-secondary)' }">Loyalty</div>
                     <div class="text-3xl font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">300 points = $5 off</div>
                     <p class="text-sm mt-1" :style="{ color: 'var(--kiosk-text-secondary)' }">Enter your phone to load rewards.</p>
+                    <div class="loyalty-bonus">
+                      <span class="bonus-icon">💵</span>
+                      <span class="bonus-text">5% off</span>
+                    </div>
                     <div class="reward-body">
                       <div v-if="lookupResult?.exists && lookupResult.customer" class="reward-stats glass-card">
                         <div class="text-base font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">👋 {{ lookupResult.customer.name }}</div>
@@ -1323,6 +1329,30 @@ watch(
   gap: 8px;
   padding: 18px;
   background: color-mix(in srgb, var(--kiosk-surface) 94%, rgba(255, 255, 255, 0.06) 6%);
+}
+.loyalty-bonus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.04);
+  color: #111827;
+  font-weight: 700;
+  font-size: 14px;
+}
+.kiosk-app[data-kiosk-keypad='glass'] .loyalty-bonus {
+  background: rgba(0, 0, 0, 0.06);
+  color: #0f172a;
+}
+.kiosk-app[data-kiosk-theme='black-glass'] .loyalty-bonus {
+  background: rgba(255, 255, 255, 0.12);
+  color: #f8fafc;
+}
+.bonus-icon {
+  font-size: 18px;
+  line-height: 1;
 }
 .business-card {
   display: flex;
