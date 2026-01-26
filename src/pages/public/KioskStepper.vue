@@ -1682,7 +1682,7 @@ watch(useClassicWelcome, (isClassic) => {
 .keypad {
   margin-top: 24px;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 0.3fr));
   row-gap: 8px;
   column-gap: 6px;
   justify-items: center;
