@@ -814,14 +814,15 @@ watch(
                       >
                         Skip phone
                       </ElButton>
-                      <ElButton
-                        type="primary"
-                        size="large"
-                        :disabled="!canAdvanceFromPhone"
-                        @click="proceedFromPhone"
-                      >
-                        Next
-                      </ElButton>
+                  <ElButton
+                    type="primary"
+                    size="large"
+                    :disabled="!canAdvanceFromPhone"
+                    class="kiosk-next-btn"
+                    @click="proceedFromPhone"
+                  >
+                    Next
+                  </ElButton>
                     </div>
                     <div class="kiosk-opt-in">
                       <p>
@@ -1243,15 +1244,16 @@ watch(
   padding: 12px;
 }
 .keypad {
-  margin-top: 12px;
+  margin-top: 24px;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
+  row-gap: 10px;
+  column-gap: 12px;
   justify-items: center;
 }
 .keypad-key {
-  width: 82px;
-  height: 82px;
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
   background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.12), transparent 40%), var(--kiosk-primary);
   color: var(--kiosk-key-text, var(--kiosk-text-primary));
@@ -1282,7 +1284,7 @@ watch(
   background: color-mix(in srgb, var(--kiosk-primary) 85%, #000 15%);
 }
 .keypad-actions {
-  margin-top: 8px;
+  margin-top: 16px;
   padding-bottom: 8px;
 }
 .kiosk-opt-in {
