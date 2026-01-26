@@ -20,6 +20,12 @@ import PlatformTenantDetailPage from "../pages/platform/TenantDetail.vue";
 import PlatformCreateTenantPage from "../pages/platform/CreateTenant.vue";
 import PlatformDemoRequestsPage from "../pages/platform/DemoRequests.vue";
 import PlatformNumbersPage from "../pages/platform/Numbers.vue";
+import PlatformFeatureFlagsPage from "../pages/platform/PlatformFeatureFlags.vue";
+import PlatformUsagePage from "../pages/platform/PlatformUsage.vue";
+import PlatformPlansPage from "../pages/platform/PlatformPlans.vue";
+import PlatformUpgradeRequestsPage from "../pages/platform/PlatformUpgradeRequests.vue";
+import PlatformSettingsAlertsPage from "../pages/platform/PlatformSettingsAlerts.vue";
+import PlatformInvoicePreviewPage from "../pages/platform/PlatformInvoicePreview.vue";
 import CustomerProfilePage from "../pages/admin/CustomerProfile.vue";
 import AdminOnboardingPage from "../pages/admin/Onboarding.vue";
 import AdminDemoRequestsPage from "../pages/admin/DemoRequests.vue";
@@ -41,6 +47,12 @@ import AdminWebsiteDomainsPage from "../pages/admin/Website/AdminWebsiteDomains.
 import AdminWebsiteLeadsPage from "../pages/admin/Website/AdminWebsiteLeads.vue";
 import AdminWebsiteAnalyticsPage from "../pages/admin/Website/AdminWebsiteAnalytics.vue";
 import AdminWebsiteNavigationPage from "../pages/admin/Website/AdminWebsiteNavigation.vue";
+import AdminReviewsSettingsPage from "../pages/admin/Reviews/AdminReviewsSettings.vue";
+import AdminReviewsRequestsPage from "../pages/admin/Reviews/AdminReviewsRequests.vue";
+import AdminReviewsFeedbackPage from "../pages/admin/Reviews/AdminReviewsFeedback.vue";
+import AdminSocialPostsPage from "../pages/admin/Social/AdminSocialPosts.vue";
+import AdminGoogleBusinessPage from "../pages/admin/Integrations/AdminGoogleBusiness.vue";
+import AdminGrowthPage from "../pages/admin/Growth/AdminGrowth.vue";
 import WebsitePage from "../pages/website/WebsitePage.vue";
 import MarketingLayout from "../layouts/MarketingLayout.vue";
 import MarketingHome from "../pages/MarketingHome.vue";
@@ -219,6 +231,42 @@ const appRoutes = [
         meta: { requiresAuth: true, roles: ["SUPER_ADMIN"] },
       },
       {
+        path: "features",
+        name: "platform-features",
+        component: PlatformFeatureFlagsPage,
+        meta: { requiresAuth: true, roles: ["SUPER_ADMIN"] },
+      },
+      {
+        path: "usage",
+        name: "platform-usage",
+        component: PlatformUsagePage,
+        meta: { requiresAuth: true, roles: ["SUPER_ADMIN"] },
+      },
+      {
+        path: "plans",
+        name: "platform-plans",
+        component: PlatformPlansPage,
+        meta: { requiresAuth: true, roles: ["SUPER_ADMIN"] },
+      },
+      {
+        path: "invoice-preview",
+        name: "platform-invoice-preview",
+        component: PlatformInvoicePreviewPage,
+        meta: { requiresAuth: true, roles: ["SUPER_ADMIN"] },
+      },
+      {
+        path: "upgrade-requests",
+        name: "platform-upgrade-requests",
+        component: PlatformUpgradeRequestsPage,
+        meta: { requiresAuth: true, roles: ["SUPER_ADMIN"] },
+      },
+      {
+        path: "settings/alerts",
+        name: "platform-settings-alerts",
+        component: PlatformSettingsAlertsPage,
+        meta: { requiresAuth: true, roles: ["SUPER_ADMIN"] },
+      },
+      {
         path: ":businessId",
         name: "platform-tenant",
         component: PlatformTenantDetailPage,
@@ -348,6 +396,42 @@ const appRoutes = [
         path: "website/analytics",
         name: "admin-website-analytics",
         component: AdminWebsiteAnalyticsPage,
+        meta: { requiresAuth: true, roles: ["OWNER"] },
+      },
+      {
+        path: "reviews",
+        name: "admin-reviews-settings",
+        component: AdminReviewsSettingsPage,
+        meta: { requiresAuth: true, roles: ["OWNER"] },
+      },
+      {
+        path: "reviews/requests",
+        name: "admin-reviews-requests",
+        component: AdminReviewsRequestsPage,
+        meta: { requiresAuth: true, roles: ["OWNER"] },
+      },
+      {
+        path: "reviews/feedback",
+        name: "admin-reviews-feedback",
+        component: AdminReviewsFeedbackPage,
+        meta: { requiresAuth: true, roles: ["OWNER"] },
+      },
+      {
+        path: "social",
+        name: "admin-social-posts",
+        component: AdminSocialPostsPage,
+        meta: { requiresAuth: true, roles: ["OWNER"] },
+      },
+      {
+        path: "integrations/google-business",
+        name: "admin-google-business",
+        component: AdminGoogleBusinessPage,
+        meta: { requiresAuth: true, roles: ["OWNER"] },
+      },
+      {
+        path: "growth",
+        name: "admin-growth",
+        component: AdminGrowthPage,
         meta: { requiresAuth: true, roles: ["OWNER"] },
       },
       {

@@ -45,6 +45,7 @@ const move = (idx: number, direction: number) => {
   const next = idx + direction;
   if (next < 0 || next >= items.value.length) return;
   const copy = [...items.value];
+  if (!copy[idx] || !copy[next]) return;
   [copy[idx], copy[next]] = [copy[next], copy[idx]];
   items.value = copy.map((item, i) => ({ ...item, position: i }));
 };
@@ -106,18 +107,18 @@ const save = async () => {
         </template>
       </ElTableColumn>
       <ElTableColumn label="Label" min-width="180">
-        <template #default="{ row, $index }">
-          <ElInput v-model="items[$index].label" />
+        <template #default="{ row }">
+          <ElInput v-model="row.label" />
         </template>
       </ElTableColumn>
       <ElTableColumn label="Path" min-width="220">
-        <template #default="{ row, $index }">
-          <ElInput v-model="items[$index].path" placeholder="/services" />
+        <template #default="{ row }">
+          <ElInput v-model="row.path" placeholder="/services" />
         </template>
       </ElTableColumn>
       <ElTableColumn label="Visible" width="120" align="center">
-        <template #default="{ $index }">
-          <ElSwitch v-model="items[$index].visible" />
+        <template #default="{ row }">
+          <ElSwitch v-model="row.visible" />
         </template>
       </ElTableColumn>
       <ElTableColumn width="120" label="Remove">

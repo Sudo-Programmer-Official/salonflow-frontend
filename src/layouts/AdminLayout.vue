@@ -224,6 +224,12 @@ const sidebarGroups = computed(() => [
       { label: 'Website Navigation', name: 'admin-website-navigation', icon: '🧭', roles: ['OWNER'] },
       { label: 'Website Leads', name: 'admin-website-leads', icon: '📨', roles: ['OWNER'] },
       { label: 'Website Analytics', name: 'admin-website-analytics', icon: '📊', roles: ['OWNER'] },
+      { label: 'Reviews', name: 'admin-reviews-settings', icon: '⭐', roles: ['OWNER'] },
+      { label: 'Review Requests', name: 'admin-reviews-requests', icon: '📣', roles: ['OWNER'] },
+      { label: 'Review Feedback', name: 'admin-reviews-feedback', icon: '📝', roles: ['OWNER'] },
+      { label: 'Social Posts', name: 'admin-social-posts', icon: '🗣', roles: ['OWNER'] },
+      { label: 'Google Business', name: 'admin-google-business', icon: '🏢', roles: ['OWNER'] },
+      { label: 'Growth', name: 'admin-growth', icon: '🚀', roles: ['OWNER'] },
     ],
   },
   {

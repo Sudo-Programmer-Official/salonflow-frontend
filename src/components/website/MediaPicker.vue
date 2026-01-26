@@ -46,6 +46,15 @@ const handleUpload = async (file: File) => {
     uploading.value = false;
   }
 };
+
+const getMediaById = (id: string) => media.value.find((m) => m.id === id);
+
+const toUrl = (
+  input?: string | { url: string; width?: number; height?: number; mimeType?: string } | null,
+): string | undefined => {
+  if (!input) return undefined;
+  return typeof input === 'string' ? input : input.url;
+};
 </script>
 
 <template>
@@ -56,7 +65,10 @@ const handleUpload = async (file: File) => {
     </div>
     <div class="flex flex-wrap gap-2">
       <div v-for="(id, idx) in modelValue" :key="id" class="relative">
-        <ElImage :src="media.find(m => m.id === id)?.variants?.thumbnail || media.find(m => m.id === id)?.original_url" style="width: 96px; height: 96px; object-fit: cover; border-radius: 8px;" />
+        <ElImage
+          :src="toUrl(getMediaById(id)?.variants?.thumbnail) || toUrl(getMediaById(id)?.original_url)"
+          style="width: 96px; height: 96px; object-fit: cover; border-radius: 8px;"
+        />
         <button class="absolute -top-2 -right-2 bg-white text-xs rounded-full border px-1" @click.prevent="remove(idx)">✕</button>
       </div>
     </div>
@@ -80,7 +92,10 @@ const handleUpload = async (file: File) => {
           class="cursor-pointer"
           @click="add(item.id)"
         >
-          <ElImage :src="item.variants?.thumbnail || item.original_url" style="width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 8px;" />
+          <ElImage
+            :src="toUrl(item.variants?.thumbnail) || toUrl(item.original_url)"
+            style="width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 8px;"
+          />
         </ElCard>
       </div>
     </ElDialog>

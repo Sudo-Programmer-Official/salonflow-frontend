@@ -25,6 +25,56 @@
         >
           Demo requests
         </RouterLink>
+        <RouterLink
+          to="/platform/features"
+          class="block rounded-md px-3 py-2 transition hover:bg-white hover:text-slate-900"
+          active-class="bg-white text-slate-900 shadow-sm"
+        >
+          Feature flags
+        </RouterLink>
+        <RouterLink
+          to="/platform/usage"
+          class="block rounded-md px-3 py-2 transition hover:bg-white hover:text-slate-900"
+          active-class="bg-white text-slate-900 shadow-sm"
+        >
+          Usage
+        </RouterLink>
+        <RouterLink
+          to="/platform/plans"
+          class="block rounded-md px-3 py-2 transition hover:bg-white hover:text-slate-900"
+          active-class="bg-white text-slate-900 shadow-sm"
+        >
+          Plans
+        </RouterLink>
+        <RouterLink
+          to="/platform/invoice-preview"
+          class="block rounded-md px-3 py-2 transition hover:bg-white hover:text-slate-900"
+          active-class="bg-white text-slate-900 shadow-sm"
+        >
+          Invoice preview
+        </RouterLink>
+        <RouterLink
+          to="/platform/upgrade-requests"
+          class="block rounded-md px-3 py-2 transition hover:bg-white hover:text-slate-900"
+          active-class="bg-white text-slate-900 shadow-sm"
+        >
+          <span class="inline-flex items-center gap-2">
+            <span>Upgrade requests</span>
+            <span
+              v-if="upgradeCount > 0"
+              class="rounded-full bg-rose-600 px-2 py-0.5 text-xs font-semibold text-white"
+            >
+              {{ upgradeCount }}
+            </span>
+          </span>
+        </RouterLink>
+        <RouterLink
+          to="/platform/settings/alerts"
+          class="block rounded-md px-3 py-2 transition hover:bg-white hover:text-slate-900"
+          active-class="bg-white text-slate-900 shadow-sm"
+        >
+          Alert emails
+        </RouterLink>
       </nav>
       </aside>
       <main class="platform-content flex-1 p-4 sm:p-6">
@@ -46,8 +96,32 @@
 
 <script setup lang="ts">
 import { logout } from '../utils/auth';
+import { onMounted, onUnmounted, ref } from 'vue';
+import { fetchUpgradeRequestCount } from '../api/upgradeRequestsCount';
 
 const handleLogout = () => logout('/app/login');
+
+const upgradeCount = ref(0);
+const loadCount = async () => {
+  try {
+    upgradeCount.value = await fetchUpgradeRequestCount();
+  } catch {
+    upgradeCount.value = 0;
+  }
+};
+
+const timerId = ref<number | null>(null);
+
+onMounted(() => {
+  loadCount();
+  timerId.value = window.setInterval(loadCount, 30000);
+  window.addEventListener('focus', loadCount);
+});
+
+onUnmounted(() => {
+  if (timerId.value) clearInterval(timerId.value);
+  window.removeEventListener('focus', loadCount as any);
+});
 </script>
 
 <style scoped>

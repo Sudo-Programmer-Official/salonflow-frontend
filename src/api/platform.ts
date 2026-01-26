@@ -52,3 +52,22 @@ export async function fetchPlatformUsageOverview(month?: number) {
   if (!res.ok) throw new Error('Failed to load overview');
   return res.json();
 }
+
+export async function fetchGrowthUsage(businessId: string, monthIsoDate: string) {
+  const res = await fetch(apiUrl(`/platform/usage/growth/${businessId}?month=${monthIsoDate}`), {
+    headers: buildHeaders({ auth: true, json: true }),
+  });
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.error || 'Failed to load usage');
+  return body.usage as Array<{ month: string; metric_key: string; count: number }>;
+}
+
+export async function startGrowthTrial(businessId: string) {
+  const res = await fetch(apiUrl(`/platform/trial/growth/${businessId}`), {
+    method: 'POST',
+    headers: buildHeaders({ auth: true, json: true }),
+  });
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.error || 'Failed to start trial');
+  return body;
+}
