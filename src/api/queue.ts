@@ -152,6 +152,18 @@ export async function markNoShow(checkInId: string) {
   return res.json();
 }
 
+export async function cancelCheckIn(checkInId: string) {
+  const res = await fetch(`${apiBase}/${checkInId}/cancel`, {
+    method: 'POST',
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to cancel');
+  }
+  return res.json();
+}
+
 export async function checkoutCheckIn(
   checkInId: string,
   payload: {

@@ -11,6 +11,7 @@ import {
   ElOption,
   ElInput,
   ElTooltip,
+  ElMessageBox,
 } from 'element-plus';
 import {
   fetchQueue,
@@ -18,6 +19,7 @@ import {
   startCheckIn,
   checkoutCheckIn,
   callCheckIn,
+  cancelCheckIn,
   markNoShow,
   type QueueItem,
 } from '../../api/queue';
@@ -61,6 +63,15 @@ const checkoutServices = ref<Array<{ name: string; priceCents: number | null }>>
 const currentCheckoutItem = computed(() =>
   checkoutTarget.value ? queue.value.find((q) => q.id === checkoutTarget.value) : null,
 );
+const currentCustomerSummary = computed(() => {
+  const item = currentCheckoutItem.value;
+  if (!item) return null;
+  return {
+    name: item.customerName || 'Customer',
+    phone: item.customerPhone ? formatPhone(item.customerPhone) : '—',
+    points: item.pointsBalance ?? 0,
+  };
+});
 const canRedeem = computed(() => (currentCheckoutItem.value?.pointsBalance ?? 0) >= 300);
 const staff = ref<StaffMember[]>([]);
 const loadingStaff = ref(false);
@@ -453,6 +464,20 @@ const giftCardsTotal = computed(() =>
     return acc;
   }, 0),
 );
+const giftCardSummaries = computed(() =>
+  giftCards.value
+    .map((g) => ({
+      number: g.number?.trim() || '',
+      amount: Number(g.amount),
+    }))
+    .filter((g) => g.number && Number.isFinite(g.amount) && g.amount > 0),
+);
+
+const maskCardNumber = (num: string) => {
+  const clean = (num || '').replace(/\s+/g, '');
+  const last4 = clean.slice(-4);
+  return last4.padStart(clean.length || 4, '•');
+};
 
 const addGiftCard = () => {
   giftCards.value.push({ id: nextGiftCardId.value++, number: '', amount: '' });
@@ -718,6 +743,39 @@ const submitCheckout = async () => {
   } finally {
     actionLoading.value = null;
   }
+};
+
+const cancelCheckout = async () => {
+  if (!checkoutTarget.value) return;
+  try {
+    await ElMessageBox.confirm(
+      'Cancel checkout? Customer will leave without payment and this visit will be marked cancelled.',
+      'Cancel checkout',
+      {
+        confirmButtonText: 'Yes, cancel',
+        cancelButtonText: 'Keep checkout open',
+        type: 'warning',
+      },
+    );
+  } catch {
+    return;
+  }
+
+  actionLoading.value = checkoutTarget.value;
+  try {
+    await cancelCheckIn(checkoutTarget.value);
+    checkoutOpen.value = false;
+    await loadQueue();
+    ElMessage.success('Checkout cancelled');
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : 'Failed to cancel checkout');
+  } finally {
+    actionLoading.value = null;
+  }
+};
+
+const goBackToServices = () => {
+  checkoutOpen.value = false;
 };
 
 const pollId = ref<number | null>(null);
@@ -1171,6 +1229,24 @@ watch(completedPage, async (val) => {
 
     <ElDialog v-model="checkoutOpen" title="Checkout" width="960px" class="checkout-modal">
       <div class="checkout-body space-y-4">
+        <div
+          v-if="currentCustomerSummary"
+          class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"
+        >
+          <div class="flex flex-col">
+            <span class="text-xs font-semibold text-slate-600">Customer</span>
+            <span class="text-base font-semibold text-slate-900">{{ currentCustomerSummary.name }}</span>
+          </div>
+          <div class="flex flex-col">
+            <span class="text-xs font-semibold text-slate-600">Phone</span>
+            <span class="text-sm text-slate-800">{{ currentCustomerSummary.phone }}</span>
+          </div>
+          <div class="flex flex-col text-right">
+            <span class="text-xs font-semibold text-slate-600">Points</span>
+            <span class="text-sm font-semibold text-slate-900">{{ currentCustomerSummary.points }}</span>
+          </div>
+        </div>
+
         <div class="checkout-grid">
           <div class="checkout-col space-y-3">
             <div class="rounded-md border border-slate-200 bg-slate-50 p-2 text-xs text-slate-700">
@@ -1319,6 +1395,20 @@ watch(completedPage, async (val) => {
               <ElButton size="small" class="sf-btn sf-btn--table" @click="addGiftCard">
                 + Add another gift card
               </ElButton>
+              <div
+                v-if="giftCardSummaries.length"
+                class="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 space-y-1"
+              >
+                <div class="text-xs font-semibold text-slate-700">Gift Cards Applied</div>
+                <div
+                  v-for="card in giftCardSummaries"
+                  :key="card.number + card.amount"
+                  class="flex items-center justify-between"
+                >
+                  <span class="font-semibold">{{ maskCardNumber(card.number) }}</span>
+                  <span>${{ card.amount.toFixed(2) }}</span>
+                </div>
+              </div>
             </div>
 
             <div class="space-y-2 rounded-md border border-slate-200 bg-white px-3 py-2">
@@ -1347,8 +1437,9 @@ watch(completedPage, async (val) => {
           </div>
         </div>
 
-        <div class="flex justify-end gap-2 checkout-actions">
-          <ElButton @click="checkoutOpen = false">Cancel</ElButton>
+        <div class="flex flex-wrap justify-end gap-2 checkout-actions">
+          <ElButton @click="goBackToServices">Back</ElButton>
+          <ElButton :loading="actionLoading === checkoutTarget" @click="cancelCheckout">Cancel</ElButton>
           <ElButton type="primary" :loading="actionLoading === checkoutTarget" @click="submitCheckout">
             Complete checkout
           </ElButton>

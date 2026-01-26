@@ -20,7 +20,6 @@ import { fetchPublicAvailableStaff, type StaffMember } from "../../api/staff";
 import { startKioskIdleWatchdog } from "../../utils/kioskIdleWatchdog";
 import { applyThemeFromSettings } from "../../utils/theme";
 import { formatUSPhone } from "../../utils/format";
-import { formatPhone } from "../../utils/format";
 
 type Step = "welcome" | "phone" | "name" | "services" | "staff" | "done";
 
@@ -158,17 +157,6 @@ const kioskEnabled = computed(() => settings.value?.kioskEnabled ?? false);
 const publicEnabled = computed(
   () => settings.value?.publicCheckInEnabled !== false,
 );
-const businessName = computed(
-  () =>
-    settings.value?.kioskBusinessName ||
-    settings.value?.businessName ||
-    "Salon Kiosk",
-);
-const businessPhone = computed(() => {
-  const phone =
-    settings.value?.kioskBusinessPhone || settings.value?.businessPhone;
-  return phone ? formatPhone(phone) : "Front desk";
-});
 const showPoints = computed(() => {
   if (!settings.value) return true;
   const flag =
@@ -869,84 +857,30 @@ watch(useClassicWelcome, (isClassic) => {
 
               <div v-else-if="step === 'phone'" class="space-y-5">
                 <div class="phone-hero grid gap-4 lg:grid-cols-[1fr,1.15fr]">
-                  <div v-if="showRewardsCard && showPoints" class="left-stack">
-                    <div class="business-card glass-card">
-                      <div
-                      class="text-xs font-semibold uppercase tracking-wide"
-                      :style="{ color: 'var(--kiosk-text-secondary)' }"
-                    >
-                      Salon
-                    </div>
-                    <div
-                      class="text-2xl font-semibold leading-tight salon-name"
-                      :style="{ color: 'var(--kiosk-text-primary)' }"
-                    >
-                      {{ businessName }}
-                    </div>
-                    <div class="salon-phone-row">
-                      <span class="salon-phone-icon">📞</span>
-                      <span class="salon-phone-text">{{ businessPhone }}</span>
-                    </div>
-                  </div>
-                    <div class="reward-panel glass-card">
-                      <div
-                        class="text-xs font-semibold uppercase tracking-wide"
-                        :style="{ color: 'var(--kiosk-text-secondary)' }"
-                      >
-                        Loyalty
+                  <div class="left-stack kiosk-left-panel">
+                    <div class="identity-box glass-card">
+                      <div class="identity-name">MTV NAIL SPA CORPUS CHRISTI</div>
+                      <div class="identity-phone" aria-label="Phone">
+                        <span class="identity-phone-icon" aria-hidden="true">📞</span>
+                        <span class="identity-phone-text">(361) 986-1555</span>
                       </div>
-                      <div
-                        class="text-3xl font-semibold flex items-center gap-2"
-                        :style="{ color: 'var(--kiosk-text-primary)' }"
-                      >
+                      <div class="identity-hours">
+                        <div class="identity-hours-label">Hours</div>
+                        <div class="identity-hour-row">
+                          <span class="identity-hour-day">Mon–Sat</span>
+                          <span class="identity-hour-time">10:00 AM – 9:00 PM</span>
+                        </div>
+                        <div class="identity-hour-row">
+                          <span class="identity-hour-day">Sun</span>
+                          <span class="identity-hour-time">11:00 AM – 7:00 PM</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="loyalty-box glass-card" aria-label="Loyalty teaser">
+                      <div class="loyalty-title">LOYALTY</div>
+                      <div class="loyalty-value">
                         300 points = $5 off
-                        <span class="text-4xl leading-none">💵</span>
-                      </div>
-                      <p
-                        class="text-sm mt-1"
-                        :style="{ color: 'var(--kiosk-text-secondary)' }"
-                      >
-                        Enter your phone to load rewards.
-                      </p>
-                      <!-- <div class="loyalty-bonus">
-                      <span class="bonus-icon">💵</span>
-                      <span class="bonus-text">5% off</span>
-                    </div> -->
-                      <div class="reward-body">
-                        <div
-                          v-if="lookupResult?.exists && lookupResult.customer"
-                          class="reward-stats glass-card"
-                        >
-                          <div
-                            class="text-base font-semibold"
-                            :style="{ color: 'var(--kiosk-text-primary)' }"
-                          >
-                            👋 {{ lookupResult.customer.name }}
-                          </div>
-                          <div
-                            class="text-sm"
-                            :style="{ color: 'var(--kiosk-text-secondary)' }"
-                          >
-                            💎
-                            {{
-                              lookupResult.customer.pointsBalance ?? 0
-                            }}
-                            points
-                            <span
-                              class="ml-2 text-xs"
-                              :style="{ color: 'var(--kiosk-text-muted)' }"
-                              >We’ll keep these ready.</span
-                            >
-                          </div>
-                        </div>
-                        <div v-else class="reward-placeholder">
-                          <div
-                            class="text-base font-semibold"
-                            :style="{ color: 'var(--kiosk-text-primary)' }"
-                          >
-                            Ready when you are.
-                          </div>
-                        </div>
+                        <span class="loyalty-emoji" aria-hidden="true">💵</span>
                       </div>
                     </div>
                   </div>
@@ -1762,103 +1696,111 @@ watch(useClassicWelcome, (isClassic) => {
 .phone-hero {
   align-items: stretch;
 }
-.reward-panel {
-  min-height: 260px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 18px;
-  background: color-mix(
-    in srgb,
-    var(--kiosk-surface) 94%,
-    rgba(255, 255, 255, 0.06) 6%
-  );
-}
-.salon-name {
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-.salon-phone-row {
-  margin-top: 6px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  opacity: 0.82;
-}
-.salon-phone-icon {
-  font-size: 1.1rem;
-  line-height: 1;
-}
-.salon-phone-text {
-  font-size: 1.05rem;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  color: var(--kiosk-text-primary);
-}
-.kiosk-app[data-kiosk-theme='milky'] .salon-phone-text {
-  color: #111827;
-}
-.kiosk-app[data-kiosk-theme='black-glass'] .salon-phone-row {
-  opacity: 0.76;
-}
-.loyalty-bonus {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 10px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.04);
-  color: #111827;
-  font-weight: 700;
-  font-size: 14px;
-}
-.kiosk-app[data-kiosk-keypad="glass"] .loyalty-bonus {
-  background: rgba(0, 0, 0, 0.06);
-  color: #0f172a;
-}
-.kiosk-app[data-kiosk-theme="black-glass"] .loyalty-bonus {
-  background: rgba(255, 255, 255, 0.12);
-  color: #f8fafc;
-}
-.bonus-icon {
-  font-size: 18px;
-  line-height: 1;
-}
-.business-card {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 16px;
-  border-radius: 16px;
-  background: color-mix(
-    in srgb,
-    var(--kiosk-surface) 94%,
-    rgba(255, 255, 255, 0.06) 6%
-  );
-}
-.left-stack {
+.left-stack,
+.kiosk-left-panel {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
-.reward-body {
-  flex: 1;
-  display: flex;
+.identity-box {
+  padding: 20px 18px;
+  background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--kiosk-primary) 18%, transparent) 0%,
+      color-mix(in srgb, var(--kiosk-accent) 10%, transparent) 28%,
+      transparent 60%
+    ),
+    var(--kiosk-surface);
+  border: 1px solid color-mix(in srgb, var(--kiosk-border) 80%, #ffffff 20%);
+}
+.identity-name {
+  font-family: 'Montserrat', 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  font-size: clamp(24px, 2.3vw + 10px, 34px);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.1;
+  color: var(--kiosk-text-primary);
+}
+.identity-phone {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 10px;
+  margin-top: 12px;
+  font-weight: 800;
+  font-size: 20px;
+  color: var(--kiosk-text-primary);
+  white-space: nowrap;
 }
-.reward-stats {
-  width: 100%;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.05);
-  padding: 12px;
+.identity-phone-icon {
+  font-size: 22px;
+  line-height: 1;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.18));
 }
-.reward-placeholder {
-  text-align: center;
-  color: rgba(255, 255, 255, 0.85);
+.identity-phone-text {
+  letter-spacing: 0.02em;
+}
+.identity-hours {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--kiosk-border) 80%, transparent);
   display: grid;
+  gap: 8px;
+}
+.identity-hours-label {
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: var(--kiosk-text-secondary);
+}
+.identity-hour-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--kiosk-text-secondary);
+}
+.identity-hour-day {
+  color: var(--kiosk-text-primary);
+}
+.identity-hour-time {
+  white-space: nowrap;
+  color: var(--kiosk-text-secondary);
+  font-weight: 700;
+}
+.loyalty-box {
+  padding: 18px 18px 16px;
+  display: flex;
+  flex-direction: column;
   gap: 6px;
+  border: 1px solid color-mix(in srgb, var(--kiosk-border) 90%, #ffffff 10%);
+  background: color-mix(
+    in srgb,
+    var(--kiosk-surface) 92%,
+    color-mix(in srgb, var(--kiosk-primary) 12%, transparent) 8%
+  );
+}
+.loyalty-title {
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: var(--kiosk-text-secondary);
+}
+.loyalty-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--kiosk-text-primary);
+}
+.loyalty-emoji {
+  font-size: 28px;
+  line-height: 1;
 }
 .phone-panel {
   display: flex;
@@ -2257,6 +2199,15 @@ watch(useClassicWelcome, (isClassic) => {
     flex-direction: column;
     gap: 12px;
     align-items: flex-start;
+  }
+  .identity-name {
+    font-size: 24px;
+  }
+  .identity-phone {
+    font-size: 18px;
+  }
+  .loyalty-value {
+    font-size: 22px;
   }
 }
 

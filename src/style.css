@@ -89,8 +89,8 @@
   color: var(--kiosk-text-primary);
 }
 
-/* Milky White */
-.kiosk-app[data-kiosk-theme='milky'].kiosk-app[data-kiosk-theme='milky'] {
+/* ===== THEME: MILKY (light) ===== */
+.kiosk-app[data-kiosk-theme='milky'] {
   --bg-app: linear-gradient(180deg, #f7f9fb 0%, #eef2f7 50%, #f7f9fb 100%);
   --kiosk-surface: #ffffff;
   --kiosk-glass: rgba(255, 255, 255, 0.9);
@@ -107,6 +107,7 @@
   --kiosk-heading: color-mix(in srgb, #1f2937 92%, #000 8%);
   background: var(--bg-app);
 }
+/* ===== THEME: PREMIUM BLACK GLASS (dark) ===== */
 .kiosk-app[data-kiosk-theme='black-glass'] {
   --bg-app: radial-gradient(circle at 15% 20%, rgba(255, 255, 255, 0.04), transparent 32%),
     radial-gradient(circle at 82% 10%, rgba(255, 255, 255, 0.06), transparent 28%),
@@ -127,7 +128,13 @@
   background: var(--bg-app);
 }
 
-/* Premium Black: keypad colors (white glass keys) */
+/* ===================================================================
+   KIOSK KEYPAD COLOR OVERRIDES (easy to edit without touching others)
+   - Premium black solid keys
+   - Glass keypad toggle
+   - Action/secondary keys + action bar
+   =================================================================== */
+/* --- Premium Black ONLY: keypad colors (white glass keys) --- */
 .kiosk-app[data-kiosk-theme='black-glass'] .keypad-key {
   background: rgba(255, 255, 255, 0.85);
   color: #111;
@@ -168,6 +175,42 @@
   color: var(--kiosk-key-text);
 }
 
+/* Premium Black Glass — keypad only */
+.kiosk-app[data-kiosk-theme='black-glass'][data-kiosk-keypad='glass'] .keypad-key {
+  background: rgba(0, 0, 0, 0.7);            /* true black */
+  color: #ffffff;
+
+  border: 1px solid rgba(255, 255, 255, 0.18);
+
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 18px 34px rgba(0, 0, 0, 0.6);
+}
+.kiosk-app[data-kiosk-theme='black-glass'][data-kiosk-keypad='glass']
+.keypad-key:active {
+  transform: translateY(1px) scale(0.97);
+  box-shadow:
+    inset 0 2px 6px rgba(0, 0, 0, 0.7),
+    0 8px 18px rgba(0, 0, 0, 0.55);
+}
+.keypad-key svg {
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.6));
+}
+.kiosk-app[data-kiosk-theme='black-glass'] .kiosk-btn-secondary {
+  background: rgba(255,255,255,0.14);
+  color: #ffffff;
+  border: 1px solid rgba(255,255,255,0.22);
+  backdrop-filter: blur(12px);
+}
+.kiosk-app[data-kiosk-theme='black-glass'] .keypad-key.clear,
+.kiosk-app[data-kiosk-theme='black-glass'] .keypad-key.backspace {
+  background: rgba(255,255,255,0.12);
+  color: #ffffff;
+}
+/* Milky Theme — keypad only */
 .kiosk-app[data-kiosk-keypad='glass'] .keypad-key.action,
 .kiosk-app[data-kiosk-keypad='glass'] .keypad-key.secondary {
   background: rgba(255, 255, 255, 0.12);
@@ -183,6 +226,7 @@
 .kiosk-app[data-kiosk-keypad='glass'] .keypad-actions .el-button:not(.el-button--primary):hover {
   background: rgba(0, 0, 0, 0.12);
 }
+/* === END KIOSK KEYPAD COLORS SECTION === */
 
 .kiosk-next-btn {
   min-width: 120px;
