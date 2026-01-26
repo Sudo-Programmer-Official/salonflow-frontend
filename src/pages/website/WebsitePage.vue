@@ -114,7 +114,10 @@ const trackEvent = (eventType: 'page_view' | 'click_call' | 'click_directions' |
   if (isPreview.value) return;
   fetch(apiUrl('/public/website/events'), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-website-host': typeof window !== 'undefined' ? window.location.host : '',
+    },
     body: JSON.stringify({
       event_type: eventType,
       path: route.path,
@@ -148,7 +151,10 @@ const submitLead = async () => {
   try {
     const res = await fetch(apiUrl('/public/website/leads'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-website-host': typeof window !== 'undefined' ? window.location.host : '',
+      },
       body: JSON.stringify({
         ...leadForm,
         phone: digits ? digits : '',
@@ -163,7 +169,10 @@ const submitLead = async () => {
     // fire-and-forget event tracking
     fetch(apiUrl('/public/website/events'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-website-host': typeof window !== 'undefined' ? window.location.host : '',
+      },
       body: JSON.stringify({
         event_type: 'form_submit',
         path: route.path,
