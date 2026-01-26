@@ -109,7 +109,6 @@ const websiteRoutes = [
   { path: "/es/services", name: "website-services-es", component: WebsitePage },
   { path: "/es/about", name: "website-about-es", component: WebsitePage },
   { path: "/es/contact", name: "website-contact-es", component: WebsitePage },
-  { path: "/:pathMatch(.*)*", redirect: "/" },
 ];
 
 const appRoutes = [
@@ -414,10 +413,16 @@ const appRoutes = [
 
 const router = createRouter({
   history: createWebHistory(),
-  routes: isWebsiteHost ? websiteRoutes : appRoutes,
+  routes: isWebsiteHost ? [...websiteRoutes, ...appRoutes] : appRoutes,
 });
 
 router.beforeEach(async (to, _from, next) => {
+  // Reserved app routes should always hit the app, even on tenant hosts
+  const APP_ROUTE_PREFIXES = ["/login", "/check-in", "/kiosk", "/staff", "/admin", "/platform"];
+  if (isWebsiteHost && APP_ROUTE_PREFIXES.some((p) => to.path.startsWith(p))) {
+    return next();
+  }
+
   const authed = hasValidSession();
   const storedRole = getStoredRole();
 
