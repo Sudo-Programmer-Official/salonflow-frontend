@@ -1227,6 +1227,13 @@ watch(
   -webkit-backdrop-filter: blur(var(--kiosk-blur));
   padding: 16px;
 }
+.kiosk-pane :deep(.el-input__wrapper) {
+  min-height: 56px;
+  padding: 10px 14px;
+}
+.kiosk-pane :deep(.el-input__inner) {
+  font-size: 18px;
+}
 .phone-display {
   border-radius: 12px;
   border: 1px solid var(--kiosk-border);
@@ -1247,7 +1254,7 @@ watch(
   height: 82px;
   border-radius: 50%;
   background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.12), transparent 40%), var(--kiosk-primary);
-  color: var(--kiosk-text-primary);
+  color: var(--kiosk-key-text, var(--kiosk-text-primary));
   font-size: 24px;
   font-weight: 800;
   border: none;

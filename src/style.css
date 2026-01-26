@@ -119,19 +119,37 @@
   --kiosk-accent: #f0c674;
 }
 
+.kiosk-app {
+  --kiosk-key-text: #f8fafc;
+}
+
+.kiosk-app[data-kiosk-keypad='glass'] {
+  --kiosk-key-text: #0f172a;
+}
+
 .kiosk-app[data-kiosk-keypad='glass'] .keypad-key {
   background: rgba(255, 255, 255, 0.14);
   border: 1px solid rgba(255, 255, 255, 0.2);
   backdrop-filter: blur(14px) saturate(160%);
   -webkit-backdrop-filter: blur(14px) saturate(160%);
   box-shadow: 0 14px 30px rgba(0, 0, 0, 0.25);
-  color: #f8fafc;
+  color: var(--kiosk-key-text);
 }
 
 .kiosk-app[data-kiosk-keypad='glass'] .keypad-key.action,
 .kiosk-app[data-kiosk-keypad='glass'] .keypad-key.secondary {
   background: rgba(255, 255, 255, 0.12);
-  color: #e5e7eb;
+  color: #111827;
+}
+
+.kiosk-app[data-kiosk-keypad='glass'] .keypad-actions .el-button:not(.el-button--primary) {
+  background: rgba(0, 0, 0, 0.08);
+  color: #111827;
+  border-color: transparent;
+}
+
+.kiosk-app[data-kiosk-keypad='glass'] .keypad-actions .el-button:not(.el-button--primary):hover {
+  background: rgba(0, 0, 0, 0.12);
 }
 
 html {
