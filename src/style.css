@@ -127,52 +127,16 @@
   --kiosk-heading: color-mix(in srgb, #f7f5ef 92%, #d6b25e 8%);
 }
 
-/* PREMIUM BLACK – KEYPAD */
-.kiosk-app[data-kiosk-theme='black-glass'] .keypad-key {
-  background: rgba(255, 255, 255, 0.85);
-  color: #111;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  backdrop-filter: blur(14px) saturate(160%);
-  -webkit-backdrop-filter: blur(14px) saturate(160%);
-  box-shadow:
-    0 8px 18px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5);
-}
-.kiosk-app[data-kiosk-theme='black-glass'] .keypad-key:active {
-  transform: translateY(2px);
-  box-shadow:
-    0 4px 10px rgba(0, 0, 0, 0.4),
-    inset 0 2px 6px rgba(0, 0, 0, 0.15);
-}
-.kiosk-app[data-kiosk-theme='black-glass'] .keypad-key.secondary {
-  background: rgba(16, 16, 16, 0.75);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-/* PREMIUM BLACK – SECONDARY BUTTONS (Start over) */
-.kiosk-app[data-kiosk-theme='black-glass'] .kiosk-btn-secondary {
-  background: rgba(255, 255, 255, 0.75);
-  color: #111;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
-}
-.kiosk-app[data-kiosk-theme='black-glass'] .kiosk-btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.82);
-}
-
 .kiosk-app {
   --kiosk-key-text: #f8fafc;
 }
 
 .kiosk-app[data-kiosk-keypad='glass'] {
-  --kiosk-key-text: #e5e8ee;
+  --kiosk-key-text: #0f172a;
 }
 
 .kiosk-app[data-kiosk-keypad='glass'] .keypad-key {
-  background: rgba(16, 15, 15, 0.14);
+  background: rgba(255, 255, 255, 0.14);
   border: 1px solid rgba(255, 255, 255, 0.2);
   backdrop-filter: blur(14px) saturate(160%);
   -webkit-backdrop-filter: blur(14px) saturate(160%);
