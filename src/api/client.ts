@@ -1,9 +1,11 @@
 const resolvedApiBase =
   (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/+$/, '') || '';
 
+const PLATFORM_HOSTS = ['salonflow.studio', 'www.salonflow.studio', 'app.salonflow.studio', 'api.salonflow.studio'];
 const isPlatformHost = () => {
   if (typeof window === 'undefined') return false;
   const host = window.location.hostname.toLowerCase();
+  if (PLATFORM_HOSTS.includes(host)) return true;
   return host === 'platform.localhost' || host.startsWith('platform.');
 };
 
