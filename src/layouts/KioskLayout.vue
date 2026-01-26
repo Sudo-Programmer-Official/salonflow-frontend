@@ -3,6 +3,7 @@
     class="kiosk-app kiosk-frame relative"
     :data-kiosk-theme="kioskTheme"
     :data-kiosk-primary="kioskPrimary"
+    :data-kiosk-keypad="kioskKeypad"
   >
     <router-view v-if="!maintenanceActive" />
     <div v-else class="absolute inset-0 flex items-center justify-center">
@@ -18,6 +19,7 @@ import MaintenanceBanner from '../components/MaintenanceBanner.vue';
 
 const kioskTheme = ref('black-glass');
 const kioskPrimary = ref('gold');
+const kioskKeypad = ref('solid');
 let observer: MutationObserver | null = null;
 
 const syncFromRoot = () => {
@@ -25,13 +27,14 @@ const syncFromRoot = () => {
   const { dataset } = document.documentElement;
   kioskTheme.value = dataset.kioskTheme || 'black-glass';
   kioskPrimary.value = dataset.kioskPrimary || 'gold';
+  kioskKeypad.value = dataset.kioskKeypad || 'solid';
 };
 
 onMounted(() => {
   syncFromRoot();
   if (typeof MutationObserver !== 'undefined') {
     observer = new MutationObserver(syncFromRoot);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-kiosk-theme', 'data-kiosk-primary'] });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-kiosk-theme', 'data-kiosk-primary', 'data-kiosk-keypad'] });
   }
 });
 

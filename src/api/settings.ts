@@ -33,6 +33,7 @@ export type BusinessSettings = {
   uiFontFamily: string;
   kioskThemeMode?: 'green' | 'milky' | 'black-glass';
   kioskPrimaryColor?: 'moneyGreen' | 'lightGreen' | 'gold';
+  kioskKeypadStyle?: 'solid' | 'glass';
   businessPhone?: string | null;
   defaultBookingRules: DefaultBookingRules;
   createdAt: string | null;
@@ -69,6 +70,7 @@ export type SettingsPatch = Partial<
     | 'uiFontFamily'
     | 'kioskThemeMode'
     | 'kioskPrimaryColor'
+    | 'kioskKeypadStyle'
     | 'businessPhone'
   >
 > & {

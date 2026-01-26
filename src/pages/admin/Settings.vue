@@ -493,6 +493,20 @@ onMounted(loadSettings);
                 <ElOption label="Premium black glass" value="black-glass" />
               </ElSelect>
             </div>
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <div class="text-sm font-semibold text-slate-900">Keypad style</div>
+                <div class="text-xs text-slate-600">Solid buttons or iOS-style glass keys.</div>
+              </div>
+              <ElSelect
+                class="w-40"
+                :model-value="settings.kioskKeypadStyle || 'solid'"
+                @change="(val: 'solid' | 'glass') => scheduleSave({ kioskKeypadStyle: val })"
+              >
+                <ElOption label="Solid" value="solid" />
+                <ElOption label="Glass" value="glass" />
+              </ElSelect>
+            </div>
 
             <div class="flex flex-col gap-1 rounded-md border border-slate-200 bg-white px-3 py-2">
               <div class="text-sm font-semibold text-slate-900">Business phone (kiosk display)</div>

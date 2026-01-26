@@ -15,6 +15,7 @@ export type UiPreferences = {
   uiFontFamily?: string | null;
   kioskThemeMode?: 'green' | 'milky' | 'black-glass' | null;
   kioskPrimaryColor?: 'moneyGreen' | 'lightGreen' | 'gold' | null;
+  kioskKeypadStyle?: 'solid' | 'glass' | null;
 };
 
 const clamp = (val: number, min: number, max: number) => Math.min(Math.max(val, min), max);
@@ -57,6 +58,12 @@ export function applyThemeFromSettings(
     root.dataset.kioskPrimary = settings.kioskPrimaryColor;
   } else if (!existingPrimary) {
     root.dataset.kioskPrimary = 'moneyGreen';
+  }
+  const existingKeypad = root.dataset.kioskKeypad;
+  if (settings?.kioskKeypadStyle) {
+    root.dataset.kioskKeypad = settings.kioskKeypadStyle;
+  } else if (!existingKeypad) {
+    root.dataset.kioskKeypad = 'solid';
   }
   const familyKey = String(settings?.uiFontFamily ?? 'system').toLowerCase();
   const resolved =
