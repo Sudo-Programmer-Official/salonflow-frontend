@@ -1,16 +1,28 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, onUnmounted, ref, watch } from 'vue';
-import { useRoute } from 'vue-router';
-import { ElAlert, ElButton, ElCard, ElInput } from 'element-plus';
-import { fetchPublicSettings, type BusinessSettings } from '../../api/settings';
-import { publicLookup, createPublicCheckIn, fetchGroupedServices, type ServiceOption } from '../../api/checkins';
-import { fetchPublicAvailableStaff, type StaffMember } from '../../api/staff';
-import { startKioskIdleWatchdog } from '../../utils/kioskIdleWatchdog';
-import { applyThemeFromSettings } from '../../utils/theme';
-import { formatUSPhone } from '../../utils/format';
-import { formatPhone } from '../../utils/format';
+import {
+  computed,
+  onBeforeUnmount,
+  onMounted,
+  onUnmounted,
+  ref,
+  watch,
+} from "vue";
+import { useRoute } from "vue-router";
+import { ElAlert, ElButton, ElCard, ElInput } from "element-plus";
+import { fetchPublicSettings, type BusinessSettings } from "../../api/settings";
+import {
+  publicLookup,
+  createPublicCheckIn,
+  fetchGroupedServices,
+  type ServiceOption,
+} from "../../api/checkins";
+import { fetchPublicAvailableStaff, type StaffMember } from "../../api/staff";
+import { startKioskIdleWatchdog } from "../../utils/kioskIdleWatchdog";
+import { applyThemeFromSettings } from "../../utils/theme";
+import { formatUSPhone } from "../../utils/format";
+import { formatPhone } from "../../utils/format";
 
-type Step = 'welcome' | 'phone' | 'name' | 'services' | 'staff' | 'done';
+type Step = "welcome" | "phone" | "name" | "services" | "staff" | "done";
 
 type ServiceGroup = {
   categoryId: string | null;
@@ -26,16 +38,16 @@ type ServiceGroup = {
 };
 
 const route = useRoute();
-const step = ref<Step>('phone');
-const phone = ref('');
-const name = ref('');
+const step = ref<Step>("phone");
+const phone = ref("");
+const name = ref("");
 const selectedServiceIds = ref<string[]>([]);
 const groupedServices = ref<ServiceGroup[]>([]);
 const settings = ref<BusinessSettings | null>(null);
-const settingsError = ref('');
-const errorMessage = ref('');
+const settingsError = ref("");
+const errorMessage = ref("");
 const submitting = ref(false);
-const successName = ref('Guest');
+const successName = ref("Guest");
 const successServices = ref<string[]>([]);
 const animatedPoints = ref<number | null>(null);
 const pointsAnimationFrame = ref<number | null>(null);
@@ -48,24 +60,21 @@ const idleWarningTimer = ref<number | null>(null);
 const idleInterval = ref<number | null>(null);
 const staffList = ref<StaffMember[]>([]);
 const staffLoading = ref(false);
-const staffError = ref('');
+const staffError = ref("");
 const selectedStaffId = ref<string | null>(null);
-const lookupResult = ref<
-  | null
-  | {
-      exists: boolean;
-      customer?: { id: string; name: string; pointsBalance: number | null };
-    }
->(null);
-const lookupError = ref('');
+const lookupResult = ref<null | {
+  exists: boolean;
+  customer?: { id: string; name: string; pointsBalance: number | null };
+}>(null);
+const lookupError = ref("");
 const lookupLoading = ref(false);
 const lookupTimer = ref<number | null>(null);
 
 const defaultSettings: BusinessSettings = {
-  businessId: '',
-  businessName: '',
+  businessId: "",
+  businessName: "",
   timezone: null,
-  currency: 'USD',
+  currency: "USD",
   kioskEnabled: false,
   publicCheckInEnabled: true,
   requirePhone: true,
@@ -75,7 +84,7 @@ const defaultSettings: BusinessSettings = {
   requireService: false,
   allowStaffSelection: false,
   requireStaffSelection: false,
-  kioskWelcomeStyle: 'classic',
+  kioskWelcomeStyle: "classic",
   kioskShowRewardsCard: true,
   kioskAllowSkipService: true,
   kioskAllowSkipStaff: true,
@@ -83,9 +92,9 @@ const defaultSettings: BusinessSettings = {
   enforceStaffAvailability: false,
   uiFontScale: 1,
   uiGlassEnabled: true,
-  uiFontFamily: 'system',
-  kioskThemeMode: 'green',
-  kioskPrimaryColor: 'moneyGreen',
+  uiFontFamily: "system",
+  kioskThemeMode: "green",
+  kioskPrimaryColor: "moneyGreen",
   businessPhone: null,
   defaultBookingRules: {
     buffer_before: 0,
@@ -102,65 +111,93 @@ const tenant = computed(
   () =>
     (route.query.tenant as string | undefined) ||
     (import.meta.env.VITE_TENANT_ID as string | undefined) ||
-    (typeof window !== 'undefined' ? localStorage.getItem('tenantSubdomain') ?? undefined : undefined) ||
-    (typeof window !== 'undefined' ? localStorage.getItem('tenantId') ?? undefined : undefined) ||
-    'demo',
+    (typeof window !== "undefined"
+      ? (localStorage.getItem("tenantSubdomain") ?? undefined)
+      : undefined) ||
+    (typeof window !== "undefined"
+      ? (localStorage.getItem("tenantId") ?? undefined)
+      : undefined) ||
+    "demo",
 );
 
 const stepItems = computed<Array<{ key: Step; label: string }>>(() => {
   const base: Array<{ key: Step; label: string }> = [];
   if (!useClassicWelcome.value) {
-    base.push({ key: 'welcome', label: 'Welcome' });
+    base.push({ key: "welcome", label: "Welcome" });
   }
-  base.push({ key: 'phone', label: 'Phone' }, { key: 'name', label: 'Name' }, { key: 'services', label: 'Services' });
+  base.push(
+    { key: "phone", label: "Phone" },
+    { key: "name", label: "Name" },
+    { key: "services", label: "Services" },
+  );
   if (showStaffStep.value) {
-    base.push({ key: 'staff', label: 'Staff' });
+    base.push({ key: "staff", label: "Staff" });
   }
-  base.push({ key: 'done', label: 'Done' });
+  base.push({ key: "done", label: "Done" });
   return base;
 });
 const stepIcons: Record<Step, string> = {
-  welcome: '👋',
-  phone: '📞',
-  name: '👤',
-  services: '💅',
-  staff: '🧑‍🎨',
-  done: '✅',
+  welcome: "👋",
+  phone: "📞",
+  name: "👤",
+  services: "💅",
+  staff: "🧑‍🎨",
+  done: "✅",
 };
-const currentStepIndex = computed(() => stepItems.value.findIndex((s) => s.key === step.value));
+const currentStepIndex = computed(() =>
+  stepItems.value.findIndex((s) => s.key === step.value),
+);
 
-const allowMultiService = computed(() => settings.value?.allowMultiService ?? false);
+const allowMultiService = computed(
+  () => settings.value?.allowMultiService ?? false,
+);
 const requireService = computed(() => settings.value?.requireService ?? false);
 const requirePhone = computed(() => settings.value?.requirePhone !== false);
 const allowPhoneSkip = computed(() => !requirePhone.value);
 const kioskEnabled = computed(() => settings.value?.kioskEnabled ?? false);
-const publicEnabled = computed(() => settings.value?.publicCheckInEnabled !== false);
+const publicEnabled = computed(
+  () => settings.value?.publicCheckInEnabled !== false,
+);
 const businessName = computed(
-  () => settings.value?.kioskBusinessName || settings.value?.businessName || 'Salon Kiosk',
+  () =>
+    settings.value?.kioskBusinessName ||
+    settings.value?.businessName ||
+    "Salon Kiosk",
 );
 const businessPhone = computed(() => {
-  const phone = settings.value?.kioskBusinessPhone || settings.value?.businessPhone;
-  return phone ? formatPhone(phone) : 'Front desk';
+  const phone =
+    settings.value?.kioskBusinessPhone || settings.value?.businessPhone;
+  return phone ? formatPhone(phone) : "Front desk";
 });
 const showPoints = computed(() => {
   if (!settings.value) return true;
-  const flag = settings.value.showPointsPreview ?? settings.value.showPointsOnKiosk;
+  const flag =
+    settings.value.showPointsPreview ?? settings.value.showPointsOnKiosk;
   return flag !== false;
 });
-const showStaffStep = computed(() => settings.value?.allowStaffSelection === true);
+const showStaffStep = computed(
+  () => settings.value?.allowStaffSelection === true,
+);
 const allowStaffSelection = showStaffStep;
 const requireStaffStep = computed(
   () => showStaffStep.value && settings.value?.requireStaffSelection === true,
 );
 const allowStaffSkip = computed(
-  () => showStaffStep.value && (settings.value?.kioskAllowSkipStaff !== false),
+  () => showStaffStep.value && settings.value?.kioskAllowSkipStaff !== false,
 );
-const enforceStaffAvailability = computed(() => settings.value?.enforceStaffAvailability === true);
-const welcomeStyle = computed(() => settings.value?.kioskWelcomeStyle ?? 'classic');
-const useClassicWelcome = computed(() => welcomeStyle.value === 'classic');
-const showRewardsCard = computed(() => settings.value?.kioskShowRewardsCard !== false);
+const enforceStaffAvailability = computed(
+  () => settings.value?.enforceStaffAvailability === true,
+);
+const welcomeStyle = computed(
+  () => settings.value?.kioskWelcomeStyle ?? "classic",
+);
+const useClassicWelcome = computed(() => welcomeStyle.value === "classic");
+const showRewardsCard = computed(
+  () => settings.value?.kioskShowRewardsCard !== false,
+);
 const allowServiceSkip = computed(
-  () => !requireService.value && (settings.value?.kioskAllowSkipService !== false),
+  () =>
+    !requireService.value && settings.value?.kioskAllowSkipService !== false,
 );
 const autoResetSeconds = computed(() => {
   const raw = settings.value?.kioskAutoResetSeconds;
@@ -170,15 +207,19 @@ const autoResetSeconds = computed(() => {
   return Math.min(Math.max(Math.round(n), 5), 120);
 });
 
-const selectedServiceDetails = computed<ServiceGroup['services'][number][]>(() => {
-  const map = new Map<string, ServiceGroup['services'][number]>();
-  groupedServices.value.forEach((group) => {
-    group.services.forEach((service) => map.set(service.id, service));
-  });
-  return selectedServiceIds.value
-    .map((id) => map.get(id))
-    .filter((service): service is ServiceGroup['services'][number] => Boolean(service));
-});
+const selectedServiceDetails = computed<ServiceGroup["services"][number][]>(
+  () => {
+    const map = new Map<string, ServiceGroup["services"][number]>();
+    groupedServices.value.forEach((group) => {
+      group.services.forEach((service) => map.set(service.id, service));
+    });
+    return selectedServiceIds.value
+      .map((id) => map.get(id))
+      .filter((service): service is ServiceGroup["services"][number] =>
+        Boolean(service),
+      );
+  },
+);
 
 const serviceSections = computed(() => {
   const list = [...groupedServices.value];
@@ -187,13 +228,13 @@ const serviceSections = computed(() => {
   return [...active, ...uncategorized];
 });
 
-const displayPhone = computed(() => formatUSPhone(phone.value) || '• • • •');
+const displayPhone = computed(() => formatUSPhone(phone.value) || "• • • •");
 
 const keypad = [
-  ['1', '2', '3'],
-  ['4', '5', '6'],
-  ['7', '8', '9'],
-  ['clear', '0', 'backspace'],
+  ["1", "2", "3"],
+  ["4", "5", "6"],
+  ["7", "8", "9"],
+  ["clear", "0", "backspace"],
 ];
 
 const backspaceTimer = ref<number | null>(null);
@@ -201,7 +242,8 @@ const backspaceTimer = ref<number | null>(null);
 const primaryServiceId = computed(() => selectedServiceIds.value[0] ?? null);
 const rewardValue = computed(() => {
   if (!showPoints.value) return null;
-  const points = animatedPoints.value ?? lookupResult.value?.customer?.pointsBalance;
+  const points =
+    animatedPoints.value ?? lookupResult.value?.customer?.pointsBalance;
   if (points === null || points === undefined) return null;
   const perPointValue = 5 / 300; // mirrors 300 pts = $5 teaser
   return points * perPointValue;
@@ -212,10 +254,10 @@ const estimatedTotal = computed(() => {
     (acc, svc) => acc + (svc.priceCents ?? 0),
     0,
   );
-  const currency = settings.value?.currency || 'USD';
+  const currency = settings.value?.currency || "USD";
   const amount = totalCents / 100;
-  const formatted = Intl.NumberFormat('en-US', {
-    style: 'currency',
+  const formatted = Intl.NumberFormat("en-US", {
+    style: "currency",
     currency,
     minimumFractionDigits: 2,
   }).format(amount || 0);
@@ -228,7 +270,7 @@ const appendDigit = (digit: string) => {
 };
 
 const clearPhone = () => {
-  phone.value = '';
+  phone.value = "";
 };
 
 const handleBackspace = () => {
@@ -251,10 +293,10 @@ const stopBackspaceHold = () => {
 };
 
 const normalizePhone = (raw: string) => {
-  const digits = raw.replace(/\D/g, '');
-  if (!digits) return '';
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return "";
   if (digits.length !== 10) {
-    throw new Error('Enter a valid 10-digit phone number');
+    throw new Error("Enter a valid 10-digit phone number");
   }
   return `+1${digits}`;
 };
@@ -262,14 +304,22 @@ const normalizePhone = (raw: string) => {
 const loadSettings = async () => {
   try {
     settings.value = await fetchPublicSettings();
-    settingsError.value = '';
-    applyThemeFromSettings(settings.value, { boost: 1.12, mode: 'kiosk', maxScale: 1.4 });
+    settingsError.value = "";
+    applyThemeFromSettings(settings.value, {
+      boost: 1.12,
+      mode: "kiosk",
+      maxScale: 1.4,
+    });
   } catch (err: any) {
     settings.value = defaultSettings;
-    settingsError.value = err?.message || 'Unable to load settings.';
-    applyThemeFromSettings(settings.value, { boost: 1.12, mode: 'kiosk', maxScale: 1.4 });
+    settingsError.value = err?.message || "Unable to load settings.";
+    applyThemeFromSettings(settings.value, {
+      boost: 1.12,
+      mode: "kiosk",
+      maxScale: 1.4,
+    });
   }
-  step.value = useClassicWelcome.value ? 'phone' : 'welcome';
+  step.value = useClassicWelcome.value ? "phone" : "welcome";
 };
 
 const refreshServices = async () => {
@@ -277,24 +327,26 @@ const refreshServices = async () => {
     groupedServices.value = await fetchGroupedServices();
   } catch (err: any) {
     groupedServices.value = [];
-    errorMessage.value = err?.message || 'Unable to load services.';
+    errorMessage.value = err?.message || "Unable to load services.";
   }
 };
 
 const loadStaff = async () => {
   if (!showStaffStep.value) return;
   staffLoading.value = true;
-  staffError.value = '';
+  staffError.value = "";
   try {
     const res = await fetchPublicAvailableStaff(
-      enforceStaffAvailability.value ? primaryServiceId.value ?? undefined : undefined,
+      enforceStaffAvailability.value
+        ? (primaryServiceId.value ?? undefined)
+        : undefined,
     );
     staffList.value = res.staff ?? [];
     if (!staffList.value.length) {
       selectedStaffId.value = null;
     }
   } catch (err: any) {
-    staffError.value = err?.message || 'Unable to load staff right now.';
+    staffError.value = err?.message || "Unable to load staff right now.";
   } finally {
     staffLoading.value = false;
   }
@@ -311,7 +363,7 @@ const cancelIdleWarning = () => {
   }
   idleWarning.value = false;
   idleWarningCountdown.value = null;
-  ['touchstart', 'mousedown', 'keydown'].forEach((evt) =>
+  ["touchstart", "mousedown", "keydown"].forEach((evt) =>
     window.removeEventListener(evt, cancelIdleWarning),
   );
 };
@@ -320,7 +372,7 @@ const triggerIdleReset = () => {
   cancelIdleWarning();
   idleWarning.value = true;
   idleWarningCountdown.value = 10;
-  ['touchstart', 'mousedown', 'keydown'].forEach((evt) =>
+  ["touchstart", "mousedown", "keydown"].forEach((evt) =>
     window.addEventListener(evt, cancelIdleWarning),
   );
   idleInterval.value = window.setInterval(() => {
@@ -338,12 +390,12 @@ const preventTouch = (e: Event) => e.preventDefault();
 
 onMounted(async () => {
   if (tenant.value) {
-    localStorage.setItem('tenantSubdomain', tenant.value);
-    localStorage.setItem('tenantId', tenant.value);
+    localStorage.setItem("tenantSubdomain", tenant.value);
+    localStorage.setItem("tenantId", tenant.value);
   }
-  window.addEventListener('touchmove', preventTouch, { passive: false });
-  window.addEventListener('wheel', preventTouch, { passive: false });
-  window.addEventListener('gesturestart', preventTouch as EventListener);
+  window.addEventListener("touchmove", preventTouch, { passive: false });
+  window.addEventListener("wheel", preventTouch, { passive: false });
+  window.addEventListener("gesturestart", preventTouch as EventListener);
   await loadSettings();
   await refreshServices();
   await loadStaff();
@@ -362,12 +414,12 @@ onBeforeUnmount(() => {
 onUnmounted(() => {
   stopWatchdog.value?.();
   cancelIdleWarning();
-  applyThemeFromSettings(settings.value, { mode: 'app' });
+  applyThemeFromSettings(settings.value, { mode: "app" });
   delete document.documentElement.dataset.kioskTheme;
   delete document.documentElement.dataset.kioskPrimary;
-  window.removeEventListener('touchmove', preventTouch);
-  window.removeEventListener('wheel', preventTouch);
-  window.removeEventListener('gesturestart', preventTouch as EventListener);
+  window.removeEventListener("touchmove", preventTouch);
+  window.removeEventListener("wheel", preventTouch);
+  window.removeEventListener("gesturestart", preventTouch as EventListener);
 });
 
 const resetFlow = () => {
@@ -381,27 +433,27 @@ const resetFlow = () => {
     pointsAnimationFrame.value = null;
   }
   animatedPoints.value = null;
-  phone.value = '';
-  name.value = '';
+  phone.value = "";
+  name.value = "";
   selectedServiceIds.value = [];
   selectedStaffId.value = null;
-  errorMessage.value = '';
+  errorMessage.value = "";
   successServices.value = [];
-  successName.value = 'Guest';
+  successName.value = "Guest";
   lookupResult.value = null;
-  lookupError.value = '';
+  lookupError.value = "";
   lookupLoading.value = false;
   if (lookupTimer.value) {
     clearTimeout(lookupTimer.value);
     lookupTimer.value = null;
   }
-  step.value = useClassicWelcome.value ? 'phone' : 'welcome';
+  step.value = useClassicWelcome.value ? "phone" : "welcome";
   cancelIdleWarning();
 };
 
 const canAdvanceFromPhone = computed(() => {
   if (!requirePhone.value) return true;
-  const digits = phone.value.replace(/\D/g, '');
+  const digits = phone.value.replace(/\D/g, "");
   return digits.length === 10;
 });
 
@@ -409,57 +461,62 @@ const canAdvanceFromName = computed(() => !!name.value.trim());
 
 const canAdvanceFromServices = computed(() => {
   if (requireService.value) return selectedServiceIds.value.length > 0;
-  if (!allowServiceSkip.value && selectedServiceIds.value.length === 0) return false;
+  if (!allowServiceSkip.value && selectedServiceIds.value.length === 0)
+    return false;
   return true;
 });
 
 const goToPhone = () => {
-  errorMessage.value = '';
-  step.value = 'phone';
+  errorMessage.value = "";
+  step.value = "phone";
 };
 
 const skipPhoneStep = () => {
-  phone.value = '';
+  phone.value = "";
   proceedFromPhone();
 };
 
 const proceedFromPhone = () => {
   if (!canAdvanceFromPhone.value) {
-    errorMessage.value = 'Enter a valid 10-digit phone number.';
+    errorMessage.value = "Enter a valid 10-digit phone number.";
     return;
   }
-  errorMessage.value = '';
-  step.value = 'name';
+  errorMessage.value = "";
+  step.value = "name";
 };
 
 const proceedFromName = () => {
   if (!canAdvanceFromName.value) {
-    errorMessage.value = 'Name is required.';
+    errorMessage.value = "Name is required.";
     return;
   }
-  errorMessage.value = '';
-  step.value = 'services';
+  errorMessage.value = "";
+  step.value = "services";
 };
 
 const toggleService = (serviceId: string) => {
-  errorMessage.value = '';
+  errorMessage.value = "";
   if (allowMultiService.value) {
     if (selectedServiceIds.value.includes(serviceId)) {
-      selectedServiceIds.value = selectedServiceIds.value.filter((id) => id !== serviceId);
+      selectedServiceIds.value = selectedServiceIds.value.filter(
+        (id) => id !== serviceId,
+      );
     } else {
       selectedServiceIds.value = [...selectedServiceIds.value, serviceId];
     }
     return;
   }
-  selectedServiceIds.value = selectedServiceIds.value.includes(serviceId) ? [] : [serviceId];
+  selectedServiceIds.value = selectedServiceIds.value.includes(serviceId)
+    ? []
+    : [serviceId];
 };
 
 const skipServiceSelection = () => {
   if (!allowServiceSkip.value) return;
   selectedServiceIds.value = [];
-  errorMessage.value = '';
+  errorMessage.value = "";
   if (showStaffStep.value) {
-    step.value = 'staff';
+    step.value = "staff";
     loadStaff();
     return;
   }
@@ -468,16 +525,20 @@ const skipServiceSelection = () => {
 
 const goNextFromServices = async () => {
   if (requireService.value && selectedServiceIds.value.length === 0) {
-    errorMessage.value = 'Please select at least one service.';
+    errorMessage.value = "Please select at least one service.";
     return;
   }
-  if (!requireService.value && !allowServiceSkip.value && selectedServiceIds.value.length === 0) {
-    errorMessage.value = 'Select a service or enable skips in Settings.';
+  if (
+    !requireService.value &&
+    !allowServiceSkip.value &&
+    selectedServiceIds.value.length === 0
+  ) {
+    errorMessage.value = "Select a service or enable skips in Settings.";
     return;
   }
-  errorMessage.value = '';
+  errorMessage.value = "";
   if (showStaffStep.value) {
-    step.value = 'staff';
+    step.value = "staff";
     await loadStaff();
     return;
   }
@@ -486,12 +547,12 @@ const goNextFromServices = async () => {
 
 const selectStaff = (staffId: string | null) => {
   selectedStaffId.value = staffId;
-  errorMessage.value = '';
+  errorMessage.value = "";
 };
 
 const goFromStaffToReview = async () => {
   if (requireStaffStep.value && !selectedStaffId.value) {
-    errorMessage.value = 'Please choose a staff member.';
+    errorMessage.value = "Please choose a staff member.";
     return;
   }
   await confirmCheckIn();
@@ -500,7 +561,7 @@ const goFromStaffToReview = async () => {
 const skipStaffSelection = async () => {
   if (!allowStaffSkip.value || requireStaffStep.value) return;
   selectedStaffId.value = null;
-  errorMessage.value = '';
+  errorMessage.value = "";
   await confirmCheckIn();
 };
 
@@ -547,40 +608,40 @@ const startPointsAnimation = (target: number | null | undefined) => {
 
 const confirmCheckIn = async () => {
   if (!publicEnabled.value || !kioskEnabled.value) {
-    errorMessage.value = 'Kiosk check-in is disabled right now.';
-    step.value = 'welcome';
+    errorMessage.value = "Kiosk check-in is disabled right now.";
+    step.value = "welcome";
     return;
   }
   if (requirePhone.value && !canAdvanceFromPhone.value) {
-    errorMessage.value = 'Enter a valid 10-digit phone number.';
-    step.value = 'phone';
+    errorMessage.value = "Enter a valid 10-digit phone number.";
+    step.value = "phone";
     return;
   }
   const personName =
-    lookupResult.value?.customer?.name?.trim() ||
-    name.value.trim();
+    lookupResult.value?.customer?.name?.trim() || name.value.trim();
   if (!personName) {
-    errorMessage.value = 'Name is required.';
-    step.value = 'name';
+    errorMessage.value = "Name is required.";
+    step.value = "name";
     return;
   }
   if (requireService.value && selectedServiceIds.value.length === 0) {
-    errorMessage.value = 'Please select at least one service.';
-    step.value = 'services';
+    errorMessage.value = "Please select at least one service.";
+    step.value = "services";
     return;
   }
   if (requireStaffStep.value && !selectedStaffId.value) {
-    errorMessage.value = 'Please select a staff member.';
-    step.value = 'staff';
+    errorMessage.value = "Please select a staff member.";
+    step.value = "staff";
     return;
   }
   submitting.value = true;
-  errorMessage.value = '';
+  errorMessage.value = "";
   try {
     const normalizedPhone = normalizePhone(phone.value);
     const primaryServiceId = selectedServiceIds.value[0] ?? null;
     const matchedService = primaryServiceId
-      ? selectedServiceDetails.value.find((s) => s.id === primaryServiceId) ?? null
+      ? (selectedServiceDetails.value.find((s) => s.id === primaryServiceId) ??
+        null)
       : null;
     const serviceName = matchedService?.name || null;
     await createPublicCheckIn({
@@ -592,27 +653,29 @@ const confirmCheckIn = async () => {
     });
     name.value = personName;
     successName.value = personName;
-    successServices.value = selectedServiceDetails.value.map((s) => s.name).filter(Boolean);
+    successServices.value = selectedServiceDetails.value
+      .map((s) => s.name)
+      .filter(Boolean);
     startPointsAnimation(lookupResult.value?.customer?.pointsBalance ?? null);
-    step.value = 'done';
+    step.value = "done";
     startDoneCountdown();
   } catch (err: any) {
-    errorMessage.value = err?.message || 'Failed to check in.';
+    errorMessage.value = err?.message || "Failed to check in.";
   } finally {
     submitting.value = false;
   }
 };
 
 const onLookup = async () => {
-  const digits = phone.value.replace(/\D/g, '');
+  const digits = phone.value.replace(/\D/g, "");
   if (!digits) {
     lookupResult.value = null;
-    lookupError.value = '';
+    lookupError.value = "";
     return;
   }
   if (digits.length !== 10) {
     lookupResult.value = null;
-    lookupError.value = 'Enter a valid 10-digit phone number';
+    lookupError.value = "Enter a valid 10-digit phone number";
     return;
   }
   lookupLoading.value = true;
@@ -620,13 +683,13 @@ const onLookup = async () => {
     const normalizedPhone = normalizePhone(phone.value);
     const res = await publicLookup(normalizedPhone);
     lookupResult.value = res;
-    lookupError.value = '';
+    lookupError.value = "";
     if (res.exists && res.customer?.name) {
       name.value = res.customer.name;
     }
   } catch (_err) {
     lookupResult.value = null;
-    lookupError.value = 'Could not load points right now.';
+    lookupError.value = "Could not load points right now.";
   } finally {
     lookupLoading.value = false;
   }
@@ -638,15 +701,15 @@ watch(
     if (lookupTimer.value) {
       clearTimeout(lookupTimer.value);
     }
-    const digits = phone.value.replace(/\D/g, '');
+    const digits = phone.value.replace(/\D/g, "");
     if (!digits) {
       lookupResult.value = null;
-      lookupError.value = '';
+      lookupError.value = "";
       return;
     }
     if (digits.length !== 10) {
       lookupResult.value = null;
-      lookupError.value = 'Enter a valid 10-digit phone number';
+      lookupError.value = "Enter a valid 10-digit phone number";
       return;
     }
     lookupTimer.value = window.setTimeout(onLookup, 400);
@@ -654,7 +717,11 @@ watch(
 );
 
 watch(
-  () => [primaryServiceId.value, enforceStaffAvailability.value, allowStaffSelection.value],
+  () => [
+    primaryServiceId.value,
+    enforceStaffAvailability.value,
+    allowStaffSelection.value,
+  ],
   () => {
     if (showStaffStep.value) {
       loadStaff();
@@ -662,17 +729,14 @@ watch(
   },
 );
 
-watch(
-  useClassicWelcome,
-  (isClassic) => {
-    if (isClassic && step.value === 'welcome') {
-      step.value = 'phone';
-    }
-    if (!isClassic && step.value === 'phone' && !phone.value && !name.value) {
-      step.value = 'welcome';
-    }
-  },
-);
+watch(useClassicWelcome, (isClassic) => {
+  if (isClassic && step.value === "welcome") {
+    step.value = "phone";
+  }
+  if (!isClassic && step.value === "phone" && !phone.value && !name.value) {
+    step.value = "welcome";
+  }
+});
 </script>
 
 <template>
@@ -680,27 +744,53 @@ watch(
     <div class="kiosk-inner">
       <div class="kiosk-top">
         <div>
-          <p class="text-sm uppercase tracking-wide" :style="{ color: 'var(--kiosk-text-secondary)' }">Kiosk Mode</p>
-          <p class="text-2xl font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">{{ businessName }}</p>
+          <p
+            class="text-sm uppercase tracking-wide"
+            :style="{ color: 'var(--kiosk-text-secondary)' }"
+          >
+            Kiosk Mode
+          </p>
+          <p
+            class="text-2xl font-semibold"
+            :style="{ color: 'var(--kiosk-text-primary)' }"
+          >
+            {{ businessName }}
+          </p>
         </div>
-        <div class="rounded-full bg-white/40 px-3 py-1 text-xs font-semibold uppercase" :style="{ color: 'var(--kiosk-text-primary)' }">
+        <div
+          class="rounded-full bg-white/40 px-3 py-1 text-xs font-semibold uppercase"
+          :style="{ color: 'var(--kiosk-text-primary)' }"
+        >
           Touch to start
         </div>
       </div>
 
       <div v-if="idleWarning" class="idle-banner">
-        Returning to start in {{ idleWarningCountdown ?? 10 }}s — tap anywhere to stay on this step.
+        Returning to start in {{ idleWarningCountdown ?? 10 }}s — tap anywhere
+        to stay on this step.
       </div>
 
-      <ElAlert v-if="settingsError" :closable="false" type="warning" :title="settingsError" class="mb-3" />
+      <ElAlert
+        v-if="settingsError"
+        :closable="false"
+        type="warning"
+        :title="settingsError"
+        class="mb-3"
+      />
 
-      <div
-        v-if="!kioskEnabled"
-        class="kiosk-disabled"
-      >
-        <div class="text-lg font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">Kiosk is disabled</div>
-        <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">Enable kiosk mode in Settings to allow check-ins.</div>
-        <ElButton class="mt-3" @click="resetFlow" round>Back to welcome</ElButton>
+      <div v-if="!kioskEnabled" class="kiosk-disabled">
+        <div
+          class="text-lg font-semibold"
+          :style="{ color: 'var(--kiosk-text-primary)' }"
+        >
+          Kiosk is disabled
+        </div>
+        <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">
+          Enable kiosk mode in Settings to allow check-ins.
+        </div>
+        <ElButton class="mt-3" @click="resetFlow" round
+          >Back to welcome</ElButton
+        >
       </div>
 
       <template v-else>
@@ -712,7 +802,9 @@ watch(
             :class="{ active: index <= currentStepIndex }"
           >
             <div class="stepper-dot">{{ index + 1 }}</div>
-            <span class="stepper-icon" aria-hidden="true">{{ stepIcons[item.key] }}</span>
+            <span class="stepper-icon" aria-hidden="true">{{
+              stepIcons[item.key]
+            }}</span>
             <span>{{ item.label }}</span>
           </div>
         </div>
@@ -722,25 +814,62 @@ watch(
 
         <ElCard class="kiosk-card glass-card">
           <template #default>
-            <div v-if="!publicEnabled" class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800">
+            <div
+              v-if="!publicEnabled"
+              class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800"
+            >
               Public check-in is disabled. Please see the front desk.
             </div>
 
             <div v-else>
-              <div v-if="step === 'welcome'" class="welcome-card" @click="goToPhone">
+              <div
+                v-if="step === 'welcome'"
+                class="welcome-card"
+                @click="goToPhone"
+              >
                 <div class="space-y-2">
-                  <p class="text-sm uppercase tracking-wide" :style="{ color: 'var(--kiosk-text-secondary)' }">Touch to start</p>
-                  <p class="text-4xl font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">Check in & earn rewards</p>
-                  <p class="text-lg" :style="{ color: 'var(--kiosk-text-secondary)' }">We kept the classic flow your team already knows.</p>
+                  <p
+                    class="text-sm uppercase tracking-wide"
+                    :style="{ color: 'var(--kiosk-text-secondary)' }"
+                  >
+                    Touch to start
+                  </p>
+                  <p
+                    class="text-4xl font-semibold"
+                    :style="{ color: 'var(--kiosk-text-primary)' }"
+                  >
+                    Check in & earn rewards
+                  </p>
+                  <p
+                    class="text-lg"
+                    :style="{ color: 'var(--kiosk-text-secondary)' }"
+                  >
+                    We kept the classic flow your team already knows.
+                  </p>
                   <ElButton type="primary" size="large">Start</ElButton>
                 </div>
                 <div
                   v-if="showRewardsCard && showPoints"
                   class="welcome-reward glass-card"
                 >
-                  <div class="text-xs font-semibold uppercase tracking-wide" :style="{ color: 'var(--kiosk-text-secondary)' }">Loyalty</div>
-                  <div class="text-2xl font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">300 points = $5 off</div>
-                  <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">Tap to begin and keep earning.</div>
+                  <div
+                    class="text-xs font-semibold uppercase tracking-wide"
+                    :style="{ color: 'var(--kiosk-text-secondary)' }"
+                  >
+                    Loyalty
+                  </div>
+                  <div
+                    class="text-2xl font-semibold"
+                    :style="{ color: 'var(--kiosk-text-primary)' }"
+                  >
+                    300 points = $5 off
+                  </div>
+                  <div
+                    class="text-sm"
+                    :style="{ color: 'var(--kiosk-text-secondary)' }"
+                  >
+                    Tap to begin and keep earning.
+                  </div>
                 </div>
               </div>
 
@@ -748,54 +877,151 @@ watch(
                 <div class="phone-hero grid gap-4 lg:grid-cols-[1fr,1.15fr]">
                   <div v-if="showRewardsCard && showPoints" class="left-stack">
                     <div class="business-card glass-card">
-                    <div class="text-xs font-semibold uppercase tracking-wide" :style="{ color: 'var(--kiosk-text-secondary)' }">Salon</div>
-                    <div class="text-2xl font-semibold leading-tight" :style="{ color: 'var(--kiosk-text-primary)' }">{{ businessName }}</div>
-                    <div class="text-sm mt-1" :style="{ color: 'var(--kiosk-text-secondary)' }">{{ businessPhone }}</div>
-                  </div>
-                  <div class="reward-panel glass-card">
-                    <div class="text-xs font-semibold uppercase tracking-wide" :style="{ color: 'var(--kiosk-text-secondary)' }">Loyalty</div>
-                    <div class="text-3xl font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">300 points = $5 off</div>
-                    <p class="text-sm mt-1" :style="{ color: 'var(--kiosk-text-secondary)' }">Enter your phone to load rewards.</p>
-                    <div class="loyalty-bonus">
+                      <div
+                        class="text-xs font-semibold uppercase tracking-wide"
+                        :style="{ color: 'var(--kiosk-text-secondary)' }"
+                      >
+                        Salon
+                      </div>
+                      <div
+                        class="text-2xl font-semibold leading-tight"
+                        :style="{ color: 'var(--kiosk-text-primary)' }"
+                      >
+                        {{ businessName }}
+                      </div>
+                      <div
+                        class="text-sm mt-1"
+                        :style="{ color: 'var(--kiosk-text-secondary)' }"
+                      >
+                        {{ businessPhone }}
+                      </div>
+                    </div>
+                    <div class="reward-panel glass-card">
+                      <div
+                        class="text-xs font-semibold uppercase tracking-wide"
+                        :style="{ color: 'var(--kiosk-text-secondary)' }"
+                      >
+                        Loyalty
+                      </div>
+                      <div
+                        class="text-3xl font-semibold flex items-center gap-2"
+                        :style="{ color: 'var(--kiosk-text-primary)' }"
+                      >
+                        300 points = $5 off
+                        <span class="text-4xl leading-none">💵</span>
+                      </div>
+                      <p
+                        class="text-sm mt-1"
+                        :style="{ color: 'var(--kiosk-text-secondary)' }"
+                      >
+                        Enter your phone to load rewards.
+                      </p>
+                      <!-- <div class="loyalty-bonus">
                       <span class="bonus-icon">💵</span>
                       <span class="bonus-text">5% off</span>
-                    </div>
-                    <div class="reward-body">
-                      <div v-if="lookupResult?.exists && lookupResult.customer" class="reward-stats glass-card">
-                        <div class="text-base font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">👋 {{ lookupResult.customer.name }}</div>
-                        <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">
-                          💎 {{ lookupResult.customer.pointsBalance ?? 0 }} points
-                          <span class="ml-2 text-xs" :style="{ color: 'var(--kiosk-text-muted)' }">We’ll keep these ready.</span>
+                    </div> -->
+                      <div class="reward-body">
+                        <div
+                          v-if="lookupResult?.exists && lookupResult.customer"
+                          class="reward-stats glass-card"
+                        >
+                          <div
+                            class="text-base font-semibold"
+                            :style="{ color: 'var(--kiosk-text-primary)' }"
+                          >
+                            👋 {{ lookupResult.customer.name }}
+                          </div>
+                          <div
+                            class="text-sm"
+                            :style="{ color: 'var(--kiosk-text-secondary)' }"
+                          >
+                            💎
+                            {{
+                              lookupResult.customer.pointsBalance ?? 0
+                            }}
+                            points
+                            <span
+                              class="ml-2 text-xs"
+                              :style="{ color: 'var(--kiosk-text-muted)' }"
+                              >We’ll keep these ready.</span
+                            >
+                          </div>
+                        </div>
+                        <div v-else class="reward-placeholder">
+                          <div
+                            class="text-base font-semibold"
+                            :style="{ color: 'var(--kiosk-text-primary)' }"
+                          >
+                            Ready when you are.
+                          </div>
                         </div>
                       </div>
-                      <div v-else class="reward-placeholder">
-                        <div class="text-base font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">Ready when you are.</div>
-                      </div>
                     </div>
                   </div>
-                </div>
-                <div class="phone-panel kiosk-pane glass-card">
-                  <div class="phone-heading">
-                    <p class="text-xs uppercase tracking-wide" :style="{ color: 'var(--kiosk-text-secondary)' }">Step 1 • Phone</p>
-                    <p class="text-2xl font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">Enter your phone</p>
-                  </div>
-                  <div class="phone-display">
-                    <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">Phone number</div>
-                    <div class="text-3xl font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">{{ displayPhone }}</div>
-                  </div>
+                  <div class="phone-panel kiosk-pane glass-card">
+                    <div class="phone-heading">
+                      <p
+                        class="text-xs uppercase tracking-wide"
+                        :style="{ color: 'var(--kiosk-text-secondary)' }"
+                      >
+                        Step 1 • Phone
+                      </p>
+                      <p
+                        class="text-2xl font-semibold"
+                        :style="{ color: 'var(--kiosk-text-primary)' }"
+                      >
+                        Enter your phone
+                      </p>
+                    </div>
+                    <div class="phone-display">
+                      <div
+                        class="text-sm"
+                        :style="{ color: 'var(--kiosk-text-secondary)' }"
+                      >
+                        Phone number
+                      </div>
+                      <div
+                        class="text-3xl font-semibold"
+                        :style="{ color: 'var(--kiosk-text-primary)' }"
+                      >
+                        {{ displayPhone }}
+                      </div>
+                    </div>
                     <div class="keypad">
-                      <template v-for="(row, rowIndex) in keypad" :key="row.join('-')">
+                      <template
+                        v-for="(row, rowIndex) in keypad"
+                        :key="row.join('-')"
+                      >
                         <button
                           v-for="key in row"
                           :key="`${rowIndex}-${key}`"
                           :class="[
                             'keypad-key',
-                            { action: key === 'backspace' || key === 'clear', secondary: key === 'backspace' || key === 'clear' },
+                            {
+                              action: key === 'backspace' || key === 'clear',
+                              secondary: key === 'backspace' || key === 'clear',
+                            },
                           ]"
-                          @mousedown="key === 'backspace' ? startBackspaceHold() : undefined"
-                          @mouseup="key === 'backspace' ? stopBackspaceHold() : undefined"
-                          @touchstart.prevent="key === 'backspace' ? startBackspaceHold() : undefined"
-                          @touchend.prevent="key === 'backspace' ? stopBackspaceHold() : undefined"
+                          @mousedown="
+                            key === 'backspace'
+                              ? startBackspaceHold()
+                              : undefined
+                          "
+                          @mouseup="
+                            key === 'backspace'
+                              ? stopBackspaceHold()
+                              : undefined
+                          "
+                          @touchstart.prevent="
+                            key === 'backspace'
+                              ? startBackspaceHold()
+                              : undefined
+                          "
+                          @touchend.prevent="
+                            key === 'backspace'
+                              ? stopBackspaceHold()
+                              : undefined
+                          "
                           @click="
                             key === 'backspace'
                               ? handleBackspace()
@@ -810,8 +1036,12 @@ watch(
                         </button>
                       </template>
                     </div>
-                    <div class="keypad-actions flex flex-wrap gap-4 justify-end">
-                      <ElButton size="large" @click="resetFlow">Start over</ElButton>
+                    <div
+                      class="keypad-actions flex flex-wrap gap-4 justify-end"
+                    >
+                      <ElButton size="large" @click="resetFlow"
+                        >Start over</ElButton
+                      >
                       <ElButton
                         v-if="allowPhoneSkip"
                         size="large"
@@ -820,23 +1050,39 @@ watch(
                       >
                         Skip phone
                       </ElButton>
-                  <ElButton
-                    type="primary"
-                    size="large"
-                    :disabled="!canAdvanceFromPhone"
-                    class="kiosk-next-btn"
-                    @click="proceedFromPhone"
-                  >
-                    Next
-                  </ElButton>
+                      <ElButton
+                        type="primary"
+                        size="large"
+                        :disabled="!canAdvanceFromPhone"
+                        class="kiosk-next-btn"
+                        @click="proceedFromPhone"
+                      >
+                        Next
+                      </ElButton>
                     </div>
                     <div class="kiosk-opt-in">
                       <p>
-                        By entering your phone number and clicking Next, you give SalonFlow express written consent to contact you at the number provided for appointment reminders and notifications.
-                        Message frequency varies. Reply STOP to opt out. Reply HELP for help. Consent is not required to check in or make a purchase. You also agree to our
-                        <a href="/terms" target="_blank" rel="noopener" class="link">Terms of Service</a>
+                        By entering your phone number and clicking Next, you
+                        give SalonFlow express written consent to contact you at
+                        the number provided for appointment reminders and
+                        notifications. Message frequency varies. Reply STOP to
+                        opt out. Reply HELP for help. Consent is not required to
+                        check in or make a purchase. You also agree to our
+                        <a
+                          href="/terms"
+                          target="_blank"
+                          rel="noopener"
+                          class="link"
+                          >Terms of Service</a
+                        >
                         and
-                        <a href="/privacy" target="_blank" rel="noopener" class="link">Privacy Policy</a>.
+                        <a
+                          href="/privacy"
+                          target="_blank"
+                          rel="noopener"
+                          class="link"
+                          >Privacy Policy</a
+                        >.
                       </p>
                     </div>
                   </div>
@@ -846,18 +1092,34 @@ watch(
               <div v-else-if="step === 'name'" class="space-y-5">
                 <div class="kiosk-heading">
                   <div>
-                    <p class="text-xl font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">Your name</p>
-                    <p class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">We’ll use this to call you when it’s your turn.</p>
+                    <p
+                      class="text-xl font-semibold"
+                      :style="{ color: 'var(--kiosk-text-primary)' }"
+                    >
+                      Your name
+                    </p>
+                    <p
+                      class="text-sm"
+                      :style="{ color: 'var(--kiosk-text-secondary)' }"
+                    >
+                      We’ll use this to call you when it’s your turn.
+                    </p>
                   </div>
                   <ElButton size="large" @click="step = 'phone'">Back</ElButton>
                 </div>
 
-                  <div class="kiosk-pane glass-card space-y-4 name-input-wrap">
-                    <label class="kiosk-label">
-                      Name
-                    </label>
-                    <ElInput v-model="name" size="large" placeholder="Your name" />
-                  <div v-if="lookupResult?.customer?.name" class="text-xs" :style="{ color: 'var(--kiosk-text-secondary)' }">
+                <div class="kiosk-pane glass-card space-y-4 name-input-wrap">
+                  <label class="kiosk-label"> Name </label>
+                  <ElInput
+                    v-model="name"
+                    size="large"
+                    placeholder="Your name"
+                  />
+                  <div
+                    v-if="lookupResult?.customer?.name"
+                    class="text-xs"
+                    :style="{ color: 'var(--kiosk-text-secondary)' }"
+                  >
                     Loaded from your profile. You can edit it if needed.
                   </div>
                 </div>
@@ -878,9 +1140,21 @@ watch(
               <div v-else-if="step === 'services'" class="space-y-5">
                 <div class="kiosk-heading">
                   <div>
-                    <p class="text-xl font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">Select services</p>
-                    <p class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">
-                      {{ allowMultiService ? 'Tap all that apply.' : 'Choose one service.' }}
+                    <p
+                      class="text-xl font-semibold"
+                      :style="{ color: 'var(--kiosk-text-primary)' }"
+                    >
+                      Select services
+                    </p>
+                    <p
+                      class="text-sm"
+                      :style="{ color: 'var(--kiosk-text-secondary)' }"
+                    >
+                      {{
+                        allowMultiService
+                          ? "Tap all that apply."
+                          : "Choose one service."
+                      }}
                     </p>
                   </div>
                   <ElButton size="large" @click="step = 'phone'">Back</ElButton>
@@ -893,10 +1167,16 @@ watch(
                     class="service-section glass-card"
                   >
                     <div class="section-header">
-                      <div class="section-icon">{{ category.categoryIcon || '💅' }}</div>
+                      <div class="section-icon">
+                        {{ category.categoryIcon || "💅" }}
+                      </div>
                       <div>
-                        <div class="section-title">{{ category.categoryName || 'Other services' }}</div>
-                        <div class="section-sub">{{ category.services.length }} options</div>
+                        <div class="section-title">
+                          {{ category.categoryName || "Other services" }}
+                        </div>
+                        <div class="section-sub">
+                          {{ category.services.length }} options
+                        </div>
                       </div>
                     </div>
                     <div v-if="category.services.length" class="service-list">
@@ -904,7 +1184,9 @@ watch(
                         v-for="service in category.services"
                         :key="service.id"
                         class="service-row"
-                        :class="{ active: selectedServiceIds.includes(service.id) }"
+                        :class="{
+                          active: selectedServiceIds.includes(service.id),
+                        }"
                       >
                         <input
                           type="checkbox"
@@ -915,35 +1197,58 @@ watch(
                         <div class="service-copy">
                           <div class="service-name">{{ service.name }}</div>
                           <div class="service-meta">
-                            <span v-if="service.durationMinutes">{{ service.durationMinutes }} min</span>
+                            <span v-if="service.durationMinutes"
+                              >{{ service.durationMinutes }} min</span
+                            >
                             <span
-                              v-if="service.priceCents !== undefined && service.priceCents !== null"
+                              v-if="
+                                service.priceCents !== undefined &&
+                                service.priceCents !== null
+                              "
                               class="inline-flex items-center gap-1"
                             >
                               <span aria-hidden="true">•</span>
                               {{
-                                Intl.NumberFormat('en-US', {
-                                  style: 'currency',
-                                  currency: service.currency || settings?.currency || 'USD',
+                                Intl.NumberFormat("en-US", {
+                                  style: "currency",
+                                  currency:
+                                    service.currency ||
+                                    settings?.currency ||
+                                    "USD",
                                   minimumFractionDigits: 0,
                                 }).format((service.priceCents || 0) / 100)
                               }}
                             </span>
                           </div>
                         </div>
-                        <span class="service-chip" v-if="selectedServiceIds.includes(service.id)">Selected</span>
+                        <span
+                          class="service-chip"
+                          v-if="selectedServiceIds.includes(service.id)"
+                          >Selected</span
+                        >
                       </label>
                     </div>
-                    <div v-else class="service-empty">No services in this category yet.</div>
+                    <div v-else class="service-empty">
+                      No services in this category yet.
+                    </div>
                   </div>
                 </div>
-                  <div v-else class="rounded-xl border border-white/10 bg-white/5 px-4 py-3" :style="{ color: 'var(--kiosk-text-secondary)' }">
-                    No services published yet.
+                <div
+                  v-else
+                  class="rounded-xl border border-white/10 bg-white/5 px-4 py-3"
+                  :style="{ color: 'var(--kiosk-text-secondary)' }"
+                >
+                  No services published yet.
                 </div>
 
                 <div class="service-actions">
                   <ElButton size="large" @click="step = 'name'">Back</ElButton>
-                  <ElButton v-if="allowServiceSkip" size="large" plain @click="skipServiceSelection">
+                  <ElButton
+                    v-if="allowServiceSkip"
+                    size="large"
+                    plain
+                    @click="skipServiceSelection"
+                  >
                     Skip
                   </ElButton>
                   <ElButton
@@ -957,22 +1262,46 @@ watch(
                 </div>
               </div>
 
-              <div v-else-if="step === 'staff' && showStaffStep" class="space-y-5">
+              <div
+                v-else-if="step === 'staff' && showStaffStep"
+                class="space-y-5"
+              >
                 <div class="kiosk-heading">
                   <div>
-                    <p class="text-xl font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">Choose a staff member</p>
-                    <p class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">
-                      {{ enforceStaffAvailability ? 'Available staff shown based on today’s schedule.' : 'Pick anyone or continue without preference.' }}
+                    <p
+                      class="text-xl font-semibold"
+                      :style="{ color: 'var(--kiosk-text-primary)' }"
+                    >
+                      Choose a staff member
+                    </p>
+                    <p
+                      class="text-sm"
+                      :style="{ color: 'var(--kiosk-text-secondary)' }"
+                    >
+                      {{
+                        enforceStaffAvailability
+                          ? "Available staff shown based on today’s schedule."
+                          : "Pick anyone or continue without preference."
+                      }}
                     </p>
                   </div>
-                  <ElButton size="large" @click="step = 'services'">Back</ElButton>
+                  <ElButton size="large" @click="step = 'services'"
+                    >Back</ElButton
+                  >
                 </div>
 
-                <div v-if="staffError" class="rounded-xl border border-amber-300 bg-amber-100/20 px-4 py-3 text-amber-800">
+                <div
+                  v-if="staffError"
+                  class="rounded-xl border border-amber-300 bg-amber-100/20 px-4 py-3 text-amber-800"
+                >
                   {{ staffError }}
                 </div>
 
-                <div v-if="staffLoading" class="rounded-xl border border-white/10 bg-white/5 px-4 py-3" :style="{ color: 'var(--kiosk-text-secondary)' }">
+                <div
+                  v-if="staffLoading"
+                  class="rounded-xl border border-white/10 bg-white/5 px-4 py-3"
+                  :style="{ color: 'var(--kiosk-text-secondary)' }"
+                >
                   Loading staff…
                 </div>
 
@@ -984,10 +1313,22 @@ watch(
                   >
                     <div class="flex items-start justify-between gap-3">
                       <div class="text-2xl">🤝</div>
-                      <div class="service-chip" v-if="selectedStaffId === null">Selected</div>
+                      <div class="service-chip" v-if="selectedStaffId === null">
+                        Selected
+                      </div>
                     </div>
-                    <div class="text-lg font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">No preference</div>
-                    <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">We will assign the best available staff.</div>
+                    <div
+                      class="text-lg font-semibold"
+                      :style="{ color: 'var(--kiosk-text-primary)' }"
+                    >
+                      No preference
+                    </div>
+                    <div
+                      class="text-sm"
+                      :style="{ color: 'var(--kiosk-text-secondary)' }"
+                    >
+                      We will assign the best available staff.
+                    </div>
                   </button>
 
                   <button
@@ -1000,24 +1341,45 @@ watch(
                   >
                     <div class="flex items-start justify-between gap-3">
                       <div class="text-2xl">👤</div>
-                      <div class="service-chip" v-if="selectedStaffId === staff.id">Selected</div>
+                      <div
+                        class="service-chip"
+                        v-if="selectedStaffId === staff.id"
+                      >
+                        Selected
+                      </div>
                     </div>
-                    <div class="text-lg font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">
+                    <div
+                      class="text-lg font-semibold"
+                      :style="{ color: 'var(--kiosk-text-primary)' }"
+                    >
                       {{ staff.name }}
-                      <span v-if="staff.nickname" :style="{ color: 'var(--kiosk-text-secondary)' }">({{ staff.nickname }})</span>
+                      <span
+                        v-if="staff.nickname"
+                        :style="{ color: 'var(--kiosk-text-secondary)' }"
+                        >({{ staff.nickname }})</span
+                      >
                     </div>
-                    <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">
-                      {{ staff.active ? 'Available' : 'Unavailable' }}
+                    <div
+                      class="text-sm"
+                      :style="{ color: 'var(--kiosk-text-secondary)' }"
+                    >
+                      {{ staff.active ? "Available" : "Unavailable" }}
                     </div>
                   </button>
                 </div>
 
-                <div v-if="!staffList.length && !staffLoading" class="rounded-xl border border-white/10 bg-white/5 px-4 py-3" :style="{ color: 'var(--kiosk-text-secondary)' }">
+                <div
+                  v-if="!staffList.length && !staffLoading"
+                  class="rounded-xl border border-white/10 bg-white/5 px-4 py-3"
+                  :style="{ color: 'var(--kiosk-text-secondary)' }"
+                >
                   No staff available right now — we'll assign for you.
                 </div>
 
                 <div class="service-actions">
-                  <ElButton size="large" @click="step = 'services'">Back</ElButton>
+                  <ElButton size="large" @click="step = 'services'"
+                    >Back</ElButton
+                  >
                   <ElButton
                     v-if="allowStaffSkip && !requireStaffStep"
                     size="large"
@@ -1042,23 +1404,36 @@ watch(
                   <div class="done-check">✔</div>
                   <h1>Checked in</h1>
                   <p class="done-name">Thanks, {{ successName }}.</p>
-                  <p class="done-sub">You’re all set — we’ll take it from here.</p>
+                  <p class="done-sub">
+                    You’re all set — we’ll take it from here.
+                  </p>
                 </div>
 
                 <div v-if="showPoints" class="done-rewards">
                   <div class="rewards-header">
                     <span class="rewards-icon" aria-hidden="true">💎</span>
-                    <div class="text-xl font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">
-                      {{ animatedPoints ?? lookupResult?.customer?.pointsBalance ?? 0 }} points
+                    <div
+                      class="text-xl font-semibold"
+                      :style="{ color: 'var(--kiosk-text-primary)' }"
+                    >
+                      {{
+                        animatedPoints ??
+                        lookupResult?.customer?.pointsBalance ??
+                        0
+                      }}
+                      points
                     </div>
                   </div>
-                  <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">
+                  <div
+                    class="text-sm"
+                    :style="{ color: 'var(--kiosk-text-secondary)' }"
+                  >
                     <template v-if="rewardValue !== null">
                       ≈
                       {{
-                        Intl.NumberFormat('en-US', {
-                          style: 'currency',
-                          currency: settings?.currency || 'USD',
+                        Intl.NumberFormat("en-US", {
+                          style: "currency",
+                          currency: settings?.currency || "USD",
                           minimumFractionDigits: 2,
                         }).format(rewardValue)
                       }}
@@ -1075,32 +1450,70 @@ watch(
                     <span class="label-icon" aria-hidden="true">📋</span>
                     <span>You’re checked in for</span>
                   </p>
-                  <div v-if="successServices.length" class="flex flex-wrap justify-center gap-2">
+                  <div
+                    v-if="successServices.length"
+                    class="flex flex-wrap justify-center gap-2"
+                  >
                     <div
                       v-for="svc in successServices"
                       :key="svc"
                       class="service-chip-card"
                     >
                       <span class="text-lg">💅</span>
-                      <span class="text-sm font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">{{ svc }}</span>
+                      <span
+                        class="text-sm font-semibold"
+                        :style="{ color: 'var(--kiosk-text-primary)' }"
+                        >{{ svc }}</span
+                      >
                     </div>
                   </div>
-                  <div v-else class="text-sm text-center" :style="{ color: 'var(--kiosk-text-secondary)' }">
+                  <div
+                    v-else
+                    class="text-sm text-center"
+                    :style="{ color: 'var(--kiosk-text-secondary)' }"
+                  >
                     Services will be confirmed at the counter.
                   </div>
                 </div>
 
-                <div v-if="estimatedTotal.totalCents > 0" class="estimated-total text-center">
-                  <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">Estimated total</div>
-                  <div class="text-lg font-semibold" :style="{ color: 'var(--kiosk-text-primary)' }">{{ estimatedTotal.formatted }}</div>
-                  <div class="text-xs" :style="{ color: 'var(--kiosk-text-secondary)' }">Final amount confirmed at checkout.</div>
+                <div
+                  v-if="estimatedTotal.totalCents > 0"
+                  class="estimated-total text-center"
+                >
+                  <div
+                    class="text-sm"
+                    :style="{ color: 'var(--kiosk-text-secondary)' }"
+                  >
+                    Estimated total
+                  </div>
+                  <div
+                    class="text-lg font-semibold"
+                    :style="{ color: 'var(--kiosk-text-primary)' }"
+                  >
+                    {{ estimatedTotal.formatted }}
+                  </div>
+                  <div
+                    class="text-xs"
+                    :style="{ color: 'var(--kiosk-text-secondary)' }"
+                  >
+                    Final amount confirmed at checkout.
+                  </div>
                 </div>
 
                 <div class="mt-5 flex flex-col items-center gap-2">
-                  <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">
-                    Restarting for next guest in {{ doneCountdown ?? autoResetSeconds }}s
+                  <div
+                    class="text-sm"
+                    :style="{ color: 'var(--kiosk-text-secondary)' }"
+                  >
+                    Restarting for next guest in
+                    {{ doneCountdown ?? autoResetSeconds }}s
                   </div>
-                  <ElButton class="mt-1" type="primary" size="large" @click="resetFlow">
+                  <ElButton
+                    class="mt-1"
+                    type="primary"
+                    size="large"
+                    @click="resetFlow"
+                  >
                     Restart now
                   </ElButton>
                 </div>
@@ -1128,7 +1541,7 @@ watch(
   color: var(--kiosk-text-primary);
   background-color: var(--bg-app);
 }
-:root[data-glass='off'] .kiosk-shell {
+:root[data-glass="off"] .kiosk-shell {
   --kiosk-surface: rgba(17, 24, 39, 0.92);
   --kiosk-border: rgba(17, 24, 39, 0.65);
   --kiosk-blur: 0px;
@@ -1149,7 +1562,11 @@ watch(
 }
 .kiosk-card {
   border: 1px solid var(--kiosk-border);
-  background: color-mix(in srgb, var(--kiosk-surface) 96%, rgba(255, 255, 255, 0.04) 4%);
+  background: color-mix(
+    in srgb,
+    var(--kiosk-surface) 96%,
+    rgba(255, 255, 255, 0.04) 4%
+  );
   backdrop-filter: blur(var(--kiosk-blur));
   -webkit-backdrop-filter: blur(var(--kiosk-blur));
   box-shadow: 0 14px 36px rgba(15, 23, 42, 0.08);
@@ -1213,9 +1630,16 @@ watch(
   gap: 16px;
   border-radius: 18px;
   padding: 28px 32px;
-  background: linear-gradient(135deg, var(--kiosk-primary), #18b46d 45%, var(--kiosk-accent));
+  background: linear-gradient(
+    135deg,
+    var(--kiosk-primary),
+    #18b46d 45%,
+    var(--kiosk-accent)
+  );
   cursor: pointer;
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease;
   box-shadow: 0 20px 60px rgba(34, 197, 94, 0.28);
 }
 .welcome-card:active {
@@ -1229,7 +1653,11 @@ watch(
 .kiosk-pane {
   border-radius: 16px;
   border: 1px solid var(--kiosk-border);
-  background: color-mix(in srgb, var(--kiosk-surface) 94%, rgba(255, 255, 255, 0.06) 6%);
+  background: color-mix(
+    in srgb,
+    var(--kiosk-surface) 94%,
+    rgba(255, 255, 255, 0.06) 6%
+  );
   backdrop-filter: blur(var(--kiosk-blur));
   -webkit-backdrop-filter: blur(var(--kiosk-blur));
   padding: 16px;
@@ -1250,7 +1678,11 @@ watch(
 .phone-display {
   border-radius: 12px;
   border: 1px solid var(--kiosk-border);
-  background: color-mix(in srgb, var(--kiosk-surface) 92%, rgba(255, 255, 255, 0.08) 8%);
+  background: color-mix(
+    in srgb,
+    var(--kiosk-surface) 92%,
+    rgba(255, 255, 255, 0.08) 8%
+  );
   backdrop-filter: blur(var(--kiosk-blur));
   -webkit-backdrop-filter: blur(var(--kiosk-blur));
   padding: 12px;
@@ -1267,7 +1699,13 @@ watch(
   width: 72px;
   height: 72px;
   border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.12), transparent 40%), var(--kiosk-primary);
+  background:
+    radial-gradient(
+      circle at 30% 30%,
+      rgba(255, 255, 255, 0.12),
+      transparent 40%
+    ),
+    var(--kiosk-primary);
   color: var(--kiosk-key-text, var(--kiosk-text-primary));
   font-size: 24px;
   font-weight: 800;
@@ -1277,7 +1715,10 @@ watch(
   align-items: center;
   justify-content: center;
   box-shadow: 0 14px 30px rgba(0, 0, 0, 0.3);
-  transition: transform 0.12s ease, background 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    transform 0.12s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
 }
 .keypad-key.action {
   background: rgba(255, 255, 255, 0.14);
@@ -1303,7 +1744,11 @@ watch(
   margin-top: 12px;
   padding: 10px 12px;
   border-radius: 10px;
-  background: color-mix(in srgb, var(--kiosk-surface, #0f1119) 85%, rgba(255, 255, 255, 0.05) 15%);
+  background: color-mix(
+    in srgb,
+    var(--kiosk-surface, #0f1119) 85%,
+    rgba(255, 255, 255, 0.05) 15%
+  );
   color: var(--kiosk-text-secondary);
   font-size: 12px;
   line-height: 1.5;
@@ -1328,7 +1773,11 @@ watch(
   flex-direction: column;
   gap: 8px;
   padding: 18px;
-  background: color-mix(in srgb, var(--kiosk-surface) 94%, rgba(255, 255, 255, 0.06) 6%);
+  background: color-mix(
+    in srgb,
+    var(--kiosk-surface) 94%,
+    rgba(255, 255, 255, 0.06) 6%
+  );
 }
 .loyalty-bonus {
   display: inline-flex;
@@ -1342,11 +1791,11 @@ watch(
   font-weight: 700;
   font-size: 14px;
 }
-.kiosk-app[data-kiosk-keypad='glass'] .loyalty-bonus {
+.kiosk-app[data-kiosk-keypad="glass"] .loyalty-bonus {
   background: rgba(0, 0, 0, 0.06);
   color: #0f172a;
 }
-.kiosk-app[data-kiosk-theme='black-glass'] .loyalty-bonus {
+.kiosk-app[data-kiosk-theme="black-glass"] .loyalty-bonus {
   background: rgba(255, 255, 255, 0.12);
   color: #f8fafc;
 }
@@ -1360,7 +1809,11 @@ watch(
   gap: 6px;
   padding: 16px;
   border-radius: 16px;
-  background: color-mix(in srgb, var(--kiosk-surface) 94%, rgba(255, 255, 255, 0.06) 6%);
+  background: color-mix(
+    in srgb,
+    var(--kiosk-surface) 94%,
+    rgba(255, 255, 255, 0.06) 6%
+  );
 }
 .left-stack {
   display: flex;
@@ -1391,7 +1844,11 @@ watch(
   gap: 12px;
 }
 .phone-bottom {
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.08));
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.03),
+    rgba(255, 255, 255, 0.08)
+  );
 }
 .kiosk-heading {
   display: flex;
@@ -1414,7 +1871,10 @@ watch(
   text-align: left;
   color: var(--kiosk-text-primary);
   cursor: pointer;
-  transition: transform 0.12s ease, border 0.12s ease, background 0.12s ease;
+  transition:
+    transform 0.12s ease,
+    border 0.12s ease,
+    background 0.12s ease;
 }
 .category-card.active {
   border-color: rgba(14, 165, 233, 0.8);
@@ -1478,7 +1938,10 @@ watch(
   background: rgba(255, 255, 255, 0.06);
   border-radius: 12px;
   padding: 12px;
-  transition: border 0.12s ease, transform 0.12s ease, background 0.12s ease;
+  transition:
+    border 0.12s ease,
+    transform 0.12s ease,
+    background 0.12s ease;
 }
 .service-row.active {
   border-color: color-mix(in srgb, var(--kiosk-primary) 70%, #fff 30%);
@@ -1502,7 +1965,7 @@ watch(
   background: color-mix(in srgb, var(--kiosk-primary) 18%, transparent);
 }
 .service-checkbox:checked::after {
-  content: '✓';
+  content: "✓";
   font-size: 13px;
   color: var(--kiosk-text-primary);
 }
@@ -1563,11 +2026,18 @@ watch(
   text-align: left;
   color: var(--kiosk-text-primary);
   cursor: pointer;
-  transition: transform 0.12s ease, border 0.12s ease, background 0.12s ease;
+  transition:
+    transform 0.12s ease,
+    border 0.12s ease,
+    background 0.12s ease;
 }
 .service-card.active {
   border-color: rgba(99, 102, 241, 0.8);
-  background: color-mix(in srgb, var(--kiosk-primary) 12%, rgba(255, 255, 255, 0.1) 88%);
+  background: color-mix(
+    in srgb,
+    var(--kiosk-primary) 12%,
+    rgba(255, 255, 255, 0.1) 88%
+  );
 }
 .service-card:hover {
   transform: translateY(-2px);
@@ -1603,7 +2073,11 @@ watch(
   padding: 36px 24px;
   border-radius: 16px;
   border: 1px solid var(--kiosk-glass-border);
-  background: color-mix(in srgb, var(--kiosk-glass-bg) 94%, rgba(255, 255, 255, 0.06) 6%);
+  background: color-mix(
+    in srgb,
+    var(--kiosk-glass-bg) 94%,
+    rgba(255, 255, 255, 0.06) 6%
+  );
   backdrop-filter: blur(var(--kiosk-glass-blur));
   -webkit-backdrop-filter: blur(var(--kiosk-glass-blur));
   box-shadow: var(--glass-shadow);
@@ -1652,7 +2126,11 @@ watch(
   padding: 18px 16px;
   border-radius: 16px;
   border: 1px solid var(--kiosk-glass-border);
-  background: color-mix(in srgb, var(--kiosk-glass-bg) 92%, rgba(255, 255, 255, 0.08) 8%);
+  background: color-mix(
+    in srgb,
+    var(--kiosk-glass-bg) 92%,
+    rgba(255, 255, 255, 0.08) 8%
+  );
   box-shadow: var(--glass-shadow);
 }
 .rewards-header {
@@ -1706,7 +2184,11 @@ watch(
   padding: 12px;
   border-radius: 12px;
   border: 1px solid var(--kiosk-border);
-  background: color-mix(in srgb, var(--kiosk-surface) 94%, rgba(255, 255, 255, 0.06) 6%);
+  background: color-mix(
+    in srgb,
+    var(--kiosk-surface) 94%,
+    rgba(255, 255, 255, 0.06) 6%
+  );
 }
 .idle-banner {
   position: fixed;
@@ -1727,7 +2209,7 @@ watch(
   box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28);
 }
 .idle-banner::before {
-  content: '⏳';
+  content: "⏳";
 }
 @keyframes pop-in {
   from {
@@ -1761,5 +2243,4 @@ watch(
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-
 </style>

@@ -56,6 +56,18 @@ const fontFamilyValue = computed(() => settings.value?.uiFontFamily ?? 'system')
 const showPointsValue = computed(
   () => settings.value?.showPointsPreview ?? settings.value?.showPointsOnKiosk ?? true,
 );
+const kioskBusinessPhoneValue = computed({
+  get: () => settings.value?.kioskBusinessPhone || '',
+  set: (val: string) => scheduleSave({ kioskBusinessPhone: val?.trim() || null }),
+});
+const kioskBusinessNameValue = computed({
+  get: () => settings.value?.kioskBusinessName || settings.value?.businessName || '',
+  set: (val: string) => scheduleSave({ kioskBusinessName: val?.trim() || null }),
+});
+const businessPhoneValue = computed({
+  get: () => settings.value?.businessPhone || '',
+  set: (val: string) => scheduleSave({ businessPhone: val?.trim() || null }),
+});
 
 const handleFontScaleChange = (value: number) => {
   const numeric = Number(value);
@@ -512,27 +524,24 @@ onMounted(loadSettings);
               <div class="text-sm font-semibold text-slate-900">Business phone (kiosk display)</div>
               <div class="text-xs text-slate-600">Shown on kiosk salon card; leave blank to hide.</div>
               <ElInput
-                :model-value="settings.businessPhone || ''"
+                v-model="businessPhoneValue"
                 placeholder="e.g., (361) 986-1555"
-                @change="(val: string) => scheduleSave({ businessPhone: val?.trim() || null })"
               />
             </div>
             <div class="flex flex-col gap-1 rounded-md border border-slate-200 bg-white px-3 py-2">
               <div class="text-sm font-semibold text-slate-900">Business display name (kiosk)</div>
               <div class="text-xs text-slate-600">Shown on kiosk header and identity card.</div>
               <ElInput
-                :model-value="settings.kioskBusinessName || settings.businessName || ''"
+                v-model="kioskBusinessNameValue"
                 placeholder="e.g., MTV Nails Spa Corpus Christi"
-                @change="(val: string) => scheduleSave({ kioskBusinessName: val?.trim() || null })"
               />
             </div>
             <div class="flex flex-col gap-1 rounded-md border border-slate-200 bg-white px-3 py-2">
               <div class="text-sm font-semibold text-slate-900">Front desk phone (kiosk card)</div>
               <div class="text-xs text-slate-600">Overrides business phone just for kiosk identity card.</div>
               <ElInput
-                :model-value="settings.kioskBusinessPhone || ''"
+                v-model="kioskBusinessPhoneValue"
                 placeholder="e.g., (361) 123-4567"
-                @change="(val: string) => scheduleSave({ kioskBusinessPhone: val?.trim() || null })"
               />
             </div>
           </div>
