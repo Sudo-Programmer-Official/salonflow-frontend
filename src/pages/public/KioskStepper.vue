@@ -714,6 +714,9 @@ watch(
             <span>{{ item.label }}</span>
           </div>
         </div>
+        <div v-if="errorMessage" class="kiosk-inline-error">
+          {{ errorMessage }}
+        </div>
 
         <ElCard class="kiosk-card glass-card">
           <template #default>
@@ -740,7 +743,7 @@ watch(
               </div>
 
               <div v-else-if="step === 'phone'" class="space-y-5">
-                <div class="phone-hero grid gap-5 lg:grid-cols-[1fr,1.15fr]">
+                <div class="phone-hero grid gap-4 lg:grid-cols-[1fr,1.15fr]">
                   <div v-if="showRewardsCard && showPoints" class="left-stack">
                     <div class="business-card glass-card">
                     <div class="text-xs font-semibold uppercase tracking-wide" :style="{ color: 'var(--kiosk-text-secondary)' }">Salon</div>
@@ -779,7 +782,10 @@ watch(
                         <button
                           v-for="key in row"
                           :key="`${rowIndex}-${key}`"
-                          :class="['keypad-key', { action: key === 'backspace' || key === 'clear' }]"
+                          :class="[
+                            'keypad-key',
+                            { action: key === 'backspace' || key === 'clear', secondary: key === 'backspace' || key === 'clear' },
+                          ]"
                           @mousedown="key === 'backspace' ? startBackspaceHold() : undefined"
                           @mouseup="key === 'backspace' ? stopBackspaceHold() : undefined"
                           @touchstart.prevent="key === 'backspace' ? startBackspaceHold() : undefined"
@@ -1184,6 +1190,15 @@ watch(
   align-items: center;
   color: currentColor;
 }
+.kiosk-inline-error {
+  margin: 8px 0 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255, 68, 68, 0.08);
+  color: #ffb4b4;
+  font-weight: 600;
+  font-size: 14px;
+}
 .welcome-card {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -1247,6 +1262,10 @@ watch(
   background: rgba(255, 255, 255, 0.14);
   color: #f8fafc;
 }
+.keypad-key.secondary {
+  background: rgba(255, 255, 255, 0.06);
+  color: #e2e8f0;
+}
 .keypad-key:hover {
   transform: translateY(-2px);
   box-shadow: 0 18px 34px rgba(0, 0, 0, 0.35);
@@ -1256,7 +1275,8 @@ watch(
   background: color-mix(in srgb, var(--kiosk-primary) 85%, #000 15%);
 }
 .keypad-actions {
-  margin-top: 18px;
+  margin-top: 8px;
+  padding-bottom: 8px;
 }
 .kiosk-opt-in {
   margin-top: 12px;
