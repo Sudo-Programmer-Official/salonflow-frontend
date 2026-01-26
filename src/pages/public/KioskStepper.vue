@@ -93,7 +93,7 @@ const defaultSettings: BusinessSettings = {
   uiFontScale: 1,
   uiGlassEnabled: true,
   uiFontFamily: "system",
-  kioskThemeMode: "green",
+  kioskThemeMode: "milky",
   kioskPrimaryColor: "moneyGreen",
   businessPhone: null,
   defaultBookingRules: {
@@ -1031,9 +1031,9 @@ watch(useClassicWelcome, (isClassic) => {
                     <div
                       class="keypad-actions flex flex-wrap gap-4 justify-end"
                     >
-                      <ElButton size="large" @click="resetFlow"
-                        >Start over</ElButton
-                      >
+                      <ElButton size="large" class="kiosk-btn-secondary" @click="resetFlow">
+                        Start over
+                      </ElButton>
                       <ElButton
                         v-if="allowPhoneSkip"
                         size="large"
@@ -1683,13 +1683,13 @@ watch(useClassicWelcome, (isClassic) => {
   margin-top: 24px;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  row-gap: 10px;
-  column-gap: 8px;
+  row-gap: 8px;
+  column-gap: 6px;
   justify-items: center;
 }
 .keypad-key {
-  width: 72px;
-  height: 72px;
+  width: 90px;
+  height: 90px;
   border-radius: 50%;
   background:
     radial-gradient(
@@ -1725,8 +1725,9 @@ watch(useClassicWelcome, (isClassic) => {
   box-shadow: 0 18px 34px rgba(0, 0, 0, 0.35);
 }
 .keypad-key:active {
-  transform: scale(0.96);
-  background: color-mix(in srgb, var(--kiosk-primary) 85%, #000 15%);
+  transform: scale(0.94);
+  background: color-mix(in srgb, var(--kiosk-primary) 82%, #000 18%);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45), 0 0 0 6px rgba(255, 255, 255, 0.05);
 }
 .keypad-actions {
   margin-top: 16px;

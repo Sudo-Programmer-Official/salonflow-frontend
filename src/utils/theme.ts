@@ -13,7 +13,7 @@ export type UiPreferences = {
   uiFontScale?: number | null;
   uiGlassEnabled?: boolean | null;
   uiFontFamily?: string | null;
-  kioskThemeMode?: 'green' | 'milky' | 'black-glass' | null;
+  kioskThemeMode?: 'milky' | 'black-glass' | null;
   kioskPrimaryColor?: 'moneyGreen' | 'lightGreen' | 'gold' | null;
   kioskKeypadStyle?: 'solid' | 'glass' | null;
 };
@@ -48,11 +48,15 @@ export function applyThemeFromSettings(
     root.dataset.mode = 'app';
   }
   const existingTheme = root.dataset.kioskTheme;
-  if (settings?.kioskThemeMode) {
-    root.dataset.kioskTheme = settings.kioskThemeMode;
-  } else if (!existingTheme) {
-    root.dataset.kioskTheme = 'green';
-  }
+  const resolvedTheme =
+    settings?.kioskThemeMode === 'black-glass'
+      ? 'black-glass'
+      : settings?.kioskThemeMode === 'milky'
+        ? 'milky'
+        : existingTheme === 'black-glass' || existingTheme === 'milky'
+          ? existingTheme
+          : 'milky';
+  root.dataset.kioskTheme = resolvedTheme;
   const existingPrimary = root.dataset.kioskPrimary;
   if (settings?.kioskPrimaryColor) {
     root.dataset.kioskPrimary = settings.kioskPrimaryColor;

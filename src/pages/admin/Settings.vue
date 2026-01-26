@@ -497,10 +497,9 @@ onMounted(loadSettings);
               </div>
               <ElSelect
                 class="w-40"
-                :model-value="settings.kioskThemeMode || 'green'"
-                @change="(val: 'green' | 'milky' | 'black-glass') => scheduleSave({ kioskThemeMode: val })"
+                :model-value="settings.kioskThemeMode || 'milky'"
+                @change="(val: 'milky' | 'black-glass') => scheduleSave({ kioskThemeMode: val })"
               >
-                <ElOption label="Green (recommended)" value="green" />
                 <ElOption label="Milky white" value="milky" />
                 <ElOption label="Premium black glass" value="black-glass" />
               </ElSelect>

@@ -120,12 +120,18 @@ const loadSettingsFlags = async () => {
   try {
     const data = await fetchSettings();
     kioskEnabled.value = data.kioskEnabled;
-    applyThemeFromSettings(data);
+    applyThemeFromSettings({
+      ...data,
+      kioskThemeMode: data.kioskThemeMode,
+    });
   } catch {
     kioskEnabled.value = false;
     try {
       const publicData = await fetchPublicSettings();
-      applyThemeFromSettings(publicData);
+      applyThemeFromSettings({
+        ...publicData,
+        kioskThemeMode: publicData.kioskThemeMode,
+      });
     } catch {
       // leave defaults if loading fails
     }

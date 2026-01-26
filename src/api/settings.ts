@@ -31,7 +31,7 @@ export type BusinessSettings = {
   uiFontScale: number;
   uiGlassEnabled: boolean;
   uiFontFamily: string;
-  kioskThemeMode?: 'green' | 'milky' | 'black-glass';
+  kioskThemeMode?: 'milky' | 'black-glass';
   kioskPrimaryColor?: 'moneyGreen' | 'lightGreen' | 'gold';
   kioskKeypadStyle?: 'solid' | 'glass';
   kioskBusinessName?: string | null;
