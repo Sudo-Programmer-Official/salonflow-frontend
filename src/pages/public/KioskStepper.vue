@@ -1680,6 +1680,7 @@ watch(useClassicWelcome, (isClassic) => {
   padding: 12px;
 }
 .keypad {
+  /* Kiosk keypad grid: adjust spacing here */
   margin-top: 24px;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 0.3fr));
@@ -1688,6 +1689,7 @@ watch(useClassicWelcome, (isClassic) => {
   justify-items: center;
 }
 .keypad-key {
+  /* Kiosk keypad keys: size/shape/feel */
   width: 90px;
   height: 90px;
   border-radius: 50%;

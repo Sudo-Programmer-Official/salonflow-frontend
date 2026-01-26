@@ -68,31 +68,29 @@
   --glass-saturate: 100%;
 }
 
+/* ============================================================
+   KIOSK THEMES
+   - Edit within these blocks to adjust kiosk look/feel.
+   - milky       : light, soft gradients
+   - black-glass : premium dark glass
+   ============================================================ */
+
+/* Base kiosk defaults (overridden per theme) */
 .kiosk-app {
   --panel-radius: 16px;
   --card-radius: 16px;
   --glass-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
-  --bg-app: radial-gradient(circle at 10% 20%, rgba(255, 215, 128, 0.06), transparent 28%),
-    radial-gradient(circle at 86% 16%, rgba(214, 178, 94, 0.08), transparent 24%),
-    linear-gradient(180deg, #0b0f18 0%, #0f131f 45%, #0a0d15 100%);
-  --kiosk-surface: rgba(16, 18, 26, 0.88);
-  --kiosk-glass: rgba(20, 22, 32, 0.78);
-  --kiosk-border: rgba(255, 215, 128, 0.16);
   --kiosk-primary: #d6b25e;
   --kiosk-accent: #f0c674;
-  --kiosk-glass-bg: rgba(15, 17, 25, 0.86);
-  --kiosk-glass-border: rgba(255, 255, 255, 0.1);
-  --kiosk-glass-blur: 18px;
-  --kiosk-glass-saturate: 180%;
   --kiosk-text-primary: #f7f5ef;
   --kiosk-text-secondary: color-mix(in srgb, #f7f5ef 72%, transparent);
   --kiosk-text-muted: color-mix(in srgb, #f7f5ef 52%, transparent);
   --kiosk-heading: color-mix(in srgb, #f7f5ef 92%, #d6b25e 8%);
   color: var(--kiosk-text-primary);
-  background: var(--bg-app);
 }
 
-.kiosk-app[data-kiosk-theme='milky'] {
+/* Milky White */
+.kiosk-app[data-kiosk-theme='milky'].kiosk-app[data-kiosk-theme='milky'] {
   --bg-app: linear-gradient(180deg, #f7f9fb 0%, #eef2f7 50%, #f7f9fb 100%);
   --kiosk-surface: #ffffff;
   --kiosk-glass: rgba(255, 255, 255, 0.9);
@@ -107,6 +105,7 @@
   --kiosk-text-secondary: #4b5563;
   --kiosk-text-muted: #6b7280;
   --kiosk-heading: color-mix(in srgb, #1f2937 92%, #000 8%);
+  background: var(--bg-app);
 }
 .kiosk-app[data-kiosk-theme='black-glass'] {
   --bg-app: radial-gradient(circle at 15% 20%, rgba(255, 255, 255, 0.04), transparent 32%),
@@ -125,6 +124,30 @@
   --kiosk-text-secondary: rgba(247, 245, 239, 0.7);
   --kiosk-text-muted: rgba(247, 245, 239, 0.52);
   --kiosk-heading: color-mix(in srgb, #f7f5ef 92%, #d6b25e 8%);
+  background: var(--bg-app);
+}
+
+/* Premium Black: keypad colors (white glass keys) */
+.kiosk-app[data-kiosk-theme='black-glass'] .keypad-key {
+  background: rgba(255, 255, 255, 0.85);
+  color: #111;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  box-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+.kiosk-app[data-kiosk-theme='black-glass'] .keypad-key:active {
+  transform: translateY(2px);
+  box-shadow:
+    0 4px 10px rgba(0, 0, 0, 0.4),
+    inset 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+.kiosk-app[data-kiosk-theme='black-glass'] .keypad-key.secondary {
+  background: rgba(245, 245, 245, 0.75);
+  color: #222;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .kiosk-app {
@@ -136,6 +159,7 @@
 }
 
 .kiosk-app[data-kiosk-keypad='glass'] .keypad-key {
+  /* Generic glass keypad (non-theme-specific) */
   background: rgba(255, 255, 255, 0.14);
   border: 1px solid rgba(255, 255, 255, 0.2);
   backdrop-filter: blur(14px) saturate(160%);
