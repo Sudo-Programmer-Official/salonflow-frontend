@@ -895,13 +895,7 @@ watch(useClassicWelcome, (isClassic) => {
                         Enter your phone
                       </p>
                     </div>
-                    <div class="phone-display">
-                      <div
-                        class="text-sm"
-                        :style="{ color: 'var(--kiosk-text-secondary)' }"
-                      >
-                        Phone number
-                      </div>
+                    <div class="phone-display" aria-label="Phone number">
                       <div
                         class="text-3xl font-semibold"
                         :style="{ color: 'var(--kiosk-text-primary)' }"
