@@ -226,6 +226,7 @@ const keypad = [
 ];
 
 const backspaceTimer = ref<number | null>(null);
+const lastPointerTs = ref(0);
 
 const primaryServiceId = computed(() => selectedServiceIds.value[0] ?? null);
 const rewardValue = computed(() => {
@@ -278,6 +279,46 @@ const stopBackspaceHold = () => {
     clearTimeout(backspaceTimer.value);
     backspaceTimer.value = null;
   }
+};
+
+const handleKeyRelease = (key: string) => {
+  if (key === "backspace") {
+    handleBackspace();
+    return;
+  }
+  if (key === "clear") {
+    clearPhone();
+    return;
+  }
+  appendDigit(key);
+};
+
+const onKeyPointerDown = (key: string, event: PointerEvent) => {
+  event.preventDefault();
+  if (key === "backspace") {
+    startBackspaceHold();
+  }
+};
+
+const onKeyPointerUp = (key: string, event: PointerEvent) => {
+  event.preventDefault();
+  lastPointerTs.value = performance.now();
+  if (key === "backspace") {
+    stopBackspaceHold();
+  }
+  handleKeyRelease(key);
+};
+
+const onKeyPointerCancel = (key: string) => {
+  if (key === "backspace") {
+    stopBackspaceHold();
+  }
+};
+
+const onKeyClick = (key: string) => {
+  const now = performance.now();
+  if (now - lastPointerTs.value < 400) return;
+  handleKeyRelease(key);
 };
 
 const normalizePhone = (raw: string) => {
@@ -928,33 +969,11 @@ watch(useClassicWelcome, (isClassic) => {
                               secondary: key === 'backspace' || key === 'clear',
                             },
                           ]"
-                          @mousedown="
-                            key === 'backspace'
-                              ? startBackspaceHold()
-                              : undefined
-                          "
-                          @mouseup="
-                            key === 'backspace'
-                              ? stopBackspaceHold()
-                              : undefined
-                          "
-                          @touchstart.prevent="
-                            key === 'backspace'
-                              ? startBackspaceHold()
-                              : undefined
-                          "
-                          @touchend.prevent="
-                            key === 'backspace'
-                              ? stopBackspaceHold()
-                              : undefined
-                          "
-                          @click="
-                            key === 'backspace'
-                              ? handleBackspace()
-                              : key === 'clear'
-                                ? clearPhone()
-                                : appendDigit(key)
-                          "
+                          @pointerdown="onKeyPointerDown(key, $event)"
+                          @pointerup="onKeyPointerUp(key, $event)"
+                          @pointercancel="onKeyPointerCancel(key)"
+                          @pointerleave="onKeyPointerCancel(key)"
+                          @click="onKeyClick(key)"
                         >
                           <span v-if="key === 'backspace'">⌫</span>
                           <span v-else-if="key === 'clear'">Clear</span>
@@ -1643,6 +1662,8 @@ watch(useClassicWelcome, (isClassic) => {
   align-items: center;
   justify-content: center;
   box-shadow: 0 14px 30px rgba(0, 0, 0, 0.3);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   transition:
     transform 0.12s ease,
     background 0.15s ease,
