@@ -44,6 +44,7 @@ const selectedServiceIds = ref<string[]>([]);
 const groupedServices = ref<ServiceGroup[]>([]);
 const settings = ref<BusinessSettings | null>(null);
 const settingsError = ref("");
+const hasInteracted = ref(false);
 const errorMessage = ref("");
 const submitting = ref(false);
 const successName = ref("Guest");
@@ -498,6 +499,7 @@ const canAdvanceFromServices = computed(() => {
 const goToPhone = () => {
   errorMessage.value = "";
   step.value = "phone";
+  hasInteracted.value = true;
 };
 
 const skipPhoneStep = () => {
@@ -512,6 +514,10 @@ const proceedFromPhone = () => {
   }
   errorMessage.value = "";
   step.value = "name";
+};
+
+const markInteracted = () => {
+  if (!hasInteracted.value) hasInteracted.value = true;
 };
 
 const proceedFromName = () => {
@@ -769,9 +775,9 @@ watch(useClassicWelcome, (isClassic) => {
 </script>
 
 <template>
-  <div class="kiosk-shell">
+  <div class="kiosk-shell" @pointerdown="markInteracted">
     <div class="kiosk-inner">
-        <div class="kiosk-top">
+        <div class="kiosk-top" v-if="!hasInteracted">
           <div>
             <p
               class="text-sm uppercase tracking-wide"
@@ -924,8 +930,20 @@ watch(useClassicWelcome, (isClassic) => {
                         <span class="loyalty-emoji" aria-hidden="true">💵</span>
                       </div>
                     </div>
+                    <div class="consent-block glass-card kiosk-opt-in" aria-label="Consent notice">
+                      <p>
+                        By entering your phone number and clicking Next, you give SalonFlow express
+                        written consent to contact you at the number provided for appointment
+                        reminders and notifications. Message frequency varies. Reply STOP to opt out.
+                        Reply HELP for help. Consent is not required to check in or make a purchase.
+                        You also agree to our
+                        <a href="/terms" target="_blank" rel="noopener" class="link">Terms of Service</a>
+                        and
+                        <a href="/privacy" target="_blank" rel="noopener" class="link">Privacy Policy</a>.
+                      </p>
+                    </div>
                   </div>
-                  <div class="phone-panel kiosk-pane glass-card">
+                  <div class="phone-panel kiosk-pane glass-card kiosk-step-panel">
                     <div class="phone-heading">
                       <p
                         class="text-xs uppercase tracking-wide"
@@ -954,7 +972,7 @@ watch(useClassicWelcome, (isClassic) => {
                         {{ displayPhone }}
                       </div>
                     </div>
-                    <div class="keypad">
+                    <div class="keypad kiosk-keypad">
                       <template
                         v-for="(row, rowIndex) in keypad"
                         :key="row.join('-')"
@@ -982,7 +1000,7 @@ watch(useClassicWelcome, (isClassic) => {
                       </template>
                     </div>
                     <div
-                      class="keypad-actions flex flex-wrap gap-4 justify-end"
+                      class="keypad-actions kiosk-footer flex flex-wrap gap-4 justify-end"
                     >
                       <ElButton size="large" class="kiosk-btn-secondary" @click="resetFlow">
                         Start over
@@ -1004,31 +1022,6 @@ watch(useClassicWelcome, (isClassic) => {
                       >
                         Next
                       </ElButton>
-                    </div>
-                    <div class="kiosk-opt-in">
-                      <p>
-                        By entering your phone number and clicking Next, you
-                        give SalonFlow express written consent to contact you at
-                        the number provided for appointment reminders and
-                        notifications. Message frequency varies. Reply STOP to
-                        opt out. Reply HELP for help. Consent is not required to
-                        check in or make a purchase. You also agree to our
-                        <a
-                          href="/terms"
-                          target="_blank"
-                          rel="noopener"
-                          class="link"
-                          >Terms of Service</a
-                        >
-                        and
-                        <a
-                          href="/privacy"
-                          target="_blank"
-                          rel="noopener"
-                          class="link"
-                          >Privacy Policy</a
-                        >.
-                      </p>
                     </div>
                   </div>
                 </div>
@@ -1474,7 +1467,7 @@ watch(useClassicWelcome, (isClassic) => {
 <style scoped>
 .kiosk-shell {
   min-height: calc(100vh - 80px);
-  padding: 32px 12px 40px;
+  padding: 32px 12px max(40px, env(safe-area-inset-bottom, 18px));
   background: var(--bg-app);
   overscroll-behavior: none;
   touch-action: manipulation;
@@ -1640,6 +1633,8 @@ watch(useClassicWelcome, (isClassic) => {
   row-gap: 8px;
   column-gap: 6px;
   justify-items: center;
+  align-content: start;
+  flex: 1;
 }
 .keypad-key {
   /* Kiosk keypad keys: size/shape/feel */
@@ -1687,8 +1682,22 @@ watch(useClassicWelcome, (isClassic) => {
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45), 0 0 0 6px rgba(255, 255, 255, 0.05);
 }
 .keypad-actions {
-  margin-top: 16px;
-  padding-bottom: 8px;
+  margin-top: auto;
+  padding: 12px 0 10px;
+}
+.kiosk-footer {
+  position: sticky;
+  bottom: 0;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    color-mix(in srgb, var(--kiosk-surface) 70%, transparent) 45%,
+    var(--kiosk-surface) 100%
+  );
+  backdrop-filter: blur(var(--kiosk-blur));
+  -webkit-backdrop-filter: blur(var(--kiosk-blur));
+  z-index: 2;
+  flex-shrink: 0;
 }
 .kiosk-opt-in {
   margin-top: 12px;
@@ -1713,6 +1722,11 @@ watch(useClassicWelcome, (isClassic) => {
   font-weight: 700;
   color: rgba(255, 255, 255, 0.7);
   margin-bottom: 6px;
+}
+.consent-block {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--kiosk-text-secondary);
 }
 .phone-hero {
   align-items: stretch;
@@ -1827,6 +1841,13 @@ watch(useClassicWelcome, (isClassic) => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-height: 100%;
+}
+.kiosk-step-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 100%;
 }
 .phone-bottom {
   background: linear-gradient(
@@ -2229,6 +2250,29 @@ watch(useClassicWelcome, (isClassic) => {
   }
   .loyalty-value {
     font-size: 22px;
+  }
+}
+
+@media (max-height: 880px) {
+  .kiosk-shell {
+    padding-top: 24px;
+  }
+  .phone-panel {
+    max-height: calc(100vh - 180px);
+    gap: 10px;
+  }
+  .keypad {
+    margin-top: 12px;
+    row-gap: 6px;
+    column-gap: 6px;
+  }
+  .keypad-key {
+    width: 78px;
+    height: 78px;
+    font-size: 22px;
+  }
+  .kiosk-opt-in {
+    font-size: 11px;
   }
 }
 
