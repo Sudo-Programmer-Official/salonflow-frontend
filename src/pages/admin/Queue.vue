@@ -734,6 +734,7 @@ const submitCheckout = async () => {
       payments: entries,
       giftCardNumber,
       giftCardAmount,
+      giftCards: giftCardSummaries.value,
     });
     checkoutOpen.value = false;
     await loadQueue();

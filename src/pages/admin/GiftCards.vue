@@ -226,6 +226,11 @@ onMounted(loadOutstanding);
           </div>
           <div><span class="font-semibold">Initial:</span> {{ formatCurrency(balanceResult.initialValue ?? balanceResult.balance) }}</div>
           <div><span class="font-semibold">Balance:</span> {{ formatCurrency(balanceResult.balance) }}</div>
+          <div class="flex items-center gap-3 text-xs text-slate-600">
+            <span class="font-semibold text-slate-800">Used:</span>
+            <span class="font-semibold text-slate-900">{{ balanceResult.usageCount ?? 0 }} times</span>
+            <span v-if="balanceResult.lastUsedAt">• Last used: {{ formatDateSafe(balanceResult.lastUsedAt, 'MMM D, YYYY') }}</span>
+          </div>
           <div>
             <span class="font-semibold">Issued:</span>
             {{ formatDateSafe(balanceResult.issuedAt || balanceResult.soldAt, 'MMM D, YYYY') }}
@@ -257,6 +262,7 @@ onMounted(loadOutstanding);
               <th class="py-2 pr-4">Card</th>
               <th class="py-2 pr-4">Initial</th>
               <th class="py-2 pr-4">Remaining</th>
+              <th class="py-2 pr-4">Used</th>
               <th class="py-2 pr-4">Issued</th>
             </tr>
           </thead>
@@ -265,6 +271,9 @@ onMounted(loadOutstanding);
               <td class="py-2 pr-4 font-semibold">{{ card.maskedNumber || ('•••• ' + (card.number?.slice(-4) || '')) }}</td>
               <td class="py-2 pr-4">{{ formatCurrency(card.initialValue ?? card.balance) }}</td>
               <td class="py-2 pr-4">{{ formatCurrency(card.balance) }}</td>
+              <td class="py-2 pr-4 text-slate-700">
+                {{ card.usageCount ?? 0 }}<span v-if="card.lastUsedAt"> • {{ formatDateSafe(card.lastUsedAt, 'MMM D, YYYY') }}</span>
+              </td>
               <td class="py-2 pr-4">
                 <span v-if="card.issuedAt">{{ dayjs(card.issuedAt).format('MMM D, YYYY') }}</span>
                 <span v-else>—</span>

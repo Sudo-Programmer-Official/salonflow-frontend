@@ -19,6 +19,8 @@ export type GiftCard = {
   notes?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
+  usageCount?: number;
+  lastUsedAt?: string | null;
 };
 
 const baseUrl = apiUrl('/gift-cards');

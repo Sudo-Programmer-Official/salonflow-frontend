@@ -173,6 +173,7 @@ export async function checkoutCheckIn(
     redeemPoints?: boolean;
     giftCardNumber?: string | null;
     giftCardAmount?: number | null;
+    giftCards?: Array<{ number: string; amount: number }>;
     payments?: Array<{ method: 'cash' | 'card' | 'gift'; amount: number }>;
   },
 ) {
