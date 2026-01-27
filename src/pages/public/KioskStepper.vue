@@ -44,7 +44,6 @@ const selectedServiceIds = ref<string[]>([]);
 const groupedServices = ref<ServiceGroup[]>([]);
 const settings = ref<BusinessSettings | null>(null);
 const settingsError = ref("");
-const hasInteracted = ref(false);
 const errorMessage = ref("");
 const submitting = ref(false);
 const successName = ref("Guest");
@@ -54,10 +53,6 @@ const pointsAnimationFrame = ref<number | null>(null);
 const doneCountdown = ref<number | null>(null);
 const doneTimer = ref<number | null>(null);
 const stopWatchdog = ref<(() => void) | null>(null);
-const idleWarning = ref(false);
-const idleWarningCountdown = ref<number | null>(null);
-const idleWarningTimer = ref<number | null>(null);
-const idleInterval = ref<number | null>(null);
 const staffList = ref<StaffMember[]>([]);
 const staffLoading = ref(false);
 const staffError = ref("");
@@ -382,40 +377,6 @@ const loadStaff = async () => {
   }
 };
 
-const cancelIdleWarning = () => {
-  if (idleWarningTimer.value !== null) {
-    clearTimeout(idleWarningTimer.value);
-    idleWarningTimer.value = null;
-  }
-  if (idleInterval.value !== null) {
-    clearInterval(idleInterval.value);
-    idleInterval.value = null;
-  }
-  idleWarning.value = false;
-  idleWarningCountdown.value = null;
-  ["touchstart", "mousedown", "keydown"].forEach((evt) =>
-    window.removeEventListener(evt, cancelIdleWarning),
-  );
-};
-
-const triggerIdleReset = () => {
-  cancelIdleWarning();
-  idleWarning.value = true;
-  idleWarningCountdown.value = 10;
-  ["touchstart", "mousedown", "keydown"].forEach((evt) =>
-    window.addEventListener(evt, cancelIdleWarning),
-  );
-  idleInterval.value = window.setInterval(() => {
-    if (idleWarningCountdown.value === null) return;
-    idleWarningCountdown.value = Math.max(0, idleWarningCountdown.value - 1);
-    if (idleWarningCountdown.value === 0) {
-      cancelIdleWarning();
-      resetFlow();
-      refreshServices();
-    }
-  }, 1000);
-};
-
 const preventTouch = (e: Event) => e.preventDefault();
 
 onMounted(async () => {
@@ -431,7 +392,11 @@ onMounted(async () => {
   await loadStaff();
   stopWatchdog.value = startKioskIdleWatchdog({
     softResetMs: 30_000,
-    onSoftReset: triggerIdleReset,
+    onSoftReset: () => {
+      resetFlow();
+      refreshServices();
+      loadStaff();
+    },
   });
 });
 
@@ -443,7 +408,6 @@ onBeforeUnmount(() => {
 
 onUnmounted(() => {
   stopWatchdog.value?.();
-  cancelIdleWarning();
   applyThemeFromSettings(settings.value, { mode: "app" });
   delete document.documentElement.dataset.kioskTheme;
   delete document.documentElement.dataset.kioskPrimary;
@@ -478,7 +442,6 @@ const resetFlow = () => {
     lookupTimer.value = null;
   }
   step.value = useClassicWelcome.value ? "phone" : "welcome";
-  cancelIdleWarning();
 };
 
 const canAdvanceFromPhone = computed(() => {
@@ -499,7 +462,6 @@ const canAdvanceFromServices = computed(() => {
 const goToPhone = () => {
   errorMessage.value = "";
   step.value = "phone";
-  hasInteracted.value = true;
 };
 
 const skipPhoneStep = () => {
@@ -514,10 +476,6 @@ const proceedFromPhone = () => {
   }
   errorMessage.value = "";
   step.value = "name";
-};
-
-const markInteracted = () => {
-  if (!hasInteracted.value) hasInteracted.value = true;
 };
 
 const proceedFromName = () => {
@@ -775,30 +733,9 @@ watch(useClassicWelcome, (isClassic) => {
 </script>
 
 <template>
-  <div class="kiosk-shell" @pointerdown="markInteracted">
+  <div class="kiosk-shell">
     <div class="kiosk-inner">
-        <div class="kiosk-top" v-if="!hasInteracted">
-          <div>
-            <p
-              class="text-sm uppercase tracking-wide"
-              :style="{ color: 'var(--kiosk-text-secondary)' }"
-            >
-              Kiosk Mode
-            </p>
-          </div>
-        <div
-          class="rounded-full bg-white/40 px-3 py-1 text-xs font-semibold uppercase"
-          :style="{ color: 'var(--kiosk-text-primary)' }"
-        >
-          Touch to start
-        </div>
-      </div>
-
-      <div v-if="idleWarning" class="idle-banner">
-        Returning to start in {{ idleWarningCountdown ?? 10 }}s — tap anywhere
-        to stay on this step.
-      </div>
-
+      
       <ElAlert
         v-if="settingsError"
         :closable="false"
@@ -2195,27 +2132,6 @@ watch(useClassicWelcome, (isClassic) => {
     var(--kiosk-surface) 94%,
     rgba(255, 255, 255, 0.06) 6%
   );
-}
-.idle-banner {
-  position: fixed;
-  top: 10px;
-  left: 50%;
-  transform: translateX(-50%);
-  border-radius: 999px;
-  background: linear-gradient(120deg, #f97316, #fb923c);
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  color: #0f172a;
-  font-weight: 700;
-  font-size: 13px;
-  padding: 10px 16px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  width: fit-content;
-  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28);
-}
-.idle-banner::before {
-  content: "⏳";
 }
 @keyframes pop-in {
   from {
