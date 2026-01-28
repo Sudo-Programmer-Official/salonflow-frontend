@@ -21,7 +21,15 @@ export type CreateCheckInPayload = {
 
 export async function publicLookup(phoneE164: string): Promise<
   | { exists: false }
-  | { exists: true; customer: { id: string; name: string; pointsBalance: number | null } }
+  | {
+      exists: true;
+      customer: {
+        id: string;
+        name: string;
+        email?: string | null;
+        pointsBalance: number | null;
+      };
+    }
 > {
   const res = await fetch(apiUrl('/checkins/public/lookup'), {
     method: 'POST',
