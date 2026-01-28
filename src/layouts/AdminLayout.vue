@@ -400,14 +400,14 @@ const closeSidebar = () => {
     <div class="admin-main">
       <header class="admin-header">
         <div class="flex items-center gap-3">
-          <button
+          <!-- <button
             class="sidebar-toggle lg:hidden"
             type="button"
             aria-label="Toggle menu"
             @click="toggleSidebar"
           >
             ☰
-          </button>
+          </button> -->
           <div class="text-sm font-semibold text-slate-900">Admin</div>
         </div>
         <div class="flex items-center gap-3">
