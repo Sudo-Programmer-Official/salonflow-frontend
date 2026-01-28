@@ -960,9 +960,6 @@ watch(useClassicWelcome, (isClassic) => {
                     <div
                       class="keypad-actions kiosk-footer flex flex-wrap gap-4 justify-end"
                     >
-                      <ElButton size="large" class="kiosk-btn-secondary" @click="resetFlow">
-                        Start over
-                      </ElButton>
                       <ElButton
                         v-if="allowPhoneSkip"
                         size="large"
@@ -1001,7 +998,6 @@ watch(useClassicWelcome, (isClassic) => {
                       We’ll use this to call you when it’s your turn and send receipts if needed.
                     </p>
                   </div>
-                  <ElButton size="large" @click="step = 'phone'">Back</ElButton>
                 </div>
 
                 <div class="kiosk-pane glass-card space-y-4 name-input-wrap">
@@ -1073,7 +1069,6 @@ watch(useClassicWelcome, (isClassic) => {
                       }}
                     </p>
                   </div>
-                  <ElButton size="large" @click="step = 'phone'">Back</ElButton>
                 </div>
 
                 <div v-if="serviceSections.length" class="service-section-grid">
@@ -1201,9 +1196,6 @@ watch(useClassicWelcome, (isClassic) => {
                       }}
                     </p>
                   </div>
-                  <ElButton size="large" @click="step = 'services'"
-                    >Back</ElButton
-                  >
                 </div>
 
                 <div
