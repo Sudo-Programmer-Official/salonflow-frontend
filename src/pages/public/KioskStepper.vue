@@ -922,7 +922,7 @@ watch(useClassicWelcome, (isClassic) => {
                     </div>
                     <div class="phone-display" aria-label="Phone number">
                       <div
-                        class="text-4xl font-semibold"
+                        class="phone-display__value"
                         :style="{ color: 'var(--kiosk-text-primary)' }"
                       >
                         {{ displayPhone }}
@@ -1599,7 +1599,18 @@ watch(useClassicWelcome, (isClassic) => {
   );
   backdrop-filter: blur(var(--kiosk-blur));
   -webkit-backdrop-filter: blur(var(--kiosk-blur));
-  padding: 12px;
+  padding: 16px 18px;
+  min-height: 82px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.phone-display__value {
+  font-size: clamp(32px, 4.5vw, 46px);
+  letter-spacing: 1px;
+  font-weight: 800;
+  width: 100%;
+  text-align: left;
 }
 .keypad {
   /* Kiosk keypad grid: adjust spacing here */
