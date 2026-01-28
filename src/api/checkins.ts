@@ -16,6 +16,7 @@ export type CreateCheckInPayload = {
   serviceName?: string | null;
   staffId?: string | null;
   appointmentId?: string | null;
+  email?: string | null;
 };
 
 export async function publicLookup(phoneE164: string): Promise<

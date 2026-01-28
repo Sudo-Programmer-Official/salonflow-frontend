@@ -21,6 +21,7 @@ import {
   updateAppointment,
   cancelAppointment,
   completeAppointment,
+  confirmAppointment,
   type Appointment,
 } from '../../api/appointments';
 import { fetchServices, type ServiceItem } from '../../api/services';
@@ -35,6 +36,7 @@ const staff = ref<StaffMember[]>([]);
 const loading = ref(false);
 const loadingServices = ref(false);
 const loadingStaff = ref(false);
+const actionLoading = ref<Record<string, boolean>>({});
 const page = ref(1);
 const totalPages = ref(1);
 
@@ -214,22 +216,41 @@ const saveAppointment = async () => {
 };
 
 const handleCancel = async (id: string) => {
+  actionLoading.value = { ...actionLoading.value, [id]: true };
   try {
     await cancelAppointment(id);
     await loadAppointments();
     ElMessage.success('Appointment canceled');
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Cancel failed');
+  } finally {
+    actionLoading.value = { ...actionLoading.value, [id]: false };
   }
 };
 
 const handleComplete = async (id: string) => {
+  actionLoading.value = { ...actionLoading.value, [id]: true };
   try {
     await completeAppointment(id);
     await loadAppointments();
     ElMessage.success('Appointment completed');
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Complete failed');
+  } finally {
+    actionLoading.value = { ...actionLoading.value, [id]: false };
+  }
+};
+
+const handleConfirm = async (id: string) => {
+  actionLoading.value = { ...actionLoading.value, [id]: true };
+  try {
+    await confirmAppointment(id);
+    await loadAppointments();
+    ElMessage.success('Appointment confirmed');
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : 'Confirm failed');
+  } finally {
+    actionLoading.value = { ...actionLoading.value, [id]: false };
   }
 };
 
@@ -293,13 +314,41 @@ const goToPage = (target: number) => {
             <ElTableColumn label="Actions" min-width="300">
               <template #default="{ row }">
                 <div class="flex flex-wrap gap-2">
-                  <ElButton size="small" type="primary" class="sf-btn sf-btn--table" @click="openEdit(row)">Edit</ElButton>
-                  <ElButton size="small" type="danger" class="sf-btn sf-btn--table" @click="handleCancel(row.id)">Cancel</ElButton>
+                  <ElButton
+                    size="small"
+                    type="primary"
+                    class="sf-btn sf-btn--table"
+                    @click="openEdit(row)"
+                    :disabled="actionLoading[row.id]"
+                  >
+                    Edit
+                  </ElButton>
+                  <ElButton
+                    v-if="row.status !== 'CANCELED' && row.status !== 'COMPLETED'"
+                    size="small"
+                    type="danger"
+                    class="sf-btn sf-btn--table"
+                    :loading="actionLoading[row.id]"
+                    @click="handleCancel(row.id)"
+                  >
+                    Cancel
+                  </ElButton>
                   <ElButton
                     v-if="row.status === 'BOOKED'"
                     size="small"
                     type="success"
                     class="sf-btn sf-btn--table"
+                    :loading="actionLoading[row.id]"
+                    @click="handleConfirm(row.id)"
+                  >
+                    Confirm
+                  </ElButton>
+                  <ElButton
+                    v-if="row.status === 'CHECKED_IN'"
+                    size="small"
+                    type="success"
+                    class="sf-btn sf-btn--table"
+                    :loading="actionLoading[row.id]"
                     @click="handleComplete(row.id)"
                   >
                     Complete

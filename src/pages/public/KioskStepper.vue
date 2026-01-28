@@ -40,6 +40,7 @@ const route = useRoute();
 const step = ref<Step>("phone");
 const phone = ref("");
 const name = ref("");
+const email = ref("");
 const selectedServiceIds = ref<string[]>([]);
 const groupedServices = ref<ServiceGroup[]>([]);
 const settings = ref<BusinessSettings | null>(null);
@@ -225,15 +226,6 @@ const backspaceTimer = ref<number | null>(null);
 const lastPointerTs = ref(0);
 
 const primaryServiceId = computed(() => selectedServiceIds.value[0] ?? null);
-const rewardValue = computed(() => {
-  if (!showPoints.value) return null;
-  const points =
-    animatedPoints.value ?? lookupResult.value?.customer?.pointsBalance;
-  if (points === null || points === undefined) return null;
-  const perPointValue = 5 / 300; // mirrors 300 pts = $5 teaser
-  return points * perPointValue;
-});
-
 const estimatedTotal = computed(() => {
   const totalCents = selectedServiceDetails.value.reduce(
     (acc, svc) => acc + (svc.priceCents ?? 0),
@@ -451,6 +443,7 @@ const canAdvanceFromPhone = computed(() => {
 });
 
 const canAdvanceFromName = computed(() => !!name.value.trim());
+const hasPhoneDigits = computed(() => phone.value.replace(/\D/g, "").length > 0);
 
 const canAdvanceFromServices = computed(() => {
   if (requireService.value) return selectedServiceIds.value.length > 0;
@@ -643,6 +636,7 @@ const confirmCheckIn = async () => {
       serviceId: primaryServiceId,
       serviceName,
       staffId: selectedStaffId.value,
+      email: email.value.trim() || null,
     });
     name.value = personName;
     successName.value = personName;
@@ -662,15 +656,15 @@ const confirmCheckIn = async () => {
 const onLookup = async () => {
   const digits = phone.value.replace(/\D/g, "");
   if (!digits) {
-    lookupResult.value = null;
-    lookupError.value = "";
-    return;
-  }
-  if (digits.length !== 10) {
-    lookupResult.value = null;
-    lookupError.value = "Enter a valid 10-digit phone number";
-    return;
-  }
+  lookupResult.value = null;
+  lookupError.value = "";
+  return;
+}
+if (digits.length !== 10) {
+  lookupResult.value = null;
+  lookupError.value = "";
+  return;
+}
   lookupLoading.value = true;
   try {
     const normalizedPhone = normalizePhone(phone.value);
@@ -682,7 +676,7 @@ const onLookup = async () => {
     }
   } catch (_err) {
     lookupResult.value = null;
-    lookupError.value = "Could not load points right now.";
+    lookupError.value = "";
   } finally {
     lookupLoading.value = false;
   }
@@ -897,7 +891,7 @@ watch(useClassicWelcome, (isClassic) => {
                     </div>
                     <div class="phone-display" aria-label="Phone number">
                       <div
-                        class="text-3xl font-semibold"
+                        class="text-4xl font-semibold"
                         :style="{ color: 'var(--kiosk-text-primary)' }"
                       >
                         {{ displayPhone }}
@@ -908,26 +902,28 @@ watch(useClassicWelcome, (isClassic) => {
                         v-for="(row, rowIndex) in keypad"
                         :key="row.join('-')"
                       >
-                        <button
-                          v-for="key in row"
-                          :key="`${rowIndex}-${key}`"
-                          :class="[
-                            'keypad-key',
-                            {
-                              action: key === 'backspace' || key === 'clear',
-                              secondary: key === 'backspace' || key === 'clear',
-                            },
-                          ]"
-                          @pointerdown="onKeyPointerDown(key, $event)"
-                          @pointerup="onKeyPointerUp(key, $event)"
-                          @pointercancel="onKeyPointerCancel(key)"
-                          @pointerleave="onKeyPointerCancel(key)"
-                          @click="onKeyClick(key)"
-                        >
-                          <span v-if="key === 'backspace'">⌫</span>
-                          <span v-else-if="key === 'clear'">Clear</span>
-                          <span v-else>{{ key }}</span>
-                        </button>
+                        <template v-for="key in row" :key="`${rowIndex}-${key}`">
+                          <button
+                            v-if="!(key === 'backspace' || key === 'clear') || hasPhoneDigits"
+                            :class="[
+                              'keypad-key',
+                              {
+                                action: key === 'backspace' || key === 'clear',
+                                secondary: key === 'backspace' || key === 'clear',
+                              },
+                            ]"
+                            @pointerdown="onKeyPointerDown(key, $event)"
+                            @pointerup="onKeyPointerUp(key, $event)"
+                            @pointercancel="onKeyPointerCancel(key)"
+                            @pointerleave="onKeyPointerCancel(key)"
+                            @click="onKeyClick(key)"
+                          >
+                            <span v-if="key === 'backspace'">⌫</span>
+                            <span v-else-if="key === 'clear'">Clear</span>
+                            <span v-else>{{ key }}</span>
+                          </button>
+                          <div v-else class="keypad-key keypad-key--spacer" aria-hidden="true"></div>
+                        </template>
                       </template>
                     </div>
                     <div
@@ -947,7 +943,7 @@ watch(useClassicWelcome, (isClassic) => {
                       <ElButton
                         type="primary"
                         size="large"
-                        :disabled="!canAdvanceFromPhone"
+                        v-if="canAdvanceFromPhone"
                         class="kiosk-next-btn"
                         @click="proceedFromPhone"
                       >
@@ -984,6 +980,15 @@ watch(useClassicWelcome, (isClassic) => {
                     size="large"
                     placeholder="Your name"
                   />
+                  <div class="email-inline">
+                    <label class="kiosk-label"> Email (optional) </label>
+                    <ElInput
+                      v-model="email"
+                      size="large"
+                      placeholder="Receipts & reminders"
+                      type="email"
+                    />
+                  </div>
                   <div
                     v-if="lookupResult?.customer?.name"
                     class="text-xs"
@@ -1278,39 +1283,21 @@ watch(useClassicWelcome, (isClassic) => {
                   </p>
                 </div>
 
-                <div v-if="showPoints" class="done-rewards">
+                <div
+                  v-if="showPoints && lookupResult?.customer?.pointsBalance !== null && lookupResult?.customer?.pointsBalance !== undefined"
+                  class="done-rewards"
+                >
                   <div class="rewards-header">
                     <span class="rewards-icon" aria-hidden="true">💎</span>
                     <div
                       class="text-xl font-semibold"
                       :style="{ color: 'var(--kiosk-text-primary)' }"
                     >
-                      {{
-                        animatedPoints ??
-                        lookupResult?.customer?.pointsBalance ??
-                        0
-                      }}
-                      points
+                      {{ lookupResult?.customer?.pointsBalance ?? 0 }} points balance
                     </div>
                   </div>
-                  <div
-                    class="text-sm"
-                    :style="{ color: 'var(--kiosk-text-secondary)' }"
-                  >
-                    <template v-if="rewardValue !== null">
-                      ≈
-                      {{
-                        Intl.NumberFormat("en-US", {
-                          style: "currency",
-                          currency: settings?.currency || "USD",
-                          minimumFractionDigits: 2,
-                        }).format(rewardValue)
-                      }}
-                      toward rewards
-                    </template>
-                    <template v-else>
-                      Earn rewards after today’s visit.
-                    </template>
+                  <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">
+                    Points update after your visit is processed.
                   </div>
                 </div>
 
@@ -1569,8 +1556,8 @@ watch(useClassicWelcome, (isClassic) => {
 }
 .keypad-key {
   /* Kiosk keypad keys: size/shape/feel */
-  width: 90px;
-  height: 90px;
+  width: 108px;
+  height: 108px;
   border-radius: 50%;
   background:
     radial-gradient(
@@ -1580,7 +1567,7 @@ watch(useClassicWelcome, (isClassic) => {
     ),
     var(--kiosk-primary);
   color: var(--kiosk-key-text, var(--kiosk-text-primary));
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 800;
   border: none;
   cursor: pointer;
@@ -1594,6 +1581,11 @@ watch(useClassicWelcome, (isClassic) => {
     transform 0.12s ease,
     background 0.15s ease,
     box-shadow 0.15s ease;
+}
+.keypad-key--spacer {
+  visibility: hidden;
+  width: 108px;
+  height: 108px;
 }
 .keypad-key.action {
   background: rgba(255, 255, 255, 0.14);

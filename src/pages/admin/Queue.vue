@@ -10,7 +10,6 @@ import {
   ElSelect,
   ElOption,
   ElInput,
-  ElTooltip,
   ElMessageBox,
 } from 'element-plus';
 import {
@@ -30,8 +29,7 @@ import {
   type TodayAppointmentsResponse,
 } from '../../api/appointments';
 import { fetchServices, type ServiceOption, createPublicCheckIn, publicLookup } from '../../api/checkins';
-import { searchCustomers, sendCustomerReminder } from '../../api/customers';
-import { humanizeTime, formatInBusinessTz } from '../../utils/dates';
+import { humanizeTime } from '../../utils/dates';
 import { formatPhone } from '../../utils/format';
 
 const PAGE_SIZE = 10;
@@ -78,7 +76,6 @@ const loadingStaff = ref(false);
 const todayAppointments = ref<TodayAppointment[]>([]);
 const todayAppointmentsLocked = ref(false);
 const loadingAppointments = ref(false);
-const sendingMap = ref<Record<string, boolean>>({});
 const activeTab = ref<'WAITING' | 'IN_SERVICE' | 'COMPLETED'>('WAITING');
 const waitingPage = ref(1);
 const inServicePage = ref(1);
@@ -356,29 +353,6 @@ const isQueueEmpty = computed(() => {
   return completedList.value.length === 0;
 });
 
-const sendReminderForAppointment = async (appt: TodayAppointment) => {
-  if (!isOnline.value) {
-    ElMessage.warning('Available when online');
-    return;
-  }
-  sendingMap.value = { ...sendingMap.value, [appt.id]: true };
-  try {
-    const matches = await searchCustomers(appt.phoneE164);
-    const customer = matches.find((c) => c.phoneE164 === appt.phoneE164);
-    if (!customer) throw new Error('Customer not found');
-    if (!customer.reviewSmsConsent) {
-      ElMessage.warning('Consent required');
-      return;
-    }
-    await sendCustomerReminder(customer.id);
-    ElMessage.success('Reminder sent');
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : 'Failed to send reminder');
-  } finally {
-    sendingMap.value = { ...sendingMap.value, [appt.id]: false };
-  }
-};
-
 const elapsed = (item: QueueItem) => humanizeTime(item.calledAt || item.createdAt || null);
 
 const waitingPosition = (item: QueueItem) => {
@@ -507,14 +481,6 @@ const loadStaff = async () => {
 const activeStaffNames = computed(() =>
   staff.value.filter((s) => s.active).map((s) => s.nickname || s.name),
 );
-
-const singleStaffName = computed(() => {
-  const names = todayAppointments.value
-    .map((a) => a.staffName)
-    .filter((n): n is string => Boolean(n));
-  const unique = Array.from(new Set(names));
-  return unique.length === 1 ? unique[0] : null;
-});
 
 const loadAppointments = async () => {
   loadingAppointments.value = true;
@@ -926,10 +892,6 @@ watch(completedPage, async (val) => {
 
 <template>
   <div class="queue-page flex h-full flex-col space-y-4">
-    <div class="mb-2">
-      <h1 class="text-xl font-semibold text-slate-900">Today’s Queue</h1>
-      <p class="text-sm text-slate-600">Live queue with quick actions. Staff view is read-only.</p>
-    </div>
 
     <ElCard v-if="queueLocked" class="glass bg-white/90 border-amber-200">
       <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -938,103 +900,6 @@ watch(completedPage, async (val) => {
           <div class="text-xs text-slate-600">Activate billing to track waiting, in-service, and completed visits.</div>
         </div>
         <ElButton type="primary" @click="$router.push({ name: 'admin-billing' })">Go to billing</ElButton>
-      </div>
-    </ElCard>
-
-    <ElCard class="glass bg-white/95" :loading="loadingAppointments">
-      <div class="mb-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div class="text-base font-semibold text-slate-900">
-            Today’s Appointments
-            <span v-if="singleStaffName" class="text-sm font-normal text-slate-600">
-              — Staff: {{ singleStaffName }}
-            </span>
-          </div>
-          <div class="text-xs text-slate-600">Check in quickly without retyping.</div>
-        </div>
-        <div class="text-xs font-medium" :class="isOnline ? 'text-emerald-600' : 'text-amber-600'">
-          <span v-if="isOnline">🟢 Online</span>
-          <span v-else>⚪ Offline mode</span>
-        </div>
-      </div>
-      <div class="appointment-list space-y-2">
-        <div v-if="todayAppointmentsLocked" class="text-xs text-slate-600">
-          Appointments visible after billing activation.
-        </div>
-        <div
-          v-for="appt in todayAppointments"
-          :key="appt.id"
-          class="rounded-md border border-slate-200 bg-slate-50 p-3 shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
-        >
-          <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div class="space-y-1">
-              <div class="flex flex-wrap items-center gap-2 text-sm text-slate-900">
-                <span class="font-semibold">👤 {{ appt.customerName }}</span>
-                <span class="flex items-center gap-1 text-slate-700">
-                  📞 <span>{{ formatPhone(appt.phoneE164) }}</span>
-                </span>
-              </div>
-              <div class="flex flex-wrap items-center gap-2 text-xs text-slate-700">
-                <span>💇 {{ appt.serviceName || 'No service' }}</span>
-                <span>🕒 {{ formatInBusinessTz(appt.scheduledAt, 'h:mm A') }}</span>
-                <span class="flex items-center gap-1">
-                  👩‍🎨
-                  <span>{{ appt.staffName || 'Unassigned' }}</span>
-                </span>
-              </div>
-            </div>
-            <div class="appointment-actions">
-              <template v-if="appt.status === 'BOOKED'">
-                <ElButton
-                  size="small"
-                  type="primary"
-                  class="sf-btn sf-btn--table sf-btn--icon"
-                  @click="openCheckinModal(appt)"
-                >
-                  <span aria-hidden="true">✅</span>
-                  <span>Check in</span>
-                </ElButton>
-              </template>
-              <ElTag v-else effect="plain" type="success" size="small">Checked in</ElTag>
-              <ElTooltip v-if="!isOnline" content="Available when online">
-                <span>
-                  <ElButton
-                    size="small"
-                    class="sf-btn sf-btn--table sf-btn--icon sf-btn--ghost"
-                    :disabled="!isOnline"
-                    :loading="sendingMap[appt.id]"
-                    @click="sendReminderForAppointment(appt)"
-                  >
-                    <span aria-hidden="true">🔔</span>
-                    <span>Reminder</span>
-                  </ElButton>
-                </span>
-              </ElTooltip>
-              <ElButton
-                v-else
-                size="small"
-                class="sf-btn sf-btn--table sf-btn--icon sf-btn--ghost"
-                :loading="sendingMap[appt.id]"
-                @click="sendReminderForAppointment(appt)"
-              >
-                <span aria-hidden="true">🔔</span>
-                <span>Reminder</span>
-              </ElButton>
-              <ElTooltip content="Send feedback after checkout">
-                <span>
-                  <ElButton size="small" class="sf-btn sf-btn--table sf-btn--icon sf-btn--ghost" disabled>
-                    <span aria-hidden="true">💬</span>
-                    <span>Feedback</span>
-                  </ElButton>
-                </span>
-              </ElTooltip>
-            </div>
-          </div>
-        </div>
-        <div v-if="!loadingAppointments && todayAppointments.length === 0" class="text-xs text-slate-500">
-          <span v-if="todayAppointmentsLocked">Appointments visible after billing activation.</span>
-          <span v-else>No appointments for today.</span>
-        </div>
       </div>
     </ElCard>
 

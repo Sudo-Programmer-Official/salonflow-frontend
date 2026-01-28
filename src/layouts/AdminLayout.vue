@@ -4,7 +4,6 @@ import { useRoute, useRouter } from 'vue-router';
 import OnboardingProgress from '../components/OnboardingProgress.vue';
 import { trialExpired, trialEndedAt, trialDaysRemaining, resetTrialState } from '../api/trialBanner';
 import { fetchOnboardingStatus, dismissOnboardingBanner } from '../api/onboarding';
-import { logout } from '../utils/auth';
 import { fetchSettings, fetchPublicSettings } from '../api/settings';
 import { applyThemeFromSettings } from '../utils/theme';
 import { useInboxNotifications } from '../utils/inboxNotifications';
@@ -14,6 +13,8 @@ const role = computed(() => localStorage.getItem('role') || '');
 const isOwner = computed(() => role.value === 'OWNER');
 const dismissBanner = ref(false);
 const sidebarOpen = ref(false);
+const isSidebarCollapsed = ref(true);
+const SIDEBAR_COLLAPSE_KEY = 'adminSidebarCollapsed';
 const onboardingBannerDismissed = ref(false);
 const onboardingStatus = ref<Awaited<ReturnType<typeof fetchOnboardingStatus>> | null>(null);
 const router = useRouter();
@@ -60,38 +61,7 @@ const exitImpersonation = () => {
   window.location.href = '/platform';
 };
 
-const handleLogout = () => logout('/app/login');
-
-const triggerManualCheckin = () => {
-  const evt = new CustomEvent('open-manual-checkin');
-  if (route.name === 'admin-queue') {
-    window.dispatchEvent(evt);
-    return;
-  }
-  router.push({ name: 'admin-queue', query: { newCheckin: '1' } }).then(() => {
-    window.dispatchEvent(evt);
-  });
-};
-
-const publicCheckInUrl = computed(() => {
-  if (typeof window === 'undefined') return '/check-in';
-  return `${window.location.origin}/check-in`;
-});
-
-const openPublicCheckIn = () => {
-  window.location.href = publicCheckInUrl.value;
-};
-
-const kioskUrl = computed(() => {
-  if (typeof window === 'undefined') return '/check-in/kiosk';
-  return `${window.location.origin}/check-in/kiosk`;
-});
-
 const kioskEnabled = ref(false);
-
-const openKioskMode = () => {
-  window.location.href = kioskUrl.value;
-};
 
 const {
   state: inboxState,
@@ -315,6 +285,10 @@ const openGroupForRoute = (routeName: string | null) => {
 onMounted(() => {
   loadGroupState();
   openGroupForRoute(route.name as string);
+  const collapsePref = localStorage.getItem(SIDEBAR_COLLAPSE_KEY);
+  if (collapsePref !== null) {
+    isSidebarCollapsed.value = collapsePref === 'true';
+  }
 });
 
 const currentRouteName = computed(() => (route.name ? String(route.name) : null));
@@ -324,19 +298,23 @@ watch(currentRouteName, (val) => {
   sidebarOpen.value = false;
 });
 
-const toggleSidebar = () => {
-  sidebarOpen.value = !sidebarOpen.value;
-};
-
 const closeSidebar = () => {
   sidebarOpen.value = false;
+};
+
+const toggleSidebarCollapse = () => {
+  isSidebarCollapsed.value = !isSidebarCollapsed.value;
+  localStorage.setItem(SIDEBAR_COLLAPSE_KEY, isSidebarCollapsed.value ? 'true' : 'false');
 };
 </script>
 
 <template>
   <div class="admin-shell text-slate-900">
-    <aside :class="['sidebar', { open: sidebarOpen }]">
+    <aside :class="['sidebar', { open: sidebarOpen, collapsed: isSidebarCollapsed }]">
       <div class="sidebar__brand">
+        <button class="collapse-toggle" type="button" @click="toggleSidebarCollapse" :aria-label="isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'">
+          {{ isSidebarCollapsed ? '›' : '‹' }}
+        </button>
         <img src="/icons/icon-128x128.png" alt="SalonFlow logo" class="brand-logo sidebar__logo" />
         <div class="sidebar__brand-text">
           <span class="sidebar__brand-name">SalonFlow</span>
@@ -400,41 +378,9 @@ const closeSidebar = () => {
     <div class="admin-main">
       <header class="admin-header">
         <div class="flex items-center gap-3">
-          <!-- <button
-            class="sidebar-toggle lg:hidden"
-            type="button"
-            aria-label="Toggle menu"
-            @click="toggleSidebar"
-          >
-            ☰
-          </button> -->
-          <div class="text-sm font-semibold text-slate-900">Admin</div>
+          <div class="text-sm font-semibold text-slate-900">Queue-first view</div>
         </div>
-        <div class="flex items-center gap-3">
-          <el-button
-            v-if="isOwner && kioskEnabled"
-            type="success"
-            plain
-            size="small"
-            @click="openKioskMode"
-          >
-            Kiosk Mode
-          </el-button>
-          <el-button type="primary" plain size="small" @click="openPublicCheckIn">
-            Public Check-In
-          </el-button>
-          <el-button
-            v-if="isOwner"
-            type="primary"
-            size="small"
-            @click="triggerManualCheckin"
-          >
-            + New Check-In
-          </el-button>
-          <el-button class="logout-btn" type="danger" size="small" @click="handleLogout">
-            Logout
-          </el-button>
-        </div>
+        <div class="flex items-center gap-3"></div>
       </header>
 
       <main class="admin-content">
@@ -621,6 +567,44 @@ const closeSidebar = () => {
   -webkit-backdrop-filter: blur(var(--glass-blur));
   font-family: var(--ui-font-family);
   overflow: hidden;
+}
+.sidebar.collapsed {
+  width: 64px;
+}
+.sidebar.collapsed .sidebar__brand-text,
+.sidebar.collapsed .sidebar__section-header,
+.sidebar.collapsed .nav-link__right,
+.sidebar.collapsed .sidebar__section-caret,
+.sidebar.collapsed .sidebar__section-body .nav-link span:not(.nav-link__icon) {
+  display: none;
+}
+.sidebar.collapsed .sidebar__section {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+.sidebar.collapsed .sidebar__section-body {
+  gap: 6px;
+  padding: 4px;
+}
+.sidebar.collapsed .nav-link {
+  justify-content: center;
+  padding: 10px 8px;
+}
+.sidebar.collapsed .nav-link__icon {
+  font-size: 16px;
+}
+.collapse-toggle {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 10px;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  color: #0f172a;
+  cursor: pointer;
 }
 .sidebar__brand {
   min-height: 96px;
