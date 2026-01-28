@@ -907,12 +907,12 @@ watch(useClassicWelcome, (isClassic) => {
                   </div>
                   <div class="phone-panel kiosk-pane glass-card kiosk-step-panel">
                     <div class="phone-heading">
-                      <p
+                      <!-- <p
                         class="text-xs uppercase tracking-wide"
                         :style="{ color: 'var(--kiosk-text-secondary)' }"
                       >
                         Step 1 • Phone
-                      </p>
+                      </p> -->
                       <p
                         class="text-2xl font-semibold"
                         :style="{ color: 'var(--kiosk-text-primary)' }"
@@ -922,7 +922,7 @@ watch(useClassicWelcome, (isClassic) => {
                     </div>
                     <div class="phone-display" aria-label="Phone number">
                       <div
-                        class="phone-display__value"
+                        class="text-4xl font-semibold"
                         :style="{ color: 'var(--kiosk-text-primary)' }"
                       >
                         {{ displayPhone }}
@@ -1599,18 +1599,7 @@ watch(useClassicWelcome, (isClassic) => {
   );
   backdrop-filter: blur(var(--kiosk-blur));
   -webkit-backdrop-filter: blur(var(--kiosk-blur));
-  padding: 16px 18px;
-  min-height: 82px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.phone-display__value {
-  font-size: clamp(32px, 4.5vw, 46px);
-  letter-spacing: 1px;
-  font-weight: 800;
-  width: 100%;
-  text-align: left;
+  padding: 12px;
 }
 .keypad {
   /* Kiosk keypad grid: adjust spacing here */
