@@ -23,6 +23,10 @@ const hideOnboardingRoutes = ['admin-queue'];
 const showOnboardingAllowed = computed(
   () => !hideOnboardingRoutes.includes((route.name as string) || ''),
 );
+const hideHeaderRoutes = ['admin-queue'];
+const showHeader = computed(
+  () => !hideHeaderRoutes.includes((route.name as string) || ''),
+);
 
 const showEndedBanner = computed(() => isOwner.value && trialExpired.value && !dismissBanner.value);
 const showCountdownBanner = computed(
@@ -316,10 +320,14 @@ const toggleSidebarCollapse = () => {
   <div class="admin-shell text-slate-900">
     <aside :class="['sidebar', { open: sidebarOpen, collapsed: isSidebarCollapsed }]">
       <div class="sidebar__brand">
-        <button class="collapse-toggle" type="button" @click="toggleSidebarCollapse" :aria-label="isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'">
-          {{ isSidebarCollapsed ? '›' : '‹' }}
+        <button
+          class="collapse-toggle"
+          type="button"
+          @click="toggleSidebarCollapse"
+          :aria-label="isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+        >
+          <span class="collapse-icon">{{ isSidebarCollapsed ? '⟩' : '⟨' }}</span>
         </button>
-        <img src="/icons/icon-128x128.png" alt="SalonFlow logo" class="brand-logo sidebar__logo" />
         <div class="sidebar__brand-text">
           <span class="sidebar__brand-name">SalonFlow</span>
           <span class="sidebar__brand-sub">Admin</span>
@@ -380,9 +388,11 @@ const toggleSidebarCollapse = () => {
     <div v-if="sidebarOpen" class="sidebar-backdrop" @click="closeSidebar"></div>
 
     <div class="admin-main">
-      <header class="admin-header">
+      <header v-if="showHeader" class="admin-header">
         <div class="flex items-center gap-3">
-          <div class="text-sm font-semibold text-slate-900">Queue-first view</div>
+          <div class="text-sm font-semibold text-slate-900">
+            {{ route.meta?.title || 'SalonFlow' }}
+          </div>
         </div>
         <div class="flex items-center gap-3"></div>
       </header>
@@ -575,6 +585,10 @@ const toggleSidebarCollapse = () => {
 .sidebar.collapsed {
   width: 64px;
 }
+.sidebar.collapsed .collapse-toggle {
+  width: 44px;
+  height: 44px;
+}
 .sidebar.collapsed .sidebar__brand-text,
 .sidebar.collapsed .sidebar__section-header,
 .sidebar.collapsed .nav-link__right,
@@ -602,13 +616,27 @@ const toggleSidebarCollapse = () => {
   border: 1px solid rgba(148, 163, 184, 0.35);
   background: rgba(255, 255, 255, 0.7);
   border-radius: 10px;
-  width: 30px;
-  height: 30px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
   font-weight: 800;
   color: #0f172a;
   cursor: pointer;
+  font-size: 16px;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
+}
+.collapse-toggle:hover {
+  background: rgba(255, 255, 255, 0.85);
+}
+.collapse-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 18px;
+  line-height: 1;
 }
 .sidebar__brand {
   min-height: 96px;
@@ -619,9 +647,6 @@ const toggleSidebarCollapse = () => {
   font-weight: 800;
   font-size: var(--font-lg);
   white-space: nowrap;
-}
-.sidebar__logo {
-  flex-shrink: 0;
 }
 .sidebar__brand-text {
   display: flex;

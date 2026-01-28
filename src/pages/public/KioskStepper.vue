@@ -41,6 +41,7 @@ const step = ref<Step>("phone");
 const phone = ref("");
 const name = ref("");
 const email = ref("");
+const emailDomains = ["@gmail.com", "@icloud.com", "@outlook.com"];
 const selectedServiceIds = ref<string[]>([]);
 const groupedServices = ref<ServiceGroup[]>([]);
 const settings = ref<BusinessSettings | null>(null);
@@ -60,7 +61,12 @@ const staffError = ref("");
 const selectedStaffId = ref<string | null>(null);
 const lookupResult = ref<null | {
   exists: boolean;
-  customer?: { id: string; name: string; pointsBalance: number | null };
+  customer?: {
+    id: string;
+    name: string;
+    email?: string | null;
+    pointsBalance: number | null;
+  };
 }>(null);
 const lookupError = ref("");
 const lookupLoading = ref(false);
@@ -123,7 +129,7 @@ const stepItems = computed<Array<{ key: Step; label: string }>>(() => {
   }
   base.push(
     { key: "phone", label: "Phone" },
-    { key: "name", label: "Name" },
+    { key: "name", label: "Name & Email" },
     { key: "services", label: "Services" },
   );
   if (showStaffStep.value) {
@@ -421,6 +427,7 @@ const resetFlow = () => {
   animatedPoints.value = null;
   phone.value = "";
   name.value = "";
+  email.value = "";
   selectedServiceIds.value = [];
   selectedStaffId.value = null;
   errorMessage.value = "";
@@ -442,6 +449,9 @@ const canAdvanceFromPhone = computed(() => {
   return digits.length === 10;
 });
 
+const hasKnownIdentity = computed(
+  () => !!name.value.trim() && !!email.value.trim(),
+);
 const canAdvanceFromName = computed(() => !!name.value.trim());
 const hasPhoneDigits = computed(() => phone.value.replace(/\D/g, "").length > 0);
 
@@ -468,7 +478,7 @@ const proceedFromPhone = () => {
     return;
   }
   errorMessage.value = "";
-  step.value = "name";
+  step.value = hasKnownIdentity.value ? "services" : "name";
 };
 
 const proceedFromName = () => {
@@ -674,12 +684,33 @@ if (digits.length !== 10) {
     if (res.exists && res.customer?.name) {
       name.value = res.customer.name;
     }
+    if (res.exists && res.customer?.email) {
+      email.value = res.customer.email;
+    }
+    if (
+      step.value === "phone" &&
+      canAdvanceFromPhone.value &&
+      name.value.trim() &&
+      email.value.trim()
+    ) {
+      step.value = "services";
+    }
   } catch (_err) {
     lookupResult.value = null;
     lookupError.value = "";
   } finally {
     lookupLoading.value = false;
   }
+};
+
+const applyEmailDomain = (domain: string) => {
+  const current = email.value.trim();
+  if (!current) {
+    // Require user to type local-part first; no action if empty.
+    return;
+  }
+  const local = current.split("@")[0] || current;
+  email.value = `${local}${domain}`;
 };
 
 watch(
@@ -961,13 +992,13 @@ watch(useClassicWelcome, (isClassic) => {
                       class="text-xl font-semibold"
                       :style="{ color: 'var(--kiosk-text-primary)' }"
                     >
-                      Your name
+                      Your name & email
                     </p>
                     <p
                       class="text-sm"
                       :style="{ color: 'var(--kiosk-text-secondary)' }"
                     >
-                      We’ll use this to call you when it’s your turn.
+                      We’ll use this to call you when it’s your turn and send receipts if needed.
                     </p>
                   </div>
                   <ElButton size="large" @click="step = 'phone'">Back</ElButton>
@@ -985,9 +1016,20 @@ watch(useClassicWelcome, (isClassic) => {
                     <ElInput
                       v-model="email"
                       size="large"
-                      placeholder="Receipts & reminders"
+                      placeholder="Email (optional)"
                       type="email"
                     />
+                    <div class="email-domains">
+                      <button
+                        v-for="domain in emailDomains"
+                        :key="domain"
+                        type="button"
+                        class="email-domain-pill"
+                        @click="applyEmailDomain(domain)"
+                      >
+                        {{ domain }}
+                      </button>
+                    </div>
                   </div>
                   <div
                     v-if="lookupResult?.customer?.name"
@@ -1523,6 +1565,30 @@ watch(useClassicWelcome, (isClassic) => {
   min-width: 320px;
   max-width: 820px;
   margin: 0 auto;
+}
+.email-inline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.email-domains {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.email-domain-pill {
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 9999px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: #0f172a;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.email-domain-pill:hover {
+  background: #f8fafc;
+  border-color: rgba(59, 130, 246, 0.4);
 }
 .kiosk-pane :deep(.el-input__wrapper) {
   min-height: 56px;
