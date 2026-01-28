@@ -20,6 +20,22 @@ export type SmsCredits = {
 
 export type SmsPack = 500 | 1500 | 4000;
 
+export type SmsUsage = {
+  sent: number;
+  received: number;
+  total: number;
+  estimatedCost: number;
+};
+
+export type SmsPricing = {
+  unitPrice: number;
+};
+
+export type SmsPackInfo = {
+  size: number;
+  price: number;
+};
+
 export async function fetchBillingStatus(): Promise<{
   subscriptionStatus: SubscriptionStatus;
   subscriptionCurrentPeriodEnd: string | null;
@@ -36,6 +52,9 @@ export async function fetchBillingStatus(): Promise<{
     customerId?: string | null;
   };
   smsCredits?: SmsCredits;
+  smsUsage?: SmsUsage;
+  smsPricing?: SmsPricing;
+  smsPacks?: SmsPackInfo[];
 }> {
   const res = await fetch(`${apiBase}/status`, {
     headers: buildHeaders({ auth: true, tenant: true, json: true }),

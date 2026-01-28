@@ -9,6 +9,9 @@ import {
   fetchSmsCredits,
   createSmsPackCheckout,
   type SmsCredits,
+  type SmsUsage,
+  type SmsPricing,
+  type SmsPackInfo,
 } from '../../api/billing';
 import { resetTrialState, setTrialEndsAt } from '../../api/trialBanner';
 import { formatInBusinessTz } from '../../utils/dates';
@@ -28,6 +31,9 @@ const loading = ref(false);
 const actionLoading = ref<string | null>(null);
 const smsLoading = ref(false);
 const smsCredits = ref<SmsCredits | null>(null);
+const smsUsage = ref<SmsUsage | null>(null);
+const smsPricing = ref<SmsPricing | null>(null);
+const smsPacks = ref<SmsPackInfo[]>([]);
 const success = ref('');
 const error = ref('');
 
@@ -51,6 +57,9 @@ const loadStatus = async () => {
     const data = await fetchBillingStatus();
     billing.value = data.billing ?? null;
     status.value = data.subscriptionStatus;
+    smsUsage.value = data.smsUsage ?? null;
+    smsPricing.value = data.smsPricing ?? null;
+    smsPacks.value = Array.isArray(data.smsPacks) ? data.smsPacks : [];
     setTrialEndsAt(data.trialEndsAt);
     if (data.subscriptionStatus === 'active') {
       resetTrialState();
@@ -110,7 +119,7 @@ const handlePortal = async () => {
   }
 };
 
-const handleSmsPack = async (pack: 500 | 1500) => {
+const handleSmsPack = async (pack: 500 | 1500 | 4000) => {
   actionLoading.value = `sms-${pack}`;
   try {
     const { url } = await createSmsPackCheckout(pack);
@@ -152,6 +161,16 @@ const renewalText = computed(() => {
 });
 
 const canSubscribe = computed(() => billing.value?.canSubscribe !== false);
+
+const unitPrice = computed(() => smsPricing.value?.unitPrice ?? 0.0083);
+
+const normalizedPacks = computed(() => {
+  const allowed = [500, 1500, 4000];
+  const list = smsPacks.value.length
+    ? smsPacks.value.filter((p) => allowed.includes(p.size))
+    : allowed.map((size) => ({ size, price: Number((size * unitPrice.value).toFixed(2)) }));
+  return list.sort((a, b) => a.size - b.size);
+});
 </script>
 
 <template>
@@ -279,52 +298,72 @@ const canSubscribe = computed(() => billing.value?.canSubscribe !== false);
     />
 
     <section class="space-y-3">
-      <h2 class="text-lg font-semibold text-slate-900">SMS Credits & Add-ons</h2>
+      <h2 class="text-lg font-semibold text-slate-900">SMS Usage & Pricing</h2>
+      <ElCard class="bg-white">
+        <div class="grid gap-4 md:grid-cols-3">
+          <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div class="text-xs uppercase tracking-wide text-slate-600">This cycle</div>
+            <div class="mt-1 text-2xl font-semibold text-slate-900">
+              {{ smsUsage?.total ?? 0 }} messages
+            </div>
+            <div class="text-sm text-slate-600">
+              Sent: {{ smsUsage?.sent ?? 0 }} · Received: {{ smsUsage?.received ?? 0 }}
+            </div>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div class="text-xs uppercase tracking-wide text-slate-600">Estimated cost</div>
+            <div class="mt-1 text-2xl font-semibold text-slate-900">
+              ${{ (smsUsage?.estimatedCost ?? 0).toFixed(2) }}
+            </div>
+            <div class="text-sm text-slate-600">
+              Calculated at ${{ unitPrice.toFixed(4) }} per segment (send or receive)
+            </div>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div class="text-xs uppercase tracking-wide text-slate-600">Transparency</div>
+            <div class="mt-1 text-sm text-slate-700">
+              Prices are passed through from carriers (Twilio). No markup.
+              Platform subscription fees are separate.
+            </div>
+          </div>
+        </div>
+      </ElCard>
+
       <ElCard class="bg-white">
         <div class="flex flex-col gap-3">
-          <div class="text-sm text-slate-600">SMS Credits</div>
-          <div class="text-xl font-semibold text-slate-900">
-            <span v-if="smsCredits">
-              {{ smsCredits.totalAvailable }} available
-            </span>
-            <span v-else>Loading…</span>
-          </div>
-          <div class="text-sm text-slate-600" v-if="smsCredits">
-            Included remaining: {{ smsCredits.includedRemaining }} / {{ smsCredits.monthlyIncluded }} ·
-            Purchased balance: {{ smsCredits.purchasedRemaining }} ·
-            Usage this month: {{ smsCredits.monthlyUsage }}
-          </div>
-          <div class="grid gap-3 sm:grid-cols-2">
-            <div class="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-4 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
-              <div class="text-base font-semibold text-slate-900">500 SMS</div>
-              <div class="text-xl font-bold text-slate-900">$10</div>
-              <div class="text-xs text-slate-600">Best for smaller teams.</div>
-              <ElButton
-                type="primary"
-                class="w-full"
-                :loading="actionLoading === 'sms-500' || smsLoading"
-                @click="handleSmsPack(500)"
-              >
-                Buy 500 SMS
-              </ElButton>
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-base font-semibold text-slate-900">Buy SMS credits (optional)</div>
+              <div class="text-sm text-slate-600">Credits never expire; usage draws from credits first.</div>
             </div>
-            <div class="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-4 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
-              <div class="text-base font-semibold text-slate-900">1,500 SMS</div>
-              <div class="text-xl font-bold text-slate-900">$25</div>
-              <div class="text-xs text-slate-600">Best for busy salons.</div>
+            <div class="text-xs text-slate-500">
+              Unit price: ${{ unitPrice.toFixed(4) }} per message
+            </div>
+          </div>
+          <div class="grid gap-3 sm:grid-cols-3">
+            <div
+              v-for="pack in normalizedPacks"
+              :key="pack.size"
+              class="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-4 shadow-[0_1px_3px_rgba(0,0,0,0.05)]"
+            >
+              <div class="text-base font-semibold text-slate-900">{{ pack.size.toLocaleString() }} SMS</div>
+              <div class="text-xl font-bold text-slate-900">${{ pack.price.toFixed(2) }}</div>
+              <div class="text-xs text-slate-600">Pass-through pricing</div>
               <ElButton
-                type="primary"
+                type="default"
+                plain
+                size="small"
                 class="w-full"
-                :loading="actionLoading === 'sms-1500' || smsLoading"
-                @click="handleSmsPack(1500)"
+                :loading="actionLoading === `sms-${pack.size}` || smsLoading"
+                @click="handleSmsPack(pack.size as 500 | 1500 | 4000)"
               >
-                Buy 1,500 SMS
+                Buy {{ pack.size.toLocaleString() }} SMS
               </ElButton>
             </div>
           </div>
           <ElDivider class="my-2" />
           <div class="text-sm text-slate-600">
-            Included quota resets each billing cycle. Packs never expire; usage draws from included first, then packs.
+            Billing is utility-style: usage × unit price. Credits are optional and never expire.
           </div>
         </div>
       </ElCard>
