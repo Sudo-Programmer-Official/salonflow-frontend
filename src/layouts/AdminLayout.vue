@@ -19,6 +19,10 @@ const onboardingBannerDismissed = ref(false);
 const onboardingStatus = ref<Awaited<ReturnType<typeof fetchOnboardingStatus>> | null>(null);
 const router = useRouter();
 const route = useRoute();
+const hideOnboardingRoutes = ['admin-queue'];
+const showOnboardingAllowed = computed(
+  () => !hideOnboardingRoutes.includes((route.name as string) || ''),
+);
 
 const showEndedBanner = computed(() => isOwner.value && trialExpired.value && !dismissBanner.value);
 const showCountdownBanner = computed(
@@ -521,7 +525,7 @@ const toggleSidebarCollapse = () => {
           </div>
         </div>
 
-        <OnboardingProgress v-if="isOwner" />
+        <OnboardingProgress v-if="isOwner && showOnboardingAllowed" />
         <RouterView />
       </main>
     </div>
