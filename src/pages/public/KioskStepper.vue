@@ -2240,6 +2240,7 @@ watch(useClassicWelcome, (isClassic) => {
   }
   .kiosk-opt-in {
     font-size: 11px;
+    margin-top: 70px !important;
   }
 }
 
