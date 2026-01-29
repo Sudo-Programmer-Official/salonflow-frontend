@@ -492,7 +492,7 @@ onBeforeUnmount(() => {
             <div class="bill-actions">
               <ElButton plain size="large" @click="goBack">Cancel</ElButton>
               <ElButton type="success" size="large" :disabled="!canCompleteCheckout">
-                Complete checkout
+                Checkout
               </ElButton>
             </div>
           </div>
@@ -554,7 +554,7 @@ onBeforeUnmount(() => {
 }
 .checkout-body {
   display: grid;
-  grid-template-columns: 260px 1fr 360px;
+  grid-template-columns: 240px 1fr 420px;
   gap: 16px;
   align-items: start;
 }
@@ -826,13 +826,20 @@ onBeforeUnmount(() => {
   justify-content: flex-end;
   gap: 10px;
 }
+.bill-actions :deep(button) {
+  height: 48px;
+  border-radius: 12px;
+  font-size: 16px;
+}
 .bill-footer {
   position: sticky;
   bottom: 0;
   background: #fff;
-  padding-top: 10px;
+  padding: 16px;
   margin-top: 8px;
   border-top: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 16px;
+  box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.06);
 }
 .empty-state {
   padding: 12px;
