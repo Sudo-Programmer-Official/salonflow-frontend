@@ -16,15 +16,6 @@ export const setupAuthInterceptor = () => {
         return response;
       }
 
-      let errorCode: string | undefined;
-      try {
-        const clone = response.clone();
-        const data = await clone.json().catch(() => null);
-        errorCode = (data as any)?.error || (data as any)?.code;
-      } catch {
-        // ignore parse errors
-      }
-
       // Treat every 401 as session expired (idle-safe, no banners)
       clearAuthState();
       const params = new URLSearchParams(window.location.search);
