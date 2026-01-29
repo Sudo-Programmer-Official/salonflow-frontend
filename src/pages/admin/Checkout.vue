@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, computed, watch, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router';
-import { ElButton, ElCard, ElSkeleton, ElMessage, ElInput, ElTag } from 'element-plus';
+import { ElButton, ElCard, ElSkeleton, ElMessage, ElInput } from 'element-plus';
 import { fetchQueue, type QueueItem } from '@/api/queue';
 import { formatPhone } from '@/utils/format';
 import { humanizeTime } from '@/utils/dates';
