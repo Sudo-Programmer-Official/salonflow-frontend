@@ -19,8 +19,17 @@ const services = ref<ServiceItem[]>([]);
 const selectedCategory = ref<string>('all');
 const search = ref('');
 const draftSelections = ref<Record<string, string[]>>({});
+const paymentOptions = ref<{ cash: boolean; card: boolean; gift: boolean }>({
+  cash: false,
+  card: false,
+  gift: false,
+});
+const paymentAmounts = ref<{ cash: string; card: string }>({ cash: '', card: '' });
+const giftCards = ref<Array<{ id: number; number: string; amount: string }>>([{ id: 1, number: '', amount: '' }]);
+const nextGiftCardId = ref(2);
 
 const DRAFT_KEY = 'checkoutDraftSelections';
+const PAYMENT_KEY = 'checkoutPayments';
 
 const loadDrafts = () => {
   try {
@@ -29,10 +38,40 @@ const loadDrafts = () => {
   } catch {
     draftSelections.value = {};
   }
+  try {
+    const rawPay = localStorage.getItem(PAYMENT_KEY);
+    const parsed = rawPay ? (JSON.parse(rawPay) as Record<string, any>) : {};
+    const pay = parsed[checkinId.value];
+    if (pay) {
+      paymentOptions.value = { ...paymentOptions.value, ...(pay.options ?? {}) };
+      paymentAmounts.value = { ...paymentAmounts.value, ...(pay.amounts ?? {}) };
+      giftCards.value = pay.giftCards ?? [{ id: 1, number: '', amount: '' }];
+      nextGiftCardId.value = giftCards.value.length
+        ? Math.max(...giftCards.value.map((g) => g.id)) + 1
+        : 2;
+    }
+  } catch {
+    // ignore
+  }
 };
 
 const persistDrafts = () => {
   localStorage.setItem(DRAFT_KEY, JSON.stringify(draftSelections.value));
+};
+const persistPayments = () => {
+  const existing = (() => {
+    try {
+      return JSON.parse(localStorage.getItem(PAYMENT_KEY) || '{}');
+    } catch {
+      return {};
+    }
+  })() as Record<string, any>;
+  existing[checkinId.value] = {
+    options: paymentOptions.value,
+    amounts: paymentAmounts.value,
+    giftCards: giftCards.value,
+  };
+  localStorage.setItem(PAYMENT_KEY, JSON.stringify(existing));
 };
 
 const selectedServiceIds = computed({
@@ -69,6 +108,35 @@ const subtotal = computed(() =>
   selectedServiceObjects.value.reduce((acc, svc) => acc + (svc.priceCents ?? 0), 0) / 100,
 );
 const hasDraft = computed(() => selectedServiceIds.value.length > 0);
+const giftCardsTotal = computed(() =>
+  giftCards.value.reduce((acc, card) => {
+    const amount = Number(card.amount);
+    if (Number.isFinite(amount) && amount > 0) return acc + amount;
+    return acc;
+  }, 0),
+);
+const enteredPayments = computed(() => {
+  const entries: Array<{ method: 'cash' | 'card' | 'gift'; amount: number }> = [];
+  (['cash', 'card'] as const).forEach((key) => {
+    if (!paymentOptions.value[key]) return;
+    const val = Number(paymentAmounts.value[key]);
+    if (Number.isFinite(val) && val >= 0) {
+      entries.push({ method: key, amount: val });
+    }
+  });
+  if (paymentOptions.value.gift && giftCardsTotal.value > 0) {
+    entries.push({ method: 'gift', amount: giftCardsTotal.value });
+  }
+  return entries;
+});
+const enteredTotal = computed(() => enteredPayments.value.reduce((acc, cur) => acc + cur.amount, 0));
+const remainingBalance = computed(() => {
+  const remaining = subtotal.value - enteredTotal.value;
+  return Number.isFinite(remaining) ? Number(remaining.toFixed(2)) : 0;
+});
+const canCompleteCheckout = computed(
+  () => selectedServiceObjects.value.length > 0 && enteredPayments.value.length > 0 && Math.abs(remainingBalance.value) < 0.01,
+);
 
 const loadCheckin = async () => {
   loading.value = true;
@@ -114,6 +182,11 @@ watch(
   () => persistDrafts(),
   { deep: true },
 );
+watch(
+  () => [paymentOptions.value, paymentAmounts.value, giftCards.value],
+  () => persistPayments(),
+  { deep: true },
+);
 
 const toggleService = (id: string) => {
   const current = new Set(selectedServiceIds.value);
@@ -126,6 +199,35 @@ const toggleService = (id: string) => {
 };
 
 const isSelected = (id: string) => selectedServiceIds.value.includes(id);
+
+const togglePaymentOption = (key: 'cash' | 'card' | 'gift', checked: boolean) => {
+  paymentOptions.value = { ...paymentOptions.value, [key]: checked };
+  if (key !== 'gift' && checked) {
+    const rem = Math.max(0, subtotal.value - enteredTotal.value);
+    paymentAmounts.value = { ...paymentAmounts.value, [key]: rem ? rem.toFixed(2) : '' };
+  }
+  if (!checked) {
+    if (key === 'gift') {
+      giftCards.value = [{ id: 1, number: '', amount: '' }];
+      nextGiftCardId.value = 2;
+    } else {
+      paymentAmounts.value = { ...paymentAmounts.value, [key]: '' };
+    }
+  }
+};
+
+const addGiftCard = () => {
+  giftCards.value = [...giftCards.value, { id: nextGiftCardId.value++, number: '', amount: '' }];
+};
+
+const removeGiftCard = (id: number) => {
+  if (giftCards.value.length === 1) {
+    giftCards.value = [{ id: 1, number: '', amount: '' }];
+    nextGiftCardId.value = 2;
+    return;
+  }
+  giftCards.value = giftCards.value.filter((c) => c.id !== id);
+};
 
 // Leave guards to prevent accidental loss of checkout draft
 const beforeUnload = (e: BeforeUnloadEvent) => {
@@ -170,10 +272,6 @@ onBeforeUnmount(() => {
             <span v-if="item.startedAt"> • In service for {{ humanizeTime(item.startedAt) }}</span>
           </div>
         </div>
-      </div>
-      <div class="header-right">
-        <ElButton plain size="large" @click="goBack">Cancel</ElButton>
-        <ElButton type="success" size="large" disabled>Complete checkout</ElButton>
       </div>
     </header>
 
@@ -317,9 +415,86 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <div class="bill-actions">
-            <ElButton plain size="large" @click="goBack">Cancel</ElButton>
-            <ElButton type="success" size="large" disabled>Complete checkout</ElButton>
+          <div class="payments-block">
+            <div class="payments-header">
+              <span>Payments</span>
+              <span class="payments-remaining" :class="{ ok: Math.abs(remainingBalance) < 0.01 }">
+                Remaining {{ Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(remainingBalance) }}
+              </span>
+            </div>
+            <div class="payments-options">
+              <label class="pay-toggle">
+                <input type="checkbox" v-model="paymentOptions.cash" @change="togglePaymentOption('cash', paymentOptions.cash)" />
+                Cash
+              </label>
+              <label class="pay-toggle">
+                <input type="checkbox" v-model="paymentOptions.card" @change="togglePaymentOption('card', paymentOptions.card)" />
+                Card
+              </label>
+              <label class="pay-toggle">
+                <input type="checkbox" v-model="paymentOptions.gift" @change="togglePaymentOption('gift', paymentOptions.gift)" />
+                Gift card
+              </label>
+            </div>
+
+            <div class="payments-fields">
+              <div v-if="paymentOptions.cash" class="pay-row">
+                <span>Cash</span>
+                <ElInput
+                  v-model="paymentAmounts.cash"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                />
+              </div>
+              <div v-if="paymentOptions.card" class="pay-row">
+                <span>Card</span>
+                <ElInput
+                  v-model="paymentAmounts.card"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                />
+              </div>
+              <div v-if="paymentOptions.gift" class="gift-block">
+                <div class="gift-header">
+                  <span>Gift cards</span>
+                  <button class="add-gift" type="button" @click="addGiftCard">+ Add</button>
+                </div>
+                <div class="gift-list">
+                  <div v-for="card in giftCards" :key="card.id" class="gift-row">
+                    <ElInput v-model="card.number" placeholder="Number" />
+                    <ElInput
+                      v-model="card.amount"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="Amount"
+                    />
+                    <button
+                      v-if="giftCards.length > 1"
+                      type="button"
+                      class="remove-gift"
+                      @click="removeGiftCard(card.id)"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+                <div class="gift-total">Gift total: {{ giftCardsTotal.toFixed(2) }}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bill-footer">
+            <div class="bill-actions">
+              <ElButton plain size="large" @click="goBack">Cancel</ElButton>
+              <ElButton type="success" size="large" :disabled="!canCompleteCheckout">
+                Complete checkout
+              </ElButton>
+            </div>
           </div>
         </ElCard>
       </section>
@@ -379,7 +554,7 @@ onBeforeUnmount(() => {
 }
 .checkout-body {
   display: grid;
-  grid-template-columns: 1.2fr 1.8fr 1.8fr;
+  grid-template-columns: 260px 1fr 360px;
   gap: 16px;
   align-items: start;
 }
@@ -420,7 +595,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   border-radius: 12px;
   border: 1px solid rgba(148, 163, 184, 0.4);
   background: #fff;
@@ -452,7 +627,7 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(148, 163, 184, 0.35);
   border-radius: 12px;
   background: #fff;
-  padding: 12px;
+  padding: 14px;
   text-align: left;
   display: flex;
   flex-direction: column;
@@ -460,6 +635,7 @@ onBeforeUnmount(() => {
   transition: all 0.12s ease;
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
   position: relative;
+  min-height: 76px;
 }
 .service-tile:hover {
   transform: translateY(-2px);
@@ -493,6 +669,7 @@ onBeforeUnmount(() => {
 .svc-name {
   font-weight: 700;
   color: #0f172a;
+  font-size: 15px;
 }
 .svc-meta {
   font-size: 12px;
@@ -542,6 +719,96 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 8px;
 }
+.payments-block {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 12px;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.payments-header {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 700;
+  color: #0f172a;
+}
+.payments-remaining {
+  font-size: 13px;
+  color: #dc2626;
+}
+.payments-remaining.ok {
+  color: #16a34a;
+}
+.payments-options {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+.pay-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.payments-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pay-row {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  align-items: center;
+  gap: 10px;
+}
+.gift-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 10px;
+  padding: 10px;
+  background: #fff;
+}
+.gift-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+}
+.add-gift {
+  border: none;
+  background: transparent;
+  color: #0ea5e9;
+  cursor: pointer;
+  font-weight: 700;
+}
+.gift-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.gift-row {
+  display: grid;
+  grid-template-columns: 1fr 120px auto;
+  gap: 8px;
+  align-items: center;
+}
+.remove-gift {
+  border: none;
+  background: transparent;
+  color: #ef4444;
+  cursor: pointer;
+  font-weight: 700;
+}
+.gift-total {
+  font-size: 12px;
+  color: #475569;
+}
 .bill-row {
   display: flex;
   align-items: center;
@@ -554,10 +821,18 @@ onBeforeUnmount(() => {
   font-weight: 800;
 }
 .bill-actions {
-  margin-top: 14px;
+  margin-top: 8px;
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+.bill-footer {
+  position: sticky;
+  bottom: 0;
+  background: #fff;
+  padding-top: 10px;
+  margin-top: 8px;
+  border-top: 1px solid rgba(148, 163, 184, 0.25);
 }
 .empty-state {
   padding: 12px;
