@@ -193,6 +193,7 @@ const sidebarGroups = computed(() => [
       { label: 'Categories', name: 'admin-categories', icon: '🗂', roles: ['OWNER'] },
       { label: 'Staff', name: 'admin-staff', icon: '👩‍💼', roles: ['OWNER'] },
       { label: 'Customers', name: 'admin-customers', icon: '👥', roles: ['OWNER'] },
+      { label: 'Gift Cards', name: 'admin-gift-cards', icon: '🎁', roles: ['OWNER'] },
     ],
   },
   {
@@ -215,7 +216,6 @@ const sidebarGroups = computed(() => [
       { label: 'Social Posts', name: 'admin-social-posts', icon: '🗣', roles: ['OWNER'] },
       { label: 'Google Business', name: 'admin-google-business', icon: '🏢', roles: ['OWNER'] },
       { label: 'Growth', name: 'admin-growth', icon: '🚀', roles: ['OWNER'] },
-      { label: 'Gift Cards', name: 'admin-gift-cards', icon: '🎁', roles: ['OWNER'] },
     ],
   },
   {
