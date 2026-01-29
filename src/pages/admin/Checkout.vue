@@ -66,7 +66,7 @@ onMounted(() => {
     <main class="checkout-body">
       <section class="checkout-panel left">
         <ElCard v-if="loading" class="glass-card" shadow="never">
-          <ElSkeleton rows="6" animated />
+          <ElSkeleton :rows="6" animated />
         </ElCard>
         <ElCard v-else class="glass-card" shadow="never">
           <div class="panel-title">Services</div>
@@ -75,7 +75,7 @@ onMounted(() => {
       </section>
       <section class="checkout-panel right">
         <ElCard v-if="loading" class="glass-card" shadow="never">
-          <ElSkeleton rows="5" animated />
+          <ElSkeleton :rows="5" animated />
         </ElCard>
         <ElCard v-else class="glass-card" shadow="never">
           <div class="panel-title">Bill</div>
