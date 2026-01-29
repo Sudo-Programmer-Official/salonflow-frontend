@@ -392,24 +392,7 @@ const remainingBalance = computed(() => {
 });
 
 const openCheckout = (id: string) => {
-  checkoutTarget.value = id;
-  checkoutConsent.value = true;
-  checkoutServedBy.value = null;
-  checkoutRedeem.value = false;
-  paymentOptions.cash = false;
-  paymentOptions.card = false;
-  paymentOptions.gift = false;
-  paymentAmounts.cash = '';
-  paymentAmounts.card = '';
-  giftCards.value = [{ id: 1, number: '', amount: '' }];
-  nextGiftCardId.value = 2;
-  const targetItem = queue.value.find((q) => q.id === id);
-  const svcName = targetItem?.serviceName || '';
-  const matchedService = services.value.find((s) => s.name === svcName);
-  const priceCents = matchedService?.priceCents ?? null;
-  checkoutServices.value = svcName ? [{ name: svcName, priceCents }] : [];
-  totalAmount.value = priceCents !== null && priceCents !== undefined ? (priceCents / 100).toFixed(2) : '';
-  checkoutOpen.value = true;
+  router.push({ name: 'admin-checkout', params: { checkinId: id } });
 };
 
 const togglePayment = (key: 'cash' | 'card' | 'gift', checked: boolean) => {
@@ -1093,7 +1076,7 @@ watch(completedPage, async (val) => {
       <span v-else>No active check-ins.</span>
     </div>
 
-    <ElDialog v-model="checkoutOpen" title="Checkout" width="960px" class="checkout-modal">
+    <ElDialog v-if="false" v-model="checkoutOpen" title="Checkout" width="960px" class="checkout-modal">
       <div class="checkout-body space-y-4">
         <div
           v-if="currentCustomerSummary"
