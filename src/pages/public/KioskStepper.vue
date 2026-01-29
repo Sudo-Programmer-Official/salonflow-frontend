@@ -1681,7 +1681,7 @@ watch(useClassicWelcome, (isClassic) => {
   flex-shrink: 0;
 }
 .kiosk-opt-in {
-  margin-top: 12px;
+  margin-top: 70px;
   padding: 10px 12px;
   border-radius: 10px;
   background: color-mix(
@@ -2240,7 +2240,7 @@ watch(useClassicWelcome, (isClassic) => {
   }
   .kiosk-opt-in {
     font-size: 11px;
-    margin-top: 70px !important;
+    /* margin-top: 70px !important; */
   }
 }
 
