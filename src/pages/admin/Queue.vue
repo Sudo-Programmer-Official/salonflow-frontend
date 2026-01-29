@@ -1084,15 +1084,15 @@ watch(completedPage, async (val) => {
         >
           <div class="flex flex-col">
             <span class="text-xs font-semibold text-slate-600">Customer</span>
-            <span class="text-base font-semibold text-slate-900">{{ currentCustomerSummary.name }}</span>
+            <span class="text-base font-semibold text-slate-900">{{ currentCustomerSummary?.name || 'Customer' }}</span>
           </div>
           <div class="flex flex-col">
             <span class="text-xs font-semibold text-slate-600">Phone</span>
-            <span class="text-sm text-slate-800">{{ currentCustomerSummary.phone }}</span>
+            <span class="text-sm text-slate-800">{{ currentCustomerSummary?.phone || '—' }}</span>
           </div>
           <div class="flex flex-col text-right">
             <span class="text-xs font-semibold text-slate-600">Points</span>
-            <span class="text-sm font-semibold text-slate-900">{{ currentCustomerSummary.points }}</span>
+            <span class="text-sm font-semibold text-slate-900">{{ currentCustomerSummary?.points ?? 0 }}</span>
           </div>
         </div>
 
