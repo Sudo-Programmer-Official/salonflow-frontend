@@ -319,7 +319,7 @@ onBeforeUnmount(() => {
       <!-- Column 2: Services -->
       <section class="checkout-panel services">
         <ElCard v-if="loading" class="glass-card" shadow="never">
-          <ElSkeleton :rows="8" animated />
+          <ElSkeleton :rows="6" animated />
         </ElCard>
         <ElCard v-else class="glass-card" shadow="never">
           <div class="panel-title">Services</div>
