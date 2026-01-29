@@ -1754,7 +1754,14 @@ watch(useClassicWelcome, (isClassic) => {
   filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.18));
 }
 .identity-phone-text {
-  letter-spacing: 0.02em;
+  font-size: 48px;           /* keep reasonable */
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  font-stretch: 110%;
+  
+  /* If variable font is available */
+  font-variation-settings: "wght" 800, "wdth" 115;
 }
 .identity-hours {
   margin-top: 16px;
