@@ -19,7 +19,7 @@ const onboardingBannerDismissed = ref(false);
 const onboardingStatus = ref<Awaited<ReturnType<typeof fetchOnboardingStatus>> | null>(null);
 const router = useRouter();
 const route = useRoute();
-const hideOnboardingRoutes = ['admin-queue'];
+const hideOnboardingRoutes = ['admin-queue', 'admin-checkout'];
 const showOnboardingAllowed = computed(
   () => !hideOnboardingRoutes.includes((route.name as string) || ''),
 );
@@ -27,6 +27,8 @@ const hideHeaderRoutes = ['admin-queue'];
 const showHeader = computed(
   () => !hideHeaderRoutes.includes((route.name as string) || ''),
 );
+const hideSidebarRoutes = ['admin-checkout'];
+const showSidebar = computed(() => !hideSidebarRoutes.includes((route.name as string) || ''));
 
 const showEndedBanner = computed(() => isOwner.value && trialExpired.value && !dismissBanner.value);
 const showCountdownBanner = computed(
@@ -318,7 +320,7 @@ const toggleSidebarCollapse = () => {
 
 <template>
   <div class="admin-shell text-slate-900">
-    <aside :class="['sidebar', { open: sidebarOpen, collapsed: isSidebarCollapsed }]">
+    <aside v-if="showSidebar" :class="['sidebar', { open: sidebarOpen, collapsed: isSidebarCollapsed }]">
       <div class="sidebar__brand">
         <button
           class="collapse-toggle"
@@ -385,7 +387,7 @@ const toggleSidebarCollapse = () => {
         </nav>
       </div>
     </aside>
-    <div v-if="sidebarOpen" class="sidebar-backdrop" @click="closeSidebar"></div>
+    <div v-if="sidebarOpen && showSidebar" class="sidebar-backdrop" @click="closeSidebar"></div>
 
     <div class="admin-main">
       <header v-if="showHeader" class="admin-header">

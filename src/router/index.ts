@@ -53,6 +53,7 @@ import AdminReviewsFeedbackPage from "../pages/admin/Reviews/AdminReviewsFeedbac
 import AdminSocialPostsPage from "../pages/admin/Social/AdminSocialPosts.vue";
 import AdminGoogleBusinessPage from "../pages/admin/Integrations/AdminGoogleBusiness.vue";
 import AdminGrowthPage from "../pages/admin/Growth/AdminGrowth.vue";
+import AdminCheckoutPage from "../pages/admin/Checkout.vue";
 import WebsitePage from "../pages/website/WebsitePage.vue";
 import MarketingLayout from "../layouts/MarketingLayout.vue";
 import MarketingHome from "../pages/MarketingHome.vue";
@@ -474,6 +475,12 @@ const appRoutes = [
         path: "queue",
         name: "admin-queue",
         component: AdminQueuePage,
+        meta: { requiresAuth: true, roles: ["OWNER", "STAFF"] },
+      },
+      {
+        path: "checkout/:checkinId",
+        name: "admin-checkout",
+        component: AdminCheckoutPage,
         meta: { requiresAuth: true, roles: ["OWNER", "STAFF"] },
       },
       {
