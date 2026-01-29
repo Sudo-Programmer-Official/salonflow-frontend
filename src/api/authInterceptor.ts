@@ -11,8 +11,10 @@ export const setupAuthInterceptor = () => {
     const response = await originalFetch(input, init);
 
     if (response.status === 401) {
-      const isLoginPage = window.location.pathname.includes("/login");
-      if (isLoginPage) return response;
+      const isLoginPage = window.location.pathname.startsWith("/login");
+      if (isLoginPage) {
+        return response;
+      }
 
       let errorCode: string | undefined;
       try {
@@ -23,12 +25,13 @@ export const setupAuthInterceptor = () => {
         // ignore parse errors
       }
 
-      if (!errorCode || errorCode === "SESSION_EXPIRED" || errorCode === "UNAUTHORIZED") {
-        clearAuthState();
-        const params = new URLSearchParams(window.location.search);
-        if (!params.has("reason")) params.set("reason", "expired");
-        window.location.href = `/login?${params.toString()}`;
-      }
+      // Treat every 401 as session expired (idle-safe, no banners)
+      clearAuthState();
+      const params = new URLSearchParams(window.location.search);
+      if (!params.has("reason")) params.set("reason", "expired");
+      window.location.href = `/login?${params.toString()}`;
+      // Prevent downstream handlers from acting on the expired response
+      return Promise.reject(response);
     }
 
     return response;
