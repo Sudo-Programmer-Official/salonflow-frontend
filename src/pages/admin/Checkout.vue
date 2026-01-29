@@ -2,7 +2,7 @@
 import { onMounted, ref, computed, watch, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router';
 import { ElButton, ElCard, ElSkeleton, ElMessage, ElInput } from 'element-plus';
-import { fetchQueue, type QueueItem } from '@/api/queue';
+import { fetchQueue, checkoutCheckIn, type QueueItem } from '@/api/queue';
 import { formatPhone } from '@/utils/format';
 import { humanizeTime } from '@/utils/dates';
 import { fetchServices, type ServiceItem } from '@/api/services';
@@ -73,6 +73,27 @@ const persistPayments = () => {
   };
   localStorage.setItem(PAYMENT_KEY, JSON.stringify(existing));
 };
+const clearDraftForCurrent = () => {
+  try {
+    const drafts = JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}');
+    delete drafts[checkinId.value];
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(drafts));
+  } catch {
+    /* ignore */
+  }
+  try {
+    const pays = JSON.parse(localStorage.getItem(PAYMENT_KEY) || '{}');
+    delete pays[checkinId.value];
+    localStorage.setItem(PAYMENT_KEY, JSON.stringify(pays));
+  } catch {
+    /* ignore */
+  }
+  draftSelections.value = { ...draftSelections.value, [checkinId.value]: [] };
+  paymentOptions.value = { cash: false, card: false, gift: false };
+  paymentAmounts.value = { cash: '', card: '' };
+  giftCards.value = [{ id: 1, number: '', amount: '' }];
+  nextGiftCardId.value = 2;
+};
 
 const selectedServiceIds = computed({
   get: () => draftSelections.value[checkinId.value] ?? [],
@@ -137,6 +158,7 @@ const remainingBalance = computed(() => {
 const canCompleteCheckout = computed(
   () => selectedServiceObjects.value.length > 0 && enteredPayments.value.length > 0 && Math.abs(remainingBalance.value) < 0.01,
 );
+const completing = ref(false);
 
 const loadCheckin = async () => {
   loading.value = true;
@@ -227,6 +249,51 @@ const removeGiftCard = (id: number) => {
     return;
   }
   giftCards.value = giftCards.value.filter((c) => c.id !== id);
+};
+
+const submitCheckout = async () => {
+  if (!item.value) return;
+  if (!canCompleteCheckout.value) {
+    ElMessage.warning('Add services and payments before checkout.');
+    return;
+  }
+  completing.value = true;
+  try {
+    const giftCardNumber = paymentOptions.value.gift
+      ? giftCards.value
+          .map((g) => (g.number || '').trim())
+          .filter(Boolean)
+          .join(', ')
+      : null;
+    const giftCardAmount = paymentOptions.value.gift && giftCardsTotal.value > 0 ? giftCardsTotal.value : null;
+    const giftCardSummaries =
+      paymentOptions.value.gift && giftCards.value.length
+        ? giftCards.value
+            .map((g) => ({
+              number: (g.number || '').trim(),
+              amount: Number(g.amount),
+            }))
+            .filter((g) => g.number && Number.isFinite(g.amount) && g.amount > 0)
+        : [];
+
+    await checkoutCheckIn(checkinId.value, {
+      amountPaid: enteredTotal.value,
+      reviewSmsConsent: true,
+      servedByName: null,
+      redeemPoints: false,
+      payments: enteredPayments.value,
+      giftCardNumber,
+      giftCardAmount,
+      giftCards: giftCardSummaries,
+    });
+    clearDraftForCurrent();
+    ElMessage.success('Checkout completed');
+    router.push({ name: 'admin-queue' });
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : 'Checkout failed');
+  } finally {
+    completing.value = false;
+  }
 };
 
 // Leave guards to prevent accidental loss of checkout draft
@@ -491,7 +558,7 @@ onBeforeUnmount(() => {
           <div class="bill-footer">
             <div class="bill-actions">
               <ElButton plain size="large" @click="goBack">Cancel</ElButton>
-              <ElButton type="success" size="large" :disabled="!canCompleteCheckout">
+              <ElButton type="success" size="large" :disabled="!canCompleteCheckout" :loading="completing" @click="submitCheckout">
                 Checkout
               </ElButton>
             </div>
