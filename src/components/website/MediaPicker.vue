@@ -4,7 +4,7 @@ import { ElButton, ElCard, ElDialog, ElImage, ElMessage, ElUpload } from 'elemen
 import type { UploadRequestOptions } from 'element-plus';
 import { listWebsiteMedia, uploadWebsiteMedia, type WebsiteMedia } from '../../api/website';
 
-const props = defineProps<{ modelValue: string[] }>();
+const props = defineProps<{ modelValue: string[]; target?: any }>();
 const emit = defineEmits(['update:modelValue']);
 
 const open = ref(false);
@@ -37,6 +37,9 @@ const handleUpload = async (opts: UploadRequestOptions) => {
   const file = opts.file as File;
   const form = new FormData();
   form.append('file', file);
+  if (props.target) {
+    form.append('target', JSON.stringify(props.target));
+  }
   uploading.value = true;
   try {
     const uploaded = await uploadWebsiteMedia(form);
