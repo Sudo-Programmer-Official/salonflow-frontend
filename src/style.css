@@ -318,7 +318,8 @@
 
 html {
   height: 100%;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   font-size: var(--font-md);
 }
 
@@ -332,15 +333,17 @@ body {
   letter-spacing: -0.01em;
   font-family: var(--ui-font-family);
   font-size: var(--font-md);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 #app {
   min-height: 100vh;
-  height: 100%;
+  height: auto;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 main {
