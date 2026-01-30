@@ -57,10 +57,19 @@ const handleUpload = async (opts: UploadRequestOptions) => {
 const getMediaById = (id: string) => media.value.find((m) => m.id === id);
 
 const toUrl = (
-  input?: string | { url: string; width?: number; height?: number; mimeType?: string } | null,
+  input?:
+    | string
+    | { url: string; width?: number; height?: number; mimeType?: string }
+    | { original_url?: string; originalUrl?: string }
+    | null,
 ): string | undefined => {
   if (!input) return undefined;
-  return typeof input === 'string' ? input : input.url;
+  if (typeof input === 'string') return input;
+  // prefer explicit url field if present
+  if ('url' in input && input.url) return input.url;
+  if ('original_url' in input && input.original_url) return input.original_url as string;
+  if ('originalUrl' in input && input.originalUrl) return input.originalUrl as string;
+  return undefined;
 };
 </script>
 
