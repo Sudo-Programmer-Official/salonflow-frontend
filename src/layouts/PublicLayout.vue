@@ -36,8 +36,9 @@ import logo from '../assets/images/salonflow-logo.png';
 
 <style scoped>
 .public-shell {
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100vh;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 .public-content {
   min-height: 0;
