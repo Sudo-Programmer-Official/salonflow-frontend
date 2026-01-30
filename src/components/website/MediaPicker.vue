@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { ElButton, ElCard, ElDialog, ElImage, ElMessage, ElUpload } from 'element-plus';
+import type { UploadRequestOptions } from 'element-plus';
 import { listWebsiteMedia, uploadWebsiteMedia, type WebsiteMedia } from '../../api/website';
 
 const props = defineProps<{ modelValue: string[] }>();
@@ -32,7 +33,8 @@ const remove = (index: number) => {
   emit('update:modelValue', next);
 };
 
-const handleUpload = async (file: File) => {
+const handleUpload = async (opts: UploadRequestOptions) => {
+  const file = opts.file as File;
   const form = new FormData();
   form.append('file', file);
   uploading.value = true;
@@ -40,8 +42,10 @@ const handleUpload = async (file: File) => {
     const uploaded = await uploadWebsiteMedia(form);
     media.value = [uploaded, ...media.value];
     ElMessage.success('Uploaded');
+    opts.onSuccess?.(uploaded as any, file);
   } catch (err: any) {
     ElMessage.error(err?.message || 'Upload failed');
+    opts.onError?.(err as any);
   } finally {
     uploading.value = false;
   }
@@ -77,7 +81,7 @@ const toUrl = (
       <div class="flex items-center justify-between mb-3">
         <div class="text-sm text-slate-600">Upload images (10MB max)</div>
         <ElUpload
-          :http-request="(opts:any)=>handleUpload(opts.file)"
+          :http-request="handleUpload"
           :show-file-list="false"
           accept="image/*"
           :disabled="uploading"
