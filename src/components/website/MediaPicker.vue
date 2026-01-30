@@ -42,7 +42,7 @@ const handleUpload = async (opts: UploadRequestOptions) => {
     const uploaded = await uploadWebsiteMedia(form);
     media.value = [uploaded, ...media.value];
     ElMessage.success('Uploaded');
-    opts.onSuccess?.(uploaded as any, file);
+    opts.onSuccess?.(uploaded as any);
   } catch (err: any) {
     ElMessage.error(err?.message || 'Upload failed');
     opts.onError?.(err as any);
