@@ -51,7 +51,7 @@ onBeforeUnmount(() => {
   min-height: 100vh;
   height: 100vh;
   min-width: 0;
-  overflow-y: auto;
+  overflow-y: hidden;
   overflow-x: hidden;
   background: var(--bg-app);
   color: var(--kiosk-text-primary, #fff);
