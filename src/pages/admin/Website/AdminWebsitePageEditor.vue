@@ -177,7 +177,10 @@ const goBack = () =>
         </ElFormItem>
 
         <ElFormItem label="Gallery" class="md:col-span-2">
-          <MediaPicker v-model="form.gallery" />
+          <MediaPicker
+            v-model="form.gallery"
+            :target="{ kind: 'page', page: slug, section: 'gallery' }"
+          />
         </ElFormItem>
       </ElForm>
     </ElCard>
