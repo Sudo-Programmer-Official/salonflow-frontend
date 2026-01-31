@@ -5,7 +5,13 @@ import { ElCard, ElForm, ElFormItem, ElInput, ElSelect, ElOption, ElDatePicker, 
 import { listSocialPosts, createSocialDraft, publishSocialPost } from '../../../api/social';
 import MediaPicker from '../../../components/website/MediaPicker.vue';
 import { fetchGrowthPlan } from '../../../api/growth';
-import { facebookCallback, facebookConnect, facebookSelectPage, facebookStatus } from '../../../api/integrations';
+import {
+  facebookCallback,
+  facebookConnect,
+  facebookSelectPage,
+  facebookStatus,
+  facebookDisconnect,
+} from '../../../api/integrations';
 
 const loading = ref(false);
 const posts = ref<any[]>([]);
@@ -27,6 +33,7 @@ const fbSelectedPage = ref<string>('');
 const fbSelecting = ref(false);
 const fbCallbackProcessing = ref(false);
 const fbError = ref<string | null>(null);
+const fbDisconnecting = ref(false);
 
 const form = ref({
   provider: 'facebook',
@@ -164,6 +171,23 @@ const publishDisabled = (row: any) => {
   return row.status === 'published';
 };
 
+const disconnectFacebook = async () => {
+  fbDisconnecting.value = true;
+  try {
+    await facebookDisconnect();
+    fbConnected.value = false;
+    fbAccount.value = null;
+    fbPages.value = [];
+    fbSession.value = null;
+    fbState.value = null;
+    ElMessage.success('Facebook disconnected');
+  } catch (err: any) {
+    ElMessage.error(err?.message || 'Failed to disconnect');
+  } finally {
+    fbDisconnecting.value = false;
+  }
+};
+
 const badgeType = (status: string) => {
   switch (status) {
     case 'published':
@@ -251,6 +275,15 @@ const quotaState = computed(() => {
         <div class="flex gap-2">
           <ElButton :loading="fbStatusLoading || fbCallbackProcessing" @click="connectFacebook" type="primary">
             {{ fbConnected ? 'Reconnect' : 'Connect Facebook' }}
+          </ElButton>
+          <ElButton
+            v-if="fbConnected"
+            type="danger"
+            plain
+            :loading="fbDisconnecting"
+            @click="disconnectFacebook"
+          >
+            Disconnect
           </ElButton>
           <ElButton :loading="fbStatusLoading" plain @click="loadStatus">Refresh status</ElButton>
         </div>

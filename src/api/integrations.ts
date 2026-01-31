@@ -107,6 +107,16 @@ export async function facebookStatus() {
   return body as { connected: boolean; account?: { id: string; display_name: string | null; status: string; last_error: string | null; meta: any } };
 }
 
+export async function facebookDisconnect() {
+  const res = await fetch(apiUrl('/integrations/facebook/disconnect'), {
+    method: 'DELETE',
+    headers: headers(),
+  });
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.error || 'Failed to disconnect Facebook');
+  return body;
+}
+
 // --- Google Business Reviews ---
 
 export async function fetchGoogleReviews() {
