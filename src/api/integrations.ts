@@ -120,10 +120,17 @@ export async function sendGoogleReviewReply(id: string, reply: string) {
   return body;
 }
 
+export type GoogleReplyPolicies = {
+  fiveStarTone?: 'FRIENDLY' | 'PROFESSIONAL' | 'APOLOGETIC';
+  fourStarTone?: 'FRIENDLY' | 'PROFESSIONAL' | 'APOLOGETIC';
+  lowStarTone?: 'FRIENDLY' | 'PROFESSIONAL' | 'APOLOGETIC';
+};
+
 export async function updateGoogleBusinessSettings(input: {
   autoPullReviews?: boolean;
   autoReplyEnabled?: boolean;
   autoReplyMinRating?: number;
+  replyPolicies?: GoogleReplyPolicies;
 }) {
   const res = await fetch(apiUrl('/integrations/google-business/settings'), {
     method: 'PATCH',
@@ -142,5 +149,19 @@ export async function googleBusinessStatus() {
   });
   const body = await res.json();
   if (!res.ok) throw new Error(body.error || 'Failed to fetch status');
-  return body as { connected: boolean; account?: { status: string; last_error: string | null; meta: any; display_name: string | null } };
+  return body as {
+    connected: boolean;
+    account?: {
+      status: string;
+      last_error: string | null;
+      display_name: string | null;
+      meta: {
+        autoPullReviews?: boolean;
+        autoReplyEnabled?: boolean;
+        autoReplyMinRating?: number;
+        replyPolicies?: GoogleReplyPolicies;
+        [key: string]: any;
+      };
+    };
+  };
 }

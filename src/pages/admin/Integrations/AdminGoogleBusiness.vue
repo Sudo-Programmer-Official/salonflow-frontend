@@ -10,7 +10,21 @@ import {
   sendGoogleReviewReply,
   updateGoogleBusinessSettings,
   googleBusinessStatus,
+  type GoogleReplyPolicies,
 } from '../../../api/integrations';
+
+type GoogleBusinessStatus = Awaited<ReturnType<typeof googleBusinessStatus>>;
+type ReplyTone = NonNullable<GoogleReplyPolicies['fiveStarTone']>;
+type GoogleSettings = {
+  autoPullReviews: boolean;
+  autoReplyEnabled: boolean;
+  autoReplyMinRating: number;
+  replyPolicies: {
+    fiveStarTone: ReplyTone;
+    fourStarTone: ReplyTone;
+    lowStarTone: ReplyTone;
+  };
+};
 
 const form = ref({
   accessToken: '',
@@ -26,7 +40,7 @@ const reviewsLoading = ref(false);
 const sendingMap = ref<Record<string, boolean>>({});
 const draftingMap = ref<Record<string, boolean>>({});
 const settingsLoading = ref(false);
-const settings = ref({
+const settings = ref<GoogleSettings>({
   autoPullReviews: true,
   autoReplyEnabled: false,
   autoReplyMinRating: 4,
@@ -36,7 +50,7 @@ const settings = ref({
     lowStarTone: 'APOLOGETIC',
   },
 });
-const status = ref<{ connected: boolean; last_error?: string | null; display_name?: string | null } | null>(null);
+const status = ref<GoogleBusinessStatus | null>(null);
 
 const connect = async () => {
   if (!form.value.accessToken) {
@@ -85,16 +99,18 @@ const sync = async () => {
 
 const loadStatus = async () => {
   try {
-    const res = await googleBusinessStatus() as any;
+    const res = await googleBusinessStatus();
     status.value = res;
     const meta = res?.account?.meta || {};
     settings.value.autoPullReviews = meta.autoPullReviews !== false;
     settings.value.autoReplyEnabled = !!meta.autoReplyEnabled;
     settings.value.autoReplyMinRating = typeof meta.autoReplyMinRating === 'number' ? meta.autoReplyMinRating : 4;
+    const fallbackTone = (val: any, d: ReplyTone): ReplyTone =>
+      val === 'FRIENDLY' || val === 'PROFESSIONAL' || val === 'APOLOGETIC' ? val : d;
     settings.value.replyPolicies = {
-      fiveStarTone: meta.replyPolicies?.fiveStarTone || 'FRIENDLY',
-      fourStarTone: meta.replyPolicies?.fourStarTone || 'FRIENDLY',
-      lowStarTone: meta.replyPolicies?.lowStarTone || 'APOLOGETIC',
+      fiveStarTone: fallbackTone(meta.replyPolicies?.fiveStarTone, 'FRIENDLY'),
+      fourStarTone: fallbackTone(meta.replyPolicies?.fourStarTone, 'FRIENDLY'),
+      lowStarTone: fallbackTone(meta.replyPolicies?.lowStarTone, 'APOLOGETIC'),
     };
   } catch {
     status.value = null;

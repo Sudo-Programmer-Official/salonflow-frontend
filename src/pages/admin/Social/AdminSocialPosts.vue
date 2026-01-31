@@ -23,7 +23,7 @@ const fbPages = ref<Array<{ page_id: string; page_name: string; has_instagram: b
 const fbSession = ref<string | null>(null);
 const fbState = ref<string | null>(null);
 const fbSelectVisible = ref(false);
-const fbSelectedPage = ref<string | null>(null);
+const fbSelectedPage = ref<string>('');
 const fbSelecting = ref(false);
 const fbCallbackProcessing = ref(false);
 const fbError = ref<string | null>(null);
@@ -104,7 +104,7 @@ const selectFacebookPage = async () => {
       state: fbState.value,
     });
     fbSelectVisible.value = false;
-    fbSelectedPage.value = null;
+    fbSelectedPage.value = '';
     await loadStatus();
     ElMessage.success('Facebook connected');
   } catch (err: any) {

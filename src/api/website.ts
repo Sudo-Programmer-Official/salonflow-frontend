@@ -108,6 +108,7 @@ export type WebsiteFooterConfig = {
   legal?: {
     showPrivacy: boolean;
     showTerms: boolean;
+    showDataDeletion?: boolean;
     copyrightText?: string | null;
   } | null;
 };
