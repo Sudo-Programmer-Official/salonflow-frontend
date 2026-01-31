@@ -738,7 +738,7 @@ const footerView = computed(() => {
                 :src="mapEmbedSrc"
                 class="w-full h-72"
                 style="border: 0;"
-                allowfullscreen=""
+                allowfullscreen
                 loading="lazy"
                 referrerpolicy="no-referrer-when-downgrade"
               ></iframe>
