@@ -158,7 +158,7 @@ const quotaState = computed(() => {
           <ElInput type="textarea" v-model="form.content" :rows="3" placeholder="What's new?" />
         </ElFormItem>
         <ElFormItem label="Media" class="md:col-span-2">
-          <MediaPicker v-model="form.mediaIds" />
+          <MediaPicker v-model="form.mediaIds" :target="{ kind: 'social' }" />
         </ElFormItem>
         <div class="md:col-span-2 flex justify-end">
           <ElButton type="primary" @click="create">Save draft</ElButton>

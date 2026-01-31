@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router';
 import PublicWebsiteLayout from '../../layouts/PublicWebsiteLayout.vue';
 import { useWebsite } from '../../composables/useWebsite';
 import { apiUrl } from '../../api/client';
+import { resolveMedia } from '../../utils/resolveMedia';
 
 const route = useRoute();
 const locale = computed(() => {
@@ -46,31 +47,23 @@ const resolvedGallery = computed(() => {
     );
     if (isUuid && mediaMap.value.has(item)) {
       const media = mediaMap.value.get(item);
-      const buildSrcSet = (keys: string[]) =>
-        keys
-          .map((k) => media?.variants?.[k])
-          .filter((v: any) => v?.url && v?.width)
-          .map((v: any) => `${v.url} ${v.width}w`)
-          .join(', ');
-      const srcsetWebp = buildSrcSet(['lg_webp', 'md_webp', 'sm_webp']);
-      const srcsetFallback = buildSrcSet(['lg', 'md', 'sm']);
-      const fallback =
-        media?.variants?.md ||
-        media?.variants?.lg ||
-        media?.variants?.sm ||
-        media?.variants?.thumbnail ||
-        { url: media?.original_url };
-      return {
-        id: item,
-        src: fallback.url,
-        srcsetWebp,
-        srcset: srcsetFallback,
-        type: fallback?.mimeType || 'image/jpeg',
-        alt: '',
-      };
+      const resolved = resolveMedia(media);
+      return { id: item, ...resolved };
     }
-    return { id: item, src: item, srcset: '', srcsetWebp: '', type: 'image/jpeg', alt: '' };
+    return { id: item, src: item, sources: [], alt: '' };
   });
+});
+
+const heroMedia = computed(() => {
+  const img = hero.value?.image || hero.value?.imageId || hero.value?.imageUrl;
+  if (!img) return null;
+  const isUuid = /^[0-9a-fA-F-]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(
+    img,
+  );
+  if (isUuid && mediaMap.value.has(img)) {
+    return { id: img, ...resolveMedia(mediaMap.value.get(img), hero.value?.headline || '') };
+  }
+  return { id: img, ...resolveMedia({ original_url: img }, hero.value?.headline || '') };
 });
 const firstGalleryImage = computed(() => resolvedGallery.value?.[0]?.src);
 const seo = computed(() => page.value?.seo || {});
@@ -309,7 +302,24 @@ watch(
             </a>
           </div>
         </div>
-        <div class="rounded-2xl bg-gradient-to-br from-slate-900 to-slate-700 text-white p-6 shadow-xl">
+        <div v-if="heroMedia?.src" class="rounded-2xl overflow-hidden border border-slate-200 shadow-xl">
+          <picture>
+            <source
+              v-for="(src, idx) in heroMedia.sources"
+              :key="idx"
+              :srcset="src.srcset"
+              :type="src.type"
+              :media="src.media"
+            />
+            <img
+              :src="heroMedia.src"
+              :alt="hero.headline || 'Salon hero image'"
+              class="w-full h-full object-cover aspect-[4/3]"
+              loading="lazy"
+            />
+          </picture>
+        </div>
+        <div v-else class="rounded-2xl bg-gradient-to-br from-slate-900 to-slate-700 text-white p-6 shadow-xl">
           <div class="text-sm uppercase tracking-wide text-white/70">Hours</div>
           <p class="mt-2 text-lg font-semibold">{{ contact.hours || 'Open daily' }}</p>
           <div class="mt-6 text-sm uppercase tracking-wide text-white/70">Call</div>
@@ -412,8 +422,13 @@ watch(
             :key="idx"
             class="block"
           >
-            <source v-if="img.srcsetWebp" :srcset="img.srcsetWebp" type="image/webp" />
-            <source v-if="img.srcset" :srcset="img.srcset" :type="img.type" />
+            <source
+              v-for="(src, sIdx) in img.sources"
+              :key="sIdx"
+              :srcset="src.srcset"
+              :type="src.type"
+              :media="src.media"
+            />
             <img
               :src="img.src"
               class="w-full rounded-xl border border-slate-200 object-cover aspect-[4/3]"
