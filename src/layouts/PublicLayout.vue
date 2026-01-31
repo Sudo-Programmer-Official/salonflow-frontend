@@ -1,6 +1,6 @@
 <template>
   <div class="public-shell flex flex-col text-slate-900">
-    <header class="border-b border-white/30 bg-white/70 backdrop-blur font-[var(--ui-font-family)]">
+    <header v-if="!suppressChrome" class="border-b border-white/30 bg-white/70 backdrop-blur font-[var(--ui-font-family)]">
       <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
         <RouterLink to="/" class="flex items-center gap-1.5">
           <img :src="logo" alt="SalonFlow" class="brand-logo" />
@@ -23,16 +23,25 @@
       />
       <router-view />
     </main>
-    <SiteFooter />
+    <SiteFooter v-if="!suppressChrome" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { RouterLink } from 'vue-router';
+import { computed } from 'vue';
+import { RouterLink, useRoute } from 'vue-router';
+import { isPlatformHost } from '../api/client';
 import { maintenanceActive, maintenanceMessage } from '../api/maintenance';
 import SiteFooter from '../components/SiteFooter.vue';
 import MaintenanceBanner from '../components/MaintenanceBanner.vue';
 import logo from '../assets/images/salonflow-logo.png';
+
+const route = useRoute();
+const suppressChrome = computed(() => {
+  const isWebsiteHost = typeof window !== 'undefined' && !isPlatformHost();
+  const routeName = String(route.name || '');
+  return isWebsiteHost && (routeName === 'book' || routeName === 'book-standalone');
+});
 </script>
 
 <style scoped>

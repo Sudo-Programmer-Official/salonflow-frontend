@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { ElCard, ElButton, ElInput, ElForm, ElFormItem, ElMessage, ElTable, ElTableColumn, ElTag, ElSwitch, ElInputNumber, ElDivider, ElSelect, ElOption } from 'element-plus';
 import {
   connectGoogleBusiness,
+  googleBusinessAuthorize,
+  googleBusinessCallback,
   pullGoogleBusiness,
   syncGoogleBusiness,
   fetchGoogleReviews,
@@ -33,8 +36,12 @@ const form = ref({
   profileId: '',
 });
 
+const route = useRoute();
+const router = useRouter();
 const connecting = ref(false);
 const syncing = ref(false);
+const authLoading = ref(false);
+const callbackProcessing = ref(false);
 const reviews = ref<any[]>([]);
 const reviewsLoading = ref(false);
 const sendingMap = ref<Record<string, boolean>>({});
@@ -180,8 +187,42 @@ const saveSettings = async () => {
   }
 };
 
+const startGoogleOauth = async () => {
+  authLoading.value = true;
+  try {
+    const resp = await googleBusinessAuthorize();
+    window.location.href = resp.url;
+  } catch (err: any) {
+    ElMessage.error(err?.message || 'Failed to start Google connect');
+  } finally {
+    authLoading.value = false;
+  }
+};
+
+const handleGoogleOauthCallback = async () => {
+  const code = route.query.code as string | undefined;
+  const state = route.query.state as string | undefined;
+  if (!code || !state) return;
+  callbackProcessing.value = true;
+  try {
+    await googleBusinessCallback(code, state);
+    ElMessage.success('Google connected');
+    await loadStatus();
+    // strip query to avoid repeat
+    const next = { ...route.query };
+    delete next.code;
+    delete next.state;
+    router.replace({ query: next });
+  } catch (err: any) {
+    ElMessage.error(err?.message || 'Google connect failed');
+  } finally {
+    callbackProcessing.value = false;
+  }
+};
+
 onMounted(loadReviews);
 onMounted(loadStatus);
+onMounted(handleGoogleOauthCallback);
 </script>
 
 <template>
@@ -192,6 +233,27 @@ onMounted(loadStatus);
       <span>Google Business</span>
     </div>
     <h1 class="text-2xl font-semibold text-slate-900">Google Business Profile</h1>
+    <ElCard shadow="never" class="border border-slate-200">
+      <div class="flex items-center justify-between gap-4 flex-wrap">
+        <div class="flex items-center gap-3">
+          <ElTag :type="status?.connected ? 'success' : 'info'">
+            {{ status?.connected ? 'Connected' : 'Not connected' }}
+          </ElTag>
+          <span v-if="status?.account?.display_name" class="text-sm text-slate-700">
+            {{ status?.account?.display_name }}
+          </span>
+          <span v-if="status?.account?.meta?.profileId" class="text-xs text-slate-500">
+            {{ status?.account?.meta?.profileId }}
+          </span>
+        </div>
+        <div class="flex gap-2">
+          <ElButton type="primary" :loading="authLoading || callbackProcessing" @click="startGoogleOauth">
+            Connect with Google (OAuth)
+          </ElButton>
+          <ElButton @click="loadStatus">Refresh status</ElButton>
+        </div>
+      </div>
+    </ElCard>
     <ElCard shadow="never" class="border border-slate-200">
       <ElForm label-position="top" class="space-y-3">
         <ElFormItem label="Access token">

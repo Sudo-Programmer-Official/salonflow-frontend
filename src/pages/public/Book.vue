@@ -18,9 +18,11 @@ import { fetchPublicAvailableStaff, type StaffMember } from '../../api/staff';
 import { createPublicAppointment } from '../../api/appointments';
 import { fetchPublicSettings, type BusinessSettings } from '../../api/settings';
 import { applyThemeFromSettings } from '../../utils/theme';
-import { apiUrl, buildHeaders } from '../../api/client';
+import { apiUrl, buildHeaders, isPlatformHost } from '../../api/client';
 import { dayjs, getBusinessTimezone, setBusinessTimezone } from '../../utils/dates';
 import { maintenanceActive } from '../../api/maintenance';
+import { useWebsite } from '../../composables/useWebsite';
+import PublicWebsiteLayout from '../../layouts/PublicWebsiteLayout.vue';
 
 type ServiceGroup = {
   categoryId: string | null;
@@ -30,6 +32,66 @@ type ServiceGroup = {
 };
 
 const route = useRoute();
+const { data: websiteData, fetchSite: fetchWebsite } = useWebsite('en');
+const useWebsiteShell = computed(() => typeof window !== 'undefined' && !isPlatformHost());
+const pageToPath = (page: string) => {
+  switch (page) {
+    case 'services':
+      return '/services';
+    case 'about':
+      return '/about';
+    case 'contact':
+      return '/contact';
+    case 'home':
+    default:
+      return '/';
+  }
+};
+const websiteNav = computed(() => {
+  const raw = Array.isArray(websiteData.value?.nav) ? websiteData.value?.nav : [];
+  const items = raw
+    .filter((n: any) => n && n.visible !== false)
+    .map((n: any) => ({
+      label: String(n.label ?? ''),
+      path: String(n.path ?? '/'),
+      position: Number.isFinite(n.position) ? n.position : 0,
+    }))
+    .sort((a: any, b: any) => a.position - b.position);
+
+  const fallbackNav = Array.isArray(websiteData.value?.layout?.header?.nav)
+    ? websiteData.value?.layout?.header?.nav.map((n: any, idx: number) => ({
+        label: String(n.label || ''),
+        path: pageToPath(n.page),
+        position: idx,
+      }))
+    : [];
+
+  const merged = items.length ? items : fallbackNav;
+  const seen = new Set<string>();
+  return merged.filter((i) => {
+    if (seen.has(i.path)) return false;
+    seen.add(i.path);
+    return Boolean(i.label && i.path);
+  });
+});
+const websiteHeader = computed(() => {
+  const headerCfg = websiteData.value?.layout?.header;
+  if (!headerCfg) return null;
+  return {
+    enabled: headerCfg.enabled !== false,
+    brand: websiteData.value?.site?.primary_domain || websiteData.value?.site?.default_domain || 'Book',
+    nav: websiteNav.value,
+    ctas: {
+      call: { enabled: headerCfg.ctas?.call?.enabled !== false, phone: null },
+      book: { enabled: headerCfg.ctas?.book?.enabled !== false, url: '/check-in/book' },
+    },
+  };
+});
+const websiteFooter = computed(() => {
+  const footer = websiteData.value?.layout?.footer;
+  return footer ? { ...footer, fallbackHoursText: footer?.contact?.hours || null } : null;
+});
+
 const tenant = computed(
   () =>
     (route.query.tenant as string | undefined) ||
@@ -172,6 +234,9 @@ const loadBusiness = async () => {
 };
 
 onMounted(async () => {
+  if (useWebsiteShell.value) {
+    fetchWebsite().catch(() => undefined);
+  }
   if (tenant.value) {
     localStorage.setItem('tenantSubdomain', tenant.value);
     localStorage.setItem('tenantId', tenant.value);
@@ -273,7 +338,11 @@ const onSubmit = async () => {
 </script>
 
 <template>
-  <div class="max-w-5xl mx-auto space-y-6">
+  <component
+    :is="useWebsiteShell ? PublicWebsiteLayout : 'div'"
+    v-bind="useWebsiteShell ? { header: websiteHeader, footer: websiteFooter, activePath: route.path } : {}"
+  >
+    <div class="max-w-5xl mx-auto space-y-6">
     <div class="text-center">
       <p class="text-xs font-semibold uppercase tracking-[0.2em] text-sky-600">Book online</p>
       <h1 class="mt-2 text-3xl font-semibold text-slate-900">{{ businessName }}</h1>
@@ -558,4 +627,5 @@ const onSubmit = async () => {
       </div>
     </div>
   </div>
+  </component>
 </template>

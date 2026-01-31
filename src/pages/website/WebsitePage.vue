@@ -6,6 +6,8 @@ import { useWebsite } from '../../composables/useWebsite';
 import { apiUrl } from '../../api/client';
 import { resolveMedia } from '../../utils/resolveMedia';
 
+const BOOKING_PATH = '/check-in/book';
+
 const route = useRoute();
 const locale = computed(() => {
   const path = route.path;
@@ -19,6 +21,11 @@ const slug = computed(() => {
 });
 
 const { data, loading, error, fetchSite } = useWebsite(locale.value as 'en' | 'es');
+
+const isHomePage = computed(() => slug.value === 'home');
+const isServicesPage = computed(() => slug.value === 'services');
+const isContactPage = computed(() => slug.value === 'contact');
+const bookingPath = computed(() => BOOKING_PATH);
 
 const mediaMap = computed(() => {
   const map = new Map<string, any>();
@@ -69,6 +76,12 @@ const heroMedia = computed(() => {
 const heroSlides = computed(() => resolvedGallery.value.slice(0, 5));
 const heroSlideIndex = ref(0);
 const currentHeroSlide = computed(() => heroSlides.value[heroSlideIndex.value] || null);
+const servicesHeroImages = computed(() =>
+  heroSlides.value.length ? heroSlides.value : heroMedia.value ? [heroMedia.value] : [],
+);
+const currentServicesHero = computed(
+  () => servicesHeroImages.value[heroSlideIndex.value % (servicesHeroImages.value.length || 1)] || null,
+);
 let heroInterval: ReturnType<typeof setInterval> | null = null;
 
 const serviceCards = computed(() => {
@@ -94,6 +107,9 @@ const serviceCards = computed(() => {
     })
     .filter(Boolean) as Array<{ name: string; description?: string; img: any }>;
 });
+
+const showServicesSection = computed(() => !isContactPage.value && serviceCards.value.length > 0);
+const showContactSection = computed(() => isHomePage.value || isContactPage.value);
 
 onMounted(() => {
   if (heroSlides.value.length > 1) {
@@ -356,7 +372,7 @@ const headerView = computed(() => ({
     },
     book: {
       enabled: headerConfig.value?.ctas?.book?.enabled !== false,
-      url: headerConfig.value?.ctas?.book?.url || '/check-in/book',
+      url: BOOKING_PATH,
     },
   },
 }));
@@ -384,16 +400,76 @@ const footerView = computed(() => {
         Preview mode
       </div>
 
-      <section class="grid gap-6 lg:grid-cols-[1.1fr,0.9fr] items-center">
+      <section
+        v-if="isServicesPage"
+        class="services-hero relative overflow-hidden rounded-3xl bg-slate-950 text-white shadow-2xl"
+      >
+        <picture v-if="currentServicesHero?.src" class="absolute inset-0 services-hero__image">
+          <source
+            v-for="(src, idx) in currentServicesHero.sources || []"
+            :key="idx"
+            :srcset="src.srcset"
+            :type="src.type"
+            :media="src.media"
+          />
+          <img
+            :src="currentServicesHero.src"
+            :alt="hero.headline || 'Services hero image'"
+            class="h-full w-full object-cover"
+            loading="lazy"
+          />
+        </picture>
+        <div class="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/55 to-slate-900/10"></div>
+        <div class="relative z-10 flex min-h-[60vh] items-center justify-center lg:min-h-[72vh]">
+          <div class="max-w-3xl space-y-4 px-6 text-center">
+            <p class="text-xs uppercase tracking-[0.3em] text-white/70">Our Services</p>
+            <h1 class="text-4xl font-bold lg:text-5xl">
+              {{ hero.headline || 'Premium services, zero compromise.' }}
+            </h1>
+            <p class="text-lg text-white/80">
+              {{ hero.subheadline || 'Select a service and book instantly.' }}
+            </p>
+            <div class="flex justify-center">
+              <a
+                :href="bookingPath"
+                class="inline-flex items-center gap-2 rounded-full bg-white/95 px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-lg ring-1 ring-white/60 backdrop-blur hover:-translate-y-0.5 hover:shadow-2xl transition"
+              >
+                {{ hero.ctaPrimary || 'Book Appointment' }}
+              </a>
+            </div>
+          </div>
+        </div>
+        <div
+          v-if="servicesHeroImages.length > 1"
+          class="relative z-10 -mb-5 flex justify-center gap-2 pb-4"
+        >
+          <button
+            v-for="(slide, i) in servicesHeroImages"
+            :key="slide.id || i"
+            class="h-2.5 w-2.5 rounded-full transition-all"
+            :class="i === heroSlideIndex ? 'bg-white w-5' : 'bg-white/50'"
+            @click="heroSlideIndex = i"
+          />
+        </div>
+      </section>
+
+      <section v-else class="grid gap-6 lg:grid-cols-[1.1fr,0.9fr] items-center">
         <div class="space-y-4">
           <p class="text-xs uppercase tracking-wide text-slate-500">{{ page?.slug === 'home' ? 'Salon' : page?.slug }}</p>
           <h1 class="text-3xl font-bold text-slate-900 lg:text-4xl">{{ hero.headline || 'Beautiful Nails. Exceptional Care.' }}</h1>
           <p class="text-lg text-slate-700">{{ hero.subheadline || '' }}</p>
           <div class="flex flex-wrap gap-3">
-            <a class="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-white text-sm font-semibold hover:bg-slate-800" href="#contact">
+            <a
+              class="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-white text-sm font-semibold hover:bg-slate-800"
+              :href="bookingPath"
+            >
               {{ hero.ctaPrimary || 'Book Appointment' }}
             </a>
-            <a class="inline-flex items-center gap-2 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 hover:border-slate-400" href="#services">
+            <a
+              v-if="showServicesSection"
+              class="inline-flex items-center gap-2 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 hover:border-slate-400"
+              href="#services"
+            >
               {{ hero.ctaSecondary || 'Our services' }}
             </a>
           </div>
@@ -464,7 +540,7 @@ const footerView = computed(() => {
         </div>
       </section>
 
-      <section id="services" class="space-y-3">
+      <section v-if="showServicesSection" id="services" class="space-y-3">
         <div class="flex items-center justify-between">
           <h2 class="text-2xl font-semibold text-slate-900">Services</h2>
         </div>
@@ -505,7 +581,7 @@ const footerView = computed(() => {
         </div>
       </section>
 
-      <section id="contact" class="space-y-3">
+      <section v-if="showContactSection" id="contact" class="space-y-3">
         <h2 class="text-2xl font-semibold text-slate-900">Contact</h2>
         <div class="grid gap-3 sm:grid-cols-2">
           <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -586,6 +662,18 @@ const footerView = computed(() => {
 </template>
 
 <style scoped>
+.services-hero {
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.25);
+  transform: translateZ(0);
+}
+.services-hero__image img {
+  transition: transform 500ms ease, filter 500ms ease;
+}
+.services-hero:hover .services-hero__image img {
+  transform: scale(1.02);
+  filter: saturate(1.05);
+}
+
 .hero-tilt {
   transform: perspective(1200px) rotateY(-6deg) rotateX(2deg);
   transition: transform 400ms ease, box-shadow 400ms ease;

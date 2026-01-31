@@ -20,6 +20,26 @@ export async function connectGoogleBusiness(payload: {
   return body.account;
 }
 
+export async function googleBusinessAuthorize() {
+  const res = await fetch(apiUrl('/integrations/google-business/authorize'), {
+    method: 'GET',
+    headers: headers(),
+  });
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.error || 'Failed to start Google connect');
+  return body as { url: string; state: string };
+}
+
+export async function googleBusinessCallback(code: string, state: string) {
+  const res = await fetch(apiUrl(`/integrations/google-business/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`), {
+    method: 'GET',
+    headers: headers(),
+  });
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.error || 'Failed to complete Google connect');
+  return body as { account: any; location: any; state: string };
+}
+
 export async function pullGoogleBusiness() {
   const res = await fetch(apiUrl('/integrations/google-business/pull'), {
     method: 'POST',
