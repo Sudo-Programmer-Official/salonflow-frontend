@@ -200,6 +200,16 @@ export async function fetchWebsiteLeads(status?: string) {
   return body.leads as WebsiteLead[];
 }
 
+export async function deleteWebsiteMedia(id: string) {
+  const res = await fetch(apiUrl(`/website/media/${id}`), {
+    method: 'DELETE',
+    headers: headers(),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || 'Failed to delete media');
+  return body.media as WebsiteMedia;
+}
+
 export async function updateWebsiteLeadStatus(
   id: string,
   status: 'new' | 'contacted' | 'closed' | 'converted',

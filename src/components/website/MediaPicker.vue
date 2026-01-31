@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { ElButton, ElCard, ElDialog, ElImage, ElMessage, ElUpload } from 'element-plus';
+import { ElButton, ElCard, ElDialog, ElImage, ElMessage, ElUpload, ElMessageBox } from 'element-plus';
 import type { UploadRequestOptions } from 'element-plus';
-import { listWebsiteMedia, uploadWebsiteMedia, type WebsiteMedia } from '../../api/website';
+import { deleteWebsiteMedia, listWebsiteMedia, uploadWebsiteMedia, type WebsiteMedia } from '../../api/website';
 
 const props = defineProps<{
   modelValue: string[];
@@ -83,6 +83,34 @@ const isSelected = (id: string) => (props.modelValue || []).includes(id);
 const isVideo = (m?: WebsiteMedia) =>
   (m?.mime_type || (m as any)?.variants?.original?.mimeType || '').startsWith('video');
 
+const deleteItem = async (item: WebsiteMedia, evt: Event) => {
+  evt.stopPropagation();
+  try {
+    await ElMessageBox.confirm(
+      'This will permanently remove the media from your library. It will not affect already published posts.',
+      'Delete image?',
+      {
+        confirmButtonText: 'Delete',
+        cancelButtonText: 'Cancel',
+        type: 'warning',
+        confirmButtonClass: 'el-button--danger',
+      },
+    );
+  } catch {
+    return;
+  }
+  try {
+    await deleteWebsiteMedia(item.id);
+    media.value = media.value.filter((m) => m.id !== item.id);
+    if (isSelected(item.id)) {
+      emit('update:modelValue', (props.modelValue || []).filter((id) => id !== item.id));
+    }
+    ElMessage.success('Deleted');
+  } catch (err: any) {
+    ElMessage.error(err?.message || 'Delete failed');
+  }
+};
+
 const toUrl = (
   input?:
     | string
@@ -122,7 +150,7 @@ const toUrl = (
         <div class="space-y-1">
           <div class="text-sm font-semibold text-slate-800 flex items-center gap-2">
             <span>{{ selectionSummary }}</span>
-            <span class="text-xs font-normal text-slate-500">(Upload max 10MB each)</span>
+            <span class="text-xs font-normal text-slate-500">(Upload max 50MB each)</span>
           </div>
           <div v-if="ruleHints.length" class="text-xs text-slate-500 space-y-0.5 leading-relaxed">
             <div v-for="(hint, idx) in ruleHints" :key="idx">• {{ hint }}</div>
@@ -145,6 +173,13 @@ const toUrl = (
           :class="isSelected(item.id) ? 'media-card--selected' : 'border-transparent hover:border-slate-200'"
           @click="toggle(item.id)"
         >
+          <button
+            class="media-card__delete"
+            title="Delete image"
+            @click.stop="deleteItem(item, $event)"
+          >
+            ✕
+          </button>
           <ElImage
             :src="toUrl(item.variants?.thumbnail) || toUrl(item.original_url)"
             style="width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 10px;"
@@ -165,6 +200,10 @@ const toUrl = (
 .media-card:hover {
   transform: translateY(-2px);
 }
+.media-card:hover .media-card__delete {
+  opacity: 1;
+  pointer-events: auto;
+}
 .media-card--selected {
   border-color: #0284c7;
   box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.25);
@@ -182,6 +221,24 @@ const toUrl = (
   display: grid;
   place-items: center;
   box-shadow: 0 10px 20px rgba(14, 165, 233, 0.35);
+}
+.media-card__delete {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  border-radius: 9999px;
+  background: rgba(248, 113, 113, 0.9);
+  color: white;
+  font-weight: 800;
+  border: none;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 10px 20px rgba(248, 113, 113, 0.35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
 }
 .media-card__badge {
   position: absolute;
