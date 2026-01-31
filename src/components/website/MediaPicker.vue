@@ -137,10 +137,18 @@ const toUrl = (
     </div>
     <div class="flex flex-wrap gap-2">
       <div v-for="(id, idx) in modelValue" :key="id" class="relative">
-        <ElImage
-          :src="toUrl(getMediaById(id)?.variants?.thumbnail) || toUrl(getMediaById(id)?.original_url)"
-          style="width: 96px; height: 96px; object-fit: cover; border-radius: 8px;"
-        />
+        <template v-if="isVideo(getMediaById(id))">
+          <div class="media-selected-video">
+            <span class="media-selected-video__icon">▶</span>
+            <span class="media-selected-video__label">Video</span>
+          </div>
+        </template>
+        <template v-else>
+          <ElImage
+            :src="toUrl(getMediaById(id)?.variants?.thumbnail) || toUrl(getMediaById(id)?.original_url)"
+            style="width: 96px; height: 96px; object-fit: cover; border-radius: 8px;"
+          />
+        </template>
         <button class="absolute -top-2 -right-2 bg-white text-xs rounded-full border px-1" @click.prevent="remove(idx)">✕</button>
       </div>
     </div>
@@ -281,5 +289,23 @@ const toUrl = (
   font-size: 12px;
   letter-spacing: 0.4px;
   color: #cbd5e1;
+}
+.media-selected-video {
+  width: 96px;
+  height: 96px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: #e2e8f0;
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+}
+.media-selected-video__icon {
+  font-size: 20px;
+}
+.media-selected-video__label {
+  font-size: 11px;
+  letter-spacing: 0.3px;
 }
 </style>
