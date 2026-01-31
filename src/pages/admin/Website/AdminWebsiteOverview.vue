@@ -91,7 +91,8 @@ const openPreview = () => window.open(previewUrl.value, '_blank');
           <div class="text-sm font-semibold text-slate-800">Actions</div>
           <div class="flex flex-wrap gap-2">
             <ElButton size="small" type="primary" plain @click="go('website/pages')">Edit Pages</ElButton>
-            <ElButton size="small" type="primary" plain @click="go('website/navigation')">Navigation</ElButton>
+            <ElButton size="small" type="primary" plain @click="go('website/navigation')">Header & Nav</ElButton>
+            <ElButton size="small" type="primary" plain @click="go('website/footer')">Footer</ElButton>
             <ElButton size="small" type="info" plain @click="go('website/domains')">Manage Domains</ElButton>
           </div>
         </div>

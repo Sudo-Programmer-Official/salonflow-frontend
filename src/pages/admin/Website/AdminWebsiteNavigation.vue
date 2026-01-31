@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { onMounted, reactive, ref } from 'vue';
 import {
   ElTable,
   ElTableColumn,
@@ -10,17 +10,40 @@ import {
   ElOption,
   ElMessage,
 } from 'element-plus';
-import { fetchWebsiteNav, saveWebsiteNav, type WebsiteNavItem } from '../../../api/website';
+import {
+  fetchWebsiteLayout,
+  fetchWebsiteNav,
+  saveWebsiteHeader,
+  saveWebsiteNav,
+  type WebsiteHeaderConfig,
+  type WebsiteNavItem,
+} from '../../../api/website';
+import { clearWebsiteCache } from '../../../composables/useWebsite';
 
 const locale = ref<'en' | 'es'>('en');
 const loading = ref(false);
 const saving = ref(false);
 const items = ref<WebsiteNavItem[]>([]);
+const header = reactive({
+  enabled: true,
+  callEnabled: true,
+  bookEnabled: true,
+  bookUrl: '/check-in/book',
+});
 
 const load = async () => {
   loading.value = true;
   try {
-    items.value = await fetchWebsiteNav(locale.value);
+    const [nav, layout] = await Promise.all([
+      fetchWebsiteNav(locale.value),
+      fetchWebsiteLayout(locale.value),
+    ]);
+    items.value = nav;
+    const headerCfg: WebsiteHeaderConfig | undefined = layout?.header;
+    header.enabled = headerCfg?.enabled !== false;
+    header.callEnabled = headerCfg?.ctas?.call?.enabled !== false;
+    header.bookEnabled = headerCfg?.ctas?.book?.enabled !== false;
+    header.bookUrl = headerCfg?.ctas?.book?.url || '/check-in/book';
   } catch (err: any) {
     ElMessage.error(err?.message || 'Failed to load navigation');
   } finally {
@@ -66,8 +89,20 @@ const save = async () => {
       position: idx,
       locale: locale.value,
     }));
-    items.value = await saveWebsiteNav(locale.value, payload);
-    ElMessage.success('Navigation saved');
+    const headerPayload: WebsiteHeaderConfig = {
+      enabled: header.enabled,
+      ctas: {
+        call: { enabled: header.callEnabled },
+        book: { enabled: header.bookEnabled, url: header.bookUrl || '/check-in/book' },
+      },
+    };
+    const [navSaved] = await Promise.all([
+      saveWebsiteNav(locale.value, payload),
+      saveWebsiteHeader(headerPayload, locale.value),
+    ]);
+    items.value = navSaved;
+    clearWebsiteCache(locale.value);
+    ElMessage.success('Header saved');
   } catch (err: any) {
     ElMessage.error(err?.message || 'Failed to save navigation');
   } finally {
@@ -96,6 +131,22 @@ const save = async () => {
         <ElButton type="primary" plain @click="addItem">Add link</ElButton>
       </div>
     </div>
+
+    <ElCard shadow="never" class="border border-slate-200" :loading="loading">
+      <div class="grid gap-4 md:grid-cols-2">
+        <div class="flex items-center gap-3">
+          <ElSwitch v-model="header.enabled" active-text="Header on" inactive-text="Header off" />
+        </div>
+        <div class="flex items-center gap-3">
+          <ElSwitch v-model="header.callEnabled" active-text="Call CTA" inactive-text="Hidden" />
+          <span class="text-xs text-slate-500">Uses the phone in footer/contact</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <ElSwitch v-model="header.bookEnabled" active-text="Book CTA" inactive-text="Hidden" />
+          <ElInput v-model="header.bookUrl" placeholder="/check-in/book" />
+        </div>
+      </div>
+    </ElCard>
 
     <ElTable :data="items" :loading="loading" style="width: 100%">
       <ElTableColumn label="#" width="60">

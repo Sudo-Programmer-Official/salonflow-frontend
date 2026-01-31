@@ -27,7 +27,7 @@ const form = ref({
   heroSubheadline: '',
   ctaText: '',
   heroImage: [] as string[],
-  services: [''],
+  services: [{ title: '', description: '', image: [] as string[] }],
   address: '',
   phone: '',
   hours: '',
@@ -47,7 +47,11 @@ const load = async () => {
       form.value.heroSubheadline = c.hero?.subheadline || '';
       form.value.ctaText = c.hero?.ctaPrimary || '';
       form.value.heroImage = c.hero?.image ? [c.hero.image] : [];
-      form.value.services = c.services?.map((s: any) => s.title || '') || [''];
+      form.value.services =
+        c.services?.map((s: any) => ({
+          title: s?.title || s || '',
+          image: s?.image ? [s.image] : [],
+        })) || [{ title: '', image: [] }];
       form.value.address = c.contact?.address || '';
       form.value.phone = c.contact?.phone || '';
       form.value.hours = c.contact?.hours || '';
@@ -63,7 +67,14 @@ const load = async () => {
 
 onMounted(load);
 
-const sanitizeServices = () => form.value.services.filter((s) => s.trim());
+const sanitizeServices = () =>
+  form.value.services
+    .map((s) => ({
+      title: (s.title || '').trim(),
+      description: (s.description || '').trim() || null,
+      image: (s.image || []).find(Boolean) || null,
+    }))
+    .filter((s) => s.title);
 const isUuid = (val: string) =>
   /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(
     val,
@@ -84,7 +95,11 @@ const save = async (publish: boolean) => {
         ctaPrimary: form.value.ctaText,
         image: form.value.heroImage[0] || null,
       },
-      services: sanitizeServices().map((title: string) => ({ title, description: null })),
+      services: sanitizeServices().map((svc: any) => ({
+        title: svc.title,
+        description: svc.description,
+        image: svc.image,
+      })),
       contact: {
         address: form.value.address,
         phone: form.value.phone,
@@ -107,7 +122,18 @@ const save = async (publish: boolean) => {
   }
 };
 
-const addService = () => form.value.services.push('');
+const addService = () => form.value.services.push({ title: '', description: '', image: [] });
+const removeService = (idx: number) => {
+  if (form.value.services.length <= 1) return;
+  form.value.services.splice(idx, 1);
+};
+const moveService = (idx: number, dir: -1 | 1) => {
+  const next = idx + dir;
+  if (next < 0 || next >= form.value.services.length) return;
+  const arr = form.value.services;
+  if (!arr[idx] || !arr[next]) return;
+  [arr[idx], arr[next]] = [arr[next], arr[idx]];
+};
 
 const previewPath = computed(() => {
   const prefix = locale.value === 'es' ? '/es' : '';
@@ -167,10 +193,32 @@ const goBack = () =>
           <ElSwitch v-model="form.published" disabled />
         </ElFormItem>
 
-        <ElFormItem label="Services (one per line)" class="md:col-span-2">
-          <div class="space-y-2 w-full">
-            <div v-for="(_, idx) in form.services" :key="idx" class="flex gap-2">
-              <ElInput v-model="form.services[idx]" placeholder="Service title" />
+        <ElFormItem label="Services" class="md:col-span-2">
+          <div class="space-y-3 w-full">
+            <div
+              v-for="(svc, idx) in form.services"
+              :key="idx"
+              class="grid gap-3 md:grid-cols-[1fr,220px,120px]"
+            >
+              <div class="space-y-2">
+                <ElInput v-model="svc.title" placeholder="Service title" />
+                <ElInput
+                  v-model="svc.description"
+                  type="textarea"
+                  :rows="2"
+                  placeholder="Short description (optional)"
+                />
+              </div>
+              <MediaPicker
+                :model-value="svc.image"
+                :target="{ kind: 'page', page: slug, section: 'services', slot: `svc-${idx}` }"
+                @update:modelValue="(val) => (svc.image = val.slice(-1))"
+              />
+              <div class="flex flex-col gap-2 justify-center">
+                <ElButton size="small" @click="moveService(idx, -1)" :disabled="idx === 0">↑</ElButton>
+                <ElButton size="small" @click="moveService(idx, 1)" :disabled="idx === form.services.length - 1">↓</ElButton>
+                <ElButton size="small" type="danger" plain @click="removeService(idx)" :disabled="form.services.length <= 1">Delete</ElButton>
+              </div>
             </div>
             <ElButton size="small" type="primary" plain @click="addService">Add service</ElButton>
           </div>

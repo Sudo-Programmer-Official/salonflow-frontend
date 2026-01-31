@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
-import { ElCard, ElForm, ElFormItem, ElInput, ElSelect, ElOption, ElDatePicker, ElButton, ElTable, ElTableColumn, ElTag, ElMessage, ElAlert } from 'element-plus';
+import { computed, onMounted, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { ElCard, ElForm, ElFormItem, ElInput, ElSelect, ElOption, ElDatePicker, ElButton, ElTable, ElTableColumn, ElTag, ElMessage, ElAlert, ElDialog, ElRadioGroup, ElRadio, ElSpace } from 'element-plus';
 import { listSocialPosts, createSocialDraft, publishSocialPost } from '../../../api/social';
 import MediaPicker from '../../../components/website/MediaPicker.vue';
 import { fetchGrowthPlan } from '../../../api/growth';
-import { computed } from 'vue';
+import { facebookCallback, facebookConnect, facebookSelectPage, facebookStatus } from '../../../api/integrations';
 
 const loading = ref(false);
 const posts = ref<any[]>([]);
@@ -12,6 +13,20 @@ const growthLoading = ref(false);
 const socialQuota = ref<number | null>(null);
 const socialUsed = ref(0);
 const bannerDismissed = ref(false);
+const route = useRoute();
+const router = useRouter();
+
+const fbStatusLoading = ref(false);
+const fbConnected = ref(false);
+const fbAccount = ref<any | null>(null);
+const fbPages = ref<Array<{ page_id: string; page_name: string; has_instagram: boolean }>>([]);
+const fbSession = ref<string | null>(null);
+const fbState = ref<string | null>(null);
+const fbSelectVisible = ref(false);
+const fbSelectedPage = ref<string | null>(null);
+const fbSelecting = ref(false);
+const fbCallbackProcessing = ref(false);
+const fbError = ref<string | null>(null);
 
 const form = ref({
   provider: 'facebook',
@@ -31,7 +46,77 @@ const load = async () => {
   }
 };
 
+const loadStatus = async () => {
+  fbStatusLoading.value = true;
+  try {
+    const resp = await facebookStatus();
+    fbConnected.value = resp.connected;
+    fbAccount.value = resp.account || null;
+  } catch (err: any) {
+    fbError.value = err?.message || 'Failed to load Facebook status';
+  } finally {
+    fbStatusLoading.value = false;
+  }
+};
+
+const handleOauthCallback = async () => {
+  const code = route.query.code as string | undefined;
+  const state = route.query.state as string | undefined;
+  if (!code || !state) return;
+  fbCallbackProcessing.value = true;
+  try {
+    const resp = await facebookCallback(code, state);
+    fbPages.value = resp.pages || [];
+    fbSession.value = resp.session;
+    fbState.value = resp.state;
+    fbSelectVisible.value = true;
+    // Remove code/state from URL to prevent repeat processing
+    const newQuery = { ...route.query };
+    delete newQuery.code;
+    delete newQuery.state;
+    router.replace({ query: newQuery });
+  } catch (err: any) {
+    ElMessage.error(err?.message || 'Facebook connect failed');
+  } finally {
+    fbCallbackProcessing.value = false;
+  }
+};
+
+const connectFacebook = async () => {
+  try {
+    const resp = await facebookConnect();
+    window.location.href = resp.url;
+  } catch (err: any) {
+    ElMessage.error(err?.message || 'Failed to start Facebook connect');
+  }
+};
+
+const selectFacebookPage = async () => {
+  if (!fbSelectedPage.value || !fbSession.value || !fbState.value) {
+    ElMessage.warning('Select a page');
+    return;
+  }
+  fbSelecting.value = true;
+  try {
+    await facebookSelectPage({
+      page_id: fbSelectedPage.value,
+      session: fbSession.value,
+      state: fbState.value,
+    });
+    fbSelectVisible.value = false;
+    fbSelectedPage.value = null;
+    await loadStatus();
+    ElMessage.success('Facebook connected');
+  } catch (err: any) {
+    ElMessage.error(err?.message || 'Failed to save selection');
+  } finally {
+    fbSelecting.value = false;
+  }
+};
+
 onMounted(load);
+onMounted(loadStatus);
+onMounted(handleOauthCallback);
 onMounted(async () => {
   growthLoading.value = true;
   try {
@@ -72,6 +157,11 @@ const publish = async (row: any) => {
   } catch (err: any) {
     ElMessage.error(err?.message || 'Failed to publish');
   }
+};
+
+const publishDisabled = (row: any) => {
+  if (row.provider === 'facebook' && !fbConnected.value) return true;
+  return row.status === 'published';
 };
 
 const badgeType = (status: string) => {
@@ -139,6 +229,35 @@ const quotaState = computed(() => {
     </div>
 
     <ElCard shadow="never" class="border border-slate-200">
+      <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div>
+          <div class="text-sm font-semibold text-slate-800 flex items-center gap-2">
+            Facebook / Instagram connection
+            <ElTag :type="fbConnected ? 'success' : 'info'" size="small">
+              {{ fbConnected ? 'Connected' : 'Not connected' }}
+            </ElTag>
+          </div>
+          <div class="text-xs text-slate-600">
+            One Page per business; IG is derived automatically when linked.
+            <span v-if="fbAccount?.meta?.instagramBusinessId">IG linked ✔️</span>
+          </div>
+          <div v-if="fbAccount?.display_name" class="text-xs text-slate-500">
+            Page: {{ fbAccount.display_name }}
+          </div>
+          <div v-if="fbAccount?.last_error" class="text-xs text-red-600">
+            Last error: {{ fbAccount.last_error }}
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <ElButton :loading="fbStatusLoading || fbCallbackProcessing" @click="connectFacebook" type="primary">
+            {{ fbConnected ? 'Reconnect' : 'Connect Facebook' }}
+          </ElButton>
+          <ElButton :loading="fbStatusLoading" plain @click="loadStatus">Refresh status</ElButton>
+        </div>
+      </div>
+    </ElCard>
+
+    <ElCard shadow="never" class="border border-slate-200">
       <ElForm label-position="top" class="grid gap-4 md:grid-cols-2">
         <ElFormItem label="Provider">
           <ElSelect v-model="form.provider">
@@ -178,10 +297,48 @@ const quotaState = computed(() => {
         <ElTableColumn prop="content" label="Content" min-width="240" />
         <ElTableColumn label="Actions" width="160">
           <template #default="{ row }">
-            <ElButton size="small" type="primary" plain @click="publish(row)" :disabled="row.status === 'published'">Publish now</ElButton>
+            <ElButton
+              size="small"
+              type="primary"
+              plain
+              @click="publish(row)"
+              :disabled="publishDisabled(row)"
+            >
+              Publish now
+            </ElButton>
           </template>
         </ElTableColumn>
       </ElTable>
     </ElCard>
+
+    <ElDialog v-model="fbSelectVisible" title="Select Facebook Page" width="480px">
+      <div class="space-y-3" v-if="fbPages.length">
+        <ElRadioGroup v-model="fbSelectedPage">
+          <ElSpace direction="vertical" alignment="start">
+            <ElRadio
+              v-for="p in fbPages"
+              :key="p.page_id"
+              :label="p.page_id"
+            >
+              <div class="flex flex-col">
+                <span class="font-semibold">{{ p.page_name }}</span>
+                <span class="text-xs text-slate-500">
+                  {{ p.page_id }} • IG {{ p.has_instagram ? 'linked' : 'not linked' }}
+                </span>
+              </div>
+            </ElRadio>
+          </ElSpace>
+        </ElRadioGroup>
+      </div>
+      <div v-else class="text-sm text-slate-600">
+        No manageable Pages returned from Meta. Ensure you granted Pages permissions.
+      </div>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <ElButton @click="fbSelectVisible = false">Cancel</ElButton>
+          <ElButton type="primary" :loading="fbSelecting" @click="selectFacebookPage">Connect page</ElButton>
+        </div>
+      </template>
+    </ElDialog>
   </div>
 </template>

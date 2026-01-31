@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { ElTable, ElTableColumn, ElTag, ElButton, ElSelect, ElOption, ElMessage, ElInput } from 'element-plus';
 import { fetchWebsiteLeads, updateWebsiteLeadStatus, type WebsiteLead } from '../../../api/website';
 
@@ -8,6 +9,7 @@ const loading = ref(false);
 const updatingId = ref<string | null>(null);
 const filterStatus = ref<string>('');
 const notesDraft = ref<Record<string, string>>({});
+const router = useRouter();
 
 const load = async () => {
   loading.value = true;
@@ -22,7 +24,7 @@ const load = async () => {
 
 onMounted(load);
 
-const saveStatus = async (lead: WebsiteLead, status: 'new' | 'contacted' | 'closed') => {
+const saveStatus = async (lead: WebsiteLead, status: WebsiteLead['status']) => {
   updatingId.value = lead.id;
   try {
     const updated = await updateWebsiteLeadStatus(lead.id, status, notesDraft.value[lead.id]);
@@ -33,6 +35,11 @@ const saveStatus = async (lead: WebsiteLead, status: 'new' | 'contacted' | 'clos
   } finally {
     updatingId.value = null;
   }
+};
+
+const openInInbox = (lead: WebsiteLead) => {
+  if (!lead.conversation_id) return;
+  router.push({ name: 'admin-inbox', query: { conversationId: lead.conversation_id } });
 };
 </script>
 
@@ -48,6 +55,7 @@ const saveStatus = async (lead: WebsiteLead, status: 'new' | 'contacted' | 'clos
         <ElOption label="New" value="new" />
         <ElOption label="Contacted" value="contacted" />
         <ElOption label="Closed" value="closed" />
+        <ElOption label="Converted" value="converted" />
       </ElSelect>
     </div>
 
@@ -69,7 +77,17 @@ const saveStatus = async (lead: WebsiteLead, status: 'new' | 'contacted' | 'clos
       </ElTableColumn>
       <ElTableColumn prop="status" label="Status" width="150">
         <template #default="{ row }">
-          <ElTag :type="row.status === 'closed' ? 'success' : row.status === 'contacted' ? 'warning' : 'info'">
+          <ElTag
+            :type="
+              row.status === 'closed'
+                ? 'success'
+                : row.status === 'contacted'
+                  ? 'warning'
+                  : row.status === 'converted'
+                    ? 'success'
+                    : 'info'
+            "
+          >
             {{ row.status }}
           </ElTag>
         </template>
@@ -94,9 +112,17 @@ const saveStatus = async (lead: WebsiteLead, status: 'new' | 'contacted' | 'clos
             <ElButton size="small" type="success" plain :loading="updatingId === row.id" @click="saveStatus(row, 'closed')">
               Closed
             </ElButton>
+            <ElButton size="small" type="success" :loading="updatingId === row.id" @click="saveStatus(row, 'converted')">
+              Converted
+            </ElButton>
           </div>
           <div class="text-xs text-slate-500 mt-1">
             {{ new Date(row.created_at).toLocaleString() }} — {{ row.locale.toUpperCase() }} — {{ row.source_page || '/' }}
+          </div>
+          <div v-if="row.conversation_id" class="text-xs text-slate-600 mt-1 flex items-center gap-2">
+            <span>Conversation:</span>
+            <code class="bg-slate-100 px-2 py-0.5 rounded">{{ row.conversation_id.slice(0, 8) }}…</code>
+            <ElButton size="small" text type="primary" @click="openInInbox(row)">Open in Inbox</ElButton>
           </div>
         </template>
       </ElTableColumn>

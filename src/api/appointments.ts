@@ -149,7 +149,9 @@ export async function confirmAppointment(id: string) {
 export async function createPublicAppointment(payload: {
   name: string;
   phoneE164: string;
+  email?: string | null;
   serviceId: string;
+  staffId?: string | null;
   scheduledAt: string;
   notes?: string;
   preferredTech?: string | null;

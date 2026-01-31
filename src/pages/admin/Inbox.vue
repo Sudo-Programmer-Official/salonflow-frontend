@@ -1,9 +1,20 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, computed } from 'vue';
+import { useRoute } from 'vue-router';
 import { ElButton, ElCard, ElEmpty, ElInput, ElMessage, ElSkeleton, ElTag } from 'element-plus';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { fetchConversations, fetchMessages, replyToConversation, closeConversation, markConversationRead, type Conversation, type Message } from '../../api/inbox';
+import {
+  fetchConversations,
+  fetchMessages,
+  replyToConversation,
+  markConversationRead,
+  updateConversationStatus,
+  type Conversation,
+  type Message,
+  type ConversationStatusFilter,
+  type ConversationChannelFilter,
+} from '../../api/inbox';
 import { useInboxNotifications } from '../../utils/inboxNotifications';
 
 dayjs.extend(relativeTime);
@@ -12,15 +23,25 @@ const conversations = ref<Conversation[]>([]);
 const loading = ref(false);
 const loadingThread = ref(false);
 const sending = ref(false);
-const closing = ref(false);
-const statusFilter = ref<'open' | 'closed'>('open');
-const channelFilter = ref<'all' | 'sms' | 'email'>('all');
+const updatingStatus = ref(false);
+const statusFilter = ref<ConversationStatusFilter>('active');
+const channelFilter = ref<ConversationChannelFilter>('all');
 const selectedId = ref<string | null>(null);
 const messages = ref<Message[]>([]);
 const selectedConversation = computed(() => conversations.value.find((c) => c.id === selectedId.value) || null);
 const replyText = ref('');
 const pollId = ref<number | null>(null);
 const { refreshUnread: refreshUnreadCount } = useInboxNotifications();
+const route = useRoute();
+
+const statusFilterOptions: { label: string; value: ConversationStatusFilter }[] = [
+  { label: 'Active', value: 'active' },
+  { label: 'New', value: 'new' },
+  { label: 'Contacted', value: 'contacted' },
+  { label: 'Closed', value: 'closed' },
+  { label: 'Converted', value: 'converted' },
+  { label: 'All', value: 'all' },
+];
 
 const formatTime = (ts?: string | null) => (ts ? dayjs(ts).fromNow() : '');
 
@@ -28,9 +49,16 @@ const loadConversations = async () => {
   loading.value = true;
   try {
     conversations.value = await fetchConversations(statusFilter.value, channelFilter.value);
+    const targetId = selectedId.value || (route.query.conversationId as string | undefined);
+    const target = targetId ? conversations.value.find((c) => c.id === targetId) : null;
     const first = conversations.value[0];
-    if (!selectedId.value && first) {
+    if (target) {
+      selectConversation(target.id);
+    } else if (!selectedId.value && first) {
       selectConversation(first.id);
+    } else if (!first) {
+      selectedId.value = null;
+      messages.value = [];
     }
   } catch (err: any) {
     ElMessage.error(err?.message || 'Failed to load conversations');
@@ -85,6 +113,8 @@ const sendReply = async () => {
   } catch (err: any) {
     if (err?.code === 'NO_CONSENT') {
       ElMessage.warning('Customer opted out (STOP). Cannot reply.');
+    } else if (err?.code === 'NO_PHONE') {
+      ElMessage.warning('No phone available to reply.');
     } else if (err?.code === 'COMMS_PAUSED') {
       ElMessage.warning('Comms are paused.');
     } else {
@@ -95,24 +125,52 @@ const sendReply = async () => {
   }
 };
 
-const closeThread = async () => {
+const setStatus = async (status: Conversation['status']) => {
   if (!selectedConversation.value) return;
-  closing.value = true;
+  updatingStatus.value = true;
   try {
-    await closeConversation(selectedConversation.value.id);
+    await updateConversationStatus(selectedConversation.value.id, status);
     await loadConversations();
-    await loadMessages(selectedConversation.value.id);
+    if (selectedId.value) {
+      await loadMessages(selectedId.value, true);
+    }
   } catch (err: any) {
-    ElMessage.error(err?.message || 'Failed to close conversation');
+    ElMessage.error(err?.message || 'Failed to update status');
   } finally {
-    closing.value = false;
+    updatingStatus.value = false;
   }
 };
 
-const badgeText = (c: Conversation) => (c.status === 'open' ? 'Open' : 'Closed');
-const badgeType = (c: Conversation) => (c.status === 'open' ? 'success' : 'info');
-const channelBadgeType = (c: Conversation) => (c.channel === 'email' ? 'info' : 'warning');
-const channelBadgeText = (c: Conversation) => (c.channel === 'email' ? 'Email' : 'SMS');
+const badgeText = (c: Conversation) => {
+  switch (c.status) {
+    case 'new':
+      return 'New';
+    case 'contacted':
+      return 'Contacted';
+    case 'converted':
+      return 'Converted';
+    case 'closed':
+    default:
+      return 'Closed';
+  }
+};
+const badgeType = (c: Conversation) => {
+  switch (c.status) {
+    case 'new':
+      return 'info';
+    case 'contacted':
+      return 'warning';
+    case 'converted':
+      return 'success';
+    case 'closed':
+    default:
+      return 'info';
+  }
+};
+const channelBadgeType = (c: Conversation) =>
+  c.channel === 'email' ? 'info' : c.channel === 'website' ? 'primary' : 'warning';
+const channelBadgeText = (c: Conversation) =>
+  c.channel === 'email' ? 'Email' : c.channel === 'website' ? 'Website' : 'SMS';
 
 const messageAlign = (m: Message) => (m.direction === 'outbound' ? 'flex-row-reverse' : 'flex-row');
 const messageTone = (m: Message) => (m.direction === 'outbound' ? 'bg-sky-100 text-sky-900' : 'bg-slate-100 text-slate-900');
@@ -137,20 +195,15 @@ onUnmounted(() => {
     <ElCard class="md:col-span-1 h-full overflow-hidden flex flex-col">
       <div class="flex items-center justify-between mb-3">
         <div class="font-semibold">Inbox</div>
-        <div class="flex gap-2 text-sm">
+        <div class="flex flex-wrap gap-2 text-sm">
           <ElButton
+            v-for="opt in statusFilterOptions"
+            :key="opt.value"
             size="small"
-            :type="statusFilter === 'open' ? 'primary' : 'default'"
-            @click="() => { statusFilter = 'open'; loadConversations(); }"
+            :type="statusFilter === opt.value ? 'primary' : 'default'"
+            @click="() => { statusFilter = opt.value; loadConversations(); }"
           >
-            Open
-          </ElButton>
-          <ElButton
-            size="small"
-            :type="statusFilter === 'closed' ? 'primary' : 'default'"
-            @click="() => { statusFilter = 'closed'; loadConversations(); }"
-          >
-            Closed
+            {{ opt.label }}
           </ElButton>
         </div>
       </div>
@@ -175,6 +228,13 @@ onUnmounted(() => {
           @click="() => { channelFilter = 'email'; loadConversations(); }"
         >
           Email
+        </ElButton>
+        <ElButton
+          size="small"
+          :type="channelFilter === 'website' ? 'primary' : 'default'"
+          @click="() => { channelFilter = 'website'; loadConversations(); }"
+        >
+          Website
         </ElButton>
       </div>
       <div class="flex-1 overflow-y-auto">
@@ -224,11 +284,37 @@ onUnmounted(() => {
           <div class="flex gap-2">
             <ElButton
               size="small"
+              type="warning"
+              plain
+              :disabled="
+                !selectedConversation ||
+                selectedConversation.status === 'contacted' ||
+                selectedConversation.status === 'closed' ||
+                selectedConversation.status === 'converted' ||
+                updatingStatus
+              "
+              :loading="updatingStatus"
+              @click="setStatus('contacted')"
+            >
+              Mark contacted
+            </ElButton>
+            <ElButton
+              size="small"
+              type="success"
+              plain
+              :disabled="!selectedConversation || selectedConversation.status === 'converted' || updatingStatus"
+              :loading="updatingStatus"
+              @click="setStatus('converted')"
+            >
+              Mark converted
+            </ElButton>
+            <ElButton
+              size="small"
               type="info"
               plain
-              :disabled="!selectedConversation || selectedConversation.status === 'closed' || closing"
-              :loading="closing"
-              @click="closeThread"
+              :disabled="!selectedConversation || selectedConversation.status === 'closed' || updatingStatus"
+              :loading="updatingStatus"
+              @click="setStatus('closed')"
             >
               Close
             </ElButton>
@@ -266,17 +352,26 @@ onUnmounted(() => {
           type="textarea"
           :rows="3"
           placeholder="Type a reply..."
-          :disabled="selectedConversation.status === 'closed'"
+          :disabled="selectedConversation.status === 'closed' || selectedConversation.status === 'converted'"
           @keydown.enter.prevent="sendReply"
         />
         <div class="mt-2 flex justify-between items-center">
           <div class="text-xs text-slate-500">
-            {{ selectedConversation.status === 'closed' ? 'Conversation is closed.' : '' }}
+            {{
+              selectedConversation.status === 'closed' || selectedConversation.status === 'converted'
+                ? 'Conversation is closed.'
+                : ''
+            }}
           </div>
           <div class="flex gap-2">
             <ElButton
               type="primary"
-              :disabled="!replyText.trim() || selectedConversation.status === 'closed' || sending"
+              :disabled="
+                !replyText.trim() ||
+                selectedConversation.status === 'closed' ||
+                selectedConversation.status === 'converted' ||
+                sending
+              "
               :loading="sending"
               @click="sendReply"
             >

@@ -47,6 +47,7 @@ import AdminWebsiteDomainsPage from "../pages/admin/Website/AdminWebsiteDomains.
 import AdminWebsiteLeadsPage from "../pages/admin/Website/AdminWebsiteLeads.vue";
 import AdminWebsiteAnalyticsPage from "../pages/admin/Website/AdminWebsiteAnalytics.vue";
 import AdminWebsiteNavigationPage from "../pages/admin/Website/AdminWebsiteNavigation.vue";
+import AdminWebsiteFooterPage from "../pages/admin/Website/AdminWebsiteFooter.vue";
 import AdminReviewsSettingsPage from "../pages/admin/Reviews/AdminReviewsSettings.vue";
 import AdminReviewsRequestsPage from "../pages/admin/Reviews/AdminReviewsRequests.vue";
 import AdminReviewsFeedbackPage from "../pages/admin/Reviews/AdminReviewsFeedback.vue";
@@ -63,6 +64,7 @@ import LoginPage from "../pages/Login.vue";
 import MagicLoginPage from "../pages/MagicLogin.vue";
 import PrivacyPage from "../pages/Privacy.vue";
 import TermsPage from "../pages/Terms.vue";
+import DataDeletionPage from "../pages/DataDeletion.vue";
 import { clearAuthState } from "../utils/auth";
 import { defaultRouteForRole } from "../utils/navigation";
 import { isPlatformHost } from "../api/client";
@@ -172,6 +174,11 @@ const appRoutes = [
     component: TermsPage,
   },
   {
+    path: "/data-deletion",
+    name: "data-deletion",
+    component: DataDeletionPage,
+  },
+  {
     path: "/magic-login",
     name: "magic-login",
     component: MagicLoginPage,
@@ -188,6 +195,17 @@ const appRoutes = [
       {
         path: "book",
         name: "book",
+        component: PublicBookPage,
+      },
+    ],
+  },
+  {
+    path: "/book",
+    component: PublicLayout,
+    children: [
+      {
+        path: "",
+        name: "book-standalone",
         component: PublicBookPage,
       },
     ],
@@ -373,6 +391,12 @@ const appRoutes = [
         path: "website/navigation",
         name: "admin-website-navigation",
         component: AdminWebsiteNavigationPage,
+        meta: { requiresAuth: true, roles: ["OWNER"] },
+      },
+      {
+        path: "website/footer",
+        name: "admin-website-footer",
+        component: AdminWebsiteFooterPage,
         meta: { requiresAuth: true, roles: ["OWNER"] },
       },
       {

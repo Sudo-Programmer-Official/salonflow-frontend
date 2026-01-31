@@ -34,6 +34,17 @@ type WebsitePayload = {
   nav?: WebsiteNavItem[];
   media?: WebsiteMedia[];
   meta?: { canonical?: string; locales?: string[]; host?: string };
+  layout?: {
+    header: {
+      enabled: boolean;
+      nav?: Array<{ label: string; page: string; path?: string }>;
+      ctas?: {
+        call?: { enabled: boolean };
+        book?: { enabled: boolean; url?: string | null };
+      };
+    };
+    footer: any;
+  };
 };
 
 const cache: Record<string, WebsitePayload | null> = {};
@@ -85,4 +96,12 @@ export function useWebsite(locale: 'en' | 'es') {
   };
 
   return { loading, error, data, fetchSite };
+}
+
+export function clearWebsiteCache(locale?: 'en' | 'es') {
+  if (locale) {
+    delete cache[locale];
+  } else {
+    Object.keys(cache).forEach((k) => delete cache[k]);
+  }
 }

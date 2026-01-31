@@ -38,10 +38,11 @@ export type WebsiteLead = {
   email?: string | null;
   message?: string | null;
   preferred_time?: string | null;
-  status: 'new' | 'contacted' | 'closed';
+  status: 'new' | 'contacted' | 'closed' | 'converted';
   notes?: string | null;
   source_page?: string | null;
   locale: string;
+  conversation_id?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -74,6 +75,49 @@ export type WebsiteNavItem = {
   locale: string;
 };
 
+export type WebsiteHeaderConfig = {
+  enabled: boolean;
+  nav?: Array<{ label: string; page: 'home' | 'services' | 'about' | 'contact'; path?: string }>;
+  ctas?: {
+    call?: { enabled: boolean };
+    book?: { enabled: boolean; url?: string | null };
+  };
+};
+
+export type WebsiteFooterConfig = {
+  enabled: boolean;
+  location?: {
+    addressLine1: string;
+    city: string;
+    state: string;
+    zip: string;
+  } | null;
+  contact?: {
+    phone?: string | null;
+    email?: string | null;
+  } | null;
+  hours?: {
+    source: 'manual' | 'kiosk';
+    manual?: Array<{ day: string; open: string; close: string }>;
+  } | null;
+  social?: {
+    instagram?: string | null;
+    facebook?: string | null;
+    google?: string | null;
+  } | null;
+  legal?: {
+    showPrivacy: boolean;
+    showTerms: boolean;
+    copyrightText?: string | null;
+  } | null;
+};
+
+export type WebsiteLayout = {
+  header: WebsiteHeaderConfig;
+  footer: WebsiteFooterConfig;
+  updatedAt?: string;
+};
+
 const headers = () => buildHeaders({ auth: true, tenant: true, json: true });
 
 export async function fetchWebsiteSite(locale?: string) {
@@ -81,7 +125,7 @@ export async function fetchWebsiteSite(locale?: string) {
   const res = await fetch(url, { headers: headers() });
   const body = await res.json();
   if (!res.ok) throw new Error(body.error || 'Failed to load website');
-  return body as { site: WebsiteSite; domains: WebsiteDomain[]; pages: WebsitePage[] };
+  return body as { site: WebsiteSite; domains: WebsiteDomain[]; pages: WebsitePage[]; nav?: WebsiteNavItem[]; media?: WebsiteMedia[]; layout?: WebsiteLayout };
 }
 
 export async function fetchWebsiteDomains() {
@@ -122,7 +166,7 @@ export async function updateWebsiteSite(input: { published?: boolean; primaryDom
   });
   const body = await res.json();
   if (!res.ok) throw new Error(body.error || 'Failed to update site');
-  return body as { site: WebsiteSite; domains: WebsiteDomain[]; pages: WebsitePage[] };
+  return body as { site: WebsiteSite; domains: WebsiteDomain[]; pages: WebsitePage[]; layout?: WebsiteLayout };
 }
 
 export async function addWebsiteDomain(domain: string) {
@@ -157,7 +201,7 @@ export async function fetchWebsiteLeads(status?: string) {
 
 export async function updateWebsiteLeadStatus(
   id: string,
-  status: 'new' | 'contacted' | 'closed',
+  status: 'new' | 'contacted' | 'closed' | 'converted',
   notes?: string,
 ) {
   const res = await fetch(apiUrl(`/website/leads/${id}`), {
@@ -204,6 +248,35 @@ export async function saveWebsiteNav(locale: string, items: WebsiteNavItem[]) {
   const body = await res.json();
   if (!res.ok) throw new Error(body.error || 'Failed to save navigation');
   return body.items as WebsiteNavItem[];
+}
+
+export async function fetchWebsiteLayout(locale = 'en') {
+  const res = await fetch(apiUrl(`/website/layout?locale=${locale}`), { headers: headers() });
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.error || 'Failed to load layout');
+  return body.layout as WebsiteLayout;
+}
+
+export async function saveWebsiteFooter(footer: WebsiteFooterConfig) {
+  const res = await fetch(apiUrl('/website/layout/footer'), {
+    method: 'PUT',
+    headers: headers(),
+    body: JSON.stringify({ footer }),
+  });
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.error || 'Failed to save footer');
+  return body.footer as WebsiteFooterConfig;
+}
+
+export async function saveWebsiteHeader(header: WebsiteHeaderConfig, locale = 'en') {
+  const res = await fetch(apiUrl(`/website/layout/header?locale=${locale}`), {
+    method: 'PUT',
+    headers: headers(),
+    body: JSON.stringify({ header }),
+  });
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.error || 'Failed to save header');
+  return body.header as WebsiteHeaderConfig & { nav?: WebsiteNavItem[] };
 }
 
 export async function fetchWebsiteAnalyticsSummary(days = 30, locale?: string) {

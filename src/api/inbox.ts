@@ -1,9 +1,14 @@
 import { apiUrl, buildHeaders } from './client';
 
+export type ConversationStatus = 'new' | 'contacted' | 'closed' | 'converted';
+export type ConversationChannel = 'sms' | 'email' | 'website';
+export type ConversationStatusFilter = ConversationStatus | 'all' | 'active';
+export type ConversationChannelFilter = ConversationChannel | 'all';
+
 export type Conversation = {
   id: string;
-  status: 'open' | 'closed';
-  channel: 'sms' | 'email';
+  status: ConversationStatus;
+  channel: ConversationChannel;
   lastMessageAt: string;
   unreadCount: number;
   lastMessagePreview?: string | null;
@@ -23,9 +28,14 @@ export type Message = {
   created_at: string;
 };
 
-export async function fetchConversations(status: 'open' | 'closed' = 'open', channel: 'sms' | 'email' | 'all' = 'all') {
-  const channelParam = channel === 'all' ? '' : `&channel=${channel}`;
-  const res = await fetch(apiUrl(`/inbox/conversations?status=${status}${channelParam}`), {
+export async function fetchConversations(
+  status: ConversationStatusFilter = 'active',
+  channel: ConversationChannelFilter = 'all',
+) {
+  const params = new URLSearchParams();
+  if (status) params.set('status', status);
+  if (channel && channel !== 'all') params.set('channel', channel);
+  const res = await fetch(apiUrl(`/inbox/conversations?${params.toString()}`), {
     headers: buildHeaders({ auth: true, tenant: true }),
   });
   if (!res.ok) throw new Error('Failed to load conversations');
@@ -63,6 +73,19 @@ export async function closeConversation(conversationId: string) {
   });
   if (!res.ok) throw new Error('Failed to close conversation');
   return res.json();
+}
+
+export async function updateConversationStatus(conversationId: string, status: ConversationStatus) {
+  const res = await fetch(apiUrl(`/inbox/conversations/${conversationId}/status`), {
+    method: 'POST',
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
+    body: JSON.stringify({ status }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data?.message || 'Failed to update status');
+  }
+  return data as { ok: true; status: ConversationStatus };
 }
 
 export async function markConversationRead(conversationId: string) {

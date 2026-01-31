@@ -1,18 +1,36 @@
 <script setup lang="ts">
+import WebsiteHeader from '../components/website/WebsiteHeader.vue';
+import WebsiteFooter from '../components/website/WebsiteFooter.vue';
+
+defineProps<{
+  header?: {
+    enabled?: boolean;
+    brand?: string;
+    nav?: Array<{ label: string; path: string }>;
+    ctas?: {
+      call?: { enabled?: boolean; phone?: string | null };
+      book?: { enabled?: boolean; url?: string | null };
+    };
+  } | null;
+  footer?: any;
+  activePath?: string;
+}>();
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col bg-white text-slate-900">
-    <header class="sticky top-0 z-20 bg-white/90 backdrop-blur border-b border-slate-200">
-      <div class="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between">
-        <slot name="brand" />
-        <nav class="flex items-center gap-4 text-sm font-semibold text-slate-700">
-          <slot name="nav" />
-        </nav>
-      </div>
-    </header>
+  <div class="min-h-screen flex flex-col bg-[var(--sf-bg,#f8fafc)] text-[var(--sf-text,#0f172a)]">
+    <WebsiteHeader
+      v-if="header?.enabled !== false"
+      :brand="header?.brand"
+      :nav="header?.nav"
+      :ctas="header?.ctas"
+      :active-path="activePath"
+    />
+
     <main class="flex-1">
       <slot />
     </main>
+
+    <WebsiteFooter v-if="footer" :footer="footer" :fallback-hours-text="footer?.fallbackHoursText" />
   </div>
 </template>

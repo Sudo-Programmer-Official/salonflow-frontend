@@ -49,6 +49,10 @@
   --brand-logo-padding: 8px;
   --brand-logo-shadow: 0 12px 34px rgba(15, 23, 42, 0.14);
   --sf-primary: #0ea5e9;
+  --sf-bg: #f8fafc;
+  --sf-text: #0f172a;
+  --sf-radius: 14px;
+  --sf-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
   --sf-text-muted: #475569;
   --green-money: #16a34a;
   --green-light: #22c55e;

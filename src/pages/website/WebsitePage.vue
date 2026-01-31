@@ -71,6 +71,30 @@ const heroSlideIndex = ref(0);
 const currentHeroSlide = computed(() => heroSlides.value[heroSlideIndex.value] || null);
 let heroInterval: ReturnType<typeof setInterval> | null = null;
 
+const serviceCards = computed(() => {
+  const items = Array.isArray(services.value) ? services.value : [];
+  const galleryImages = resolvedGallery.value;
+  const defaultImg = galleryImages.length ? galleryImages[0] : null;
+
+  return items
+    .map((svc: any, idx: number) => {
+      const title = svc?.title || svc;
+      if (!title) return null;
+      let img = null;
+      const imageId = svc?.image;
+      if (imageId) {
+        const media = mediaMap.value.get(imageId);
+        if (media) img = { id: imageId, ...resolveMedia(media, title) };
+      }
+      if (!img && galleryImages.length) {
+        img = galleryImages[idx % galleryImages.length];
+      }
+      if (!img && defaultImg) img = defaultImg;
+      return { name: title, description: svc?.description, img };
+    })
+    .filter(Boolean) as Array<{ name: string; description?: string; img: any }>;
+});
+
 onMounted(() => {
   if (heroSlides.value.length > 1) {
     heroInterval = setInterval(() => {
@@ -99,6 +123,33 @@ const canonicalUrl = computed(() => {
   return `https://${host}${prefix}${basePath.value === '/' ? '' : basePath.value}`;
 });
 
+const pageToPath = (page: string, loc: 'en' | 'es') => {
+  const prefix = loc === 'es' ? '/es' : '';
+  switch (page) {
+    case 'services':
+      return `${prefix}/services`;
+    case 'about':
+      return `${prefix}/about`;
+    case 'contact':
+      return `${prefix}/contact`;
+    case 'home':
+    default:
+      return `${prefix}/`;
+  }
+};
+
+const headerConfig = computed(() => {
+  return (
+    data.value?.layout?.header || {
+      enabled: true,
+      nav: [],
+      ctas: { call: { enabled: true }, book: { enabled: true, url: '/check-in/book' } },
+    }
+  );
+});
+
+const footerConfig = computed(() => data.value?.layout?.footer || { enabled: false });
+
 const navItems = computed(() => {
   const raw = Array.isArray(data.value?.nav) ? data.value.nav : [];
   const items = raw
@@ -110,11 +161,20 @@ const navItems = computed(() => {
     }))
     .sort((a: any, b: any) => a.position - b.position);
 
+  const fallbackNav = Array.isArray(headerConfig.value?.nav)
+    ? headerConfig.value.nav.map((n: any, idx: number) => ({
+        label: String(n.label || ''),
+        path: pageToPath(n.page, locale.value as 'en' | 'es'),
+        position: idx,
+      }))
+    : [];
+
+  const merged = items.length ? items : fallbackNav;
   const seen = new Set<string>();
-  return items.filter((i) => {
+  return merged.filter((i) => {
     if (seen.has(i.path)) return false;
     seen.add(i.path);
-    return true;
+    return Boolean(i.label && i.path);
   });
 });
 
@@ -277,34 +337,53 @@ watch(
     trackEvent('page_view');
   },
 );
+
+const brandName = computed(
+  () =>
+    hero.value?.brand ||
+    seo.value?.title ||
+    (page.value?.slug === 'home' ? 'SalonFlow' : page.value?.slug || 'SalonFlow'),
+);
+
+const headerView = computed(() => ({
+  enabled: headerConfig.value?.enabled !== false,
+  brand: brandName.value,
+  nav: navItems.value,
+  ctas: {
+    call: {
+      enabled: headerConfig.value?.ctas?.call?.enabled !== false,
+      phone: footerConfig.value?.contact?.phone || contact.value?.phone || null,
+    },
+    book: {
+      enabled: headerConfig.value?.ctas?.book?.enabled !== false,
+      url: headerConfig.value?.ctas?.book?.url || '/check-in/book',
+    },
+  },
+}));
+
+const footerView = computed(() => {
+  const contactInfo = {
+    phone: footerConfig.value?.contact?.phone || contact.value?.phone || null,
+    email: footerConfig.value?.contact?.email || contact.value?.email || null,
+  };
+  return {
+    ...footerConfig.value,
+    contact: contactInfo,
+    fallbackHoursText: contact.value?.hours || null,
+  };
+});
 </script>
 
 <template>
-  <PublicWebsiteLayout>
-    <template #brand>
-      <div class="flex items-center gap-2">
-        <div class="h-9 w-9 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold">SF</div>
-        <div class="text-base font-semibold leading-tight">{{ hero.brand || 'SalonFlow' }}</div>
-        <span
-          v-if="isPreview"
-          class="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 border border-amber-200"
-        >
-          Preview
-        </span>
-      </div>
-    </template>
-    <template #nav>
-      <a
-        v-for="item in navItems"
-        :key="item.path"
-        class="hover:text-slate-900"
-        :href="item.path"
-      >
-        {{ item.label }}
-      </a>
-    </template>
-
+  <PublicWebsiteLayout :header="headerView" :footer="footerView" :active-path="route.path">
     <div class="mx-auto max-w-5xl px-4 py-10 space-y-12">
+      <div
+        v-if="isPreview"
+        class="inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 border border-amber-200"
+      >
+        Preview mode
+      </div>
+
       <section class="grid gap-6 lg:grid-cols-[1.1fr,0.9fr] items-center">
         <div class="space-y-4">
           <p class="text-xs uppercase tracking-wide text-slate-500">{{ page?.slug === 'home' ? 'Salon' : page?.slug }}</p>
@@ -389,14 +468,39 @@ watch(
         <div class="flex items-center justify-between">
           <h2 class="text-2xl font-semibold text-slate-900">Services</h2>
         </div>
-        <div class="grid gap-3 sm:grid-cols-2">
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div
-            v-for="(svc, idx) in services"
+            v-for="(card, idx) in serviceCards"
             :key="idx"
-            class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+            class="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg service-tilt"
           >
-            <div class="text-lg font-semibold text-slate-900">{{ svc.title }}</div>
-            <div class="text-sm text-slate-600">{{ svc.description }}</div>
+            <div class="absolute inset-0 bg-slate-900/5 blur-2xl"></div>
+            <picture v-if="card.img?.src" class="block">
+              <source
+                v-for="(src, sIdx) in card.img.sources"
+                :key="sIdx"
+                :srcset="src.srcset"
+                :type="src.type"
+                :media="src.media"
+              />
+              <img
+                :src="card.img.src"
+                :alt="card.name"
+                class="w-full h-36 object-cover"
+                loading="lazy"
+              />
+            </picture>
+            <div class="p-4 flex items-center justify-between gap-3">
+              <div class="text-base font-semibold text-slate-900">
+                <div>{{ card.name }}</div>
+                <div v-if="card.description" class="text-sm text-slate-600 font-normal mt-1 line-clamp-2">
+                  {{ card.description }}
+                </div>
+              </div>
+              <span class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-white text-sm font-semibold shadow-md">
+                {{ idx + 1 }}
+              </span>
+            </div>
           </div>
         </div>
       </section>
@@ -489,5 +593,13 @@ watch(
 .hero-tilt:hover {
   transform: perspective(1200px) rotateY(-2deg) rotateX(0deg) scale(1.01);
   box-shadow: 0 28px 60px rgba(0, 0, 0, 0.18);
+}
+
+.service-tilt {
+  transition: transform 220ms ease, box-shadow 220ms ease;
+}
+.service-tilt:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.12);
 }
 </style>
