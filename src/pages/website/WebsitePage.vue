@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onMounted, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import PublicWebsiteLayout from '../../layouts/PublicWebsiteLayout.vue';
 import { useWebsite } from '../../composables/useWebsite';
@@ -64,6 +64,23 @@ const heroMedia = computed(() => {
     return { id: img, ...resolveMedia(mediaMap.value.get(img), hero.value?.headline || '') };
   }
   return { id: img, ...resolveMedia({ original_url: img }, hero.value?.headline || '') };
+});
+
+const heroSlides = computed(() => resolvedGallery.value.slice(0, 5));
+const heroSlideIndex = ref(0);
+const currentHeroSlide = computed(() => heroSlides.value[heroSlideIndex.value] || null);
+let heroInterval: ReturnType<typeof setInterval> | null = null;
+
+onMounted(() => {
+  if (heroSlides.value.length > 1) {
+    heroInterval = setInterval(() => {
+      heroSlideIndex.value = (heroSlideIndex.value + 1) % heroSlides.value.length;
+    }, 4200);
+  }
+});
+
+onBeforeUnmount(() => {
+  if (heroInterval) clearInterval(heroInterval);
 });
 const firstGalleryImage = computed(() => resolvedGallery.value?.[0]?.src);
 const seo = computed(() => page.value?.seo || {});
@@ -302,24 +319,43 @@ watch(
             </a>
           </div>
         </div>
-        <div v-if="heroMedia?.src" class="rounded-2xl overflow-hidden border border-slate-200 shadow-xl">
-          <picture>
-            <source
-              v-for="(src, idx) in heroMedia.sources"
-              :key="idx"
-              :srcset="src.srcset"
-              :type="src.type"
-              :media="src.media"
+        <div v-if="(heroSlides.length && currentHeroSlide) || heroMedia?.src" class="relative">
+          <div
+            class="rounded-2xl overflow-hidden shadow-2xl border border-slate-200 hero-tilt"
+          >
+            <picture>
+              <source
+                v-for="(src, idx) in (currentHeroSlide?.sources || heroMedia?.sources || [])"
+                :key="idx"
+                :srcset="src.srcset"
+                :type="src.type"
+                :media="src.media"
+              />
+              <img
+                :src="currentHeroSlide?.src || heroMedia?.src"
+                :alt="hero.headline || 'Salon hero image'"
+                class="w-full h-full object-cover aspect-[4/3]"
+                loading="lazy"
+              />
+            </picture>
+          </div>
+          <div
+            v-if="heroSlides.length > 1"
+            class="absolute inset-x-0 -bottom-6 flex justify-center gap-2"
+          >
+            <button
+              v-for="(slide, i) in heroSlides"
+              :key="slide.id || i"
+              class="h-2.5 w-2.5 rounded-full transition-all"
+              :class="i === heroSlideIndex ? 'bg-slate-900 w-5' : 'bg-slate-300'"
+              @click="heroSlideIndex = i"
             />
-            <img
-              :src="heroMedia.src"
-              :alt="hero.headline || 'Salon hero image'"
-              class="w-full h-full object-cover aspect-[4/3]"
-              loading="lazy"
-            />
-          </picture>
+          </div>
         </div>
-        <div v-else class="rounded-2xl bg-gradient-to-br from-slate-900 to-slate-700 text-white p-6 shadow-xl">
+        <div
+          v-else
+          class="rounded-2xl bg-gradient-to-br from-slate-900 to-slate-700 text-white p-6 shadow-xl"
+        >
           <div class="text-sm uppercase tracking-wide text-white/70">Hours</div>
           <p class="mt-2 text-lg font-semibold">{{ contact.hours || 'Open daily' }}</p>
           <div class="mt-6 text-sm uppercase tracking-wide text-white/70">Call</div>
@@ -444,3 +480,14 @@ watch(
     </div>
   </PublicWebsiteLayout>
 </template>
+
+<style scoped>
+.hero-tilt {
+  transform: perspective(1200px) rotateY(-6deg) rotateX(2deg);
+  transition: transform 400ms ease, box-shadow 400ms ease;
+}
+.hero-tilt:hover {
+  transform: perspective(1200px) rotateY(-2deg) rotateX(0deg) scale(1.01);
+  box-shadow: 0 28px 60px rgba(0, 0, 0, 0.18);
+}
+</style>

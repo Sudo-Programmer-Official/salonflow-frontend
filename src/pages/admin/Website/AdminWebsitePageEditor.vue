@@ -26,6 +26,7 @@ const form = ref({
   heroHeadline: '',
   heroSubheadline: '',
   ctaText: '',
+  heroImage: [] as string[],
   services: [''],
   address: '',
   phone: '',
@@ -45,6 +46,7 @@ const load = async () => {
       form.value.heroHeadline = c.hero?.headline || '';
       form.value.heroSubheadline = c.hero?.subheadline || '';
       form.value.ctaText = c.hero?.ctaPrimary || '';
+      form.value.heroImage = c.hero?.image ? [c.hero.image] : [];
       form.value.services = c.services?.map((s: any) => s.title || '') || [''];
       form.value.address = c.contact?.address || '';
       form.value.phone = c.contact?.phone || '';
@@ -80,6 +82,7 @@ const save = async (publish: boolean) => {
         headline: form.value.heroHeadline,
         subheadline: form.value.heroSubheadline,
         ctaPrimary: form.value.ctaText,
+        image: form.value.heroImage[0] || null,
       },
       services: sanitizeServices().map((title: string) => ({ title, description: null })),
       contact: {
@@ -152,6 +155,13 @@ const goBack = () =>
         </ElFormItem>
         <ElFormItem label="CTA text">
           <ElInput v-model="form.ctaText" />
+        </ElFormItem>
+        <ElFormItem label="Hero image">
+          <MediaPicker
+            :model-value="form.heroImage"
+            :target="{ kind: 'page', page: slug, section: 'hero', slot: 'cover' }"
+            @update:modelValue="(val) => (form.heroImage = val.slice(-1))"
+          />
         </ElFormItem>
         <ElFormItem label="Published">
           <ElSwitch v-model="form.published" disabled />
