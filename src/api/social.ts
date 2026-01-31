@@ -14,6 +14,7 @@ export async function listSocialPosts(status?: string) {
 export async function createSocialDraft(input: {
   provider: string;
   destination?: 'feed' | 'story' | 'reel';
+  destinations?: Array<{ platform: string; surface: string }>;
   content: string;
   mediaIds?: string[];
   scheduledAt?: string | null;

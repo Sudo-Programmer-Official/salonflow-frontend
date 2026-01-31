@@ -22,9 +22,13 @@ const load = async () => {
 
 onMounted(load);
 
-const add = (id: string) => {
-  const next = [...(props.modelValue || []), id];
-  emit('update:modelValue', next);
+const toggle = (id: string) => {
+  const current = props.modelValue || [];
+  if (current.includes(id)) {
+    emit('update:modelValue', current.filter((m) => m !== id));
+  } else {
+    emit('update:modelValue', [...current, id]);
+  }
 };
 
 const remove = (index: number) => {
@@ -105,13 +109,20 @@ const toUrl = (
         <ElCard
           v-for="item in media"
           :key="item.id"
-          class="cursor-pointer"
-          @click="add(item.id)"
+          class="cursor-pointer border transition"
+          :class="(modelValue || []).includes(item.id) ? 'border-blue-500 ring-2 ring-blue-200' : 'border-transparent'"
+          @click="toggle(item.id)"
         >
           <ElImage
             :src="toUrl(item.variants?.thumbnail) || toUrl(item.original_url)"
             style="width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 8px;"
           />
+          <div
+            v-if="(modelValue || []).includes(item.id)"
+            class="absolute top-2 right-2 bg-blue-600 text-white text-xs px-2 py-1 rounded"
+          >
+            Selected
+          </div>
         </ElCard>
       </div>
     </ElDialog>

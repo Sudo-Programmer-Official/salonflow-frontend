@@ -44,6 +44,22 @@ const form = ref({
   scheduledAt: null as string | null,
 });
 
+const destinationsState = ref({
+  facebookFeed: true,
+  instagramFeed: false,
+  instagramStory: false,
+  instagramReel: false,
+});
+
+const selectedDestinations = computed(() => {
+  const dests: Array<{ platform: string; surface: 'feed' | 'story' | 'reel' }> = [];
+  if (destinationsState.value.facebookFeed) dests.push({ platform: 'facebook', surface: 'feed' });
+  if (destinationsState.value.instagramFeed) dests.push({ platform: 'instagram', surface: 'feed' });
+  if (destinationsState.value.instagramStory) dests.push({ platform: 'instagram', surface: 'story' });
+  if (destinationsState.value.instagramReel) dests.push({ platform: 'instagram', surface: 'reel' });
+  return dests;
+});
+
 const load = async () => {
   loading.value = true;
   try {
@@ -140,16 +156,24 @@ onMounted(async () => {
   }
 });
 
+const formValidation = computed(() =>
+  validateMediaForDestinations(selectedDestinations.value, form.value.mediaIds),
+);
+
 const create = async () => {
-  const validation = validateMediaForDestination(form.value.destination, form.value.mediaIds);
-  if (!validation.valid) {
-    ElMessage.error(validation.message);
+  if (!selectedDestinations.value.length) {
+    ElMessage.error('Select at least one destination');
+    return;
+  }
+  if (!formValidation.value.valid) {
+    ElMessage.error(formValidation.value.message);
     return;
   }
   try {
     await createSocialDraft({
       provider: form.value.provider,
-      destination: form.value.destination,
+      destination: selectedDestinations.value[0]?.surface || 'feed',
+      destinations: selectedDestinations.value,
       content: form.value.content,
       mediaIds: form.value.mediaIds,
       scheduledAt: form.value.scheduledAt,
@@ -164,8 +188,18 @@ const create = async () => {
   }
 };
 
+const validationForRow = (row: any) => {
+  const dests = (row.destinations && row.destinations.length
+    ? row.destinations.map((d: any) => ({ platform: d.platform, surface: d.surface }))
+    : [{ platform: row.provider, surface: row.destination || 'feed' }]) as Array<{ platform: string; surface: 'feed' | 'story' | 'reel' }>;
+  return validateMediaForDestinations(dests, row.media_ids || row.mediaIds || []);
+};
+
 const publish = async (row: any) => {
-  const validation = validateMediaForDestination(row.destination || 'feed', row.media_ids || row.mediaIds || []);
+  const dests = (row.destinations && row.destinations.length
+    ? row.destinations.map((d: any) => ({ platform: d.platform, surface: d.surface }))
+    : [{ platform: row.provider, surface: row.destination || 'feed' }]) as Array<{ platform: string; surface: 'feed' | 'story' | 'reel' }>;
+  const validation = validateMediaForDestinations(dests, row.media_ids || row.mediaIds || []);
   if (!validation.valid) {
     ElMessage.error(validation.message);
     return;
@@ -181,20 +215,26 @@ const publish = async (row: any) => {
 
 const publishDisabled = (row: any) => {
   if (row.provider === 'facebook' && !fbConnected.value) return true;
-  return row.status === 'published';
+  if (row.status === 'published') return true;
+  const validation = validationForRow(row);
+  return !validation.valid;
 };
 
-const validateMediaForDestination = (destination: 'feed' | 'story' | 'reel', mediaIds: string[]) => {
+const validateMediaForDestinations = (
+  destinations: Array<{ platform: string; surface: 'feed' | 'story' | 'reel' }>,
+  mediaIds: string[],
+) => {
   const count = mediaIds?.length ?? 0;
-  if (destination === 'feed') {
-    return { valid: true, message: '' };
+  for (const dest of destinations) {
+    if (dest.surface === 'feed') {
+      if (count === 0) continue; // allow text-only
+      if (count > 10) return { valid: false, message: 'Feed supports up to 10 images or one video.' };
+    } else if (dest.surface === 'reel') {
+      if (count !== 1) return { valid: false, message: 'Reel requires exactly one video.' };
+    } else if (dest.surface === 'story') {
+      if (count !== 1) return { valid: false, message: 'Story requires exactly one image or video.' };
+    }
   }
-  if (destination === 'reel') {
-    if (count !== 1) return { valid: false, message: 'Reel requires exactly one video.' };
-    return { valid: true, message: '' };
-  }
-  // story
-  if (count !== 1) return { valid: false, message: 'Story requires exactly one image or video.' };
   return { valid: true, message: '' };
 };
 
@@ -237,6 +277,13 @@ const quotaState = computed(() => {
   if (percent >= 70) return 'warning';
   return 'ok';
 });
+
+const destinationLabels = (row: any) => {
+  const dests = row.destinations && row.destinations.length
+    ? row.destinations
+    : [{ platform: row.provider, surface: row.destination || 'feed' }];
+  return dests.map((d: any) => `${d.platform}:${d.surface}`);
+};
 </script>
 
 <template>
@@ -325,14 +372,30 @@ const quotaState = computed(() => {
             <ElOption label="Google Business" value="google_business" />
           </ElSelect>
         </ElFormItem>
-        <ElFormItem label="Destination">
-          <ElSelect v-model="form.destination">
-            <ElOption label="Feed" value="feed" />
-            <ElOption :disabled="!hasInstagram" label="Story (Instagram)" value="story" />
-            <ElOption :disabled="!hasInstagram" label="Reel (Instagram)" value="reel" />
-          </ElSelect>
-          <div v-if="!hasInstagram" class="text-xs text-slate-500 mt-1">
-            Connect Instagram to enable Stories/Reels.
+        <ElFormItem label="Destinations">
+          <div class="flex flex-col gap-2">
+            <label class="flex items-center gap-2 text-sm">
+              <input type="checkbox" v-model="destinationsState.facebookFeed" />
+              <span>Facebook Feed</span>
+            </label>
+            <label class="flex items-center gap-2 text-sm">
+              <input type="checkbox" v-model="destinationsState.instagramFeed" :disabled="!hasInstagram" />
+              <span class="flex items-center gap-1">
+                Instagram Feed
+                <ElTag v-if="!hasInstagram" size="small">IG not linked</ElTag>
+              </span>
+            </label>
+            <label class="flex items-center gap-2 text-sm">
+              <input type="checkbox" v-model="destinationsState.instagramStory" :disabled="!hasInstagram" />
+              <span>Instagram Story</span>
+            </label>
+            <label class="flex items-center gap-2 text-sm">
+              <input type="checkbox" v-model="destinationsState.instagramReel" :disabled="!hasInstagram" />
+              <span>Instagram Reel</span>
+            </label>
+            <div class="text-xs text-slate-500">
+              Rules: Story = 1 image/video. Reel = 1 video only. Feed supports text or images (up to 10) or single video.
+            </div>
           </div>
         </ElFormItem>
         <ElFormItem label="Publish time">
@@ -348,9 +411,14 @@ const quotaState = computed(() => {
         </ElFormItem>
         <ElFormItem label="Media" class="md:col-span-2">
           <MediaPicker v-model="form.mediaIds" :target="{ kind: 'social' }" />
+          <div v-if="!formValidation.valid" class="text-xs text-red-600 mt-1">
+            {{ formValidation.message }}
+          </div>
         </ElFormItem>
         <div class="md:col-span-2 flex justify-end">
-          <ElButton type="primary" @click="create">Save draft</ElButton>
+          <ElButton type="primary" @click="create" :disabled="!formValidation.valid || !selectedDestinations.length">
+            Save draft
+          </ElButton>
         </div>
       </ElForm>
     </ElCard>
@@ -359,7 +427,13 @@ const quotaState = computed(() => {
       <ElTable :data="posts" style="width: 100%">
         <ElTableColumn prop="created_at" label="Created" width="160" />
         <ElTableColumn prop="provider" label="Provider" width="140" />
-        <ElTableColumn prop="destination" label="Destination" width="120" />
+        <ElTableColumn label="Destinations" min-width="180">
+          <template #default="{ row }">
+            <ElTag v-for="d in destinationLabels(row)" :key="d" size="small" class="mr-1 mb-1">
+              {{ d }}
+            </ElTag>
+          </template>
+        </ElTableColumn>
         <ElTableColumn prop="status" label="Status" width="140">
           <template #default="{ row }">
             <ElTag :type="badgeType(row.status)">{{ row.status }}</ElTag>
@@ -373,6 +447,7 @@ const quotaState = computed(() => {
         </ElTableColumn>
         <ElTableColumn label="Actions" width="160">
           <template #default="{ row }">
+          <div class="flex flex-col gap-1">
             <ElButton
               size="small"
               type="primary"
@@ -382,6 +457,10 @@ const quotaState = computed(() => {
             >
               Publish now
             </ElButton>
+            <span v-if="!validationForRow(row).valid" class="text-2xs text-red-500">
+              {{ validationForRow(row).message }}
+            </span>
+          </div>
           </template>
         </ElTableColumn>
       </ElTable>
