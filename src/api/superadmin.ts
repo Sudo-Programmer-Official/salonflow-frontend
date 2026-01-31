@@ -19,6 +19,9 @@ export type TenantMetrics = {
   subscriptionStatus: string | null;
   subscriptionPlan: string | null;
   subscriptionCurrentPeriodEnd: string | null;
+  billingStatus: string | null;
+  billingGraceUntil: string | null;
+  billingNotes: string | null;
 };
 
 export type PlatformAverages = {
@@ -117,4 +120,30 @@ export async function impersonateTenant(
     throw new Error(err.error || 'Failed to impersonate tenant');
   }
   return res.json();
+}
+
+export type UpdateBillingPayload = {
+  status?: 'trial' | 'active' | 'grace' | 'paused' | 'cancelled';
+  graceUntil?: string | null;
+  notes?: string | null;
+};
+
+export async function updateTenantBilling(
+  businessId: string,
+  payload: UpdateBillingPayload,
+): Promise<{
+  billingStatus: string | null;
+  billingGraceUntil: string | null;
+  billingNotes: string | null;
+}> {
+  const res = await fetch(apiUrl(`/superadmin/tenants/${businessId}/billing`), {
+    method: 'POST',
+    headers: buildHeaders({ auth: true, json: true }),
+    body: JSON.stringify(payload),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(body.error || 'Failed to update billing');
+  }
+  return body;
 }

@@ -18,7 +18,13 @@ import {
   ElForm,
   ElFormItem,
 } from 'element-plus';
-import { fetchTenantDetail, impersonateTenant, type TenantOverview, type TenantMetrics } from '../../api/superadmin';
+import {
+  fetchTenantDetail,
+  impersonateTenant,
+  updateTenantBilling,
+  type TenantOverview,
+  type TenantMetrics,
+} from '../../api/superadmin';
 import { fetchPlatformLimits, updatePlatformLimits } from '../../api/platform';
 import {
   fetchTenantControl,
@@ -44,6 +50,7 @@ const limits = ref<any | null>(null);
 const limitsLoading = ref(false);
 const limitsDialog = ref(false);
 const savingLimits = ref(false);
+const savingBilling = ref(false);
 
 const controls = ref<TenantControl | null>(null);
 const controlDraft = ref<Partial<TenantControl>>({});
@@ -60,6 +67,11 @@ const reasonDialogTitle = computed(() => {
 });
 
 const statusType = (status: string) => (status === 'active' ? 'success' : 'danger');
+const billingDraft = ref<{ status: string; graceUntil: string; notes: string }>({
+  status: 'trial',
+  graceUntil: '',
+  notes: '',
+});
 
 const reasonRequiredFields: (keyof TenantControl)[] = [
   'status',
@@ -79,6 +91,7 @@ const load = async () => {
     const res = await fetchTenantDetail(businessId.value);
     tenant.value = res.tenant;
     metrics.value = res.metrics;
+    syncBillingDraft();
     await Promise.all([loadLimits(), loadControls(), loadAudit()]);
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load tenant';
@@ -328,6 +341,38 @@ const forceLogout = () => {
 const resetUsage = () => {
   openReasonModal('reset-usage');
 };
+
+const syncBillingDraft = () => {
+  if (!metrics.value) return;
+  billingDraft.value.status = metrics.value.billingStatus || 'trial';
+  billingDraft.value.graceUntil = metrics.value.billingGraceUntil
+    ? metrics.value.billingGraceUntil.slice(0, 16)
+    : '';
+  billingDraft.value.notes = metrics.value.billingNotes || '';
+};
+
+const saveBilling = async () => {
+  if (!businessId.value) return;
+  savingBilling.value = true;
+  try {
+    const payload = {
+      status: (billingDraft.value.status as 'trial' | 'active' | 'grace' | 'paused' | 'cancelled' | undefined) || undefined,
+      graceUntil: billingDraft.value.graceUntil
+        ? new Date(billingDraft.value.graceUntil).toISOString()
+        : null,
+      notes: billingDraft.value.notes?.trim() || null,
+    };
+    await updateTenantBilling(businessId.value, payload);
+    const res = await fetchTenantDetail(businessId.value);
+    metrics.value = res.metrics;
+    syncBillingDraft();
+    ElMessage.success('Billing override saved');
+  } catch (err: any) {
+    ElMessage.error(err?.message || 'Failed to save billing override');
+  } finally {
+    savingBilling.value = false;
+  }
+};
 </script>
 
 <template>
@@ -503,6 +548,54 @@ const resetUsage = () => {
         <ElTableColumn prop="action" label="Action" width="200" />
         <ElTableColumn prop="reason" label="Reason" />
       </ElTable>
+    </ElCard>
+
+    <ElCard v-if="metrics" class="bg-white">
+      <div class="flex items-center justify-between mb-2">
+        <div>
+          <div class="text-lg font-semibold">Billing Override</div>
+          <div class="text-xs text-slate-500">Super-admin grace / pause without touching Stripe</div>
+        </div>
+        <ElButton type="primary" :loading="savingBilling" @click="saveBilling">Save override</ElButton>
+      </div>
+      <div class="grid gap-4 md:grid-cols-3">
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Status</label>
+          <select class="w-full border rounded px-2 py-2 mt-1" v-model="billingDraft.status" :disabled="savingBilling">
+            <option value="trial">trial</option>
+            <option value="active">active</option>
+            <option value="grace">grace</option>
+            <option value="paused">paused</option>
+            <option value="cancelled">cancelled</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Grace until (UTC)</label>
+          <input
+            class="w-full border rounded px-2 py-2 mt-1"
+            type="datetime-local"
+            v-model="billingDraft.graceUntil"
+            :disabled="savingBilling"
+          />
+          <p class="text-2xs text-slate-500 mt-1">Required for grace/paused; optional otherwise.</p>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600">Notes</label>
+          <ElInput
+            type="textarea"
+            :rows="2"
+            v-model="billingDraft.notes"
+            placeholder="Why was override granted?"
+            :disabled="savingBilling"
+            class="mt-1"
+          />
+        </div>
+      </div>
+      <div class="mt-3 text-xs text-slate-600">
+        Current: status <strong>{{ metrics.billingStatus || 'n/a' }}</strong>,
+        grace until <strong>{{ metrics.billingGraceUntil || 'n/a' }}</strong>,
+        notes <strong>{{ metrics.billingNotes || '—' }}</strong>
+      </div>
     </ElCard>
 
     <ElCard v-if="metrics" class="bg-white">

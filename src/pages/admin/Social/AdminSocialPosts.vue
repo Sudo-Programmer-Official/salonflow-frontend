@@ -34,9 +34,11 @@ const fbSelecting = ref(false);
 const fbCallbackProcessing = ref(false);
 const fbError = ref<string | null>(null);
 const fbDisconnecting = ref(false);
+const hasInstagram = computed(() => !!fbAccount.value?.meta?.instagramBusinessId);
 
 const form = ref({
   provider: 'facebook',
+  destination: 'feed' as 'feed' | 'story' | 'reel',
   content: '',
   mediaIds: [] as string[],
   scheduledAt: null as string | null,
@@ -139,9 +141,15 @@ onMounted(async () => {
 });
 
 const create = async () => {
+  const validation = validateMediaForDestination(form.value.destination, form.value.mediaIds);
+  if (!validation.valid) {
+    ElMessage.error(validation.message);
+    return;
+  }
   try {
     await createSocialDraft({
       provider: form.value.provider,
+      destination: form.value.destination,
       content: form.value.content,
       mediaIds: form.value.mediaIds,
       scheduledAt: form.value.scheduledAt,
@@ -157,6 +165,11 @@ const create = async () => {
 };
 
 const publish = async (row: any) => {
+  const validation = validateMediaForDestination(row.destination || 'feed', row.media_ids || row.mediaIds || []);
+  if (!validation.valid) {
+    ElMessage.error(validation.message);
+    return;
+  }
   try {
     await publishSocialPost(row.id, row.provider);
     ElMessage.success('Publish queued');
@@ -169,6 +182,20 @@ const publish = async (row: any) => {
 const publishDisabled = (row: any) => {
   if (row.provider === 'facebook' && !fbConnected.value) return true;
   return row.status === 'published';
+};
+
+const validateMediaForDestination = (destination: 'feed' | 'story' | 'reel', mediaIds: string[]) => {
+  const count = mediaIds?.length ?? 0;
+  if (destination === 'feed') {
+    return { valid: true, message: '' };
+  }
+  if (destination === 'reel') {
+    if (count !== 1) return { valid: false, message: 'Reel requires exactly one video.' };
+    return { valid: true, message: '' };
+  }
+  // story
+  if (count !== 1) return { valid: false, message: 'Story requires exactly one image or video.' };
+  return { valid: true, message: '' };
 };
 
 const disconnectFacebook = async () => {
@@ -298,6 +325,16 @@ const quotaState = computed(() => {
             <ElOption label="Google Business" value="google_business" />
           </ElSelect>
         </ElFormItem>
+        <ElFormItem label="Destination">
+          <ElSelect v-model="form.destination">
+            <ElOption label="Feed" value="feed" />
+            <ElOption :disabled="!hasInstagram" label="Story (Instagram)" value="story" />
+            <ElOption :disabled="!hasInstagram" label="Reel (Instagram)" value="reel" />
+          </ElSelect>
+          <div v-if="!hasInstagram" class="text-xs text-slate-500 mt-1">
+            Connect Instagram to enable Stories/Reels.
+          </div>
+        </ElFormItem>
         <ElFormItem label="Publish time">
           <ElDatePicker
             v-model="form.scheduledAt"
@@ -322,12 +359,18 @@ const quotaState = computed(() => {
       <ElTable :data="posts" style="width: 100%">
         <ElTableColumn prop="created_at" label="Created" width="160" />
         <ElTableColumn prop="provider" label="Provider" width="140" />
+        <ElTableColumn prop="destination" label="Destination" width="120" />
         <ElTableColumn prop="status" label="Status" width="140">
           <template #default="{ row }">
             <ElTag :type="badgeType(row.status)">{{ row.status }}</ElTag>
           </template>
         </ElTableColumn>
         <ElTableColumn prop="content" label="Content" min-width="240" />
+        <ElTableColumn prop="error" label="Error" min-width="200">
+          <template #default="{ row }">
+            <span class="text-xs text-red-600" v-if="row.error">{{ row.error }}</span>
+          </template>
+        </ElTableColumn>
         <ElTableColumn label="Actions" width="160">
           <template #default="{ row }">
             <ElButton
