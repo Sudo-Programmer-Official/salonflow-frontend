@@ -160,6 +160,23 @@ const formValidation = computed(() =>
   validateMediaForDestinations(selectedDestinations.value, form.value.mediaIds),
 );
 
+const mediaRules = computed(() => {
+  const rules: string[] = [];
+  const surfaces = selectedDestinations.value.map((d) => d.surface);
+  if (surfaces.includes('feed')) {
+    rules.push('Feed supports up to 10 images or one video.');
+  }
+  if (surfaces.includes('reel')) {
+    rules.push('Reels require exactly 1 video.');
+  }
+  if (surfaces.includes('story')) {
+    rules.push('Stories require exactly 1 image or video.');
+  }
+  return rules;
+});
+
+const maxSelectable = computed(() => (selectedDestinations.value.some((d) => d.surface === 'feed') ? 10 : null));
+
 const create = async () => {
   if (!selectedDestinations.value.length) {
     ElMessage.error('Select at least one destination');
@@ -410,7 +427,13 @@ const destinationLabels = (row: any) => {
           <ElInput type="textarea" v-model="form.content" :rows="3" placeholder="What's new?" />
         </ElFormItem>
         <ElFormItem label="Media" class="md:col-span-2">
-          <MediaPicker v-model="form.mediaIds" :target="{ kind: 'social' }" />
+          <MediaPicker
+            v-model="form.mediaIds"
+            :target="{ kind: 'social' }"
+            :rules="mediaRules"
+            :max-count="maxSelectable"
+            count-label="images selected"
+          />
           <div v-if="!formValidation.valid" class="text-xs text-red-600 mt-1">
             {{ formValidation.message }}
           </div>

@@ -44,7 +44,7 @@ const isActive = (path: string) => {
 
 <template>
   <header class="sf-header">
-    <div class="sf-header__bar">
+    <div class="sf-container sf-header__bar">
       <div class="sf-header__brand">
         <div class="sf-header__brand-mark">{{ brand?.[0] || 'S' }}</div>
         <div class="sf-header__brand-text">
@@ -104,9 +104,7 @@ const isActive = (path: string) => {
   border-bottom: 1px solid rgba(15, 23, 42, 0.06);
 }
 .sf-header__bar {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 14px 18px;
+  padding: 14px 0;
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;

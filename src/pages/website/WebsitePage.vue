@@ -24,6 +24,7 @@ const { data, loading, error, fetchSite } = useWebsite(locale.value as 'en' | 'e
 
 const isHomePage = computed(() => slug.value === 'home');
 const isServicesPage = computed(() => slug.value === 'services');
+const isAboutPage = computed(() => slug.value === 'about');
 const isContactPage = computed(() => slug.value === 'contact');
 const bookingPath = computed(() => BOOKING_PATH);
 
@@ -45,6 +46,26 @@ const page = computed(() => {
 const hero = computed(() => page.value?.content?.hero || {});
 const services = computed(() => page.value?.content?.services || []);
 const contact = computed(() => page.value?.content?.contact || {});
+const mapEmbedSrc = computed(() => {
+  const c = contact.value || {};
+  const explicit =
+    (c as any).map_embed ||
+    (c as any).map_embed_url ||
+    (c as any).mapUrl ||
+    (c as any).mapUrlEmbed;
+  if (explicit) return explicit;
+  if (c.directions_url) {
+    const url = c.directions_url;
+    // if it's already an embed URL, return as-is
+    if (/\/embed/i.test(url)) return url;
+    return `${url}${url.includes('?') ? '&' : '?'}output=embed`;
+  }
+  if (c.address) {
+    const q = encodeURIComponent(c.address);
+    return `https://www.google.com/maps?&q=${q}&output=embed`;
+  }
+  return null;
+});
 const gallery = computed(() => page.value?.content?.gallery || []);
 const resolvedGallery = computed(() => {
   const ids = Array.isArray(gallery.value) ? gallery.value : [];
@@ -82,6 +103,29 @@ const servicesHeroImages = computed(() =>
 const currentServicesHero = computed(
   () => servicesHeroImages.value[heroSlideIndex.value % (servicesHeroImages.value.length || 1)] || null,
 );
+const aboutImage = computed(() => currentHeroSlide.value || heroMedia.value || resolvedGallery.value[0] || null);
+const aboutValues = computed(() => {
+  const vals = page.value?.content?.values;
+  if (Array.isArray(vals) && vals.length) {
+    return vals
+      .map((v: any) => (typeof v === 'string' ? v : v?.title || v?.label))
+      .filter(Boolean)
+      .slice(0, 4);
+  }
+  return ['Quality', 'Hygiene', 'Experience'];
+});
+const aboutParagraphs = computed(() => {
+  const copy =
+    (page.value?.content?.about as any)?.copy ||
+    hero.value?.subheadline ||
+    contact.value?.hours ||
+    '';
+  return String(copy)
+    .split(/\n+/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .slice(0, 4);
+});
 let heroInterval: ReturnType<typeof setInterval> | null = null;
 
 const serviceCards = computed(() => {
@@ -392,72 +436,103 @@ const footerView = computed(() => {
 
 <template>
   <PublicWebsiteLayout :header="headerView" :footer="footerView" :active-path="route.path">
-    <div class="mx-auto max-w-5xl px-4 py-10 space-y-12">
+    <div class="space-y-12">
       <div
         v-if="isPreview"
-        class="inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 border border-amber-200"
+        class="sf-container inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 border border-amber-200 mt-8"
       >
         Preview mode
       </div>
 
       <section
         v-if="isServicesPage"
-        class="services-hero relative overflow-hidden rounded-3xl bg-slate-950 text-white shadow-2xl"
+        class="services-hero relative overflow-hidden text-white shadow-2xl min-h-[55vh]"
       >
-        <picture v-if="currentServicesHero?.src" class="absolute inset-0 services-hero__image">
-          <source
-            v-for="(src, idx) in currentServicesHero.sources || []"
-            :key="idx"
-            :srcset="src.srcset"
-            :type="src.type"
-            :media="src.media"
-          />
-          <img
-            :src="currentServicesHero.src"
-            :alt="hero.headline || 'Services hero image'"
-            class="h-full w-full object-cover"
-            loading="lazy"
-          />
-        </picture>
-        <div class="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/55 to-slate-900/10"></div>
-        <div class="relative z-10 flex min-h-[60vh] items-center justify-center lg:min-h-[72vh]">
-          <div class="max-w-3xl space-y-4 px-6 text-center">
-            <p class="text-xs uppercase tracking-[0.3em] text-white/70">Our Services</p>
-            <h1 class="text-4xl font-bold lg:text-5xl">
-              {{ hero.headline || 'Premium services, zero compromise.' }}
-            </h1>
-            <p class="text-lg text-white/80">
-              {{ hero.subheadline || 'Select a service and book instantly.' }}
-            </p>
-            <div class="flex justify-center">
-              <a
-                :href="bookingPath"
-                class="inline-flex items-center gap-2 rounded-full bg-white/95 px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-lg ring-1 ring-white/60 backdrop-blur hover:-translate-y-0.5 hover:shadow-2xl transition"
-              >
-                {{ hero.ctaPrimary || 'Book Appointment' }}
-              </a>
+        <div class="absolute inset-0 services-hero__image" aria-hidden="true">
+          <picture v-if="currentServicesHero?.src" class="block h-full w-full">
+            <source
+              v-for="(src, idx) in currentServicesHero.sources || []"
+              :key="idx"
+              :srcset="src.srcset"
+              :type="src.type"
+              :media="src.media"
+            />
+            <img
+              :src="currentServicesHero.src"
+              :alt="hero.headline || 'Services hero image'"
+              class="h-full w-full object-cover"
+              loading="lazy"
+            />
+          </picture>
+        </div>
+        <div class="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-950/70 to-slate-900/25"></div>
+        <div class="relative z-10">
+          <div class="sf-container py-10 lg:py-14">
+            <div class="grid items-center gap-10 lg:grid-cols-[1.05fr,0.95fr]">
+              <div class="space-y-4">
+                <p class="text-xs uppercase tracking-[0.35em] text-white/70">Our Services</p>
+                <h1 class="text-4xl font-bold lg:text-5xl">
+                  {{ hero.headline || 'Premium services, zero compromise.' }}
+                </h1>
+                <p class="text-lg text-white/80 max-w-2xl">
+                  {{ hero.subheadline || 'Select a service and book instantly.' }}
+                </p>
+                <div class="flex flex-wrap gap-3">
+                  <a
+                    :href="bookingPath"
+                    class="inline-flex items-center gap-2 rounded-full bg-white/95 px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-lg ring-1 ring-white/60 backdrop-blur hover:-translate-y-0.5 hover:shadow-2xl transition"
+                  >
+                    {{ hero.ctaPrimary || 'Book Appointment' }}
+                  </a>
+                  <a
+                    class="inline-flex items-center gap-2 rounded-full border border-white/40 px-5 py-2.5 text-sm font-semibold text-white hover:border-white/80 transition"
+                    href="#services"
+                  >
+                    View services
+                  </a>
+                </div>
+              </div>
+              <div class="relative">
+                <div class="services-hero__frame">
+                  <picture v-if="currentServicesHero?.src" class="block">
+                    <source
+                      v-for="(src, idx) in currentServicesHero.sources || []"
+                      :key="idx"
+                      :srcset="src.srcset"
+                      :type="src.type"
+                      :media="src.media"
+                    />
+                    <img
+                      :src="currentServicesHero.src"
+                      :alt="hero.headline || 'Services hero image'"
+                      class="w-full h-full object-cover services-hero__img"
+                      loading="lazy"
+                    />
+                  </picture>
+                </div>
+                <div
+                  v-if="servicesHeroImages.length > 1"
+                  class="absolute inset-x-0 -bottom-6 flex justify-center gap-2"
+                >
+                  <button
+                    v-for="(slide, i) in servicesHeroImages"
+                    :key="slide.id || i"
+                    class="h-2.5 w-2.5 rounded-full transition-all"
+                    :class="i === heroSlideIndex ? 'bg-white w-5' : 'bg-white/50'"
+                    @click="heroSlideIndex = i"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
-        <div
-          v-if="servicesHeroImages.length > 1"
-          class="relative z-10 -mb-5 flex justify-center gap-2 pb-4"
-        >
-          <button
-            v-for="(slide, i) in servicesHeroImages"
-            :key="slide.id || i"
-            class="h-2.5 w-2.5 rounded-full transition-all"
-            :class="i === heroSlideIndex ? 'bg-white w-5' : 'bg-white/50'"
-            @click="heroSlideIndex = i"
-          />
-        </div>
       </section>
 
-      <section v-else class="grid gap-6 lg:grid-cols-[1.1fr,0.9fr] items-center">
+      <section v-else class="sf-container grid gap-8 lg:grid-cols-[1.05fr,0.95fr] items-center pt-10">
         <div class="space-y-4">
           <p class="text-xs uppercase tracking-wide text-slate-500">{{ page?.slug === 'home' ? 'Salon' : page?.slug }}</p>
           <h1 class="text-3xl font-bold text-slate-900 lg:text-4xl">{{ hero.headline || 'Beautiful Nails. Exceptional Care.' }}</h1>
-          <p class="text-lg text-slate-700">{{ hero.subheadline || '' }}</p>
+          <p class="text-lg text-slate-700 leading-relaxed">{{ hero.subheadline || '' }}</p>
           <div class="flex flex-wrap gap-3">
             <a
               class="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-white text-sm font-semibold hover:bg-slate-800"
@@ -476,7 +551,7 @@ const footerView = computed(() => {
         </div>
         <div v-if="(heroSlides.length && currentHeroSlide) || heroMedia?.src" class="relative">
           <div
-            class="rounded-2xl overflow-hidden shadow-2xl border border-slate-200 hero-tilt"
+            class="hero-frame rounded-3xl overflow-hidden shadow-2xl border border-slate-200 hero-tilt"
           >
             <picture>
               <source
@@ -487,9 +562,10 @@ const footerView = computed(() => {
                 :media="src.media"
               />
               <img
+                :key="heroSlideIndex"
                 :src="currentHeroSlide?.src || heroMedia?.src"
                 :alt="hero.headline || 'Salon hero image'"
-                class="w-full h-full object-cover aspect-[4/3]"
+                class="w-full h-full object-cover aspect-[5/4] md:min-h-[360px] hero-slide"
                 loading="lazy"
               />
             </picture>
@@ -540,7 +616,60 @@ const footerView = computed(() => {
         </div>
       </section>
 
-      <section v-if="showServicesSection" id="services" class="space-y-3">
+      <section v-if="isAboutPage" class="sf-container space-y-6">
+        <div class="grid gap-6 lg:grid-cols-[1fr,1.05fr] items-center">
+          <div v-if="aboutImage?.src" class="hero-frame overflow-hidden rounded-3xl shadow-2xl border border-slate-200">
+            <picture>
+              <source
+                v-for="(src, idx) in aboutImage.sources || []"
+                :key="idx"
+                :srcset="src.srcset"
+                :type="src.type"
+                :media="src.media"
+              />
+              <img
+                :src="aboutImage.src"
+                :alt="hero.headline || 'About image'"
+                class="w-full h-full object-cover aspect-[5/4]"
+                loading="lazy"
+              />
+            </picture>
+          </div>
+          <div class="space-y-4">
+            <p class="text-xs uppercase tracking-wide text-slate-500">About</p>
+            <h2 class="text-3xl font-bold text-slate-900">Welcome to {{ brandName }}</h2>
+            <p
+              v-for="(p, idx) in aboutParagraphs"
+              :key="idx"
+              class="text-base text-slate-700 leading-relaxed"
+            >
+              {{ p }}
+            </p>
+            <div class="flex flex-wrap gap-3">
+              <a
+                class="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-white text-sm font-semibold hover:bg-slate-800"
+                :href="bookingPath"
+              >
+                Book Appointment
+              </a>
+            </div>
+          </div>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div class="text-sm uppercase tracking-wide text-slate-500 mb-3">Values</div>
+          <div class="grid gap-3 sm:grid-cols-3">
+            <div
+              v-for="(val, idx) in aboutValues"
+              :key="idx"
+              class="rounded-xl border border-slate-100 bg-slate-50 px-3 py-3 text-sm font-semibold text-slate-800"
+            >
+              • {{ val }}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section v-if="showServicesSection" id="services" class="sf-container space-y-3">
         <div class="flex items-center justify-between">
           <h2 class="text-2xl font-semibold text-slate-900">Services</h2>
         </div>
@@ -581,56 +710,79 @@ const footerView = computed(() => {
         </div>
       </section>
 
-      <section v-if="showContactSection" id="contact" class="space-y-3">
-        <h2 class="text-2xl font-semibold text-slate-900">Contact</h2>
-        <div class="grid gap-3 sm:grid-cols-2">
-          <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div class="text-sm uppercase tracking-wide text-slate-500">Address</div>
-            <div class="text-base text-slate-900">{{ contact.address || 'Add your address' }}</div>
-          </div>
-          <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div class="text-sm uppercase tracking-wide text-slate-500">Phone</div>
-            <div class="text-base text-slate-900">{{ contact.phone || '(361) 000-0000' }}</div>
-          </div>
+      <section v-if="showContactSection" id="contact" class="sf-container space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-2xl font-semibold text-slate-900">Contact</h2>
         </div>
-        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div class="text-sm uppercase tracking-wide text-slate-500">Send us a message</div>
-          <form class="mt-2 space-y-3" @submit.prevent="submitLead">
+        <div class="grid gap-4 lg:grid-cols-[1.05fr,0.95fr]">
+          <div class="space-y-3">
             <div class="grid gap-3 sm:grid-cols-2">
+              <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div class="text-sm uppercase tracking-wide text-slate-500">Address</div>
+                <div class="text-base text-slate-900">{{ contact.address || 'Add your address' }}</div>
+              </div>
+              <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div class="text-sm uppercase tracking-wide text-slate-500">Phone</div>
+                <div class="text-base text-slate-900">{{ contact.phone || '(361) 000-0000' }}</div>
+              </div>
+              <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div class="text-sm uppercase tracking-wide text-slate-500">Email</div>
+                <div class="text-base text-slate-900">{{ contact.email || 'your@email.com' }}</div>
+              </div>
+            </div>
+            <div
+              v-if="mapEmbedSrc"
+              class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden"
+            >
+              <iframe
+                :src="mapEmbedSrc"
+                class="w-full h-72"
+                style="border: 0;"
+                allowfullscreen=""
+                loading="lazy"
+                referrerpolicy="no-referrer-when-downgrade"
+              ></iframe>
+            </div>
+          </div>
+          <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div class="text-sm uppercase tracking-wide text-slate-500">Send us a message</div>
+            <form class="mt-2 space-y-3" @submit.prevent="submitLead">
+              <div class="grid gap-3 sm:grid-cols-2">
+                <label class="block text-sm font-semibold text-slate-800">
+                  Name
+                  <input v-model="leadForm.name" required class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none" />
+                </label>
+                <label class="block text-sm font-semibold text-slate-800">
+                  Phone
+                  <input v-model="leadForm.phone" inputmode="tel" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none" placeholder="(555) 123-4567" />
+                </label>
+              </div>
               <label class="block text-sm font-semibold text-slate-800">
-                Name
-                <input v-model="leadForm.name" required class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none" />
+                Email
+                <input v-model="leadForm.email" type="email" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none" placeholder="you@example.com" />
               </label>
               <label class="block text-sm font-semibold text-slate-800">
-                Phone
-                <input v-model="leadForm.phone" inputmode="tel" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none" placeholder="(555) 123-4567" />
+                Preferred time
+                <input v-model="leadForm.preferred_time" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none" placeholder="e.g. Tomorrow 2-4pm" />
               </label>
-            </div>
-            <label class="block text-sm font-semibold text-slate-800">
-              Email
-              <input v-model="leadForm.email" type="email" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none" placeholder="you@example.com" />
-            </label>
-            <label class="block text-sm font-semibold text-slate-800">
-              Preferred time
-              <input v-model="leadForm.preferred_time" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none" placeholder="e.g. Tomorrow 2-4pm" />
-            </label>
-            <label class="block text-sm font-semibold text-slate-800">
-              Message
-              <textarea v-model="leadForm.message" rows="3" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none" placeholder="Tell us what you need"></textarea>
-            </label>
-            <input v-model="leadForm.website" class="hidden" aria-hidden="true" />
-            <div class="flex items-center gap-3">
-              <button :disabled="leadSubmitting" type="submit" class="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-white text-sm font-semibold hover:bg-slate-800 disabled:opacity-60">
-                {{ leadSubmitting ? 'Sending…' : 'Send message' }}
-              </button>
-              <p class="text-sm text-slate-600" v-if="leadSuccess">Thanks! We received your message.</p>
-              <p class="text-sm text-rose-600" v-if="leadError">{{ leadError }}</p>
-            </div>
-          </form>
+              <label class="block text-sm font-semibold text-slate-800">
+                Message
+                <textarea v-model="leadForm.message" rows="3" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none" placeholder="Tell us what you need"></textarea>
+              </label>
+              <input v-model="leadForm.website" class="hidden" aria-hidden="true" />
+              <div class="flex items-center gap-3">
+                <button :disabled="leadSubmitting" type="submit" class="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-white text-sm font-semibold hover:bg-slate-800 disabled:opacity-60">
+                  {{ leadSubmitting ? 'Sending…' : 'Send message' }}
+                </button>
+                <p class="text-sm text-slate-600" v-if="leadSuccess">Thanks! We received your message.</p>
+                <p class="text-sm text-rose-600" v-if="leadError">{{ leadError }}</p>
+              </div>
+            </form>
+          </div>
         </div>
       </section>
 
-      <section v-if="gallery.length" class="space-y-3">
+      <section v-if="gallery.length" class="sf-container space-y-3">
         <h2 class="text-2xl font-semibold text-slate-900">Gallery</h2>
         <div class="grid gap-3 sm:grid-cols-2">
           <picture
@@ -655,14 +807,16 @@ const footerView = computed(() => {
         </div>
       </section>
 
-      <div v-if="loading" class="text-sm text-slate-600">Loading…</div>
-      <div v-if="error" class="text-sm text-rose-600">{{ error }}</div>
+      <div v-if="loading" class="sf-container text-sm text-slate-600">Loading…</div>
+      <div v-if="error" class="sf-container text-sm text-rose-600">{{ error }}</div>
     </div>
   </PublicWebsiteLayout>
 </template>
 
 <style scoped>
 .services-hero {
+  background: radial-gradient(circle at 18% 20%, rgba(14, 165, 233, 0.16), transparent 32%),
+    linear-gradient(135deg, #0b1220 0%, #0e172b 70%, #111827 100%);
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.25);
   transform: translateZ(0);
 }
@@ -672,6 +826,41 @@ const footerView = computed(() => {
 .services-hero:hover .services-hero__image img {
   transform: scale(1.02);
   filter: saturate(1.05);
+}
+.services-hero__frame {
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 28px 60px rgba(0, 0, 0, 0.3);
+}
+.services-hero__img {
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  min-height: 320px;
+}
+
+.hero-frame {
+  border-radius: 24px;
+  overflow: hidden;
+}
+
+.hero-slide {
+  animation: heroFade 4.2s ease-in-out;
+  transform-origin: center;
+}
+@keyframes heroFade {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(1.02) rotateY(-4deg);
+  }
+  18% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotateY(0deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotateY(0deg);
+  }
 }
 
 .hero-tilt {

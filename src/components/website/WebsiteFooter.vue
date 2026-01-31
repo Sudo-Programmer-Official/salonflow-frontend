@@ -86,7 +86,7 @@ const hasLegal =
 
 <template>
   <footer v-if="footer?.enabled !== false" class="sf-footer">
-    <div class="sf-footer__shell">
+    <div class="sf-container sf-footer__shell">
       <div v-if="hasLocation" class="sf-footer__card">
         <div class="sf-footer__label">Location</div>
         <p class="sf-footer__text" v-for="line in locationLines" :key="line">{{ line }}</p>
@@ -142,9 +142,7 @@ const hasLegal =
   margin-top: 64px;
 }
 .sf-footer__shell {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 36px 18px 30px;
+  padding: 36px 0 30px;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 18px;

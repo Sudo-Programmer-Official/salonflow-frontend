@@ -11,6 +11,19 @@
 }
 
 :root {
+  --sf-container-width: 1200px;
+  --sf-container-padding: 24px;
+}
+
+.sf-container {
+  width: 100%;
+  max-width: var(--sf-container-width);
+  margin: 0 auto;
+  padding-left: var(--sf-container-padding);
+  padding-right: var(--sf-container-padding);
+}
+
+:root {
   --font-scale-base: 1.05;
   --ui-font-scale: var(--font-scale-base);
   --font-xs: calc(12px * var(--ui-font-scale));

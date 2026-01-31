@@ -342,7 +342,7 @@ const onSubmit = async () => {
     :is="useWebsiteShell ? PublicWebsiteLayout : 'div'"
     v-bind="useWebsiteShell ? { header: websiteHeader, footer: websiteFooter, activePath: route.path } : {}"
   >
-    <div class="max-w-5xl mx-auto space-y-6">
+    <div class="sf-container space-y-8 pb-10 pt-6">
     <div class="text-center">
       <p class="text-xs font-semibold uppercase tracking-[0.2em] text-sky-600">Book online</p>
       <h1 class="mt-2 text-3xl font-semibold text-slate-900">{{ businessName }}</h1>
@@ -359,8 +359,8 @@ const onSubmit = async () => {
       :title="settingsError"
     />
 
-    <div class="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
-      <div class="glass rounded-2xl bg-white/85 p-6 shadow-sm">
+    <div class="grid gap-6 lg:grid-cols-[1.45fr,0.95fr]">
+      <div class="glass rounded-2xl bg-white/90 p-6 shadow-sm">
         <ElForm label-position="top" class="space-y-4" @submit.prevent="onSubmit">
           <ElFormItem label="Name" required>
             <ElInput v-model="form.name" placeholder="Your name" size="large" autocomplete="name" />
