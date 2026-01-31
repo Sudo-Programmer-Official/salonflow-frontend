@@ -175,15 +175,25 @@ const toUrl = (
         >
           <button
             class="media-card__delete"
-            title="Delete image"
+            title="Delete media"
             @click.stop="deleteItem(item, $event)"
           >
             ✕
           </button>
-          <ElImage
-            :src="toUrl(item.variants?.thumbnail) || toUrl(item.original_url)"
-            style="width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 10px;"
-          />
+
+          <template v-if="isVideo(item)">
+            <div class="media-card__video">
+              <div class="media-card__badge">Video</div>
+              <div class="media-card__video-icon">▶</div>
+              <div class="media-card__video-name">{{ (item.mime_type || '').split('/')[1] || 'mp4' }}</div>
+            </div>
+          </template>
+          <template v-else>
+            <ElImage
+              :src="toUrl(item.variants?.thumbnail) || toUrl(item.original_url)"
+              style="width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 10px;"
+            />
+          </template>
           <div v-if="isSelected(item.id)" class="media-card__check">✓</div>
           <div v-else-if="isVideo(item)" class="media-card__badge">Video</div>
         </ElCard>
@@ -250,5 +260,26 @@ const toUrl = (
   font-weight: 700;
   background: rgba(15, 23, 42, 0.8);
   color: white;
+}
+.media-card__video {
+  width: 100%;
+  aspect-ratio: 4/3;
+  border-radius: 10px;
+  background: radial-gradient(circle at 30% 30%, rgba(14, 165, 233, 0.2), transparent 35%),
+    linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: #e2e8f0;
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  position: relative;
+}
+.media-card__video-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+.media-card__video-name {
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  color: #cbd5e1;
 }
 </style>
