@@ -124,6 +124,11 @@ const submitting = ref(false);
 const success = ref(false);
 const successDetail = ref('');
 const errorMessage = ref('');
+const successTitle = computed(() => {
+  const detail = successDetail.value ? ` ${successDetail.value}` : '';
+  return `Booking received.${detail ? ' ' + detail : ''}`;
+});
+const successDescription = 'We’ll confirm your appointment by text or email once the salon approves it.';
 const timezone = computed(() => settings.value?.timezone || getBusinessTimezone());
 const allowStaffSelection = computed(() => settings.value?.allowStaffSelection === true);
 const requireStaffSelection = computed(
@@ -157,10 +162,19 @@ const formatMoney = (cents?: number | null, currency = 'USD') => {
 
 const normalizePhone = (raw: string) => {
   const digits = raw.replace(/\D/g, '');
-  if (digits.length !== 10) {
+  const core = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
+  if (core.length !== 10) {
     throw new Error('Enter a valid 10-digit phone number');
   }
-  return `+1${digits}`;
+  return `+1${core}`;
+};
+
+const formatDisplayPhone = (raw: string | undefined | null): string => {
+  const digits = (raw || '').replace(/\D/g, '').slice(0, 10);
+  if (!digits) return '';
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+  return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
 };
 
 const composeScheduledAt = () => {
@@ -236,6 +250,9 @@ const loadBusiness = async () => {
 onMounted(async () => {
   if (useWebsiteShell.value) {
     fetchWebsite().catch(() => undefined);
+  }
+  if (form.phone) {
+    form.phone = formatDisplayPhone(form.phone);
   }
   if (tenant.value) {
     localStorage.setItem('tenantSubdomain', tenant.value);
@@ -370,10 +387,11 @@ const onSubmit = async () => {
             <ElFormItem label="Phone number" required>
               <ElInput
                 v-model="form.phone"
-                placeholder="+1 555 123 4567"
+                placeholder="555 123 4567"
                 size="large"
                 autocomplete="tel"
                 inputmode="tel"
+                @input="(val: any) => (form.phone = formatDisplayPhone(val))"
               />
             </ElFormItem>
             <ElFormItem label="Email (optional)">
@@ -501,7 +519,8 @@ const onSubmit = async () => {
               type="success"
               :closable="false"
               class="w-full"
-              :title="`Booking received. ${successDetail || 'We’ll confirm shortly.'}`"
+              :title="successTitle"
+              :description="successDescription"
             />
             <ElAlert
               v-if="errorMessage"

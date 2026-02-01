@@ -36,6 +36,7 @@ type WebsitePayload = {
   media?: WebsiteMedia[];
   meta?: { canonical?: string; locales?: string[]; host?: string };
   themeTokens?: any;
+  businessHours?: any;
   layout?: {
     header: {
       enabled: boolean;

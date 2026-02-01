@@ -298,11 +298,23 @@ const showServicesSection = computed(() => !isContactPage.value && serviceCards.
 const showContactSection = computed(() => isHomePage.value || isContactPage.value);
 
 onMounted(() => {
-  if (heroSlides.value.length > 1) {
-    heroInterval = setInterval(() => {
-      heroSlideIndex.value = (heroSlideIndex.value + 1) % heroSlides.value.length;
-    }, 4200);
-  }
+  const start = () => {
+    if (heroInterval) clearInterval(heroInterval);
+    if (heroSlides.value.length > 1) {
+      heroInterval = setInterval(() => {
+        heroSlideIndex.value = (heroSlideIndex.value + 1) % heroSlides.value.length;
+      }, 4200);
+    }
+  };
+  start();
+
+  watch(
+    () => heroSlides.value.length,
+    () => {
+      start();
+    },
+    { immediate: false },
+  );
 });
 
 onBeforeUnmount(() => {
@@ -571,9 +583,25 @@ const footerView = computed(() => {
     phone: footerConfig.value?.contact?.phone || contact.value?.phone || null,
     email: footerConfig.value?.contact?.email || contact.value?.email || null,
   };
+  const hoursManual =
+    footerConfig.value?.hours?.manual?.length
+      ? footerConfig.value.hours
+      : data.value?.businessHours
+        ? {
+            source: 'admin',
+            manual: Object.entries(data.value.businessHours || {})
+              .filter(([, v]) => v)
+              .map(([day, v]: any) => ({
+                day: day.slice(0, 3).charAt(0).toUpperCase() + day.slice(1, 3),
+                open: v.open,
+                close: v.close,
+              })),
+          }
+        : null;
   return {
     ...footerConfig.value,
     contact: contactInfo,
+    hours: footerConfig.value?.hours ?? hoursManual,
     fallbackHoursText: contact.value?.hours || null,
   };
 });

@@ -144,8 +144,8 @@ const hasLegal =
 .sf-footer__shell {
   padding: 36px 0 30px;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 18px;
+  grid-template-columns: 1fr;
 }
 .sf-footer__card {
   background: rgba(255, 255, 255, 0.78);
@@ -228,9 +228,14 @@ const hasLegal =
   color: rgba(15, 23, 42, 0.7);
 }
 
-@media (max-width: 720px) {
+@media (min-width: 640px) {
   .sf-footer__shell {
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1024px) {
+  .sf-footer__shell {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 </style>

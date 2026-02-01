@@ -40,6 +40,14 @@ const isActive = (path: string) => {
   const current = props.activePath || '/';
   return current === path || current.replace(/\/$/, '') === path.replace(/\/$/, '');
 };
+
+const closeMobile = () => {
+  mobileOpen.value = false;
+};
+
+const toggleMobile = () => {
+  mobileOpen.value = !mobileOpen.value;
+};
 </script>
 
 <template>
@@ -53,7 +61,7 @@ const isActive = (path: string) => {
         </div>
       </div>
 
-      <button class="sf-header__menu" @click="mobileOpen = !mobileOpen" aria-label="Toggle navigation">
+      <button class="sf-header__menu" @click="toggleMobile" aria-label="Toggle navigation">
         <span :class="{ open: mobileOpen }"></span>
         <span :class="{ open: mobileOpen }"></span>
       </button>
@@ -91,6 +99,32 @@ const isActive = (path: string) => {
         </component>
       </div>
     </div>
+
+    <transition name="menu-fade">
+      <div v-if="mobileOpen" class="sf-header__overlay" @click="closeMobile"></div>
+    </transition>
+    <transition name="menu-slide">
+      <div v-if="mobileOpen" class="sf-header__mobile">
+        <button
+          v-for="item in navItems"
+          :key="item.path"
+          class="mobile-nav-btn"
+          :class="{ active: isActive(item.path) }"
+          :href="item.path"
+          @click="closeMobile"
+        >
+          {{ item.label }}
+        </button>
+        <div class="mobile-nav-ctas">
+          <a v-if="ctas?.call?.enabled && normalizedPhone" class="mobile-nav-btn ghost" :href="`tel:${normalizedPhone}`">
+            📞 Call
+          </a>
+          <a v-if="ctas?.book?.enabled" class="mobile-nav-btn primary" :href="bookUrl" :target="isExternalBook ? '_blank' : undefined" rel="noopener">
+            📅 Book
+          </a>
+        </div>
+      </div>
+    </transition>
   </header>
 </template>
 
@@ -225,18 +259,96 @@ const isActive = (path: string) => {
     display: inline-flex;
     justify-self: end;
   }
-  .sf-header__nav {
-    grid-column: 1 / -1;
-    width: 100%;
-    flex-wrap: wrap;
-    padding: 6px 0;
-    display: none;
-  }
-  .sf-header__nav.open {
-    display: flex;
-  }
+  .sf-header__nav,
   .sf-header__ctas {
     display: none;
+  }
+}
+
+.sf-header__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(4px);
+  z-index: 39;
+}
+
+.sf-header__mobile {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  padding: 12px 16px 18px;
+  background: var(--sf-surface, #ffffff);
+  box-shadow: var(--sf-shadow-overlay, 0 24px 64px rgba(15, 23, 42, 0.22));
+  border-bottom-left-radius: var(--sf-radius-xl, 22px);
+  border-bottom-right-radius: var(--sf-radius-xl, 22px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mobile-nav-btn {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: var(--sf-radius-md, 12px);
+  border: 1px solid color-mix(in srgb, var(--sf-border, #e2e8f0) 90%, transparent);
+  background: var(--sf-surface-muted, #f1f5f9);
+  font-weight: 700;
+  color: var(--sf-text, #0f172a);
+  text-align: left;
+  text-decoration: none;
+}
+.mobile-nav-btn.active {
+  border-color: var(--sf-primary, #0ea5e9);
+  background: color-mix(in srgb, var(--sf-primary, #0ea5e9) 10%, var(--sf-surface-muted, #f1f5f9));
+}
+.mobile-nav-btn.primary {
+  background: var(--sf-primary, #0ea5e9);
+  color: #fff;
+  border-color: transparent;
+}
+.mobile-nav-btn.ghost {
+  background: color-mix(in srgb, var(--sf-primary, #0ea5e9) 14%, transparent);
+}
+.mobile-nav-ctas {
+  display: grid;
+  gap: 8px;
+}
+
+.menu-fade-enter-active,
+.menu-fade-leave-active {
+  transition: opacity 200ms ease;
+}
+.menu-fade-enter-from,
+.menu-fade-leave-to {
+  opacity: 0;
+}
+.menu-slide-enter-active {
+  animation: slideDown 220ms ease forwards;
+}
+.menu-slide-leave-active {
+  animation: slideUp 180ms ease forwards;
+}
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+@keyframes slideUp {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(-100%);
+    opacity: 0;
   }
 }
 </style>

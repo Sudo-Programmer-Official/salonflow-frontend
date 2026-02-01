@@ -48,6 +48,16 @@ export type ThemeTokens = {
   };
 };
 
+export type BusinessHours = {
+  mon?: { open: string; close: string } | null;
+  tue?: { open: string; close: string } | null;
+  wed?: { open: string; close: string } | null;
+  thu?: { open: string; close: string } | null;
+  fri?: { open: string; close: string } | null;
+  sat?: { open: string; close: string } | null;
+  sun?: { open: string; close: string } | null;
+};
+
 export type BusinessSettings = {
   businessId: string;
   businessName: string;
@@ -77,6 +87,7 @@ export type BusinessSettings = {
   kioskBusinessName?: string | null;
   kioskBusinessPhone?: string | null;
   businessPhone?: string | null;
+  businessHours?: BusinessHours | null;
   themeTokens?: ThemeTokens;
   defaultBookingRules: DefaultBookingRules;
   createdAt: string | null;
@@ -117,6 +128,7 @@ export type SettingsPatch = Partial<
     | 'kioskBusinessName'
     | 'kioskBusinessPhone'
     | 'businessPhone'
+    | 'businessHours'
     | 'themeTokens'
   >
 > & {

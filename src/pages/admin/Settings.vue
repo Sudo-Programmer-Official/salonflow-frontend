@@ -23,6 +23,7 @@ import {
   fetchMessagingSettings,
   type MessagingSettings,
 } from '../../api/settings';
+import type { BusinessHours } from '../../api/settings';
 import { applyThemeFromSettings, defaultUiPreferences, fontFamilyOptions, themeBounds } from '../../utils/theme';
 import { DEFAULT_WEBSITE_THEME } from '../../utils/websiteTheme';
 import type { ThemeTokens } from '../../api/settings';
@@ -60,6 +61,7 @@ const showPointsValue = computed(
   () => settings.value?.showPointsPreview ?? settings.value?.showPointsOnKiosk ?? true,
 );
 const themeTokens = computed<ThemeTokens>(() => settings.value?.themeTokens ?? DEFAULT_WEBSITE_THEME);
+const businessHours = computed<BusinessHours | null>(() => settings.value?.businessHours ?? null);
 const kioskBusinessPhoneValue = computed({
   get: () => settings.value?.kioskBusinessPhone || '',
   set: (val: string) => scheduleSave({ kioskBusinessPhone: val?.trim() || null }),
@@ -90,6 +92,24 @@ const toggleLargeText = (value: boolean) => {
   const target = value ? Math.max(fontScaleValue.value, 1.22) : themeBounds.defaultScale;
   handleFontScaleChange(target);
 };
+
+const dayLabels: Array<{ key: keyof BusinessHours; label: string }> = [
+  { key: 'mon', label: 'Mon' },
+  { key: 'tue', label: 'Tue' },
+  { key: 'wed', label: 'Wed' },
+  { key: 'thu', label: 'Thu' },
+  { key: 'fri', label: 'Fri' },
+  { key: 'sat', label: 'Sat' },
+  { key: 'sun', label: 'Sun' },
+];
+
+const setBusinessHour = (day: keyof BusinessHours, value: { open: string; close: string } | null) => {
+  const next: BusinessHours = { ...(businessHours.value ?? {}) };
+  (next as any)[day] = value;
+  scheduleSave({ businessHours: next });
+};
+
+const markClosed = (day: keyof BusinessHours) => setBusinessHour(day, null);
 
 const setPresetScale = (value: number) => {
   handleFontScaleChange(value);
@@ -230,6 +250,10 @@ const mergeSettings = (current: BusinessSettings, patch: SettingsPatch): Busines
   themeTokens: patch.themeTokens
     ? mergeThemeTokens(current.themeTokens ?? DEFAULT_WEBSITE_THEME, patch.themeTokens)
     : current.themeTokens ?? DEFAULT_WEBSITE_THEME,
+  businessHours:
+    patch.businessHours !== undefined
+      ? (patch.businessHours as BusinessHours | null)
+      : current.businessHours ?? null,
 });
 
 const mergePending = (current: SettingsPatch, patch: SettingsPatch): SettingsPatch => {
@@ -640,6 +664,41 @@ onMounted(loadSettings);
             <ElButton size="small" type="warning" plain @click="resetAppearance">
               Reset to default
             </ElButton>
+          </div>
+        </div>
+      </ElCard>
+
+      <ElCard class="glass bg-white">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-lg font-semibold text-slate-900">Business Hours</div>
+            <div class="text-sm text-slate-600">Control website/footer hours. Times use 24h (e.g., 10:00).</div>
+          </div>
+          <div class="text-xs text-slate-500" v-if="saving">Saving…</div>
+        </div>
+        <ElDivider />
+        <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div
+            v-for="day in dayLabels"
+            :key="day.key"
+            class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 flex flex-col gap-2"
+          >
+            <div class="flex items-center justify-between text-sm font-semibold text-slate-900">
+              <span>{{ day.label }}</span>
+              <ElButton size="small" text type="warning" @click="markClosed(day.key)">Closed</ElButton>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <ElInput
+                :model-value="(businessHours || {})[day.key]?.open || ''"
+                placeholder="Open"
+                @input="(val: string) => setBusinessHour(day.key, { ...(businessHours || {})[day.key], open: val, close: (businessHours || {})[day.key]?.close || '' })"
+              />
+              <ElInput
+                :model-value="(businessHours || {})[day.key]?.close || ''"
+                placeholder="Close"
+                @input="(val: string) => setBusinessHour(day.key, { ...(businessHours || {})[day.key], open: (businessHours || {})[day.key]?.open || '', close: val })"
+              />
+            </div>
           </div>
         </div>
       </ElCard>
