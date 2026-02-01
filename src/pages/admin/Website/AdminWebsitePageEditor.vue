@@ -269,7 +269,7 @@ const goBack = () =>
 
         <ElFormItem label="Value props (bullets)" class="md:col-span-2">
           <div class="space-y-2">
-            <div v-for="(v, idx) in form.valueProps" :key="idx" class="flex gap-2">
+            <div v-for="(_, idx) in form.valueProps" :key="idx" class="flex gap-2">
               <ElInput v-model="form.valueProps[idx]" placeholder="e.g. Medical-grade sanitation" />
               <ElButton size="small" @click="form.valueProps.splice(idx,1)" :disabled="form.valueProps.length <= 1">Remove</ElButton>
             </div>
@@ -350,8 +350,8 @@ const goBack = () =>
         <ElFormItem label="FAQ" class="md:col-span-2">
           <div class="space-y-2">
             <div v-for="(f, idx) in form.faq" :key="idx" class="grid gap-2 md:grid-cols-2">
-              <ElInput v-model="form.faq[idx].question" placeholder="Question" />
-              <ElInput v-model="form.faq[idx].answer" placeholder="Answer" />
+              <ElInput v-model="f.question" placeholder="Question" />
+              <ElInput v-model="f.answer" placeholder="Answer" />
               <div class="md:col-span-2 flex gap-2">
                 <ElButton size="small" @click="form.faq.splice(idx,1)" :disabled="form.faq.length <= 1">Remove</ElButton>
               </div>

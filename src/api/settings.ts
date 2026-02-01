@@ -77,7 +77,7 @@ export type BusinessSettings = {
   kioskBusinessName?: string | null;
   kioskBusinessPhone?: string | null;
   businessPhone?: string | null;
-  themeTokens: ThemeTokens;
+  themeTokens?: ThemeTokens;
   defaultBookingRules: DefaultBookingRules;
   createdAt: string | null;
   updatedAt: string | null;

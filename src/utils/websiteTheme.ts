@@ -1,4 +1,4 @@
-import { ThemeTokens } from '../api/settings';
+import type { ThemeTokens } from '../api/settings';
 
 export const DEFAULT_WEBSITE_THEME: ThemeTokens = {
   colors: {

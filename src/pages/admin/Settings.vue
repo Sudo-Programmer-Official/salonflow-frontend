@@ -116,11 +116,21 @@ const resetAppearance = () => {
   });
 };
 
+type ThemeTokensPatch = {
+  colors?: Partial<ThemeTokens['colors']>;
+  typography?: Partial<ThemeTokens['typography']>;
+  radii?: Partial<ThemeTokens['radii']>;
+  shadows?: Partial<ThemeTokens['shadows']>;
+  spacing?: Partial<ThemeTokens['spacing']>;
+  gradients?: Partial<ThemeTokens['gradients']>;
+};
+
 const themePresets: Array<{ label: string; tokens: Partial<ThemeTokens> }> = [
   {
     label: 'Light',
     tokens: {
       colors: {
+        ...DEFAULT_WEBSITE_THEME.colors,
         primary: '#0ea5e9',
         secondary: '#22c55e',
         background: '#f8fafc',
@@ -129,6 +139,7 @@ const themePresets: Array<{ label: string; tokens: Partial<ThemeTokens> }> = [
         textPrimary: '#0f172a',
         textMuted: '#475569',
         border: '#e2e8f0',
+        accent: DEFAULT_WEBSITE_THEME.colors.accent,
       },
     },
   },
@@ -136,6 +147,7 @@ const themePresets: Array<{ label: string; tokens: Partial<ThemeTokens> }> = [
     label: 'Luxury Dark',
     tokens: {
       colors: {
+        ...DEFAULT_WEBSITE_THEME.colors,
         primary: '#d6b25e',
         secondary: '#7dd3fc',
         background: '#0b0f17',
@@ -144,8 +156,10 @@ const themePresets: Array<{ label: string; tokens: Partial<ThemeTokens> }> = [
         textPrimary: '#f8fafc',
         textMuted: '#cbd5e1',
         border: '#1f2937',
+        accent: '#d97757',
       },
       shadows: {
+        ...DEFAULT_WEBSITE_THEME.shadows,
         card: '0 20px 60px rgba(0,0,0,0.35)',
       },
       gradients: {
@@ -155,14 +169,14 @@ const themePresets: Array<{ label: string; tokens: Partial<ThemeTokens> }> = [
   },
 ];
 
-const applyThemePreset = (tokens: Partial<ThemeTokens>) => {
+const applyThemePreset = (tokens: ThemeTokensPatch) => {
   const next = mergeThemeTokens(themeTokens.value, tokens);
   scheduleSave({ themeTokens: next });
 };
 
 const setThemeColor = (key: keyof ThemeTokens['colors'], value: string | null) => {
   if (!value) return;
-  const next = mergeThemeTokens(themeTokens.value, { colors: { [key]: value } as any });
+  const next = mergeThemeTokens(themeTokens.value, { colors: { [key]: value } as Partial<ThemeTokens['colors']> });
   scheduleSave({ themeTokens: next });
 };
 
@@ -177,7 +191,7 @@ const mergeRules = (
 
 const mergeThemeTokens = (
   base: ThemeTokens | undefined,
-  patch?: Partial<ThemeTokens>,
+  patch?: ThemeTokensPatch,
 ): ThemeTokens => ({
   ...(base ?? DEFAULT_WEBSITE_THEME),
   ...(patch ?? {}),
@@ -496,8 +510,8 @@ onMounted(loadSettings);
                 <div class="text-xs text-slate-600">Colors power the public site + booking. Safe presets only.</div>
               </div>
               <div class="flex gap-2">
-                <ElButton size="small" @click="applyThemePreset(themePresets[0].tokens)">Light</ElButton>
-                <ElButton size="small" @click="applyThemePreset(themePresets[1].tokens)">Luxury Dark</ElButton>
+                <ElButton size="small" @click="applyThemePreset(themePresets[0]?.tokens ?? DEFAULT_WEBSITE_THEME)">Light</ElButton>
+                <ElButton size="small" @click="applyThemePreset(themePresets[1]?.tokens ?? DEFAULT_WEBSITE_THEME)">Luxury Dark</ElButton>
               </div>
             </div>
             <div class="grid gap-3 md:grid-cols-3">
@@ -509,7 +523,7 @@ onMounted(loadSettings);
                 <ElColorPicker
                   :model-value="themeTokens.colors.primary"
                   :show-alpha="false"
-                  @change="(val: string) => setThemeColor('primary', val)"
+                  @change="(val: string | null) => setThemeColor('primary', val)"
                 />
               </div>
               <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
@@ -520,7 +534,7 @@ onMounted(loadSettings);
                 <ElColorPicker
                   :model-value="themeTokens.colors.secondary"
                   :show-alpha="false"
-                  @change="(val: string) => setThemeColor('secondary', val)"
+                  @change="(val: string | null) => setThemeColor('secondary', val)"
                 />
               </div>
               <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
@@ -531,7 +545,7 @@ onMounted(loadSettings);
                 <ElColorPicker
                   :model-value="themeTokens.colors.background"
                   :show-alpha="false"
-                  @change="(val: string) => setThemeColor('background', val)"
+                  @change="(val: string | null) => setThemeColor('background', val)"
                 />
               </div>
               <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
@@ -542,7 +556,7 @@ onMounted(loadSettings);
                 <ElColorPicker
                   :model-value="themeTokens.colors.surface"
                   :show-alpha="false"
-                  @change="(val: string) => setThemeColor('surface', val)"
+                  @change="(val: string | null) => setThemeColor('surface', val)"
                 />
               </div>
               <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
@@ -553,7 +567,7 @@ onMounted(loadSettings);
                 <ElColorPicker
                   :model-value="themeTokens.colors.textPrimary"
                   :show-alpha="false"
-                  @change="(val: string) => setThemeColor('textPrimary', val)"
+                  @change="(val: string | null) => setThemeColor('textPrimary', val)"
                 />
               </div>
               <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
@@ -564,7 +578,7 @@ onMounted(loadSettings);
                 <ElColorPicker
                   :model-value="themeTokens.colors.textMuted"
                   :show-alpha="false"
-                  @change="(val: string) => setThemeColor('textMuted', val)"
+                  @change="(val: string | null) => setThemeColor('textMuted', val)"
                 />
               </div>
             </div>
