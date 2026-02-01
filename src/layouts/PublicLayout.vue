@@ -14,7 +14,7 @@
         </nav>
       </div>
     </header>
-    <main class="public-content mx-auto flex w-full max-w-xl flex-1 flex-col px-4 py-8 sm:px-6">
+    <main class="public-content mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-8 sm:px-8">
       <MaintenanceBanner
         v-if="maintenanceActive"
         class="mb-4"
@@ -49,6 +49,7 @@ const suppressChrome = computed(() => {
   min-height: 100vh;
   overflow-x: hidden;
   overflow-y: auto;
+  background: var(--sf-bg, #ffffff);
 }
 .public-content {
   min-height: 0;
