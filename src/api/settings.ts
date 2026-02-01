@@ -8,6 +8,46 @@ export type DefaultBookingRules = {
   allow_walkins_outside_availability: boolean;
 };
 
+export type ThemeTokens = {
+  colors: {
+    primary: string;
+    secondary: string;
+    background: string;
+    surface: string;
+    surfaceMuted: string;
+    textPrimary: string;
+    textMuted: string;
+    accent: string;
+    border: string;
+  };
+  typography: {
+    fontFamily: string;
+    baseSize: number;
+    headingWeight: number;
+    bodyWeight: number;
+  };
+  radii: {
+    sm: number;
+    md: number;
+    lg: number;
+    xl: number;
+    full: number;
+  };
+  shadows: {
+    card: string;
+    overlay: string;
+  };
+  spacing: {
+    sectionDesktop: number;
+    sectionTablet: number;
+    sectionMobile: number;
+  };
+  gradients?: {
+    hero?: string | null;
+    card?: string | null;
+  };
+};
+
 export type BusinessSettings = {
   businessId: string;
   businessName: string;
@@ -37,6 +77,7 @@ export type BusinessSettings = {
   kioskBusinessName?: string | null;
   kioskBusinessPhone?: string | null;
   businessPhone?: string | null;
+  themeTokens: ThemeTokens;
   defaultBookingRules: DefaultBookingRules;
   createdAt: string | null;
   updatedAt: string | null;
@@ -76,9 +117,11 @@ export type SettingsPatch = Partial<
     | 'kioskBusinessName'
     | 'kioskBusinessPhone'
     | 'businessPhone'
+    | 'themeTokens'
   >
 > & {
   defaultBookingRules?: Partial<DefaultBookingRules>;
+  themeTokens?: Partial<ThemeTokens> | ThemeTokens;
 };
 
 const handleResponse = async <T>(res: Response, defaultError: string): Promise<T> => {

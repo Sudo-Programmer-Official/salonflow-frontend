@@ -12,6 +12,7 @@ import {
   facebookStatus,
   facebookDisconnect,
 } from '../../../api/integrations';
+import { googleBusinessStatus } from '../../../api/integrations';
 
 const loading = ref(false);
 const posts = ref<any[]>([]);
@@ -35,6 +36,8 @@ const fbCallbackProcessing = ref(false);
 const fbError = ref<string | null>(null);
 const fbDisconnecting = ref(false);
 const hasInstagram = computed(() => !!fbAccount.value?.meta?.instagramBusinessId);
+const googleStatus = ref<any | null>(null);
+const googleStatusLoading = ref(false);
 
 const form = ref({
   provider: 'facebook',
@@ -152,6 +155,21 @@ const loadStatus = async () => {
   }
 };
 
+const loadGoogleStatus = async () => {
+  googleStatusLoading.value = true;
+  try {
+    googleStatus.value = await googleBusinessStatus();
+  } catch (err: any) {
+    googleStatus.value = null;
+  } finally {
+    googleStatusLoading.value = false;
+  }
+};
+
+const refreshChannels = async () => {
+  await Promise.all([loadStatus(), loadGoogleStatus()]);
+};
+
 const handleOauthCallback = async () => {
   const code = route.query.code as string | undefined;
   const state = route.query.state as string | undefined;
@@ -209,6 +227,7 @@ const selectFacebookPage = async () => {
 
 onMounted(load);
 onMounted(loadStatus);
+onMounted(loadGoogleStatus);
 onMounted(handleOauthCallback);
 onMounted(async () => {
   growthLoading.value = true;
@@ -408,8 +427,46 @@ const destinationLabels = (row: any) => {
         <h1 class="text-2xl font-semibold text-slate-900">Social Posting</h1>
         <p class="text-sm text-slate-600">Compose drafts and queue publishes via the job runner.</p>
       </div>
-      <ElButton size="small" @click="load">Refresh</ElButton>
+      <div class="flex gap-2">
+        <ElButton size="small" @click="refreshChannels" :loading="fbStatusLoading || googleStatusLoading">Refresh status</ElButton>
+        <ElButton size="small" @click="load">Refresh posts</ElButton>
+      </div>
     </div>
+
+    <ElCard shadow="never" class="border border-slate-200">
+      <div class="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <div class="text-sm font-semibold text-slate-800">Connected channels</div>
+          <div class="text-xs text-slate-500">Facebook / Instagram and Google Business Profile</div>
+        </div>
+      </div>
+      <div class="grid gap-3 sm:grid-cols-2 mt-3">
+        <div class="flex items-start gap-2">
+          <ElTag :type="fbConnected ? 'success' : 'info'" size="small">
+            {{ fbConnected ? 'Connected' : 'Not connected' }}
+          </ElTag>
+          <div class="text-sm text-slate-700">
+            <div>Facebook / Instagram</div>
+            <div class="text-xs text-slate-500">
+              {{ fbAccount?.display_name || 'Not linked' }}
+              <span v-if="fbAccount?.last_error" class="text-rose-600"> • {{ fbAccount.last_error }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-start gap-2">
+          <ElTag :type="googleStatus?.connected ? 'success' : 'info'" size="small">
+            {{ googleStatus?.connected ? 'Connected' : 'Not connected' }}
+          </ElTag>
+          <div class="text-sm text-slate-700">
+            <div>Google Business Profile</div>
+            <div class="text-xs text-slate-500">
+              {{ googleStatus?.account?.display_name || 'Not linked' }}
+              <span v-if="googleStatus?.account?.last_error" class="text-rose-600"> • {{ googleStatus.account.last_error }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </ElCard>
 
     <ElCard shadow="never" class="border border-slate-200">
       <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">

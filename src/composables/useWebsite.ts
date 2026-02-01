@@ -34,6 +34,7 @@ type WebsitePayload = {
   nav?: WebsiteNavItem[];
   media?: WebsiteMedia[];
   meta?: { canonical?: string; locales?: string[]; host?: string };
+  themeTokens?: any;
   layout?: {
     header: {
       enabled: boolean;

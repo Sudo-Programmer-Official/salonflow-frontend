@@ -84,7 +84,7 @@ const pull = async () => {
   syncing.value = true;
   try {
     await pullGoogleBusiness();
-    ElMessage.success('Pull enqueued');
+    ElMessage.success('Reviews sync enqueued');
   } catch (err: any) {
     ElMessage.error(err?.message || 'Pull failed');
   } finally {
@@ -245,11 +245,15 @@ onMounted(handleGoogleOauthCallback);
           <span v-if="status?.account?.meta?.profileId" class="text-xs text-slate-500">
             {{ status?.account?.meta?.profileId }}
           </span>
+          <span v-if="status?.account?.last_error" class="text-xs text-rose-600">
+            • {{ status?.account?.last_error }}
+          </span>
         </div>
-        <div class="flex gap-2">
+        <div class="flex gap-2 flex-wrap">
           <ElButton type="primary" :loading="authLoading || callbackProcessing" @click="startGoogleOauth">
-            Connect with Google (OAuth)
+            {{ status?.connected ? 'Reconnect Google' : 'Connect with Google' }}
           </ElButton>
+          <ElButton :loading="syncing" @click="pull">Sync reviews now</ElButton>
           <ElButton @click="loadStatus">Refresh status</ElButton>
         </div>
       </div>
@@ -339,43 +343,52 @@ onMounted(handleGoogleOauthCallback);
     </ElCard>
 
     <ElCard shadow="never" class="border border-slate-200" :loading="reviewsLoading">
-      <div class="flex items-center justify-between mb-2">
+      <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
         <div>
           <div class="text-sm font-semibold text-slate-800">Reviews</div>
-          <div class="text-xs text-slate-500">Draft or send replies. Auto-replies will show as sent.</div>
+          <div class="text-xs text-slate-500">Sync from Google, draft with AI, then send.</div>
         </div>
-        <ElButton size="small" @click="loadReviews">Refresh</ElButton>
+        <div class="flex gap-2">
+          <ElButton size="small" :loading="syncing || reviewsLoading" @click="pull">Sync reviews now</ElButton>
+          <ElButton size="small" :loading="reviewsLoading" @click="loadReviews">Refresh list</ElButton>
+        </div>
       </div>
-      <ElTable :data="reviews" size="small">
-        <ElTableColumn prop="rating" label="Rating" width="80">
+      <div v-if="!reviews.length && !reviewsLoading" class="text-sm text-slate-600">
+        No reviews yet. Sync to fetch the latest from Google.
+      </div>
+      <ElTable v-else :data="reviews" size="small">
+        <ElTableColumn prop="update_time" label="Updated" width="160" />
+        <ElTableColumn prop="rating" label="Rating" width="90">
           <template #default="{ row }">
-            <ElTag :type="row.rating >= 4 ? 'success' : 'warning'">{{ row.rating || '-' }}★</ElTag>
+            <ElTag :type="row.rating >= 4 ? 'success' : row.rating === 3 ? 'warning' : 'danger'">
+              {{ row.rating ? `${row.rating}★` : '-' }}
+            </ElTag>
           </template>
         </ElTableColumn>
         <ElTableColumn prop="author_name" label="Author" width="140" />
-        <ElTableColumn prop="comment" label="Comment" min-width="220" />
-        <ElTableColumn label="Reply" min-width="220">
+        <ElTableColumn prop="comment" label="Comment" min-width="220">
           <template #default="{ row }">
-            <ElInput
-              v-model="row.reply_text"
-              type="textarea"
-              :rows="2"
-              placeholder="Draft reply"
-            />
+            <div class="text-sm text-slate-800 whitespace-pre-line">{{ row.comment || '—' }}</div>
           </template>
         </ElTableColumn>
-        <ElTableColumn prop="update_time" label="Updated" width="160" />
-        <ElTableColumn prop="reply_status" label="Reply status" width="140">
+        <ElTableColumn prop="reply_status" label="Reply" width="140">
           <template #default="{ row }">
             <ElTag :type="row.reply_status === 'sent' ? 'success' : row.reply_status === 'failed' ? 'danger' : row.reply_status === 'sending' ? 'warning' : 'info'">
               {{ row.reply_status || 'none' }}
             </ElTag>
           </template>
         </ElTableColumn>
+        <ElTableColumn label="Reply text" min-width="200">
+          <template #default="{ row }">
+            <ElInput v-model="row.reply_text" type="textarea" :rows="2" placeholder="Draft reply" />
+          </template>
+        </ElTableColumn>
         <ElTableColumn label="Actions" width="200">
           <template #default="{ row }">
-            <ElButton size="small" plain :loading="draftingMap[row.id]" @click="draftReply(row.id)">Draft with AI</ElButton>
-            <ElButton size="small" type="primary" plain :loading="sendingMap[row.id]" @click="sendReply(row.id)">Send</ElButton>
+            <ElButton size="small" plain :loading="draftingMap[row.id]" @click="draftReply(row.id)">AI draft</ElButton>
+            <ElButton size="small" type="primary" plain :loading="sendingMap[row.id]" @click="sendReply(row.id)" :disabled="!row.reply_text">
+              Send
+            </ElButton>
           </template>
         </ElTableColumn>
       </ElTable>
