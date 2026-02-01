@@ -105,7 +105,7 @@ const toggleMobile = () => {
     </transition>
     <transition name="menu-slide">
       <div v-if="mobileOpen" class="sf-header__mobile">
-        <button
+        <a
           v-for="item in navItems"
           :key="item.path"
           class="mobile-nav-btn"
@@ -114,12 +114,24 @@ const toggleMobile = () => {
           @click="closeMobile"
         >
           {{ item.label }}
-        </button>
+        </a>
         <div class="mobile-nav-ctas">
-          <a v-if="ctas?.call?.enabled && normalizedPhone" class="mobile-nav-btn ghost" :href="`tel:${normalizedPhone}`">
+          <a
+            v-if="ctas?.call?.enabled && normalizedPhone"
+            class="mobile-nav-btn ghost"
+            :href="`tel:${normalizedPhone}`"
+            @click="closeMobile"
+          >
             📞 Call
           </a>
-          <a v-if="ctas?.book?.enabled" class="mobile-nav-btn primary" :href="bookUrl" :target="isExternalBook ? '_blank' : undefined" rel="noopener">
+          <a
+            v-if="ctas?.book?.enabled"
+            class="mobile-nav-btn primary"
+            :href="bookUrl"
+            :target="isExternalBook ? '_blank' : undefined"
+            rel="noopener"
+            @click="closeMobile"
+          >
             📅 Book
           </a>
         </div>
