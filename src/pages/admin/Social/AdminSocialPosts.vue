@@ -60,15 +60,83 @@ const selectedDestinations = computed(() => {
   return dests;
 });
 
+const brandName = computed(() => fbAccount.value?.display_name || 'your salon');
+
+const suggestionText = (body: string) => body.replace(/\{brand\}/g, brandName.value);
+
+const suggestions = computed(() => {
+  const today = new Date();
+  const day = today.toLocaleDateString('en-US', { weekday: 'long' });
+  const hasReel = selectedDestinations.value.some((d) => d.surface === 'reel');
+  const hasStory = selectedDestinations.value.some((d) => d.surface === 'story');
+  const base: Array<{ label: string; text: string }> = [
+    {
+      label: 'Availability',
+      text: `{brand}: {day} openings just dropped. Comment “book” or tap the link to grab a slot.`,
+    },
+    {
+      label: 'Service highlight',
+      text: `Fresh set alert at {brand}! We’re doing gel + nail art with zero drilling. Tap to book.`,
+    },
+    {
+      label: 'Offer',
+      text: `This week only: 10% off hydration manicures. Show this post at {brand}.`,
+    },
+  ];
+  if (hasReel) {
+    base.push({
+      label: 'Reel hook',
+      text: `Watch the glow-up! From bare nails to glossy finish at {brand}. Save for your inspo board.`,
+    });
+  }
+  if (hasStory) {
+    base.push({
+      label: 'Story CTA',
+      text: `Tap “Book” in our profile — same-day spots at {brand} while they last.`,
+    });
+  }
+  return base.map((s) => ({ ...s, text: suggestionText(s.text.replace('{day}', day)) }));
+});
+
+const applySuggestion = (text: string) => {
+  form.value.content = text;
+};
+
 const load = async () => {
   loading.value = true;
   try {
-    posts.value = await listSocialPosts();
+    const resp = await listSocialPosts({ page: page.value, pageSize: pageSize.value });
+    posts.value = resp.posts || [];
+    pagination.value = resp.pagination || {
+      total: resp.posts?.length || 0,
+      page: page.value,
+      pageSize: pageSize.value,
+      pages: 1,
+    };
   } catch (err: any) {
     ElMessage.error(err?.message || 'Failed to load posts');
   } finally {
     loading.value = false;
   }
+};
+const pagination = ref<{ total: number; page: number; pageSize: number; pages: number }>({
+  total: 0,
+  page: 1,
+  pageSize: 25,
+  pages: 1,
+});
+const page = ref(1);
+const pageSize = ref(25);
+
+const handlePageChange = async (newPage: number) => {
+  page.value = newPage;
+  await load();
+};
+
+const handleSizeChange = async (newSize: number) => {
+  pageSize.value = newSize;
+  page.value = 1;
+  await load();
 };
 
 const loadStatus = async () => {
@@ -425,6 +493,17 @@ const destinationLabels = (row: any) => {
         </ElFormItem>
         <ElFormItem label="Content" class="md:col-span-2">
           <ElInput type="textarea" v-model="form.content" :rows="3" placeholder="What's new?" />
+          <div class="mt-2 flex flex-wrap gap-2">
+            <ElButton
+              v-for="s in suggestions"
+              :key="s.label"
+              size="small"
+              plain
+              @click="applySuggestion(s.text)"
+            >
+              {{ s.label }}
+            </ElButton>
+          </div>
         </ElFormItem>
         <ElFormItem label="Media" class="md:col-span-2">
           <MediaPicker
@@ -487,6 +566,18 @@ const destinationLabels = (row: any) => {
           </template>
         </ElTableColumn>
       </ElTable>
+      <div class="flex justify-end mt-3">
+        <el-pagination
+          background
+          layout="prev, pager, next, sizes, total"
+          :total="pagination.total"
+          :current-page="pagination.page"
+          :page-size="pagination.pageSize"
+          :page-sizes="[10, 25, 50, 100]"
+          @current-change="handlePageChange"
+          @size-change="handleSizeChange"
+        />
+      </div>
     </ElCard>
 
     <ElDialog v-model="fbSelectVisible" title="Select Facebook Page" width="480px">

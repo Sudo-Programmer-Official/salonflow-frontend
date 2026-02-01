@@ -2,13 +2,17 @@ import { apiUrl, buildHeaders } from './client';
 
 const headers = () => buildHeaders({ auth: true, tenant: true, json: true });
 
-export async function listSocialPosts(status?: string) {
-  const res = await fetch(apiUrl(`/social/posts${status ? `?status=${status}` : ''}`), {
+export async function listSocialPosts(params?: { status?: string; page?: number; pageSize?: number }) {
+  const search = new URLSearchParams();
+  if (params?.status) search.set('status', params.status);
+  if (params?.page) search.set('page', String(params.page));
+  if (params?.pageSize) search.set('pageSize', String(params.pageSize));
+  const res = await fetch(apiUrl(`/social/posts${search.toString() ? `?${search.toString()}` : ''}`), {
     headers: headers(),
   });
   const body = await res.json();
   if (!res.ok) throw new Error(body.error || 'Failed to load posts');
-  return body.posts;
+  return body as { posts: any[]; pagination?: { total: number; page: number; pageSize: number; pages: number } };
 }
 
 export async function createSocialDraft(input: {
