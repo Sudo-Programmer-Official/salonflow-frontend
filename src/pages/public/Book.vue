@@ -342,11 +342,11 @@ const onSubmit = async () => {
     :is="useWebsiteShell ? PublicWebsiteLayout : 'div'"
     v-bind="useWebsiteShell ? { header: websiteHeader, footer: websiteFooter, activePath: route.path } : {}"
   >
-    <div class="sf-container space-y-8 pb-10 pt-6">
+    <div class="sf-container sf-section space-y-8">
     <div class="text-center">
       <p class="text-xs font-semibold uppercase tracking-[0.2em] text-sky-600">Book online</p>
-      <h1 class="mt-2 text-3xl font-semibold text-slate-900">{{ businessName }}</h1>
-      <p class="mt-2 text-sm text-slate-600">
+      <h1 class="mt-2 text-3xl font-semibold text-text">{{ businessName }}</h1>
+      <p class="mt-2 text-sm text-muted">
         Choose a service, pick a time, and we’ll confirm with reminders.
       </p>
     </div>
@@ -360,7 +360,7 @@ const onSubmit = async () => {
     />
 
     <div class="grid gap-6 lg:grid-cols-[1.45fr,0.95fr]">
-      <div class="glass rounded-2xl bg-white/90 p-6 shadow-sm">
+      <div class="glass rounded-2xl bg-surface p-6 shadow-sm">
         <ElForm label-position="top" class="space-y-4" @submit.prevent="onSubmit">
           <ElFormItem label="Name" required>
             <ElInput v-model="form.name" placeholder="Your name" size="large" autocomplete="name" />
@@ -405,7 +405,7 @@ const onSubmit = async () => {
                   >
                     <div class="flex items-center justify-between gap-2">
                       <span>{{ service.name }}</span>
-                      <span class="text-xs text-slate-500">
+                      <span class="text-xs text-muted">
                         <template v-if="service.durationMinutes">
                           {{ service.durationMinutes }} min
                         </template>
@@ -515,27 +515,27 @@ const onSubmit = async () => {
       </div>
 
       <div class="space-y-4">
-        <div class="glass-card rounded-2xl bg-white/80 p-5 shadow-sm">
-          <div class="flex items-center gap-2 text-sm font-semibold text-slate-800">
+        <div class="glass-card rounded-2xl bg-surface p-5 shadow-sm">
+          <div class="flex items-center gap-2 text-sm font-semibold text-text">
             <span>📅</span>
             <span>Your selection</span>
           </div>
-          <div class="mt-3 space-y-2 text-xs text-slate-700">
+          <div class="mt-3 space-y-2 text-xs text-muted">
             <div class="flex items-center justify-between">
               <span>Service</span>
-              <span class="font-semibold text-slate-900">
+              <span class="font-semibold text-text">
                 {{ selectedService?.name || 'Pick a service' }}
               </span>
             </div>
             <div class="flex items-center justify-between">
               <span>Duration</span>
-              <span class="text-slate-600">
+              <span class="text-muted">
                 {{ selectedService?.durationMinutes ? `${selectedService.durationMinutes} min` : '—' }}
               </span>
             </div>
             <div class="flex items-center justify-between">
               <span>Price</span>
-              <span class="text-slate-600">
+              <span class="text-muted">
                 {{
                   selectedService?.priceCents !== undefined
                     ? formatMoney(selectedService.priceCents, selectedService.currency || 'USD')
@@ -545,7 +545,7 @@ const onSubmit = async () => {
             </div>
             <div class="flex items-center justify-between">
               <span>When</span>
-              <span class="text-slate-600">
+              <span class="text-muted">
                 <template v-if="form.date && form.time">
                   {{ form.date }} · {{ form.time }}
                 </template>
@@ -554,18 +554,18 @@ const onSubmit = async () => {
             </div>
             <div class="flex items-center justify-between">
               <span>Contact</span>
-              <span class="text-slate-600">
+              <span class="text-muted">
                 {{ form.phone || 'Phone required to confirm' }}
               </span>
             </div>
           </div>
         </div>
 
-        <div class="glass-card rounded-2xl bg-white/80 p-5 shadow-sm">
+        <div class="glass-card rounded-2xl bg-surface p-5 shadow-sm">
           <div class="flex items-center justify-between">
             <div>
-              <div class="text-sm font-semibold text-slate-700">Service lineup</div>
-              <div class="text-xs text-slate-500">Tap a service to see price & time.</div>
+              <div class="text-sm font-semibold text-muted">Service lineup</div>
+              <div class="text-xs text-muted">Tap a service to see price & time.</div>
             </div>
             <span class="text-base">💅</span>
           </div>
@@ -573,52 +573,52 @@ const onSubmit = async () => {
             <div
               v-for="group in groupedServices"
               :key="group.categoryId || group.categoryName"
-              class="rounded-xl border border-slate-200 bg-white/90 p-3"
+              class="rounded-xl border border-border bg-surface p-3"
             >
-              <div class="flex items-center justify-between text-sm font-semibold text-slate-800">
+              <div class="flex items-center justify-between text-sm font-semibold text-text">
                 <span>{{ group.categoryIcon || '📋' }} {{ group.categoryName }}</span>
               </div>
               <div class="mt-2 space-y-2">
                 <div
                   v-for="svc in group.services"
                   :key="svc.id"
-                  class="flex items-start justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700"
+                  class="flex items-start justify-between rounded-lg bg-surface-muted px-3 py-2 text-sm text-muted"
                 >
                   <div>
-                    <div class="font-semibold text-slate-900">{{ svc.name }}</div>
-                    <div class="text-xs text-slate-500 flex items-center gap-1">
+                    <div class="font-semibold text-text">{{ svc.name }}</div>
+                    <div class="text-xs text-muted flex items-center gap-1">
                       <span v-if="svc.durationMinutes">{{ svc.durationMinutes }} min</span>
                       <span v-if="svc.priceCents !== undefined">
                         • {{ formatMoney(svc.priceCents, svc.currency || 'USD') }}
                       </span>
                     </div>
                   </div>
-                  <div class="text-xs text-slate-500">Tap to select</div>
+                  <div class="text-xs text-muted">Tap to select</div>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="glass-card rounded-2xl bg-white/80 p-5 shadow-sm">
-          <div class="flex items-center gap-2 text-sm font-semibold text-slate-800">
+        <div class="glass-card rounded-2xl bg-surface p-5 shadow-sm">
+          <div class="flex items-center gap-2 text-sm font-semibold text-text">
             <span>⏰</span>
             <span>Need a different time?</span>
           </div>
-          <p class="mt-2 text-xs text-slate-600 leading-relaxed">
+          <p class="mt-2 text-xs text-muted leading-relaxed">
             Pick your best time; we’ll confirm or propose the nearest available slot. You’ll get a text reminder before the visit.
           </p>
-          <p class="mt-2 text-xs text-slate-600 leading-relaxed">
+          <p class="mt-2 text-xs text-muted leading-relaxed">
             Reminder window respects our notice period ({{ minNoticeMinutes }} min). Same-day is allowed when the window is met.
           </p>
         </div>
 
-        <div class="glass-card rounded-2xl bg-white/80 p-5 shadow-sm">
-          <div class="flex items-center gap-2 text-sm font-semibold text-slate-800">
+        <div class="glass-card rounded-2xl bg-surface p-5 shadow-sm">
+          <div class="flex items-center gap-2 text-sm font-semibold text-text">
             <span>🔔</span>
             <span>What happens next</span>
           </div>
-          <ul class="mt-2 space-y-1 text-xs text-slate-600">
+          <ul class="mt-2 space-y-1 text-xs text-muted">
             <li>• You’ll see a confirmation once we lock your slot.</li>
             <li>• SMS reminders use your phone; email is optional for receipts.</li>
             <li>• Change of plans? Reply to the confirmation to adjust.</li>

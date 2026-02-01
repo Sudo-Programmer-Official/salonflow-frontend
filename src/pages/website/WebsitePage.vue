@@ -5,6 +5,7 @@ import PublicWebsiteLayout from '../../layouts/PublicWebsiteLayout.vue';
 import { useWebsite } from '../../composables/useWebsite';
 import { apiUrl } from '../../api/client';
 import { resolveMedia } from '../../utils/resolveMedia';
+import { fetchGroupedServices } from '../../api/checkins';
 
 const BOOKING_PATH = '/check-in/book';
 
@@ -46,6 +47,77 @@ const page = computed(() => {
 const hero = computed(() => page.value?.content?.hero || {});
 const services = computed(() => page.value?.content?.services || []);
 const contact = computed(() => page.value?.content?.contact || {});
+const servicesMode = computed(() => {
+  const raw = (page.value?.content as any)?.servicesMode || (page.value?.content as any)?.services_mode;
+  return raw === 'custom' || raw === 'live' ? raw : 'auto';
+});
+const servicesIntro = computed(() => {
+  const intro = (page.value?.content as any)?.servicesIntro || (page.value?.content as any)?.services_intro;
+  if (intro) return String(intro);
+  return (page.value?.content as any)?.servicesIntroDefault ||
+    'At MTV Nails, we offer a full range of nail, spa, and beauty services designed to help you look polished and feel confident.';
+});
+const valueProps = computed(() => {
+  const raw = (page.value?.content as any)?.valueProps || (page.value?.content as any)?.value_props;
+  if (!Array.isArray(raw)) return [] as string[];
+  return raw
+    .map((v) => (typeof v === 'string' ? v.trim() : v?.title || v?.label || ''))
+    .filter(Boolean)
+    .slice(0, 6);
+});
+const hygieneNote = computed(() => {
+  const raw = (page.value?.content as any)?.hygiene || (page.value?.content as any)?.hygieneNote;
+  if (typeof raw === 'string' && raw.trim()) return raw.trim();
+  return 'Hospital-grade disinfection on every tool and station; fresh files and buffers for each client.';
+});
+const socialProof = computed(() => {
+  const raw = (page.value?.content as any)?.socialProof || (page.value?.content as any)?.social_proof;
+  if (!raw) return { headline: '', body: '' };
+  if (typeof raw === 'string') return { headline: raw, body: '' };
+  return {
+    headline: raw.headline || raw.title || '',
+    body: raw.body || raw.subheadline || '',
+  };
+});
+const promoBanner = computed(() => {
+  const raw = (page.value?.content as any)?.promo || (page.value?.content as any)?.promotion;
+  if (!raw) return null as null | { text: string; cta?: string | null; url?: string | null };
+  if (typeof raw === 'string') return { text: raw, cta: null, url: null };
+  const text = raw.text || raw.headline || '';
+  if (!text) return null;
+  return { text, cta: raw.cta || raw.ctaText || null, url: raw.url || raw.ctaUrl || null };
+});
+const bookingNote = computed(() => {
+  const raw = (page.value?.content as any)?.bookingNote || (page.value?.content as any)?.booking_note;
+  return raw ? String(raw) : '';
+});
+const faqItems = computed(() => {
+  const raw = (page.value?.content as any)?.faq;
+  if (!Array.isArray(raw)) return [] as Array<{ question: string; answer: string }>;
+  return raw
+    .map((f: any) => ({
+      question: String(f?.question || f?.q || '').trim(),
+      answer: String(f?.answer || f?.a || '').trim(),
+    }))
+    .filter((f: any) => f.question && f.answer)
+    .slice(0, 8);
+});
+const contactNotes = computed(() => {
+  const c = contact.value || {};
+  return c.notes || c.parking || null;
+});
+const contactPolicies = computed(() => {
+  const c = contact.value || {};
+  return c.policies || c.policy || null;
+});
+const contactHoursLines = computed(() => {
+  const h = contact.value?.hours;
+  if (!h) return [] as string[];
+  return String(h)
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+});
 const mapEmbedSrc = computed(() => {
   const c = contact.value || {};
   const explicit =
@@ -128,14 +200,70 @@ const aboutParagraphs = computed(() => {
 });
 let heroInterval: ReturnType<typeof setInterval> | null = null;
 
+const liveServices = ref<
+  Array<{
+    name: string;
+    description?: string | null;
+    durationMinutes?: number;
+    priceCents?: number;
+    currency?: string;
+  }>
+>([]);
+const servicesLoading = ref(false);
+const servicesError = ref<string | null>(null);
+
+const loadServices = async () => {
+  if (servicesLoading.value) return;
+  servicesLoading.value = true;
+  servicesError.value = null;
+  try {
+    const grouped = await fetchGroupedServices();
+    const flattened = grouped.flatMap((group: any) =>
+      (group.services || []).map((svc: any) => ({
+        name: svc.name,
+        description: (svc.bookingRules as any)?.short_description || null,
+        durationMinutes: svc.durationMinutes,
+        priceCents: svc.priceCents,
+        currency: svc.currency,
+      })),
+    );
+    liveServices.value = flattened;
+  } catch (err: any) {
+    servicesError.value = err?.message || 'Unable to load services';
+    liveServices.value = [];
+  } finally {
+    servicesLoading.value = false;
+  }
+};
+
+const formatMoney = (cents?: number | null, currency = 'USD') => {
+  if (cents === null || cents === undefined) return null;
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 0,
+  }).format(cents / 100);
+};
+
 const serviceCards = computed(() => {
-  const items = Array.isArray(services.value) ? services.value : [];
+  const customServices = Array.isArray(services.value) ? services.value : [];
+  const haveLive = liveServices.value.length > 0;
+  const mode = servicesMode.value;
+
+  const items =
+    mode === 'live'
+      ? liveServices.value
+      : mode === 'custom'
+        ? customServices
+        : haveLive
+          ? liveServices.value
+          : customServices;
   const galleryImages = resolvedGallery.value;
   const defaultImg = galleryImages.length ? galleryImages[0] : null;
 
   return items
     .map((svc: any, idx: number) => {
-      const title = svc?.title || svc;
+      const title = svc?.title || svc?.name || svc;
       if (!title) return null;
       let img = null;
       const imageId = svc?.image;
@@ -147,9 +275,23 @@ const serviceCards = computed(() => {
         img = galleryImages[idx % galleryImages.length];
       }
       if (!img && defaultImg) img = defaultImg;
-      return { name: title, description: svc?.description, img };
+      return {
+        name: title,
+        description: svc?.description,
+        durationMinutes: svc?.durationMinutes,
+        priceCents: svc?.priceCents,
+        currency: svc?.currency,
+        img,
+      };
     })
-    .filter(Boolean) as Array<{ name: string; description?: string; img: any }>;
+    .filter(Boolean) as Array<{
+      name: string;
+      description?: string;
+      durationMinutes?: number;
+      priceCents?: number;
+      currency?: string;
+      img: any;
+    }>;
 });
 
 const showServicesSection = computed(() => !isContactPage.value && serviceCards.value.length > 0);
@@ -384,7 +526,7 @@ const submitLead = async () => {
 };
 
 onMounted(async () => {
-  await fetchSite();
+  await Promise.all([fetchSite(), loadServices()]);
   injectHead();
   trackEvent('page_view');
 });
@@ -393,6 +535,9 @@ watch(
   () => route.fullPath,
   async () => {
     await fetchSite();
+    if (!servicesLoading.value && liveServices.value.length === 0) {
+      loadServices();
+    }
     injectHead();
     trackEvent('page_view');
   },
@@ -465,7 +610,7 @@ const footerView = computed(() => {
             />
           </picture>
         </div>
-        <div class="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-950/70 to-slate-900/25"></div>
+        <div class="absolute inset-0 services-hero__overlay"></div>
         <div class="relative z-10">
           <div class="sf-container py-10 lg:py-14">
             <div class="grid items-center gap-10 lg:grid-cols-[1.05fr,0.95fr]">
@@ -480,7 +625,7 @@ const footerView = computed(() => {
                 <div class="flex flex-wrap gap-3">
                   <a
                     :href="bookingPath"
-                    class="inline-flex items-center gap-2 rounded-full bg-white/95 px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-lg ring-1 ring-white/60 backdrop-blur hover:-translate-y-0.5 hover:shadow-2xl transition"
+                    class="inline-flex items-center gap-2 rounded-full bg-surface px-5 py-2.5 text-sm font-semibold text-text shadow-lg ring-1 ring-white/60 backdrop-blur hover:-translate-y-0.5 hover:shadow-2xl transition"
                   >
                     {{ hero.ctaPrimary || 'Book Appointment' }}
                   </a>
@@ -518,7 +663,7 @@ const footerView = computed(() => {
                     v-for="(slide, i) in servicesHeroImages"
                     :key="slide.id || i"
                     class="h-2.5 w-2.5 rounded-full transition-all"
-                    :class="i === heroSlideIndex ? 'bg-white w-5' : 'bg-white/50'"
+                    :class="i === heroSlideIndex ? 'bg-surface w-5' : 'bg-surface opacity-60'"
                     @click="heroSlideIndex = i"
                   />
                 </div>
@@ -528,21 +673,21 @@ const footerView = computed(() => {
         </div>
       </section>
 
-      <section v-else class="sf-container grid gap-8 lg:grid-cols-[1.05fr,0.95fr] items-center pt-10">
+      <section v-else class="sf-container sf-section grid gap-8 lg:grid-cols-[1.05fr,0.95fr] items-center">
         <div class="space-y-4">
-          <p class="text-xs uppercase tracking-wide text-slate-500">{{ page?.slug === 'home' ? 'Salon' : page?.slug }}</p>
-          <h1 class="text-3xl font-bold text-slate-900 lg:text-4xl">{{ hero.headline || 'Beautiful Nails. Exceptional Care.' }}</h1>
-          <p class="text-lg text-slate-700 leading-relaxed">{{ hero.subheadline || '' }}</p>
+          <p class="text-xs uppercase tracking-wide text-muted">{{ page?.slug === 'home' ? 'Salon' : page?.slug }}</p>
+          <h1 class="text-3xl font-bold text-text lg:text-4xl">{{ hero.headline || 'Beautiful Nails. Exceptional Care.' }}</h1>
+          <p class="text-lg text-muted leading-relaxed">{{ hero.subheadline || '' }}</p>
           <div class="flex flex-wrap gap-3">
             <a
-              class="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-white text-sm font-semibold hover:bg-slate-800"
+              class="inline-flex items-center gap-2 rounded-full bg-text px-4 py-2 text-white text-sm font-semibold hover:bg-text/90"
               :href="bookingPath"
             >
               {{ hero.ctaPrimary || 'Book Appointment' }}
             </a>
             <a
               v-if="showServicesSection"
-              class="inline-flex items-center gap-2 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 hover:border-slate-400"
+              class="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-semibold text-text hover:border-border"
               href="#services"
             >
               {{ hero.ctaSecondary || 'Our services' }}
@@ -551,7 +696,7 @@ const footerView = computed(() => {
         </div>
         <div v-if="(heroSlides.length && currentHeroSlide) || heroMedia?.src" class="relative">
           <div
-            class="hero-frame rounded-3xl overflow-hidden shadow-2xl border border-slate-200 hero-tilt"
+            class="hero-frame rounded-3xl overflow-hidden shadow-2xl border border-border hero-tilt"
           >
             <picture>
               <source
@@ -578,14 +723,18 @@ const footerView = computed(() => {
               v-for="(slide, i) in heroSlides"
               :key="slide.id || i"
               class="h-2.5 w-2.5 rounded-full transition-all"
-              :class="i === heroSlideIndex ? 'bg-slate-900 w-5' : 'bg-slate-300'"
+              :class="i === heroSlideIndex ? 'bg-text w-5' : 'bg-muted/60'"
               @click="heroSlideIndex = i"
             />
           </div>
         </div>
         <div
           v-else
-          class="rounded-2xl bg-gradient-to-br from-slate-900 to-slate-700 text-white p-6 shadow-xl"
+          class="rounded-2xl text-white p-6 shadow-xl"
+          :style="{
+            background:
+              'linear-gradient(135deg, color-mix(in srgb, var(--sf-text, #0f172a) 90%, transparent) 0%, color-mix(in srgb, var(--sf-text, #0f172a) 68%, transparent) 100%)',
+          }"
         >
           <div class="text-sm uppercase tracking-wide text-white/70">Hours</div>
           <p class="mt-2 text-lg font-semibold">{{ contact.hours || 'Open daily' }}</p>
@@ -616,9 +765,9 @@ const footerView = computed(() => {
         </div>
       </section>
 
-      <section v-if="isAboutPage" class="sf-container space-y-6">
+      <section v-if="isAboutPage" class="sf-container sf-section space-y-6">
         <div class="grid gap-6 lg:grid-cols-[1fr,1.05fr] items-center">
-          <div v-if="aboutImage?.src" class="hero-frame overflow-hidden rounded-3xl shadow-2xl border border-slate-200">
+          <div v-if="aboutImage?.src" class="hero-frame overflow-hidden rounded-3xl shadow-2xl border border-border">
             <picture>
               <source
                 v-for="(src, idx) in aboutImage.sources || []"
@@ -636,18 +785,18 @@ const footerView = computed(() => {
             </picture>
           </div>
           <div class="space-y-4">
-            <p class="text-xs uppercase tracking-wide text-slate-500">About</p>
-            <h2 class="text-3xl font-bold text-slate-900">Welcome to {{ brandName }}</h2>
+            <p class="text-xs uppercase tracking-wide text-muted">About</p>
+            <h2 class="text-3xl font-bold text-text">Welcome to {{ brandName }}</h2>
             <p
               v-for="(p, idx) in aboutParagraphs"
               :key="idx"
-              class="text-base text-slate-700 leading-relaxed"
+              class="text-base text-muted leading-relaxed"
             >
               {{ p }}
             </p>
             <div class="flex flex-wrap gap-3">
               <a
-                class="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-white text-sm font-semibold hover:bg-slate-800"
+                class="inline-flex items-center gap-2 rounded-full bg-text px-4 py-2 text-white text-sm font-semibold hover:bg-text/90"
                 :href="bookingPath"
               >
                 Book Appointment
@@ -655,13 +804,13 @@ const footerView = computed(() => {
             </div>
           </div>
         </div>
-        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div class="text-sm uppercase tracking-wide text-slate-500 mb-3">Values</div>
+        <div class="rounded-2xl border border-border bg-surface p-5 shadow-sm">
+          <div class="text-sm uppercase tracking-wide text-muted mb-3">Values</div>
           <div class="grid gap-3 sm:grid-cols-3">
             <div
               v-for="(val, idx) in aboutValues"
               :key="idx"
-              class="rounded-xl border border-slate-100 bg-slate-50 px-3 py-3 text-sm font-semibold text-slate-800"
+              class="rounded-xl border border-border bg-surface-muted px-3 py-3 text-sm font-semibold text-text"
             >
               • {{ val }}
             </div>
@@ -669,17 +818,63 @@ const footerView = computed(() => {
         </div>
       </section>
 
-      <section v-if="showServicesSection" id="services" class="sf-container space-y-3">
+      <section v-if="showServicesSection" id="services" class="sf-container sf-section space-y-4">
         <div class="flex items-center justify-between">
-          <h2 class="text-2xl font-semibold text-slate-900">Services</h2>
+          <h2 class="text-2xl font-semibold text-text">Services</h2>
         </div>
+
+        <div class="grid gap-3 lg:grid-cols-[1.3fr,0.7fr] items-start">
+          <div class="space-y-3">
+            <p v-if="servicesIntro" class="text-base text-muted leading-relaxed">
+              {{ servicesIntro }}
+            </p>
+            <div v-if="valueProps.length" class="grid gap-2 sm:grid-cols-2">
+              <div
+                v-for="(val, idx) in valueProps"
+                :key="idx"
+                class="rounded-xl border border-border bg-surface px-3 py-3 text-sm font-semibold text-text shadow-sm"
+              >
+                • {{ val }}
+              </div>
+            </div>
+            <div
+              v-if="promoBanner"
+              class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 text-sm font-semibold shadow-sm flex items-center gap-2"
+            >
+              <span>{{ promoBanner.text }}</span>
+              <a
+                v-if="promoBanner.cta && promoBanner.url"
+                :href="promoBanner.url"
+                class="underline font-bold"
+              >
+                {{ promoBanner.cta }}
+              </a>
+            </div>
+          </div>
+
+          <div class="rounded-2xl border border-border bg-surface-muted px-4 py-4 shadow-inner space-y-2">
+            <div class="text-sm uppercase tracking-wide text-muted">Hygiene</div>
+            <p class="text-sm text-text leading-relaxed">{{ hygieneNote }}</p>
+            <div v-if="bookingNote" class="pt-2 text-sm text-muted leading-relaxed">
+              {{ bookingNote }}
+            </div>
+            <div v-if="socialProof.headline" class="pt-3 border-t border-border">
+              <div class="text-sm font-semibold text-text">{{ socialProof.headline }}</div>
+              <p v-if="socialProof.body" class="text-sm text-muted leading-relaxed">
+                {{ socialProof.body }}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <p v-if="servicesError" class="text-sm text-rose-600">{{ servicesError }}</p>
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div
-            v-for="(card, idx) in serviceCards"
-            :key="idx"
-            class="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg service-tilt"
+          v-for="(card, idx) in serviceCards"
+          :key="idx"
+          class="relative overflow-hidden rounded-2xl border border-border bg-surface shadow-lg service-tilt"
           >
-            <div class="absolute inset-0 bg-slate-900/5 blur-2xl"></div>
+            <div class="absolute inset-0 services-card-glow"></div>
             <picture v-if="card.img?.src" class="block">
               <source
                 v-for="(src, sIdx) in card.img.sources"
@@ -696,13 +891,23 @@ const footerView = computed(() => {
               />
             </picture>
             <div class="p-4 flex items-center justify-between gap-3">
-              <div class="text-base font-semibold text-slate-900">
+              <div class="text-base font-semibold text-text">
                 <div>{{ card.name }}</div>
-                <div v-if="card.description" class="text-sm text-slate-600 font-normal mt-1 line-clamp-2">
+                <div v-if="card.description" class="text-sm text-muted font-normal mt-1 line-clamp-2">
                   {{ card.description }}
                 </div>
+                <div
+                  v-if="card.durationMinutes || card.priceCents !== undefined"
+                  class="text-sm text-muted mt-1 flex items-center gap-2"
+                >
+                  <span v-if="card.durationMinutes">{{ card.durationMinutes }} min</span>
+                  <span v-if="card.durationMinutes && card.priceCents !== undefined">•</span>
+                  <span v-if="card.priceCents !== undefined">
+                    {{ formatMoney(card.priceCents, card.currency || 'USD') }}
+                  </span>
+                </div>
               </div>
-              <span class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-white text-sm font-semibold shadow-md">
+              <span class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-text text-white text-sm font-semibold shadow-md">
                 {{ idx + 1 }}
               </span>
             </div>
@@ -710,29 +915,50 @@ const footerView = computed(() => {
         </div>
       </section>
 
-      <section v-if="showContactSection" id="contact" class="sf-container space-y-4">
+      <section v-if="showContactSection" id="contact" class="sf-container sf-section space-y-4">
         <div class="flex items-center justify-between">
-          <h2 class="text-2xl font-semibold text-slate-900">Contact</h2>
+          <h2 class="text-2xl font-semibold text-text">Contact</h2>
         </div>
         <div class="grid gap-4 lg:grid-cols-[1.05fr,0.95fr]">
           <div class="space-y-3">
             <div class="grid gap-3 sm:grid-cols-2">
-              <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div class="text-sm uppercase tracking-wide text-slate-500">Address</div>
-                <div class="text-base text-slate-900">{{ contact.address || 'Add your address' }}</div>
+              <div class="rounded-xl border border-border bg-surface p-4 shadow-sm">
+                <div class="text-sm uppercase tracking-wide text-muted">Address</div>
+                <div class="text-base text-text">{{ contact.address || 'Add your address' }}</div>
               </div>
-              <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div class="text-sm uppercase tracking-wide text-slate-500">Phone</div>
-                <div class="text-base text-slate-900">{{ contact.phone || '(361) 000-0000' }}</div>
+              <div class="rounded-xl border border-border bg-surface p-4 shadow-sm">
+                <div class="text-sm uppercase tracking-wide text-muted">Phone</div>
+                <div class="text-base text-text">{{ contact.phone || '(361) 000-0000' }}</div>
               </div>
-              <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div class="text-sm uppercase tracking-wide text-slate-500">Email</div>
-                <div class="text-base text-slate-900">{{ contact.email || 'your@email.com' }}</div>
+              <div class="rounded-xl border border-border bg-surface p-4 shadow-sm">
+                <div class="text-sm uppercase tracking-wide text-muted">Email</div>
+                <div class="text-base text-text">{{ contact.email || 'your@email.com' }}</div>
+              </div>
+              <div class="rounded-xl border border-border bg-surface p-4 shadow-sm">
+                <div class="text-sm uppercase tracking-wide text-muted">Hours</div>
+                <div v-if="contactHoursLines.length" class="text-base text-text space-y-1">
+                  <div v-for="(line, idx) in contactHoursLines" :key="idx">{{ line }}</div>
+                </div>
+                <div v-else class="text-base text-text">Set your business hours</div>
+              </div>
+            </div>
+            <div v-if="contactNotes || contactPolicies" class="grid gap-3 lg:grid-cols-2">
+              <div v-if="contactNotes" class="rounded-xl border border-border bg-surface p-4 shadow-sm">
+                <div class="text-sm uppercase tracking-wide text-muted">Parking / Access</div>
+                <div class="text-sm text-text leading-relaxed whitespace-pre-line">
+                  {{ contactNotes }}
+                </div>
+              </div>
+              <div v-if="contactPolicies" class="rounded-xl border border-border bg-surface p-4 shadow-sm">
+                <div class="text-sm uppercase tracking-wide text-muted">Policies</div>
+                <div class="text-sm text-text leading-relaxed whitespace-pre-line">
+                  {{ contactPolicies }}
+                </div>
               </div>
             </div>
             <div
               v-if="mapEmbedSrc"
-              class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden"
+              class="rounded-xl border border-border bg-surface shadow-sm overflow-hidden"
             >
               <iframe
                 :src="mapEmbedSrc"
@@ -744,37 +970,37 @@ const footerView = computed(() => {
               ></iframe>
             </div>
           </div>
-          <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div class="text-sm uppercase tracking-wide text-slate-500">Send us a message</div>
+          <div class="rounded-xl border border-border bg-surface p-4 shadow-sm">
+            <div class="text-sm uppercase tracking-wide text-muted">Send us a message</div>
             <form class="mt-2 space-y-3" @submit.prevent="submitLead">
               <div class="grid gap-3 sm:grid-cols-2">
-                <label class="block text-sm font-semibold text-slate-800">
+                <label class="block text-sm font-semibold text-text">
                   Name
-                  <input v-model="leadForm.name" required class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none" />
+                  <input v-model="leadForm.name" required class="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-border focus:outline-none" />
                 </label>
-                <label class="block text-sm font-semibold text-slate-800">
+                <label class="block text-sm font-semibold text-text">
                   Phone
-                  <input v-model="leadForm.phone" inputmode="tel" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none" placeholder="(555) 123-4567" />
+                  <input v-model="leadForm.phone" inputmode="tel" class="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-border focus:outline-none" placeholder="(555) 123-4567" />
                 </label>
               </div>
-              <label class="block text-sm font-semibold text-slate-800">
+              <label class="block text-sm font-semibold text-text">
                 Email
-                <input v-model="leadForm.email" type="email" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none" placeholder="you@example.com" />
+                <input v-model="leadForm.email" type="email" class="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-border focus:outline-none" placeholder="you@example.com" />
               </label>
-              <label class="block text-sm font-semibold text-slate-800">
+              <label class="block text-sm font-semibold text-text">
                 Preferred time
-                <input v-model="leadForm.preferred_time" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none" placeholder="e.g. Tomorrow 2-4pm" />
+                <input v-model="leadForm.preferred_time" class="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-border focus:outline-none" placeholder="e.g. Tomorrow 2-4pm" />
               </label>
-              <label class="block text-sm font-semibold text-slate-800">
+              <label class="block text-sm font-semibold text-text">
                 Message
-                <textarea v-model="leadForm.message" rows="3" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none" placeholder="Tell us what you need"></textarea>
+                <textarea v-model="leadForm.message" rows="3" class="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-border focus:outline-none" placeholder="Tell us what you need"></textarea>
               </label>
               <input v-model="leadForm.website" class="hidden" aria-hidden="true" />
               <div class="flex items-center gap-3">
-                <button :disabled="leadSubmitting" type="submit" class="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-white text-sm font-semibold hover:bg-slate-800 disabled:opacity-60">
+                <button :disabled="leadSubmitting" type="submit" class="inline-flex items-center gap-2 rounded-full bg-text px-4 py-2 text-white text-sm font-semibold hover:bg-text/90 disabled:opacity-60">
                   {{ leadSubmitting ? 'Sending…' : 'Send message' }}
                 </button>
-                <p class="text-sm text-slate-600" v-if="leadSuccess">Thanks! We received your message.</p>
+                <p class="text-sm text-muted" v-if="leadSuccess">Thanks! We received your message.</p>
                 <p class="text-sm text-rose-600" v-if="leadError">{{ leadError }}</p>
               </div>
             </form>
@@ -782,8 +1008,23 @@ const footerView = computed(() => {
         </div>
       </section>
 
-      <section v-if="gallery.length" class="sf-container space-y-3">
-        <h2 class="text-2xl font-semibold text-slate-900">Gallery</h2>
+      <section v-if="faqItems.length" class="sf-container sf-section space-y-3">
+        <h2 class="text-2xl font-semibold text-text">FAQ</h2>
+        <div class="grid gap-3 lg:grid-cols-2">
+          <div
+            v-for="(item, idx) in faqItems"
+            :key="idx"
+            class="rounded-xl border border-border bg-surface p-4 shadow-sm space-y-2"
+          >
+            <div class="text-sm uppercase tracking-wide text-muted">Q{{ idx + 1 }}</div>
+            <div class="text-base font-semibold text-text">{{ item.question }}</div>
+            <div class="text-sm text-muted leading-relaxed whitespace-pre-line">{{ item.answer }}</div>
+          </div>
+        </div>
+      </section>
+
+      <section v-if="gallery.length" class="sf-container sf-section space-y-3">
+        <h2 class="text-2xl font-semibold text-text">Gallery</h2>
         <div class="grid gap-3 sm:grid-cols-2">
           <picture
             v-for="(img, idx) in resolvedGallery"
@@ -799,7 +1040,7 @@ const footerView = computed(() => {
             />
             <img
               :src="img.src"
-              class="w-full rounded-xl border border-slate-200 object-cover aspect-[4/3]"
+              class="w-full rounded-xl border border-border object-cover aspect-[4/3]"
               loading="lazy"
               :alt="img.alt || ''"
             />
@@ -807,7 +1048,7 @@ const footerView = computed(() => {
         </div>
       </section>
 
-      <div v-if="loading" class="sf-container text-sm text-slate-600">Loading…</div>
+      <div v-if="loading" class="sf-container text-sm text-muted">Loading…</div>
       <div v-if="error" class="sf-container text-sm text-rose-600">{{ error }}</div>
     </div>
   </PublicWebsiteLayout>
@@ -815,9 +1056,8 @@ const footerView = computed(() => {
 
 <style scoped>
 .services-hero {
-  background: radial-gradient(circle at 18% 20%, rgba(14, 165, 233, 0.16), transparent 32%),
-    linear-gradient(135deg, #0b1220 0%, #0e172b 70%, #111827 100%);
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.25);
+  background: var(--sf-hero-gradient);
+  box-shadow: var(--sf-shadow-overlay, 0 30px 80px rgba(0, 0, 0, 0.25));
   transform: translateZ(0);
 }
 .services-hero__image img {
@@ -826,6 +1066,14 @@ const footerView = computed(() => {
 .services-hero:hover .services-hero__image img {
   transform: scale(1.02);
   filter: saturate(1.05);
+}
+.services-hero__overlay {
+  background: linear-gradient(
+    110deg,
+    color-mix(in srgb, var(--sf-text, #0f172a) 92%, transparent) 0%,
+    color-mix(in srgb, var(--sf-text, #0f172a) 75%, transparent) 45%,
+    color-mix(in srgb, var(--sf-text, #0f172a) 28%, transparent) 100%
+  );
 }
 .services-hero__frame {
   border-radius: 18px;
@@ -878,5 +1126,10 @@ const footerView = computed(() => {
 .service-tilt:hover {
   transform: translateY(-4px) scale(1.01);
   box-shadow: 0 18px 38px rgba(0, 0, 0, 0.12);
+}
+.services-card-glow {
+  background: color-mix(in srgb, var(--sf-primary, #0ea5e9) 14%, transparent);
+  filter: blur(36px);
+  pointer-events: none;
 }
 </style>

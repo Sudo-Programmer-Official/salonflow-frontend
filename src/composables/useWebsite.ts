@@ -1,5 +1,6 @@
 import { ref } from 'vue';
 import { apiUrl, buildHeaders } from '../api/client';
+import { applyWebsiteTheme } from '../utils/websiteTheme';
 
 type MediaVariant = {
   url: string;
@@ -58,6 +59,7 @@ export function useWebsite(locale: 'en' | 'es') {
   const fetchSite = async () => {
     if (cache[locale] && !(typeof window !== 'undefined' && window.location.search.includes('websitePreview=1'))) {
       data.value = cache[locale];
+      applyWebsiteTheme(cache[locale]?.themeTokens || null);
       return;
     }
     loading.value = true;
@@ -86,6 +88,7 @@ export function useWebsite(locale: 'en' | 'es') {
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || 'Website not found');
       data.value = body;
+      applyWebsiteTheme(body.themeTokens || null);
       if (!isPreview) {
         cache[locale] = body;
       }

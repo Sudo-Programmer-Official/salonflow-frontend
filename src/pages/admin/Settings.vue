@@ -12,6 +12,7 @@ import {
   ElSwitch,
   ElSlider,
   ElButton,
+  ElColorPicker,
 } from 'element-plus';
 import {
   fetchSettings,
@@ -23,6 +24,8 @@ import {
   type MessagingSettings,
 } from '../../api/settings';
 import { applyThemeFromSettings, defaultUiPreferences, fontFamilyOptions, themeBounds } from '../../utils/theme';
+import { DEFAULT_WEBSITE_THEME } from '../../utils/websiteTheme';
+import type { ThemeTokens } from '../../api/settings';
 
 const loading = ref(false);
 const saving = ref(false);
@@ -56,6 +59,7 @@ const fontFamilyValue = computed(() => settings.value?.uiFontFamily ?? 'system')
 const showPointsValue = computed(
   () => settings.value?.showPointsPreview ?? settings.value?.showPointsOnKiosk ?? true,
 );
+const themeTokens = computed<ThemeTokens>(() => settings.value?.themeTokens ?? DEFAULT_WEBSITE_THEME);
 const kioskBusinessPhoneValue = computed({
   get: () => settings.value?.kioskBusinessPhone || '',
   set: (val: string) => scheduleSave({ kioskBusinessPhone: val?.trim() || null }),
@@ -108,7 +112,58 @@ const resetAppearance = () => {
     uiFontScale: defaultUiPreferences.uiFontScale ?? themeBounds.defaultScale,
     uiFontFamily: defaultUiPreferences.uiFontFamily ?? 'system',
     uiGlassEnabled: defaultUiPreferences.uiGlassEnabled ?? true,
+    themeTokens: DEFAULT_WEBSITE_THEME,
   });
+};
+
+const themePresets: Array<{ label: string; tokens: Partial<ThemeTokens> }> = [
+  {
+    label: 'Light',
+    tokens: {
+      colors: {
+        primary: '#0ea5e9',
+        secondary: '#22c55e',
+        background: '#f8fafc',
+        surface: '#ffffff',
+        surfaceMuted: '#f1f5f9',
+        textPrimary: '#0f172a',
+        textMuted: '#475569',
+        border: '#e2e8f0',
+      },
+    },
+  },
+  {
+    label: 'Luxury Dark',
+    tokens: {
+      colors: {
+        primary: '#d6b25e',
+        secondary: '#7dd3fc',
+        background: '#0b0f17',
+        surface: '#0f172a',
+        surfaceMuted: '#1f2937',
+        textPrimary: '#f8fafc',
+        textMuted: '#cbd5e1',
+        border: '#1f2937',
+      },
+      shadows: {
+        card: '0 20px 60px rgba(0,0,0,0.35)',
+      },
+      gradients: {
+        hero: 'linear-gradient(120deg, rgba(0,0,0,0.82), rgba(16,24,40,0.72))',
+      },
+    },
+  },
+];
+
+const applyThemePreset = (tokens: Partial<ThemeTokens>) => {
+  const next = mergeThemeTokens(themeTokens.value, tokens);
+  scheduleSave({ themeTokens: next });
+};
+
+const setThemeColor = (key: keyof ThemeTokens['colors'], value: string | null) => {
+  if (!value) return;
+  const next = mergeThemeTokens(themeTokens.value, { colors: { [key]: value } as any });
+  scheduleSave({ themeTokens: next });
 };
 
 const mergeRules = (
@@ -120,12 +175,47 @@ const mergeRules = (
   ...(patch ?? {}),
 });
 
+const mergeThemeTokens = (
+  base: ThemeTokens | undefined,
+  patch?: Partial<ThemeTokens>,
+): ThemeTokens => ({
+  ...(base ?? DEFAULT_WEBSITE_THEME),
+  ...(patch ?? {}),
+  colors: {
+    ...(base?.colors ?? DEFAULT_WEBSITE_THEME.colors),
+    ...(patch?.colors ?? {}),
+  },
+  typography: {
+    ...(base?.typography ?? DEFAULT_WEBSITE_THEME.typography),
+    ...(patch?.typography ?? {}),
+  },
+  radii: {
+    ...(base?.radii ?? DEFAULT_WEBSITE_THEME.radii),
+    ...(patch?.radii ?? {}),
+  },
+  shadows: {
+    ...(base?.shadows ?? DEFAULT_WEBSITE_THEME.shadows),
+    ...(patch?.shadows ?? {}),
+  },
+  spacing: {
+    ...(base?.spacing ?? DEFAULT_WEBSITE_THEME.spacing),
+    ...(patch?.spacing ?? {}),
+  },
+  gradients: {
+    ...(base?.gradients ?? DEFAULT_WEBSITE_THEME.gradients),
+    ...(patch?.gradients ?? {}),
+  },
+});
+
 const mergeSettings = (current: BusinessSettings, patch: SettingsPatch): BusinessSettings => ({
   ...current,
   ...patch,
   defaultBookingRules: patch.defaultBookingRules
     ? mergeRules(current.defaultBookingRules, patch.defaultBookingRules)
     : current.defaultBookingRules,
+  themeTokens: patch.themeTokens
+    ? mergeThemeTokens(current.themeTokens ?? DEFAULT_WEBSITE_THEME, patch.themeTokens)
+    : current.themeTokens ?? DEFAULT_WEBSITE_THEME,
 });
 
 const mergePending = (current: SettingsPatch, patch: SettingsPatch): SettingsPatch => {
@@ -134,6 +224,14 @@ const mergePending = (current: SettingsPatch, patch: SettingsPatch): SettingsPat
     next.defaultBookingRules = mergeRules(
       current.defaultBookingRules || (settings.value?.defaultBookingRules ?? defaultRules),
       patch.defaultBookingRules,
+    );
+  }
+  if (patch.themeTokens) {
+    next.themeTokens = mergeThemeTokens(
+      current.themeTokens as ThemeTokens | undefined ??
+        settings.value?.themeTokens ??
+        DEFAULT_WEBSITE_THEME,
+      patch.themeTokens,
     );
   }
   return next;
@@ -388,6 +486,87 @@ onMounted(loadSettings);
               >
                 High-Contrast
               </ElButton>
+            </div>
+          </div>
+
+          <div class="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="text-sm font-semibold text-slate-900">Website theme tokens</div>
+                <div class="text-xs text-slate-600">Colors power the public site + booking. Safe presets only.</div>
+              </div>
+              <div class="flex gap-2">
+                <ElButton size="small" @click="applyThemePreset(themePresets[0].tokens)">Light</ElButton>
+                <ElButton size="small" @click="applyThemePreset(themePresets[1].tokens)">Luxury Dark</ElButton>
+              </div>
+            </div>
+            <div class="grid gap-3 md:grid-cols-3">
+              <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
+                <div>
+                  <div class="text-sm font-semibold text-slate-900">Primary</div>
+                  <div class="text-xs text-slate-600">Buttons & accents</div>
+                </div>
+                <ElColorPicker
+                  :model-value="themeTokens.colors.primary"
+                  :show-alpha="false"
+                  @change="(val: string) => setThemeColor('primary', val)"
+                />
+              </div>
+              <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
+                <div>
+                  <div class="text-sm font-semibold text-slate-900">Secondary</div>
+                  <div class="text-xs text-slate-600">Subtle highlights</div>
+                </div>
+                <ElColorPicker
+                  :model-value="themeTokens.colors.secondary"
+                  :show-alpha="false"
+                  @change="(val: string) => setThemeColor('secondary', val)"
+                />
+              </div>
+              <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
+                <div>
+                  <div class="text-sm font-semibold text-slate-900">Background</div>
+                  <div class="text-xs text-slate-600">Page base</div>
+                </div>
+                <ElColorPicker
+                  :model-value="themeTokens.colors.background"
+                  :show-alpha="false"
+                  @change="(val: string) => setThemeColor('background', val)"
+                />
+              </div>
+              <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
+                <div>
+                  <div class="text-sm font-semibold text-slate-900">Surface</div>
+                  <div class="text-xs text-slate-600">Cards</div>
+                </div>
+                <ElColorPicker
+                  :model-value="themeTokens.colors.surface"
+                  :show-alpha="false"
+                  @change="(val: string) => setThemeColor('surface', val)"
+                />
+              </div>
+              <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
+                <div>
+                  <div class="text-sm font-semibold text-slate-900">Text primary</div>
+                  <div class="text-xs text-slate-600">Headings/body</div>
+                </div>
+                <ElColorPicker
+                  :model-value="themeTokens.colors.textPrimary"
+                  :show-alpha="false"
+                  @change="(val: string) => setThemeColor('textPrimary', val)"
+                />
+              </div>
+              <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
+                <div>
+                  <div class="text-sm font-semibold text-slate-900">Muted</div>
+                  <div class="text-xs text-slate-600">Subtext</div>
+                </div>
+                <ElColorPicker
+                  :model-value="themeTokens.colors.textMuted"
+                  :show-alpha="false"
+                  @change="(val: string) => setThemeColor('textMuted', val)"
+                />
+              </div>
             </div>
           </div>
 

@@ -23,19 +23,77 @@
   padding-right: var(--sf-container-padding);
 }
 
+.sf-section {
+  padding-top: var(--sf-section-pad-desktop);
+  padding-bottom: var(--sf-section-pad-desktop);
+}
+
+@media (max-width: 1024px) {
+  .sf-section {
+    padding-top: var(--sf-section-pad-tablet);
+    padding-bottom: var(--sf-section-pad-tablet);
+  }
+}
+
+@media (max-width: 640px) {
+  .sf-section {
+    padding-top: var(--sf-section-pad-mobile);
+    padding-bottom: var(--sf-section-pad-mobile);
+  }
+}
+
 :root {
+  /* Theme tokens (overridden by admin theme adapter) */
+  --sf-primary: #0ea5e9;
+  --sf-primary-rgb: 14 165 233;
+  --sf-secondary: #22c55e;
+  --sf-secondary-rgb: 34 197 94;
+  --sf-accent: #f59e0b;
+  --sf-accent-rgb: 245 158 11;
+  --sf-bg: #f8fafc;
+  --sf-surface: #ffffff;
+  --sf-surface-muted: #f1f5f9;
+  --sf-text: #0f172a;
+  --sf-text-primary: #0f172a;
+  --sf-text-muted: #475569;
+  --sf-border: #e2e8f0;
+  --sf-text-rgb: 15 23 42;
+  --sf-muted-rgb: 71 85 105;
+  --sf-bg-rgb: 248 250 252;
+  --sf-surface-rgb: 255 255 255;
+  --sf-border-rgb: 226 232 240;
+
+  --sf-font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-scale-base: 1.05;
   --ui-font-scale: var(--font-scale-base);
+  --sf-font-size-base: 16px;
   --font-xs: calc(12px * var(--ui-font-scale));
   --font-sm: calc(13px * var(--ui-font-scale));
   --font-md: calc(14px * var(--ui-font-scale));
   --font-lg: calc(16px * var(--ui-font-scale));
   --font-xl: calc(18px * var(--ui-font-scale));
   --font-2xl: calc(20px * var(--ui-font-scale));
-  --ui-font-family: 'Space Grotesk', 'Inter', system-ui, -apple-system, BlinkMacSystemFont,
-    'Segoe UI', sans-serif;
-  --text-color: #0b1220;
-  --muted-text: #475569;
+  --sf-font-weight-heading: 700;
+  --sf-font-weight-body: 500;
+  --ui-font-family: var(--sf-font-family);
+
+  --sf-radius-sm: 8px;
+  --sf-radius-md: 12px;
+  --sf-radius-lg: 16px;
+  --sf-radius-xl: 22px;
+  --sf-radius-full: 9999px;
+  --sf-radius: var(--sf-radius-md);
+  --sf-shadow-card: 0 12px 30px rgba(15, 23, 42, 0.12);
+  --sf-shadow: var(--sf-shadow-card);
+
+  --sf-section-pad-desktop: 80px;
+  --sf-section-pad-tablet: 64px;
+  --sf-section-pad-mobile: 40px;
+  --sf-hero-gradient: linear-gradient(135deg, rgba(12, 18, 32, 0.85), rgba(12, 18, 32, 0.35));
+  --sf-card-gradient: linear-gradient(180deg, rgba(15, 23, 42, 0.04), rgba(15, 23, 42, 0));
+
+  --text-color: var(--sf-text-primary);
+  --muted-text: var(--sf-text-muted);
   --bg-app: radial-gradient(circle at 12% 18%, rgba(14, 165, 233, 0.12), transparent 28%),
     radial-gradient(circle at 86% 12%, rgba(56, 189, 248, 0.1), transparent 26%),
     linear-gradient(180deg, #f8fafc 0%, #eef2ff 50%, #f8fafc 100%);
@@ -48,9 +106,6 @@
   --glass-saturate: 160%;
   --glass-shadow: 0 8px 30px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.25);
   --kiosk-glass-bg: rgba(176, 189, 231, 0.35);
-  /* --kiosk-glass-border: rgba(255, 255, 255, 0.18); */
-  /* --kiosk-glass-bg: rgba(255, 255, 255, 0.65); */
-  /* test ` `*/
   --kiosk-glass-border: rgba(148, 163, 184, 0.25);
   --kiosk-glass-blur: 22px;
   --kiosk-glass-saturate: 160%;
@@ -61,18 +116,23 @@
   --brand-logo-radius: 14px;
   --brand-logo-padding: 8px;
   --brand-logo-shadow: 0 12px 34px rgba(15, 23, 42, 0.14);
-  --sf-primary: #0ea5e9;
-  --sf-bg: #f8fafc;
-  --sf-text: #0f172a;
-  --sf-radius: 14px;
-  --sf-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
-  --sf-text-muted: #475569;
   --green-money: #16a34a;
   --green-light: #22c55e;
   --amber-light: #f5a524;
   --surface-milky: #f8fafc;
+  /* Element Plus theme alignment */
+  --el-color-primary: var(--sf-primary);
+  --el-color-primary-light-3: color-mix(in srgb, var(--sf-primary) 70%, #fff);
+  --el-color-primary-light-5: color-mix(in srgb, var(--sf-primary) 50%, #fff);
+  --el-color-primary-light-7: color-mix(in srgb, var(--sf-primary) 30%, #fff);
+  --el-color-primary-light-9: color-mix(in srgb, var(--sf-primary) 10%, #fff);
+  --el-color-primary-dark-2: color-mix(in srgb, var(--sf-primary) 80%, #000);
+  --el-text-color-primary: var(--sf-text);
+  --el-text-color-secondary: var(--sf-text-muted);
+  --el-border-color: var(--sf-border);
+  --el-bg-color: var(--sf-surface);
   color: var(--text-color);
-  background-color: #f8fafc;
+  background-color: var(--sf-bg);
   font-family: var(--ui-font-family);
   text-rendering: optimizeLegibility;
 }

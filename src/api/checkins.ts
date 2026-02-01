@@ -44,6 +44,23 @@ export async function publicLookup(phoneE164: string): Promise<
 }
 
 export async function fetchServices(): Promise<ServiceOption[]> {
+  const hostHeader =
+    typeof window !== 'undefined' && window.location.host
+      ? { 'x-website-host': window.location.host }
+      : undefined;
+  const websiteRes = await fetch(apiUrl('/public/website/services'), {
+    headers: { ...(hostHeader || {}) },
+  });
+  if (websiteRes.ok) {
+    const grouped = await websiteRes.json();
+    return grouped.flatMap((group: any) =>
+      (group.services || []).map((svc: any) => ({
+        id: svc.id,
+        name: svc.name,
+      })),
+    );
+  }
+
   const res = await fetch(apiUrl('/public/services'), {
     headers: buildHeaders({ json: true, tenant: true }),
   });
@@ -71,6 +88,19 @@ export async function fetchGroupedServices(): Promise<
     }>;
   }>
 > {
+  const hostHeader =
+    typeof window !== 'undefined' && window.location.host
+      ? { 'x-website-host': window.location.host }
+      : undefined;
+
+  const websiteRes = await fetch(apiUrl('/public/website/services'), {
+    headers: { ...(hostHeader || {}) },
+  });
+
+  if (websiteRes.ok) {
+    return websiteRes.json();
+  }
+
   const res = await fetch(apiUrl('/public/services-grouped'), {
     headers: buildHeaders({ json: true, tenant: true }),
   });
