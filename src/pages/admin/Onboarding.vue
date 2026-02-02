@@ -16,7 +16,8 @@ const timezone = ref(DEFAULT_TIMEZONE);
 const rawLiveDomain =
   (import.meta.env.VITE_PUBLIC_APP_DOMAIN as string | undefined)?.replace(/^\s+|\s+$/g, '') ||
   'salonflow.app';
-const liveDomain = rawLiveDomain.replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+// If the env value includes a leading www, strip it because we prepend the tenant subdomain.
+const liveDomain = rawLiveDomain.replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/+$/, '');
 
 const timezoneOptions = [
   { value: 'America/New_York', label: 'America/New_York (Eastern)' },
