@@ -900,7 +900,7 @@ const footerView = computed(() => {
           <div
           v-for="(card, idx) in serviceCards"
           :key="idx"
-          class="relative overflow-hidden rounded-2xl border border-border bg-surface shadow-lg service-tilt"
+          class="relative overflow-hidden rounded-2xl border border-border bg-white shadow-lg service-tilt"
           >
             <div class="absolute inset-0 services-card-glow"></div>
             <picture v-if="card.img?.src" class="block">
@@ -1156,8 +1156,12 @@ const footerView = computed(() => {
   box-shadow: 0 18px 38px rgba(0, 0, 0, 0.12);
 }
 .services-card-glow {
-  background: color-mix(in srgb, var(--sf-primary, #0ea5e9) 14%, transparent);
-  filter: blur(36px);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--sf-text, #0f172a) 6%, transparent) 0%,
+    color-mix(in srgb, var(--sf-text, #0f172a) 4%, transparent) 100%
+  );
+  filter: blur(28px);
   pointer-events: none;
 }
 </style>
