@@ -207,6 +207,7 @@ const sidebarGroups = computed(() => [
       { label: 'SMS', name: 'admin-sms', icon: '💬', roles: ['OWNER'] },
       { label: 'Inbox', name: 'admin-inbox', icon: '📥', roles: ['OWNER', 'STAFF'] },
       { label: 'Smart Reminders', name: 'admin-smart-reminders', icon: '📣', roles: ['OWNER'] },
+      { label: 'Promotions', name: 'admin-promotions', icon: '🏷️', roles: ['OWNER'] },
       { label: 'Notifications', name: 'admin-notifications', icon: '🔔', roles: ['OWNER'] },
       { label: 'Website', name: 'admin-website', icon: '🌐', roles: ['OWNER'] },
       { label: 'Website Navigation', name: 'admin-website-navigation', icon: '🧭', roles: ['OWNER'] },
