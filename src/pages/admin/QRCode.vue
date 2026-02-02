@@ -36,6 +36,12 @@ const addItem = (partial: Partial<QrItem>) => {
   });
 };
 
+const updateItem = (key: QrItem['key'], partial: Partial<QrItem>) => {
+  const item = items.value.find((i) => i.key === key);
+  if (!item) return;
+  Object.assign(item, partial);
+};
+
 const buildBaseOrigin = (subdomain: string | null) => {
   if (typeof window === 'undefined') return '';
   const host = window.location.hostname;
@@ -75,15 +81,9 @@ const loadCoreLinks = async (origin: string) => {
     });
     try {
       const { qrDataUrl, posterDataUrl } = await generateQr(link, `Scan for ${p.title}`);
-      Object.assign(
-        items.value.find((i) => i.key === p.key),
-        { qrDataUrl, posterDataUrl, loading: false },
-      );
+      updateItem(p.key, { qrDataUrl, posterDataUrl, loading: false });
     } catch (err) {
-      Object.assign(
-        items.value.find((i) => i.key === p.key),
-        { loading: false, disabledReason: 'Failed to generate QR' },
-      );
+      updateItem(p.key, { loading: false, disabledReason: 'Failed to generate QR' });
     }
   }
 };
@@ -104,20 +104,17 @@ const loadReview = async () => {
       caption: 'Scan to leave a review',
       footer: 'Powered by SalonFlow',
     });
-    Object.assign(
-      items.value.find((i) => i.key === 'review'),
-      {
-        link: reviewQr.reviewLink,
-        qrDataUrl: reviewQr.qrDataUrl,
-        posterDataUrl,
-        loading: false,
-      },
-    );
+    updateItem('review', {
+      link: reviewQr.reviewLink,
+      qrDataUrl: reviewQr.qrDataUrl,
+      posterDataUrl,
+      loading: false,
+    });
   } catch (err) {
-    Object.assign(
-      items.value.find((i) => i.key === 'review'),
-      { loading: false, disabledReason: 'Add your Google review link in Review SMS to enable this QR.' },
-    );
+    updateItem('review', {
+      loading: false,
+      disabledReason: 'Add your Google review link in Review SMS to enable this QR.',
+    });
   }
 };
 
@@ -136,18 +133,12 @@ const loadFacebook = async () => {
       throw new Error('No Facebook page configured');
     }
     const { qrDataUrl, posterDataUrl } = await generateQr(fb, 'Scan to visit our Facebook page');
-    Object.assign(
-      items.value.find((i) => i.key === 'facebook'),
-      { link: fb, qrDataUrl, posterDataUrl, loading: false },
-    );
+    updateItem('facebook', { link: fb, qrDataUrl, posterDataUrl, loading: false });
   } catch (err: any) {
-    Object.assign(
-      items.value.find((i) => i.key === 'facebook'),
-      {
-        loading: false,
-        disabledReason: 'Set your Facebook page URL in Website > Footer > Social to generate this QR.',
-      },
-    );
+    updateItem('facebook', {
+      loading: false,
+      disabledReason: 'Set your Facebook page URL in Website > Footer > Social to generate this QR.',
+    });
   }
 };
 

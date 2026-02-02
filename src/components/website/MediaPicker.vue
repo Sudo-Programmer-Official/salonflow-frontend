@@ -19,6 +19,8 @@ const emit = defineEmits(['update:modelValue']);
 const open = ref(false);
 const uploading = ref(false);
 const media = ref<WebsiteMedia[]>([]);
+const inflight = ref(0);
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB each
 
 const selectedCount = computed(() => props.modelValue?.length || 0);
 const selectionSummary = computed(() => {
@@ -59,11 +61,18 @@ const remove = (index: number) => {
 
 const handleUpload = async (opts: UploadRequestOptions) => {
   const file = opts.file as File;
+  if (file.size > MAX_FILE_SIZE) {
+    const err = new Error('File exceeds 50MB limit');
+    ElMessage.error(err.message);
+    opts.onError?.(err as any);
+    return;
+  }
   const form = new FormData();
   form.append('file', file);
   if (props.target) {
     form.append('target', JSON.stringify(props.target));
   }
+  inflight.value += 1;
   uploading.value = true;
   try {
     const uploaded = await uploadWebsiteMedia(form);
@@ -74,7 +83,8 @@ const handleUpload = async (opts: UploadRequestOptions) => {
     ElMessage.error(err?.message || 'Upload failed');
     opts.onError?.(err as any);
   } finally {
-    uploading.value = false;
+    inflight.value -= 1;
+    uploading.value = inflight.value > 0;
   }
 };
 
@@ -168,6 +178,7 @@ const toUrl = (
           :http-request="handleUpload"
           :show-file-list="false"
           accept="image/*,video/*"
+          multiple
           :disabled="uploading"
         >
           <ElButton :loading="uploading" type="primary">Upload</ElButton>
