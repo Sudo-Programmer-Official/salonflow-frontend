@@ -72,16 +72,16 @@ const legal = computed(() => props.footer?.legal || {});
 const hasLocation = computed(() => locationLines.value.length > 0);
 const hasContact = computed(() => contact.value?.phone || contact.value?.email);
 const hasHours = computed(() => hours.value.length > 0);
-const hasSocial =
-  computed(() => social.value?.instagram || social.value?.facebook || social.value?.google).value;
-const hasLegal =
-  computed(
-    () =>
-      legal.value?.showPrivacy !== false ||
-      legal.value?.showTerms !== false ||
-      legal.value?.showDataDeletion !== false ||
-      legal.value?.copyrightText,
-  ).value;
+const hasSocial = computed(
+  () => !!(social.value?.instagram || social.value?.facebook || social.value?.google),
+);
+const hasLegal = computed(
+  () =>
+    legal.value?.showPrivacy !== false ||
+    legal.value?.showTerms !== false ||
+    legal.value?.showDataDeletion !== false ||
+    !!legal.value?.copyrightText,
+);
 
 const currentYear = new Date().getFullYear();
 </script>
@@ -265,8 +265,8 @@ const currentYear = new Date().getFullYear();
   bottom: 0;
   padding: 12px 0 14px;
   border-top: 1px solid rgba(15, 23, 42, 0.08);
-  background: color-mix(in srgb, var(--sf-bg, #0f172a) 10%, #ffffff 90%);
-  backdrop-filter: blur(6px);
+  background: color-mix(in srgb, var(--sf-bg, #0f172a) 6%, #ffffff 94%);
+  backdrop-filter: blur(4px);
 }
 
 .sf-footer__strip-inner {
