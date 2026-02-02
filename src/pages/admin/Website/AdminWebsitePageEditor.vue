@@ -11,6 +11,7 @@ import {
   ElMessage,
 } from 'element-plus';
 import { fetchWebsitePages, upsertWebsitePage, type WebsitePage } from '../../../api/website';
+import { clearWebsiteCache } from '../../../composables/useWebsite';
 import MediaPicker from '../../../components/website/MediaPicker.vue';
 
 const route = useRoute();
@@ -178,6 +179,7 @@ const save = async (publish: boolean) => {
       seo: page.value?.seo || {},
       published: publish,
     });
+    clearWebsiteCache(locale.value as 'en' | 'es');
     page.value = saved;
     form.value.published = saved.published;
     ElMessage.success(publish ? 'Published' : 'Saved as draft');
