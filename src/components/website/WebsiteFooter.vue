@@ -116,20 +116,37 @@ const currentYear = new Date().getFullYear();
       <div v-if="hasSocial" class="sf-footer__card">
         <div class="sf-footer__label">Follow Us</div>
         <div class="sf-footer__social">
-          <a v-if="social.instagram" :href="social.instagram" target="_blank" rel="noopener">Instagram</a>
-          <a v-if="social.facebook" :href="social.facebook" target="_blank" rel="noopener">Facebook</a>
-          <a v-if="social.google" :href="social.google" target="_blank" rel="noopener">Google</a>
+          <a v-if="social.instagram" :href="social.instagram" target="_blank" rel="noopener" aria-label="Instagram">
+            <span class="sf-footer__pill">IG</span> Instagram
+          </a>
+          <a v-if="social.facebook" :href="social.facebook" target="_blank" rel="noopener" aria-label="Facebook">
+            <span class="sf-footer__pill">f</span> Facebook
+          </a>
+          <a v-if="social.google" :href="social.google" target="_blank" rel="noopener" aria-label="Google">
+            <span class="sf-footer__pill">G</span> Google
+          </a>
+          <a
+            v-if="social.google"
+            :href="social.google"
+            target="_blank"
+            rel="noopener"
+            class="sf-footer__review"
+          >
+            ★ Review us on Google
+          </a>
         </div>
       </div>
     </div>
     <div v-if="hasLegal" class="sf-footer__strip">
-      <div class="sf-footer__links">
-        <a v-if="legal?.showPrivacy !== false" href="/privacy">Privacy</a>
-        <a v-if="legal?.showTerms !== false" href="/terms">Terms</a>
-        <a v-if="legal?.showDataDeletion !== false" href="/data-deletion">Data Deletion</a>
-      </div>
-      <div class="sf-footer__copy">
-        {{ legal?.copyrightText || `© ${currentYear} SalonFlow` }}
+      <div class="sf-container sf-footer__strip-inner">
+        <div class="sf-footer__links">
+          <a v-if="legal?.showPrivacy !== false" href="/privacy">Privacy</a>
+          <a v-if="legal?.showTerms !== false" href="/terms">Terms</a>
+          <a v-if="legal?.showDataDeletion !== false" href="/data-deletion">Data Deletion</a>
+        </div>
+        <div class="sf-footer__copy">
+          {{ legal?.copyrightText || `© ${currentYear} SalonFlow` }}
+        </div>
       </div>
     </div>
   </footer>
@@ -211,6 +228,20 @@ const currentYear = new Date().getFullYear();
 .sf-footer__social a:hover {
   text-decoration: underline;
 }
+.sf-footer__pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 9999px;
+  background: rgba(15, 23, 42, 0.08);
+  font-size: 12px;
+  margin-right: 6px;
+}
+.sf-footer__review {
+  font-weight: 700;
+}
 .sf-footer__legal {
   display: flex;
   flex-direction: column;
@@ -232,14 +263,17 @@ const currentYear = new Date().getFullYear();
 .sf-footer__strip {
   position: sticky;
   bottom: 0;
-  padding: 14px 0 18px;
+  padding: 12px 0 14px;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  background: color-mix(in srgb, var(--sf-bg, #0f172a) 10%, #ffffff 90%);
+  backdrop-filter: blur(6px);
+}
+
+.sf-footer__strip-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  border-top: 1px solid rgba(15, 23, 42, 0.08);
-  background: color-mix(in srgb, var(--sf-bg, #0f172a) 10%, #ffffff 90%);
-  backdrop-filter: blur(6px);
 }
 
 .sf-footer__strip .sf-footer__links {
