@@ -41,6 +41,7 @@ const form = ref({
   faq: [{ question: '', answer: '' }],
   address: '',
   phone: '',
+  email: '',
   hours: '',
   contactNotes: '',
   contactPolicies: '',
@@ -85,6 +86,7 @@ const load = async () => {
         : [{ question: '', answer: '' }];
       form.value.address = c.contact?.address || '';
       form.value.phone = c.contact?.phone || '';
+      form.value.email = c.contact?.email || '';
       form.value.hours = c.contact?.hours || '';
       form.value.contactNotes = c.contact?.notes || c.contact?.parking || '';
       form.value.contactPolicies = c.contact?.policies || c.contact?.policy || '';
@@ -164,6 +166,7 @@ const save = async (publish: boolean) => {
       contact: {
         address: form.value.address,
         phone: form.value.phone,
+        email: form.value.email,
         hours: form.value.hours,
         notes: form.value.contactNotes || '',
         policies: form.value.contactPolicies || '',
@@ -336,6 +339,9 @@ const goBack = () =>
         </ElFormItem>
         <ElFormItem label="Phone">
           <ElInput v-model="form.phone" />
+        </ElFormItem>
+        <ElFormItem label="Email">
+          <ElInput v-model="form.email" type="email" placeholder="you@example.com" />
         </ElFormItem>
         <ElFormItem label="Hours">
           <ElInput v-model="form.hours" />
