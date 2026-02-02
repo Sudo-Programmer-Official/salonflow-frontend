@@ -176,11 +176,7 @@ const currentServicesHero = computed(
   () => servicesHeroImages.value[heroSlideIndex.value % (servicesHeroImages.value.length || 1)] || null,
 );
 
-const homeHeroBg = computed(() => {
-  if (!isHomePage.value) return null;
-  const src = currentHeroSlide.value?.src || heroMedia.value?.src;
-  return src || null;
-});
+const heroBg = computed(() => currentHeroSlide.value?.src || heroMedia.value?.src || null);
 const aboutImage = computed(() => currentHeroSlide.value || heroMedia.value || resolvedGallery.value[0] || null);
 const aboutValues = computed(() => {
   const vals = page.value?.content?.values;
@@ -709,11 +705,11 @@ const footerView = computed(() => {
 
       <section
         v-else
-        class="sf-section home-hero"
-        :class="{ 'home-hero--bg': !!homeHeroBg }"
+        class="sf-section page-hero"
+        :class="{ 'page-hero--bg': !!heroBg }"
         :style="
-          homeHeroBg
-            ? { backgroundImage: `linear-gradient(135deg, rgba(7,12,24,0.82), rgba(7,12,24,0.42)), url(${homeHeroBg})` }
+          heroBg
+            ? { backgroundImage: `linear-gradient(135deg, rgba(7,12,24,0.82), rgba(7,12,24,0.42)), url(${heroBg})` }
             : undefined
         "
       >
@@ -1194,13 +1190,30 @@ const footerView = computed(() => {
   background-size: cover;
   background-position: center;
 }
-.home-hero :deep(.text-text) {
+.page-hero {
+  position: relative;
+  padding-top: 72px;
+  padding-bottom: 72px;
+  background: linear-gradient(135deg, #0b1220, #101826);
+  color: var(--sf-text, #0f172a);
+  overflow: hidden;
+}
+.page-hero--bg {
+  background-size: cover;
+  background-position: center;
   color: #fff;
 }
-.home-hero :deep(.text-muted) {
+.page-hero--bg :deep(.text-text),
+.page-hero--bg :deep(.text-muted),
+.page-hero--bg h1,
+.page-hero--bg h2,
+.page-hero--bg p {
+  color: #fff;
+}
+.page-hero--bg :deep(.text-muted) {
   color: rgba(255, 255, 255, 0.82);
 }
-.home-hero .hero-frame {
+.page-hero--bg .hero-frame {
   border-color: rgba(255, 255, 255, 0.12);
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
 }
