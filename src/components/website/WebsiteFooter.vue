@@ -82,6 +82,8 @@ const hasLegal =
       legal.value?.showDataDeletion !== false ||
       legal.value?.copyrightText,
   ).value;
+
+const currentYear = new Date().getFullYear();
 </script>
 
 <template>
@@ -119,16 +121,15 @@ const hasLegal =
           <a v-if="social.google" :href="social.google" target="_blank" rel="noopener">Google</a>
         </div>
       </div>
-
-      <div v-if="hasLegal" class="sf-footer__card sf-footer__legal">
-        <div class="sf-footer__links">
-          <a v-if="legal?.showPrivacy !== false" href="/privacy">Privacy</a>
-          <a v-if="legal?.showTerms !== false" href="/terms">Terms</a>
-          <a v-if="legal?.showDataDeletion !== false" href="/data-deletion">Data Deletion</a>
-        </div>
-        <div class="sf-footer__copy">
-          {{ legal?.copyrightText || `© ${new Date().getFullYear()} SalonFlow` }}
-        </div>
+    </div>
+    <div v-if="hasLegal" class="sf-footer__strip">
+      <div class="sf-footer__links">
+        <a v-if="legal?.showPrivacy !== false" href="/privacy">Privacy</a>
+        <a v-if="legal?.showTerms !== false" href="/terms">Terms</a>
+        <a v-if="legal?.showDataDeletion !== false" href="/data-deletion">Data Deletion</a>
+      </div>
+      <div class="sf-footer__copy">
+        {{ legal?.copyrightText || `© ${currentYear} SalonFlow` }}
       </div>
     </div>
   </footer>
@@ -136,9 +137,9 @@ const hasLegal =
 
 <style scoped>
 .sf-footer {
-  background: color-mix(in srgb, var(--sf-bg, #0f172a) 6%, #0b1220 4%);
+  background: color-mix(in srgb, var(--sf-bg, #0f172a) 4%, #0b1220 2%);
   color: var(--sf-text, #0f172a);
-  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  border-top: 1px solid rgba(15, 23, 42, 0.06);
   margin-top: 64px;
 }
 .sf-footer__shell {
@@ -190,8 +191,8 @@ const hasLegal =
 }
 .sf-footer__link {
   display: block;
-  color: var(--sf-primary, #0ea5e9);
-  font-weight: 700;
+  color: var(--sf-text, #0f172a);
+  font-weight: 600;
   text-decoration: none;
 }
 .sf-footer__link:hover {
@@ -203,8 +204,8 @@ const hasLegal =
   gap: 10px;
 }
 .sf-footer__social a {
-  color: var(--sf-primary, #0ea5e9);
-  font-weight: 700;
+  color: var(--sf-text, #0f172a);
+  font-weight: 600;
   text-decoration: none;
 }
 .sf-footer__social a:hover {
@@ -221,11 +222,28 @@ const hasLegal =
   font-weight: 700;
 }
 .sf-footer__links a {
-  color: rgba(15, 23, 42, 0.7);
+  color: rgba(15, 23, 42, 0.78);
 }
 .sf-footer__copy {
   font-size: 12px;
   color: rgba(15, 23, 42, 0.7);
+}
+
+.sf-footer__strip {
+  position: sticky;
+  bottom: 0;
+  padding: 14px 0 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  background: color-mix(in srgb, var(--sf-bg, #0f172a) 10%, #ffffff 90%);
+  backdrop-filter: blur(6px);
+}
+
+.sf-footer__strip .sf-footer__links {
+  gap: 14px;
 }
 
 @media (min-width: 640px) {
