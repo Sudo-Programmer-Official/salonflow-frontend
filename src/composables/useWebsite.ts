@@ -89,6 +89,15 @@ export function useWebsite(locale: 'en' | 'es') {
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || 'Website not found');
       data.value = body;
+      // Persist tenant subdomain so public API calls (services v2, etc.) work even on custom domains
+      if (typeof window !== 'undefined') {
+        const defaultDomain = body?.site?.default_domain as string | undefined;
+        const subdomain = defaultDomain?.replace(/^https?:\/\//, '')?.split('.')?.[0];
+        if (subdomain) {
+          localStorage.setItem('tenantSubdomain', subdomain);
+          localStorage.setItem('tenantId', subdomain);
+        }
+      }
       applyWebsiteTheme(body.themeTokens || null);
       if (!isPreview) {
         cache[locale] = body;

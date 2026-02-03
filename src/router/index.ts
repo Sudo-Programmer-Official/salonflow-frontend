@@ -48,6 +48,7 @@ import AdminWebsiteLeadsPage from "../pages/admin/Website/AdminWebsiteLeads.vue"
 import AdminWebsiteAnalyticsPage from "../pages/admin/Website/AdminWebsiteAnalytics.vue";
 import AdminWebsiteNavigationPage from "../pages/admin/Website/AdminWebsiteNavigation.vue";
 import AdminWebsiteFooterPage from "../pages/admin/Website/AdminWebsiteFooter.vue";
+import AdminServicesV2Page from "../pages/admin/ServicesV2/ServicesIndex.vue";
 import AdminReviewsSettingsPage from "../pages/admin/Reviews/AdminReviewsSettings.vue";
 import AdminReviewsRequestsPage from "../pages/admin/Reviews/AdminReviewsRequests.vue";
 import AdminReviewsFeedbackPage from "../pages/admin/Reviews/AdminReviewsFeedback.vue";
@@ -307,6 +308,12 @@ const appRoutes = [
         path: "services",
         name: "admin-services",
         component: AdminServicesPage,
+        meta: { requiresAuth: true, roles: ["OWNER"] },
+      },
+      {
+        path: "services-v2",
+        name: "admin-services-v2",
+        component: AdminServicesV2Page,
         meta: { requiresAuth: true, roles: ["OWNER"] },
       },
       {

@@ -5,7 +5,13 @@ import PublicWebsiteLayout from '../../layouts/PublicWebsiteLayout.vue';
 import { useWebsite } from '../../composables/useWebsite';
 import { apiUrl } from '../../api/client';
 import { resolveMedia } from '../../utils/resolveMedia';
-import { fetchGroupedServices } from '../../api/checkins';
+import {
+  fetchFeaturedServicesV2,
+  fetchCategoriesV2,
+  fetchCategoryV2,
+  type PublicCategory,
+  type PublicService,
+} from '../../api/servicesV2Public';
 
 const BOOKING_PATH = '/check-in/book';
 
@@ -210,32 +216,66 @@ const liveServices = ref<
     durationMinutes?: number;
     priceCents?: number;
     currency?: string;
+    categorySlug?: string;
+    serviceSlug?: string;
   }>
 >([]);
 const servicesLoading = ref(false);
 const servicesError = ref<string | null>(null);
+const categories = ref<PublicCategory[]>([]);
+const categoryServices = ref<Record<string, PublicService[]>>({});
+const categoriesLoading = ref(false);
+const categoriesError = ref<string | null>(null);
 
 const loadServices = async () => {
   if (servicesLoading.value) return;
   servicesLoading.value = true;
   servicesError.value = null;
   try {
-    const grouped = await fetchGroupedServices();
-    const flattened = grouped.flatMap((group: any) =>
-      (group.services || []).map((svc: any) => ({
-        name: svc.name,
-        description: (svc.bookingRules as any)?.short_description || null,
-        durationMinutes: svc.durationMinutes,
-        priceCents: svc.priceCents,
-        currency: svc.currency,
-      })),
-    );
-    liveServices.value = flattened;
+    const featured = await fetchFeaturedServicesV2();
+    const items = featured.services || [];
+    liveServices.value = items.map((svc: any) => ({
+      name: svc.name,
+      description: svc.shortSummary || null,
+      durationMinutes: svc.durationMinutes,
+      priceCents: svc.priceCents,
+      currency: svc.currency || 'USD',
+      categorySlug: featured.categories.find((c: any) => c.id === svc.categoryId)?.slug || '',
+      serviceSlug: svc.slug,
+    }));
   } catch (err: any) {
     servicesError.value = err?.message || 'Unable to load services';
     liveServices.value = [];
   } finally {
     servicesLoading.value = false;
+  }
+};
+
+const loadCategories = async () => {
+  if (categoriesLoading.value) return;
+  categoriesLoading.value = true;
+  categoriesError.value = null;
+  try {
+    const cats = await fetchCategoriesV2();
+    categories.value = cats;
+    const entries = await Promise.all(
+      cats.map(async (cat) => {
+        try {
+          const res = await fetchCategoryV2(cat.slug);
+          return [cat.id, res.services] as [string, PublicService[]];
+        } catch (err) {
+          console.error('Failed to load services for category', cat.slug, err);
+          return [cat.id, []] as [string, PublicService[]];
+        }
+      }),
+    );
+    categoryServices.value = Object.fromEntries(entries);
+  } catch (err: any) {
+    categoriesError.value = err?.message || 'Unable to load categories';
+    categories.value = [];
+    categoryServices.value = {};
+  } finally {
+    categoriesLoading.value = false;
   }
 };
 
@@ -297,8 +337,38 @@ const serviceCards = computed(() => {
     }>;
 });
 
+const servicesPageCategories = computed(() =>
+  categories.value.map((cat) => ({
+    ...cat,
+    services: categoryServices.value[cat.id] || [],
+  })),
+);
+
 const showServicesSection = computed(() => !isContactPage.value && serviceCards.value.length > 0);
 const showContactSection = computed(() => isHomePage.value || isContactPage.value);
+
+const serviceModal = reactive<{
+  open: boolean;
+  category: PublicCategory | null;
+  service: PublicService | null;
+}>({
+  open: false,
+  category: null,
+  service: null,
+});
+
+const openServiceModal = (categoryId: string, service: PublicService) => {
+  const cat = categories.value.find((c) => c.id === categoryId) || null;
+  serviceModal.open = true;
+  serviceModal.category = cat;
+  serviceModal.service = service;
+};
+
+const closeServiceModal = () => {
+  serviceModal.open = false;
+  serviceModal.category = null;
+  serviceModal.service = null;
+};
 
 onMounted(() => {
   const start = () => {
@@ -541,7 +611,11 @@ const submitLead = async () => {
 };
 
 onMounted(async () => {
-  await Promise.all([fetchSite(), loadServices()]);
+  await fetchSite();
+  await loadServices();
+  if (isServicesPage.value) {
+    await loadCategories();
+  }
   injectHead();
   trackEvent('page_view');
 });
@@ -550,8 +624,9 @@ watch(
   () => route.fullPath,
   async () => {
     await fetchSite();
-    if (!servicesLoading.value && liveServices.value.length === 0) {
-      loadServices();
+    await loadServices();
+    if (isServicesPage.value) {
+      await loadCategories();
     }
     injectHead();
     trackEvent('page_view');
@@ -957,6 +1032,65 @@ const footerView = computed(() => {
         </div>
       </section>
 
+      <section
+        v-if="isServicesPage"
+        id="services-list"
+        class="sf-container sf-section space-y-4"
+      >
+        <div class="flex items-center justify-between">
+          <h2 class="text-2xl font-semibold text-text">All services</h2>
+          <div v-if="categoriesLoading" class="text-sm text-muted">Loading services…</div>
+        </div>
+        <p v-if="categoriesError" class="text-sm text-rose-600">{{ categoriesError }}</p>
+        <div class="space-y-6">
+          <div
+            v-for="cat in servicesPageCategories"
+            :key="cat.id"
+            class="rounded-2xl border border-border bg-white shadow-sm overflow-hidden"
+          >
+            <div class="flex items-center justify-between px-4 py-3 border-b border-border bg-surface-muted">
+              <div>
+                <div class="text-sm uppercase tracking-wide text-muted">Category</div>
+                <h3 class="text-lg font-semibold text-text">{{ cat.name }}</h3>
+                <p v-if="cat.shortDescription" class="text-sm text-muted mt-1">
+                  {{ cat.shortDescription }}
+                </p>
+              </div>
+            </div>
+            <div
+              v-if="(categoryServices[cat.id] || []).length"
+              class="grid gap-3 md:grid-cols-2 lg:grid-cols-3 px-4 py-4"
+            >
+              <div
+                v-for="svc in categoryServices[cat.id]"
+                :key="svc.id"
+                class="rounded-xl border border-border bg-surface px-3 py-3 shadow-sm hover:-translate-y-0.5 hover:shadow-lg transition cursor-pointer"
+                @click="openServiceModal(cat.id, svc)"
+              >
+                <div class="flex items-start justify-between gap-2">
+                  <div>
+                    <div class="text-base font-semibold text-text">{{ svc.name }}</div>
+                    <div v-if="svc.shortSummary" class="text-sm text-muted mt-1 line-clamp-2">
+                      {{ svc.shortSummary }}
+                    </div>
+                  </div>
+                  <div class="text-right text-sm text-muted space-y-1">
+                    <div v-if="svc.durationMinutes">{{ svc.durationMinutes }} min</div>
+                    <div v-if="svc.priceCents !== undefined">
+                      {{ formatMoney(svc.priceCents, svc.currency || 'USD') }}
+                    </div>
+                  </div>
+                </div>
+                <div v-if="svc.featured" class="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-800 border border-amber-200">
+                  Featured
+                </div>
+              </div>
+            </div>
+            <div v-else class="px-4 py-4 text-sm text-muted">No services in this category yet.</div>
+          </div>
+        </div>
+      </section>
+
       <section v-if="showContactSection" id="contact" class="sf-container sf-section space-y-4">
         <div class="flex items-center justify-between">
           <h2 class="text-2xl font-semibold text-text">Contact</h2>
@@ -1093,6 +1227,63 @@ const footerView = computed(() => {
       <div v-if="loading" class="sf-container text-sm text-muted">Loading…</div>
       <div v-if="error" class="sf-container text-sm text-rose-600">{{ error }}</div>
     </div>
+
+    <!-- Service detail modal -->
+    <transition name="fade">
+      <div
+        v-if="serviceModal.open && serviceModal.service"
+        class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4"
+        role="dialog"
+        aria-modal="true"
+      >
+        <div class="max-w-2xl w-full bg-white rounded-2xl shadow-2xl border border-border overflow-hidden">
+          <div class="flex items-start justify-between gap-4 px-5 py-4 border-b border-border bg-surface-muted">
+            <div>
+              <div class="text-xs uppercase tracking-wide text-muted">{{ serviceModal.category?.name }}</div>
+              <div class="text-xl font-semibold text-text">{{ serviceModal.service?.name }}</div>
+            </div>
+            <button
+              class="rounded-full border border-border bg-white text-text px-3 py-1 text-sm font-semibold hover:bg-surface"
+              @click="closeServiceModal"
+            >
+              Close
+            </button>
+          </div>
+          <div class="px-5 py-4 space-y-3">
+            <div class="text-sm text-muted">
+              {{ serviceModal.service?.shortSummary || 'Detailed description coming soon.' }}
+            </div>
+            <div class="flex flex-wrap gap-3 text-sm text-text font-semibold">
+              <span v-if="serviceModal.service?.durationMinutes" class="inline-flex items-center gap-1 rounded-full bg-surface px-3 py-1 border border-border">
+                {{ serviceModal.service?.durationMinutes }} min
+              </span>
+              <span v-if="serviceModal.service?.priceCents !== undefined" class="inline-flex items-center gap-1 rounded-full bg-surface px-3 py-1 border border-border">
+                {{ formatMoney(serviceModal.service?.priceCents, serviceModal.service?.currency || 'USD') }}
+              </span>
+            </div>
+            <div v-if="serviceModal.service?.fullDescription" class="text-sm text-text leading-relaxed whitespace-pre-line">
+              {{ serviceModal.service?.fullDescription }}
+            </div>
+            <div v-if="serviceModal.service?.whatIncluded?.length" class="space-y-2">
+              <div class="text-sm font-semibold text-text">What’s included</div>
+              <ul class="list-disc list-inside text-sm text-muted space-y-1">
+                <li v-for="(item, idx) in serviceModal.service?.whatIncluded" :key="idx">
+                  {{ typeof item === 'string' ? item : item?.name || item?.title || '' }}
+                </li>
+              </ul>
+            </div>
+            <div class="pt-2">
+              <a
+                :href="bookingPath"
+                class="inline-flex items-center gap-2 rounded-full bg-text px-4 py-2 text-white text-sm font-semibold hover:bg-text/90"
+              >
+                Book now
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </transition>
   </PublicWebsiteLayout>
 </template>
 

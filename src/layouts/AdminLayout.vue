@@ -192,6 +192,7 @@ const sidebarGroups = computed(() => [
     defaultOpen: true,
     items: [
       { label: 'Services', name: 'admin-services', icon: '🛠', roles: ['OWNER'] },
+      { label: 'Services v2', name: 'admin-services-v2', icon: '🗂️', roles: ['OWNER'] },
       { label: 'Categories', name: 'admin-categories', icon: '🗂', roles: ['OWNER'] },
       { label: 'Staff', name: 'admin-staff', icon: '👩‍💼', roles: ['OWNER'] },
       { label: 'Customers', name: 'admin-customers', icon: '👥', roles: ['OWNER'] },
