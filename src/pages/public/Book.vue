@@ -92,14 +92,14 @@ const websiteFooter = computed(() => {
   return footer ? { ...footer, fallbackHoursText: footer?.contact?.hours || null } : null;
 });
 
-const tenant = computed(
-  () =>
-    (route.query.tenant as string | undefined) ||
-    (import.meta.env.VITE_TENANT_ID as string | undefined) ||
-    (typeof window !== 'undefined' ? localStorage.getItem('tenantSubdomain') ?? undefined : undefined) ||
-    (typeof window !== 'undefined' ? localStorage.getItem('tenantId') ?? undefined : undefined) ||
-    'demo',
-);
+const initialTenant = () =>
+  (route.query.tenant as string | undefined) ||
+  (import.meta.env.VITE_TENANT_ID as string | undefined) ||
+  (typeof window !== 'undefined' ? localStorage.getItem('tenantSubdomain') ?? undefined : undefined) ||
+  (typeof window !== 'undefined' ? localStorage.getItem('tenantId') ?? undefined : undefined) ||
+  undefined;
+
+const tenant = ref<string | undefined>(initialTenant());
 
 const form = reactive({
   name: '',
@@ -249,7 +249,10 @@ const loadBusiness = async () => {
 
 onMounted(async () => {
   if (useWebsiteShell.value) {
-    fetchWebsite().catch(() => undefined);
+    await fetchWebsite().catch(() => undefined);
+    // useWebsite persists default_domain -> tenantSubdomain/tenantId
+    const stored = typeof window !== 'undefined' ? localStorage.getItem('tenantSubdomain') ?? undefined : undefined;
+    if (stored) tenant.value = stored;
   }
   if (form.phone) {
     form.phone = formatDisplayPhone(form.phone);
