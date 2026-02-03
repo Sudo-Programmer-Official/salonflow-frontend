@@ -164,9 +164,11 @@ export async function updateSettings(patch: SettingsPatch): Promise<BusinessSett
 }
 
 export async function fetchPublicSettings(): Promise<BusinessSettings> {
-  const res = await fetch(apiUrl('/public/settings'), {
-    headers: buildHeaders({ tenant: true, json: true }),
-  });
+  const headers: Record<string, string> = buildHeaders({ tenant: true, json: true });
+  if (typeof window !== 'undefined' && window.location.host) {
+    headers['x-website-host'] = window.location.host;
+  }
+  const res = await fetch(apiUrl('/public/settings'), { headers });
   return handleResponse<BusinessSettings>(res, 'Failed to load settings');
 }
 

@@ -156,9 +156,13 @@ export async function createPublicAppointment(payload: {
   notes?: string;
   preferredTech?: string | null;
 }) {
+  const headers: Record<string, string> = buildHeaders({ json: true, tenant: true });
+  if (typeof window !== 'undefined' && window.location.host) {
+    headers['x-website-host'] = window.location.host;
+  }
   const res = await fetch(`${apiBase}/public`, {
     method: 'POST',
-    headers: buildHeaders({ json: true, tenant: true }),
+    headers,
     body: JSON.stringify(payload),
   });
   if (!res.ok) {

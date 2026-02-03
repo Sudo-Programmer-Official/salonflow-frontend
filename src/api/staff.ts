@@ -91,8 +91,12 @@ export async function updateStaffStatus(
 export async function fetchPublicAvailableStaff(serviceId?: string): Promise<PublicStaffResponse> {
   const url = new URL(apiUrl('/public/staff-available'), window.location.origin);
   if (serviceId) url.searchParams.set('serviceId', serviceId);
+  const headers: Record<string, string> = buildHeaders({ tenant: true, json: true });
+  if (typeof window !== 'undefined' && window.location.host) {
+    headers['x-website-host'] = window.location.host;
+  }
   const res = await fetch(url.toString(), {
-    headers: buildHeaders({ tenant: true, json: true }),
+    headers,
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));

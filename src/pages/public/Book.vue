@@ -18,7 +18,7 @@ import { fetchPublicAvailableStaff, type StaffMember } from '../../api/staff';
 import { createPublicAppointment } from '../../api/appointments';
 import { fetchPublicSettings, type BusinessSettings } from '../../api/settings';
 import { applyThemeFromSettings } from '../../utils/theme';
-import { apiUrl, buildHeaders, isPlatformHost } from '../../api/client';
+import { isPlatformHost } from '../../api/client';
 import { dayjs, getBusinessTimezone, setBusinessTimezone } from '../../utils/dates';
 import { maintenanceActive } from '../../api/maintenance';
 import { useWebsite } from '../../composables/useWebsite';
@@ -92,12 +92,19 @@ const websiteFooter = computed(() => {
   return footer ? { ...footer, fallbackHoursText: footer?.contact?.hours || null } : null;
 });
 
-const initialTenant = () =>
-  (route.query.tenant as string | undefined) ||
-  (import.meta.env.VITE_TENANT_ID as string | undefined) ||
-  (typeof window !== 'undefined' ? localStorage.getItem('tenantSubdomain') ?? undefined : undefined) ||
-  (typeof window !== 'undefined' ? localStorage.getItem('tenantId') ?? undefined : undefined) ||
-  undefined;
+const initialTenant = () => {
+  const host = typeof window !== 'undefined' ? window.location.hostname : undefined;
+  if (host && host.split('.').length >= 3 && host.endsWith('salonflow.studio')) {
+    return host.split('.')[0];
+  }
+  return (
+    (route.query.tenant as string | undefined) ||
+    (import.meta.env.VITE_TENANT_ID as string | undefined) ||
+    (typeof window !== 'undefined' ? localStorage.getItem('tenantSubdomain') ?? undefined : undefined) ||
+    (typeof window !== 'undefined' ? localStorage.getItem('tenantId') ?? undefined : undefined) ||
+    undefined
+  );
+};
 
 const tenant = ref<string | undefined>(initialTenant());
 
@@ -230,20 +237,14 @@ const loadStaff = async (serviceId?: string) => {
   }
 };
 
-const loadBusiness = async () => {
-  try {
-    const res = await fetch(
-      apiUrl(tenant.value ? `/public/tenant?tenant=${encodeURIComponent(tenant.value)}` : '/public/tenant'),
-      { headers: buildHeaders({ tenant: true }) },
-    );
-    if (res.ok) {
-      const data = await res.json();
-      businessName.value = data.name || 'Book a visit';
-      localStorage.setItem('businessName', data.name);
-      document.title = `${data.name} – Book`;
-    }
-  } catch {
-    // ignore
+const loadBusiness = () => {
+  const name =
+    websiteData.value?.site?.primary_domain ||
+    websiteData.value?.site?.default_domain ||
+    'Book a visit';
+  businessName.value = name;
+  if (typeof window !== 'undefined') {
+    document.title = `${name} – Book`;
   }
 };
 
@@ -261,8 +262,8 @@ onMounted(async () => {
     localStorage.setItem('tenantSubdomain', tenant.value);
     localStorage.setItem('tenantId', tenant.value);
   }
+  loadBusiness();
   await loadSettings();
-  await loadBusiness();
   await loadServices();
   await loadStaff();
   await nextTick();
