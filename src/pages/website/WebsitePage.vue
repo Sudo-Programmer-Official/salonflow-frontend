@@ -132,8 +132,9 @@ const mapEmbedSrc = computed(() => {
     if (/\/embed/i.test(url)) return url;
     return `${url}${url.includes('?') ? '&' : '?'}output=embed`;
   }
-  if (c.address) {
-    const q = encodeURIComponent(c.address);
+  const fallback = c.address || 'Corpus Christi, TX';
+  if (fallback) {
+    const q = encodeURIComponent(fallback);
     return `https://www.google.com/maps?&q=${q}&output=embed`;
   }
   return null;
