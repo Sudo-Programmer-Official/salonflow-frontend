@@ -88,19 +88,25 @@ function extractSubdomainFromHost(host: string): string | undefined {
 
 function getStoredTenant(): string | undefined {
   if (typeof window === 'undefined') return undefined;
-  return (
+  const stored =
     localStorage.getItem('tenantSubdomain') ||
     localStorage.getItem('tenantId') ||
     (import.meta.env.VITE_TENANT_ID as string | undefined) ||
-    undefined
-  );
+    undefined;
+  if (stored === 'demo') return undefined;
+  return stored || undefined;
 }
 
 export function getTenantId(): string | undefined {
   if (typeof window === 'undefined') return undefined;
-  const stored = getStoredTenant();
-  if (stored) return stored;
   const host = normalizeHost(window.location.hostname);
   const sub = extractSubdomainFromHost(host);
-  return sub;
+  // Prefer host-derived tenant first (prevents stale localStorage like "demo")
+  if (sub) {
+    localStorage.setItem('tenantSubdomain', sub);
+    localStorage.setItem('tenantId', sub);
+    return sub;
+  }
+  const stored = getStoredTenant();
+  return stored;
 }
