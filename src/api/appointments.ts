@@ -156,7 +156,7 @@ export async function createPublicAppointment(payload: {
   notes?: string;
   preferredTech?: string | null;
 }) {
-  const headers: Record<string, string> = buildHeaders({ json: true, tenant: true });
+  const headers: Record<string, string> = buildHeaders({ json: true });
   if (typeof window !== 'undefined' && window.location.host) {
     headers['x-website-host'] = window.location.host;
   }

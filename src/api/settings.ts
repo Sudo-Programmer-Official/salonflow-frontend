@@ -164,7 +164,7 @@ export async function updateSettings(patch: SettingsPatch): Promise<BusinessSett
 }
 
 export async function fetchPublicSettings(): Promise<BusinessSettings> {
-  const headers: Record<string, string> = buildHeaders({ tenant: true, json: true });
+  const headers: Record<string, string> = buildHeaders({ json: true });
   if (typeof window !== 'undefined' && window.location.host) {
     headers['x-website-host'] = window.location.host;
   }

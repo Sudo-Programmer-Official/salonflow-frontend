@@ -31,9 +31,13 @@ export async function publicLookup(phoneE164: string): Promise<
       };
     }
 > {
+  const headers: Record<string, string> = buildHeaders({ json: true });
+  if (typeof window !== 'undefined' && window.location.host) {
+    headers['x-website-host'] = window.location.host;
+  }
   const res = await fetch(apiUrl('/checkins/public/lookup'), {
     method: 'POST',
-    headers: buildHeaders({ json: true, tenant: true }),
+    headers,
     body: JSON.stringify({ phoneE164 }),
   });
   if (!res.ok) {
@@ -62,7 +66,7 @@ export async function fetchServices(): Promise<ServiceOption[]> {
   }
 
   const res = await fetch(apiUrl('/public/services'), {
-    headers: buildHeaders({ json: true, tenant: true }),
+    headers: buildHeaders({ json: true }),
   });
 
   if (!res.ok) {
@@ -102,7 +106,7 @@ export async function fetchGroupedServices(): Promise<
   }
 
   const res = await fetch(apiUrl('/public/services-grouped'), {
-    headers: buildHeaders({ json: true, tenant: true }),
+    headers: buildHeaders({ json: true }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -112,9 +116,13 @@ export async function fetchGroupedServices(): Promise<
 }
 
 export async function createPublicCheckIn(payload: CreateCheckInPayload) {
+  const headers: Record<string, string> = buildHeaders({ json: true });
+  if (typeof window !== 'undefined' && window.location.host) {
+    headers['x-website-host'] = window.location.host;
+  }
   const res = await fetch(apiUrl('/checkins/public'), {
     method: 'POST',
-    headers: buildHeaders({ json: true, tenant: true }),
+    headers,
     body: JSON.stringify(payload),
   });
 
