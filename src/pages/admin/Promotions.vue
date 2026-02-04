@@ -14,6 +14,8 @@ import {
   ElRadioGroup,
   ElRadioButton,
   ElTooltip,
+  ElSelect,
+  ElOption,
 } from 'element-plus';
 import {
   fetchPromotions,
@@ -52,6 +54,8 @@ const aiLoading = ref(false);
 const aiSuggestions = ref<string[]>([]);
 const aiTone = ref<'FRIENDLY' | 'URGENT' | 'PREMIUM' | 'CASUAL'>('FRIENDLY');
 const aiShort = ref(false);
+const wizardStep = ref(1);
+const totalSteps = 4;
 
 const promotions = ref<Promotion[]>([]);
 const statsMap = ref<Record<string, any>>({});
@@ -92,6 +96,11 @@ const form = reactive({
   emailSubject: 'SalonFlow promotion',
 });
 
+const scheduleDate = ref<string | Date | null>(null);
+const scheduleHour = ref(10);
+const scheduleMinute = ref(0);
+const scheduleMeridiem = ref<'AM' | 'PM'>('AM');
+
 const charCount = computed(() => form.message.length);
 const businessTz = computed(() => getBusinessTimezone());
 const tcpaWarning = ref('');
@@ -126,7 +135,12 @@ const resetForm = () => {
   form.testEmail = '';
   form.channel = 'sms';
   form.emailSubject = 'SalonFlow promotion';
+  scheduleDate.value = '';
+  scheduleHour.value = 10;
+  scheduleMinute.value = 0;
+  scheduleMeridiem.value = 'AM';
   evaluateTcpa();
+  wizardStep.value = 1;
 };
 
 const openCreate = () => {
@@ -204,6 +218,11 @@ const ensurePolling = (id: string) => {
 };
 
 const submit = async () => {
+  // ensure all steps valid
+  for (let i = 1; i <= totalSteps; i += 1) {
+    if (!validateStep(i)) return;
+  }
+
   if (form.sendWhen === 'now') {
     const inWindow = isWithinTcpaWindow(undefined, businessTz.value);
     if (!inWindow) {
@@ -213,17 +232,8 @@ const submit = async () => {
       return;
     }
   }
-  if (!form.name.trim()) {
-    ElMessage.warning('Promotion name is required');
-    return;
-  }
-  if (!form.message.trim()) {
-    ElMessage.warning('Message is required');
-    return;
-  }
-  if ((form.channel === 'email' || form.channel === 'both') && !form.emailSubject.trim()) {
-    ElMessage.warning('Email subject is required');
-    return;
+  if (form.sendWhen === 'schedule' && !form.scheduleAt) {
+    form.scheduleAt = buildScheduleIso();
   }
   if (form.sendWhen === 'schedule' && form.scheduleAt) {
     const scheduled = dayjs(form.scheduleAt);
@@ -400,6 +410,78 @@ const handleCreateTestEmail = async () => {
     }
   } finally {
     testingEmail.value = false;
+  }
+};
+
+const hourOptions = Array.from({ length: 12 }, (_, i) => i + 1);
+const minuteOptions = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+
+const buildScheduleIso = () => {
+  if (!scheduleDate.value) return '';
+  let hour = scheduleHour.value % 12;
+  if (scheduleMeridiem.value === 'PM') hour += 12;
+  const base = dayjs(scheduleDate.value).hour(hour).minute(scheduleMinute.value).second(0).millisecond(0);
+  return base.toISOString();
+};
+
+const validateStep = (step: number) => {
+  if (step === 1) {
+    if (!form.name.trim()) {
+      ElMessage.warning('Promotion name is required');
+      return false;
+    }
+    if (!form.offerValue || form.offerValue <= 0) {
+      ElMessage.warning('Enter a discount value');
+      return false;
+    }
+  }
+  if (step === 2) {
+    if (!form.audiences.length) {
+      ElMessage.warning('Select at least one audience');
+      return false;
+    }
+  }
+  if (step === 3) {
+    if (!form.message.trim()) {
+      ElMessage.warning('Message is required');
+      return false;
+    }
+    if ((form.channel === 'email' || form.channel === 'both') && !form.emailSubject.trim()) {
+      ElMessage.warning('Email subject is required');
+      return false;
+    }
+  }
+  if (step === 4 && form.sendWhen === 'schedule') {
+    if (!scheduleDate.value) {
+      ElMessage.warning('Pick a schedule date');
+      return false;
+    }
+    const iso = buildScheduleIso();
+    if (!iso) return false;
+    const scheduled = dayjs(iso);
+    if (!scheduled.isValid() || scheduled.isBefore(dayjs())) {
+      ElMessage.warning('Schedule time must be in the future');
+      return false;
+    }
+    form.scheduleAt = iso;
+  }
+  return true;
+};
+
+const nextStep = () => {
+  if (!validateStep(wizardStep.value)) return;
+  if (wizardStep.value < totalSteps) wizardStep.value += 1;
+};
+
+const prevStep = () => {
+  if (wizardStep.value > 1) wizardStep.value -= 1;
+};
+
+const onAudienceChange = (vals: any[]) => {
+  if (vals.includes('all')) {
+    form.audiences = ['all'];
+  } else {
+    form.audiences = vals.filter((v) => v !== 'all');
   }
 };
 
@@ -776,172 +858,235 @@ loadPromotions();
     </ElDialog>
 
     <ElDialog v-model="dialogOpen" title="Create Promotion" width="960px" class="promo-modal">
-      <div class="promo-grid gap-4">
-        <div class="promo-col space-y-4">
-          <ElCard class="bg-white">
-            <div class="space-y-3">
-              <div>
-                <label class="text-sm font-medium text-slate-800">Promotion name</label>
-                <ElInput v-model="form.name" placeholder="10% Off Valentine Special" />
-              </div>
-              <div>
-                <label class="text-sm font-medium text-slate-800">Discount</label>
-                <div class="flex gap-3">
-                  <ElRadioGroup v-model="form.offerType" size="small">
-                    <ElRadioButton label="percent">Percent</ElRadioButton>
-                    <ElRadioButton label="amount">Amount</ElRadioButton>
-                  </ElRadioGroup>
-                  <ElInputNumber
-                    v-model="form.offerValue"
-                    :min="1"
-                    :max="form.offerType === 'percent' ? 100 : undefined"
-                    :step="form.offerType === 'percent' ? 1 : 1"
-                    class="w-full"
-                  />
-                </div>
-              </div>
-              <div>
-                <label class="text-sm font-medium text-slate-800">Who to offer</label>
-                <ElCheckboxGroup v-model="form.audiences" class="audience-grid">
-                  <ElCheckbox v-for="opt in audienceOptions" :key="opt.value" :label="opt.value">
-                    {{ opt.label }}
-                  </ElCheckbox>
-                </ElCheckboxGroup>
-              </div>
-              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                  <label class="text-sm font-medium text-slate-800">Start date</label>
-                  <ElDatePicker v-model="form.startDate" type="date" placeholder="Start" class="w-full" />
-                </div>
-                <div>
-                  <label class="text-sm font-medium text-slate-800">End date</label>
-                  <ElDatePicker v-model="form.endDate" type="date" placeholder="End" class="w-full" />
-                </div>
-              </div>
-              <ElCheckbox v-model="form.oneTimeUse">One-time use per customer</ElCheckbox>
-            </div>
-          </ElCard>
+      <div class="wizard">
+        <div class="wizard-steps">
+          <div v-for="n in totalSteps" :key="n" class="wizard-step" :class="{ active: wizardStep === n, done: wizardStep > n }">
+            <span class="badge">{{ n }}</span>
+            <span class="label">
+              {{
+                n === 1
+                  ? 'Basics'
+                  : n === 2
+                    ? 'Audience'
+                    : n === 3
+                      ? 'Message & Channel'
+                      : 'Schedule & Review'
+              }}
+            </span>
+          </div>
         </div>
 
-        <div class="promo-col space-y-4">
-          <ElCard class="bg-white">
-            <div class="space-y-3">
-              <div>
-                <label class="text-sm font-medium text-slate-800">Business name</label>
-                <ElInput v-model="form.businessName" placeholder="SalonFlow Demo" />
-              </div>
-              <div class="space-y-1">
-                <label class="text-sm font-medium text-slate-800">Channel</label>
-                <ElRadioGroup v-model="form.channel" size="small" class="mt-1">
-                  <ElRadioButton label="sms">SMS</ElRadioButton>
-                  <ElRadioButton label="email">Email</ElRadioButton>
-                  <ElRadioButton label="both">Both</ElRadioButton>
-                </ElRadioGroup>
-                <p class="text-xs text-slate-600">
-                  Preview recipients:
-                  <span class="font-semibold">SMS {{ previewCounts?.sms ?? '—' }}</span>
-                  ·
-                  <span class="font-semibold">Email {{ previewCounts?.email ?? '—' }}</span>
-                  <ElButton
-                    size="small"
-                    class="ml-2"
-                    :loading="previewing"
-                    @click="handlePreview"
-                  >
-                    Refresh count
-                  </ElButton>
-                </p>
-                <p v-if="previewExcluded" class="text-[11px] text-slate-500">
-                  Excluded — SMS: no phone {{ previewExcluded.sms.noPhone }}, no consent
-                  {{ previewExcluded.sms.noConsent }} · Email: no email {{ previewExcluded.email.noEmail }}, no consent
-                  {{ previewExcluded.email.noConsent }}
-                </p>
-              </div>
-              <div>
-                <label class="text-sm font-medium text-slate-800">
-                  Message ({{ form.channel === 'sms' ? 'SMS' : form.channel === 'email' ? 'Email' : 'SMS + Email' }})
-                </label>
-                <ElInput
-                  v-model="form.message"
-                  type="textarea"
-                  :rows="4"
-                  :placeholder="form.channel === 'sms' ? 'Hi {{first_name}}, enjoy 10% off your next visit...' : 'Write the email body here'"
-                />
-                <div class="flex items-center justify-between text-xs text-slate-500">
-                  <span>
-                    {{ form.channel === 'sms' ? 'Include offer and expiration details.' : 'Plain-text or simple HTML is fine.' }}
-                  </span>
-                  <div class="flex items-center gap-2">
-                    <ElButton size="small" type="info" plain @click="openAi">Generate with AI</ElButton>
-                    <span>{{ charCount }} chars</span>
+        <div class="wizard-body">
+          <template v-if="wizardStep === 1">
+            <ElCard class="bg-white">
+              <div class="space-y-4">
+                <div>
+                  <label class="text-sm font-medium text-slate-800">Promotion name</label>
+                  <ElInput v-model="form.name" placeholder="10% Off Valentine Special" />
+                </div>
+                <div>
+                  <label class="text-sm font-medium text-slate-800">Business name</label>
+                  <ElInput v-model="form.businessName" placeholder="SalonFlow" disabled />
+                </div>
+                <div>
+                  <label class="text-sm font-medium text-slate-800">Discount</label>
+                  <div class="flex gap-3 items-center flex-wrap">
+                    <ElRadioGroup v-model="form.offerType" size="small">
+                      <ElRadioButton label="percent">Percent</ElRadioButton>
+                      <ElRadioButton label="amount">Amount</ElRadioButton>
+                    </ElRadioGroup>
+                    <ElInputNumber
+                      v-model="form.offerValue"
+                      :min="1"
+                      :max="form.offerType === 'percent' ? 100 : undefined"
+                      :step="1"
+                      class="w-40"
+                    />
                   </div>
                 </div>
               </div>
-              <div v-if="form.channel !== 'email'" class="flex flex-col gap-2">
-                <ElCheckbox v-model="form.appendStop">Auto-append “Reply STOP to opt out”</ElCheckbox>
-                <ElCheckbox v-model="form.appendExpiry">Include expiry text</ElCheckbox>
-              </div>
-              <div v-else class="space-y-2">
-                <label class="text-sm font-medium text-slate-800">Email subject</label>
-                <ElInput v-model="form.emailSubject" placeholder="MTV Nails · Special offer inside" />
-              </div>
-              <div>
-                <label class="text-sm font-medium text-slate-800">Send timing</label>
-                <ElRadioGroup v-model="form.sendWhen" size="small">
-                  <ElRadioButton label="now">Send now</ElRadioButton>
-                  <ElRadioButton label="schedule">Schedule</ElRadioButton>
-                </ElRadioGroup>
-                <div v-if="tcpaWarning" class="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                  {{ tcpaWarning }}
+            </ElCard>
+          </template>
+
+          <template v-else-if="wizardStep === 2">
+            <ElCard class="bg-white">
+              <div class="space-y-4">
+                <div>
+                  <label class="text-sm font-medium text-slate-800">Who to offer</label>
+                  <ElCheckboxGroup v-model="form.audiences" class="audience-grid" @change="onAudienceChange">
+                    <ElCheckbox v-for="opt in audienceOptions" :key="opt.value" :label="opt.value">
+                      {{ opt.label }}
+                    </ElCheckbox>
+                  </ElCheckboxGroup>
                 </div>
-                <ElDatePicker
-                  v-if="form.sendWhen === 'schedule'"
-                  v-model="form.scheduleAt"
-                  type="datetime"
-                  placeholder="Select date & time"
-                  class="mt-2 w-full"
-                />
+                <ElCheckbox v-model="form.oneTimeUse">One-time use per customer</ElCheckbox>
               </div>
-              <div v-if="form.channel !== 'email'">
-                <label class="text-sm font-medium text-slate-800">Test phone (optional)</label>
-                <ElInput v-model="form.testPhone" placeholder="+1 555 123 4567" />
-                <ElButton
-                  class="sf-btn sf-btn--ghost mt-2"
-                  size="small"
-                  native-type="button"
-                  :loading="testingCreate"
-                  :disabled="!form.testPhone || !form.message || testingCreate"
-                  @click="handleCreateTest"
-                >
-                  Send test
-                </ElButton>
-              </div>
-              <div v-if="form.channel !== 'sms'">
-                <label class="text-sm font-medium text-slate-800">Test email (optional)</label>
-                <ElInput v-model="form.testEmail" placeholder="you@example.com" />
-                <ElButton
-                  class="sf-btn sf-btn--ghost mt-2"
-                  size="small"
-                  native-type="button"
-                  :loading="testingEmail"
-                  :disabled="!form.testEmail || !isValidEmail(form.testEmail) || !form.message || testingEmail"
-                  @click="handleCreateTestEmail"
-                >
-                  Send test email
-                </ElButton>
-                <p class="mt-1 text-xs text-slate-500">Test messages are one-time and not saved.</p>
-              </div>
+            </ElCard>
+          </template>
+
+          <template v-else-if="wizardStep === 3">
+            <div class="space-y-4">
+              <ElCard class="bg-white">
+                <div class="space-y-3">
+                  <div class="space-y-1">
+                    <label class="text-sm font-medium text-slate-800">Channel</label>
+                    <ElRadioGroup v-model="form.channel" size="small" class="mt-1">
+                      <ElRadioButton label="sms">SMS</ElRadioButton>
+                      <ElRadioButton label="email">Email</ElRadioButton>
+                      <ElRadioButton label="both">Both</ElRadioButton>
+                    </ElRadioGroup>
+                    <p class="text-xs text-slate-600">
+                      Preview recipients:
+                      <span class="font-semibold">SMS {{ previewCounts?.sms ?? '—' }}</span>
+                      ·
+                      <span class="font-semibold">Email {{ previewCounts?.email ?? '—' }}</span>
+                      <ElButton
+                        size="small"
+                        class="ml-2"
+                        :loading="previewing"
+                        @click="handlePreview"
+                      >
+                        Refresh count
+                      </ElButton>
+                    </p>
+                    <p v-if="previewExcluded" class="text-[11px] text-slate-500">
+                      Excluded — SMS: no phone {{ previewExcluded.sms.noPhone }}, no consent
+                      {{ previewExcluded.sms.noConsent }} · Email: no email {{ previewExcluded.email.noEmail }}, no consent
+                      {{ previewExcluded.email.noConsent }}
+                    </p>
+                  </div>
+                  <div>
+                    <label class="text-sm font-medium text-slate-800">
+                      Message ({{ form.channel === 'sms' ? 'SMS' : form.channel === 'email' ? 'Email' : 'SMS + Email' }})
+                    </label>
+                    <ElInput
+                      v-model="form.message"
+                      type="textarea"
+                      :rows="4"
+                      :placeholder="form.channel === 'sms' ? 'Hi {{first_name}}, enjoy 10% off your next visit...' : 'Write the email body here'"
+                    />
+                    <div class="flex items-center justify-between text-xs text-slate-500 mt-1">
+                      <span>
+                        {{
+                          form.channel === 'sms'
+                            ? 'Include offer and expiration details.'
+                            : 'Plain-text or simple HTML is fine.'
+                        }}
+                      </span>
+                      <div class="flex items-center gap-2">
+                        <ElButton size="small" type="info" plain @click="openAi">Generate with AI</ElButton>
+                        <span v-if="form.channel !== 'email'">{{ charCount }} chars</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div v-if="form.channel !== 'email'" class="flex flex-col gap-2">
+                    <ElCheckbox v-model="form.appendStop">Auto-append “Reply STOP to opt out”</ElCheckbox>
+                    <ElCheckbox v-model="form.appendExpiry">Include expiry text</ElCheckbox>
+                  </div>
+                  <div v-else class="space-y-2">
+                    <label class="text-sm font-medium text-slate-800">Email subject</label>
+                    <ElInput v-model="form.emailSubject" placeholder="MTV Nails · Special offer inside" />
+                  </div>
+                </div>
+              </ElCard>
+
+              <ElCard class="bg-white">
+                <div class="grid gap-3 md:grid-cols-2">
+                  <div v-if="form.channel !== 'email'">
+                    <label class="text-sm font-medium text-slate-800">Test phone (optional)</label>
+                    <ElInput v-model="form.testPhone" placeholder="+1 555 123 4567" />
+                    <ElButton
+                      class="sf-btn sf-btn--ghost mt-2"
+                      size="small"
+                      native-type="button"
+                      :loading="testingCreate"
+                      :disabled="!form.testPhone || !form.message || testingCreate"
+                      @click="handleCreateTest"
+                    >
+                      Send test
+                    </ElButton>
+                  </div>
+                  <div v-if="form.channel !== 'sms'">
+                    <label class="text-sm font-medium text-slate-800">Test email (optional)</label>
+                    <ElInput v-model="form.testEmail" placeholder="you@example.com" />
+                    <ElButton
+                      class="sf-btn sf-btn--ghost mt-2"
+                      size="small"
+                      native-type="button"
+                      :loading="testingEmail"
+                      :disabled="!form.testEmail || !isValidEmail(form.testEmail) || !form.message || testingEmail"
+                      @click="handleCreateTestEmail"
+                    >
+                      Send test email
+                    </ElButton>
+                    <p class="mt-1 text-xs text-slate-500">Test messages are one-time and not saved.</p>
+                  </div>
+                </div>
+              </ElCard>
             </div>
-          </ElCard>
+          </template>
+
+          <template v-else>
+            <ElCard class="bg-white">
+              <div class="space-y-4">
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <label class="text-sm font-medium text-slate-800">Start date</label>
+                    <ElDatePicker v-model="form.startDate" type="date" placeholder="Start" class="w-full" />
+                  </div>
+                  <div>
+                    <label class="text-sm font-medium text-slate-800">End date</label>
+                    <ElDatePicker v-model="form.endDate" type="date" placeholder="End" class="w-full" />
+                  </div>
+                </div>
+
+                <div>
+                  <label class="text-sm font-medium text-slate-800">Send timing</label>
+                  <ElRadioGroup v-model="form.sendWhen" size="small" class="mt-1">
+                    <ElRadioButton label="now">Send now</ElRadioButton>
+                    <ElRadioButton label="schedule">Schedule</ElRadioButton>
+                  </ElRadioGroup>
+                  <div v-if="tcpaWarning" class="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    {{ tcpaWarning }}
+                  </div>
+                  <div v-if="form.sendWhen === 'schedule'" class="mt-3 space-y-2">
+                    <ElDatePicker v-model="scheduleDate" type="date" placeholder="Select date" class="w-full" />
+                    <div class="flex flex-wrap items-center gap-2">
+                      <ElSelect v-model="scheduleHour" placeholder="HH" style="width: 90px">
+                        <ElOption v-for="h in hourOptions" :key="h" :label="h.toString().padStart(2, '0')" :value="h" />
+                      </ElSelect>
+                      <span class="text-slate-500">:</span>
+                      <ElSelect v-model="scheduleMinute" placeholder="MM" style="width: 90px">
+                        <ElOption
+                          v-for="m in minuteOptions"
+                          :key="m"
+                          :label="m.toString().padStart(2, '0')"
+                          :value="m"
+                        />
+                      </ElSelect>
+                      <ElSelect v-model="scheduleMeridiem" style="width: 90px">
+                        <ElOption label="AM" value="AM" />
+                        <ElOption label="PM" value="PM" />
+                      </ElSelect>
+                    </div>
+                    <p class="text-xs text-slate-500">12-hour format · seconds hidden · converts to your existing schedule payload.</p>
+                  </div>
+                </div>
+              </div>
+            </ElCard>
+          </template>
+        </div>
+
+        <div class="wizard-footer">
+          <div class="wizard-progress">Step {{ wizardStep }} of {{ totalSteps }}</div>
+          <div class="wizard-actions">
+            <ElButton :disabled="wizardStep === 1" @click="prevStep">Back</ElButton>
+            <ElButton v-if="wizardStep < totalSteps" type="primary" @click="nextStep">Next</ElButton>
+            <ElButton v-else type="primary" :loading="saving" @click="submit">Save</ElButton>
+            <ElButton class="ml-2" @click="dialogOpen = false">Cancel</ElButton>
+          </div>
         </div>
       </div>
-
-      <template #footer>
-        <div class="flex justify-end gap-2">
-          <ElButton @click="dialogOpen = false">Cancel</ElButton>
-          <ElButton type="primary" :loading="saving" @click="submit">Save</ElButton>
-        </div>
-      </template>
     </ElDialog>
 
     <ElDialog v-model="aiDialog" title="AI Suggestions" width="520px">
@@ -1048,5 +1193,84 @@ loadPromotions();
 }
 .seg-blocked {
   background: #475569;
+}
+
+.wizard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.wizard-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.wizard-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+}
+.wizard-step .badge {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #e2e8f0;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 700;
+}
+.wizard-step.active {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #0f172a;
+}
+.wizard-step.active .badge {
+  background: #3b82f6;
+  color: white;
+}
+.wizard-step.done {
+  border-color: #bbf7d0;
+  background: #ecfdf3;
+}
+.wizard-step.done .badge {
+  background: #22c55e;
+  color: white;
+}
+.wizard-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.wizard-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0 4px;
+  border-top: 1px solid #e2e8f0;
+  position: sticky;
+  bottom: 0;
+  background: white;
+}
+.wizard-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.wizard-progress {
+  font-size: 13px;
+  color: #475569;
+  font-weight: 600;
 }
 </style>
