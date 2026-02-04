@@ -1019,25 +1019,27 @@ watch(completedPage, async (val) => {
               Call Next
             </ElButton>
             <template v-else-if="item.status === 'CALLED'">
-              <ElButton
-                size="small"
-                type="success"
-                :loading="actionLoading === item.id"
-                class="sf-btn"
-                @click="handleAction(item.id, () => startCheckIn(item.id))"
-              >
-                Mark In Service
-              </ElButton>
-              <ElButton
-                size="small"
-                type="danger"
-                plain
-                :loading="actionLoading === `${item.id}-no-show`"
-                class="sf-btn"
-                @click="handleAction(`${item.id}-no-show`, () => markNoShow(item.id))"
-              >
-                No Show
-              </ElButton>
+              <div class="queue-actions">
+                <ElButton
+                  size="small"
+                  type="success"
+                  :loading="actionLoading === item.id"
+                  class="sf-btn queue-action-btn primary"
+                  @click="handleAction(item.id, () => startCheckIn(item.id))"
+                >
+                  Mark In Service
+                </ElButton>
+                <ElButton
+                  size="small"
+                  type="danger"
+                  plain
+                  :loading="actionLoading === `${item.id}-no-show`"
+                  class="sf-btn queue-action-btn secondary"
+                  @click="handleAction(`${item.id}-no-show`, () => markNoShow(item.id))"
+                >
+                  No Show
+                </ElButton>
+              </div>
             </template>
             <ElButton
               v-else-if="item.status === 'IN_SERVICE'"
@@ -1606,5 +1608,18 @@ watch(completedPage, async (val) => {
   padding: 6px 10px;
   border-radius: 12px;
   background: rgba(241, 245, 249, 0.85);
+}
+.queue-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+.queue-action-btn {
+  width: 100%;
+  justify-content: center;
+  border-radius: 10px;
+  padding-left: 14px;
+  padding-right: 14px;
 }
 </style>

@@ -9,7 +9,6 @@ import {
   ElFormItem,
   ElInput,
   ElDatePicker,
-  ElTimeSelect,
   ElDialog,
   ElSelect,
   ElOption,
@@ -56,6 +55,21 @@ const form = reactive({
   date: '',
   time: '',
   notes: '',
+});
+
+const timeSlots = computed(() => {
+  const slots: { label: string; value: string }[] = [];
+  const startHour = 8;
+  const endHour = 20;
+  for (let h = startHour; h <= endHour; h += 1) {
+    for (const m of [0, 15, 30, 45]) {
+      if (h === endHour && m > 0) break; // cap at end hour
+      const value = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+      const label = dayjs(`2000-01-01T${value}`).format('h:mm A');
+      slots.push({ label, value });
+    }
+  }
+  return slots;
 });
 
 const resetForm = () => {
@@ -422,13 +436,9 @@ const goToPage = (target: number) => {
             />
           </ElFormItem>
           <ElFormItem label="Time" required>
-            <ElTimeSelect
-              v-model="form.time"
-              start="08:00"
-              step="00:15"
-              end="20:00"
-              placeholder="Select time"
-            />
+            <ElSelect v-model="form.time" placeholder="Select time" filterable>
+              <ElOption v-for="slot in timeSlots" :key="slot.value" :label="slot.label" :value="slot.value" />
+            </ElSelect>
           </ElFormItem>
           <ElFormItem label="Notes">
             <ElInput v-model="form.notes" type="textarea" :rows="3" placeholder="Notes (optional)" />
