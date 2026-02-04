@@ -251,16 +251,16 @@ const isToday = (day: string) => day === todayKey;
   margin-top: 64px;
 }
 .sf-footer__shell {
-  padding: 36px 0 30px;
+  padding: 42px 0 34px;
   display: grid;
-  gap: 18px;
+  gap: 22px;
   grid-template-columns: 1fr;
 }
 .sf-footer__card {
   background: rgba(255, 255, 255, 0.78);
   border: 1px solid rgba(15, 23, 42, 0.06);
   border-radius: var(--sf-radius, 14px);
-  padding: 16px;
+  padding: 18px;
   box-shadow: var(--sf-shadow, 0 16px 40px rgba(15, 23, 42, 0.08));
 }
 .sf-footer__label {
@@ -277,17 +277,18 @@ const isToday = (day: string) => day === todayKey;
 .sf-icon {
   width: 18px;
   height: 18px;
-  color: #6b7280;
+  color: #64748b;
 }
 .sf-icon-inline {
   width: 16px;
   height: 16px;
-  color: #6b7280;
+  color: #64748b;
   flex-shrink: 0;
 }
 .sf-footer__text {
   margin: 0;
   font-weight: 600;
+  font-size: 15px;
   color: var(--sf-text, #0f172a);
 }
 .sf-footer__hours {
@@ -326,13 +327,16 @@ const isToday = (day: string) => day === todayKey;
   font-weight: 600;
   text-decoration: none;
   padding: 4px 0;
+  font-size: 15px;
+  word-break: break-word;
 }
 .sf-footer__link:hover {
   color: #0f172a;
 }
 .sf-footer__social {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 10px;
 }
 .sf-footer__social a {
@@ -353,15 +357,18 @@ const isToday = (day: string) => day === todayKey;
   width: 24px;
   height: 24px;
   border-radius: 9999px;
-  background: rgba(15, 23, 42, 0.08);
+  background: rgba(59, 130, 246, 0.12);
   font-size: 12px;
   margin-right: 6px;
-  color: #6b7280;
+  color: #2563eb;
 }
 .sf-footer__review {
   font-weight: 700;
   color: #0f172a;
   gap: 10px;
+}
+.sf-footer__review .sf-icon-inline {
+  color: #f59e0b;
 }
 .sf-footer__legal {
   display: flex;
