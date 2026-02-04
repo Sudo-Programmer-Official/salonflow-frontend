@@ -17,6 +17,12 @@ const faqs = [
   { q: 'How does SMS work?', a: 'Consent-based reminders, review requests, and manual sends. Usage is metered with credits.' },
   { q: 'Can you migrate my data?', a: 'We can import services and staff basics; customer data import is available on request.' },
 ];
+
+const googleDataPoints = [
+  'Public business profile info (name, address, hours, phone)',
+  'Reviews and ratings (if enabled by you)',
+  'Connection metadata (access/refresh tokens to sync as requested)',
+];
 </script>
 
 <template>
@@ -156,6 +162,38 @@ const faqs = [
                 <p class="mt-1 text-slate-600">Payments for salon services are not processed inside SalonFlow. Use your existing POS.</p>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="bg-white">
+      <div class="mx-auto max-w-6xl px-4 py-12 space-y-8">
+        <div>
+          <h2 class="text-2xl font-semibold text-slate-900">Google Business Profile integration</h2>
+          <p class="mt-2 text-slate-600">
+            Connect your Google Business Profile to view and manage your business info and reviews inside SalonFlow.
+            We only access Google data after you explicitly connect your account.
+          </p>
+        </div>
+        <div class="grid gap-6 md:grid-cols-2">
+          <div class="rounded-xl border border-slate-200 bg-slate-50 p-5 shadow-sm">
+            <h3 class="text-lg font-semibold text-slate-900">What you can do</h3>
+            <ul class="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-700">
+              <li>Sync and view your Google Business Profile details and reviews.</li>
+              <li>Keep your SalonFlow data consistent with what customers see on Google.</li>
+              <li>Disconnect anytime from Settings → Integrations.</li>
+            </ul>
+          </div>
+          <div class="rounded-xl border border-slate-200 bg-slate-50 p-5 shadow-sm">
+            <h3 class="text-lg font-semibold text-slate-900">What data we access</h3>
+            <ul class="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-700">
+              <li v-for="point in googleDataPoints" :key="point">{{ point }}</li>
+            </ul>
+            <p class="mt-3 text-sm text-slate-700">
+              Tokens are stored securely and used only to perform the actions you request. We do not sell Google user data or
+              share it with third parties.
+            </p>
           </div>
         </div>
       </div>

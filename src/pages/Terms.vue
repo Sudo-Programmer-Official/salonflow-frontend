@@ -6,13 +6,14 @@
     <div class="mt-6 space-y-6 leading-7 text-slate-800">
       <section>
         <h2 class="text-xl font-semibold text-slate-900">Service</h2>
-        <p>SalonFlow (by Sudo Programmer Inc.) provides salon management tools for appointments, check-ins, queue management, messaging, and related features.</p>
+        <p>SalonFlow (by Sudo Programmer Inc.) provides salon management tools for appointments, check-ins, queue management, messaging, loyalty, online booking, and related features.</p>
       </section>
 
       <section>
         <h2 class="text-xl font-semibold text-slate-900">Accounts &amp; responsibilities</h2>
         <ul class="list-disc space-y-2 pl-5">
           <li>Admin users are responsible for maintaining accurate business information and access control.</li>
+          <li>You must have the rights to connect any third-party accounts (e.g., Google Business Profile) you link to SalonFlow.</li>
           <li>You must keep login credentials secure and notify us of any unauthorized access.</li>
         </ul>
       </section>
@@ -23,6 +24,7 @@
           <li>No unlawful, abusive, or fraudulent activity.</li>
           <li>No harassment or sending unsolicited messages without consent.</li>
           <li>No interference with platform security or operations.</li>
+          <li>No misuse of third-party integrations or violation of their terms.</li>
         </ul>
       </section>
 
@@ -33,6 +35,16 @@
           <li>Users opt-in by providing their phone number during check-in or booking.</li>
           <li>Reply STOP to opt out; HELP for help. Msg &amp; data rates may apply.</li>
           <li>Business users must respect customer consent and applicable messaging laws.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2 class="text-xl font-semibold text-slate-900">Third-party integrations</h2>
+        <ul class="list-disc space-y-2 pl-5">
+          <li>You may connect third-party accounts (e.g., Google Business Profile) to enable features like syncing profile info and reviews.</li>
+          <li>You can revoke access at any time in Settings → Integrations. When revoked, syncing stops and tokens are deleted within 7 days.</li>
+          <li>We may modify or discontinue integrations if providers change their APIs or terms.</li>
+          <li>Google is not affiliated with SalonFlow; Google trademarks and services are owned by Google LLC.</li>
         </ul>
       </section>
 
@@ -58,12 +70,12 @@
 
       <section>
         <h2 class="text-xl font-semibold text-slate-900">Contact</h2>
-        <p>Email: <a class="text-sky-700 hover:underline" href="mailto:support@salonflow.studio">support@salonflow.studio</a></p>
+        <p>Email: <a class="text-sky-700 hover:underline" href="mailto:help@sudoprogrammer.com">help@sudoprogrammer.com</a></p>
       </section>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-const effectiveDate = 'January 1, 2025';
+const effectiveDate = 'February 4, 2026';
 </script>
