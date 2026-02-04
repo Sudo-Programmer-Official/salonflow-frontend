@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElCard, ElForm, ElFormItem, ElInput, ElSelect, ElOption, ElDatePicker, ElButton, ElTable, ElTableColumn, ElTag, ElMessage, ElAlert, ElDialog, ElRadioGroup, ElRadio, ElSpace } from 'element-plus';
 import { listSocialPosts, createSocialDraft, publishSocialPost } from '../../../api/social';
@@ -13,6 +13,7 @@ import {
   facebookDisconnect,
 } from '../../../api/integrations';
 import { googleBusinessStatus } from '../../../api/integrations';
+import dayjs from 'dayjs';
 
 const loading = ref(false);
 const posts = ref<any[]>([]);
@@ -53,6 +54,13 @@ const destinationsState = ref({
   instagramStory: false,
   instagramReel: false,
 });
+
+const publishDate = ref<string | null>(null);
+const publishHour = ref(10);
+const publishMinute = ref(0);
+const publishMeridiem = ref<'AM' | 'PM'>('AM');
+const hourOptions = Array.from({ length: 12 }, (_, i) => i + 1);
+const minuteOptions = [0, 15, 30, 45];
 
 const selectedDestinations = computed(() => {
   const dests: Array<{ platform: string; surface: 'feed' | 'story' | 'reel' }> = [];
@@ -273,6 +281,7 @@ const create = async () => {
     ElMessage.error(formValidation.value.message);
     return;
   }
+  const scheduledAtIso = buildScheduledAt();
   try {
     await createSocialDraft({
       provider: form.value.provider,
@@ -280,12 +289,16 @@ const create = async () => {
       destinations: selectedDestinations.value,
       content: form.value.content,
       mediaIds: form.value.mediaIds,
-      scheduledAt: form.value.scheduledAt,
+      scheduledAt: scheduledAtIso,
     });
     ElMessage.success('Draft saved');
     form.value.content = '';
     form.value.mediaIds = [];
     form.value.scheduledAt = null;
+    publishDate.value = null;
+    publishHour.value = 10;
+    publishMinute.value = 0;
+    publishMeridiem.value = 'AM';
     await load();
   } catch (err: any) {
     ElMessage.error(err?.message || 'Failed to save');
@@ -323,6 +336,32 @@ const publishDisabled = (row: any) => {
   const validation = validationForRow(row);
   return !validation.valid;
 };
+
+const buildScheduledAt = () => {
+  if (!publishDate.value) return null;
+  let hour = publishHour.value % 12;
+  if (publishMeridiem.value === 'PM') hour += 12;
+  const iso = dayjs(`${publishDate.value}T${hour.toString().padStart(2, '0')}:${publishMinute.value
+    .toString()
+    .padStart(2, '0')}:00`).toISOString();
+  return iso;
+};
+
+watch(
+  () => form.value.scheduledAt,
+  (val) => {
+    if (!val) return;
+    const parsed = dayjs(val);
+    if (!parsed.isValid()) return;
+    publishDate.value = parsed.format('YYYY-MM-DD');
+    let h = parsed.hour();
+    publishMeridiem.value = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    publishHour.value = h;
+    publishMinute.value = parsed.minute() - (parsed.minute() % 15);
+  },
+  { immediate: true },
+);
 
 const validateMediaForDestinations = (
   destinations: Array<{ platform: string; surface: 'feed' | 'story' | 'reel' }>,
@@ -541,12 +580,26 @@ const destinationLabels = (row: any) => {
           </div>
         </ElFormItem>
         <ElFormItem label="Publish time">
-          <ElDatePicker
-            v-model="form.scheduledAt"
-            type="datetime"
-            placeholder="Schedule (optional)"
-            style="width: 100%"
-          />
+          <div class="flex flex-col gap-2 w-full">
+            <ElDatePicker
+              v-model="publishDate"
+              type="date"
+              placeholder="Select date"
+              style="width: 100%"
+            />
+            <div class="flex flex-wrap gap-2">
+              <ElSelect v-model="publishHour" placeholder="HH" style="width: 90px">
+                <ElOption v-for="h in hourOptions" :key="h" :label="h.toString().padStart(2, '0')" :value="h" />
+              </ElSelect>
+              <ElSelect v-model="publishMinute" placeholder="MM" style="width: 90px">
+                <ElOption v-for="m in minuteOptions" :key="m" :label="m.toString().padStart(2, '0')" :value="m" />
+              </ElSelect>
+              <ElSelect v-model="publishMeridiem" placeholder="AM/PM" style="width: 90px">
+                <ElOption label="AM" value="AM" />
+                <ElOption label="PM" value="PM" />
+              </ElSelect>
+            </div>
+          </div>
         </ElFormItem>
         <ElFormItem label="Content" class="md:col-span-2">
           <ElInput type="textarea" v-model="form.content" :rows="3" placeholder="What's new?" />
