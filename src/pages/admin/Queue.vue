@@ -1046,7 +1046,7 @@ watch(completedPage, async (val) => {
               size="small"
               type="primary"
               :loading="actionLoading === item.id"
-              class="sf-btn"
+              class="sf-btn queue-action-btn"
               @click="openCheckout(item.id)"
             >
               Complete
@@ -1621,5 +1621,6 @@ watch(completedPage, async (val) => {
   border-radius: 10px;
   padding-left: 14px;
   padding-right: 14px;
+  margin: 0;
 }
 </style>
