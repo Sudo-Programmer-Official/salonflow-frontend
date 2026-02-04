@@ -35,7 +35,6 @@ import {
   updateCategory,
   type ServiceCategory,
 } from '../../api/serviceCategories';
-import { deleteCategory } from '../../api/serviceCategories';
 import { fetchSettings, type DefaultBookingRules } from '../../api/settings';
 
 const router = useRouter();
@@ -289,7 +288,6 @@ const categoryOptions = computed(() => {
   return unc ? [...active, unc] : active;
 });
 
-const categoryCards = computed(() => sortedCategories.value.filter((c) => c.id !== 'uncategorized'));
 
 const filteredServices = computed(() => {
   const filter = selectedCategoryFilter.value;
@@ -347,31 +345,6 @@ const saveCategory = async () => {
     await loadStaffCounts();
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to save category');
-  }
-};
-
-const handleCategoryToggle = async (categoryId: string, val: boolean) => {
-  try {
-    await updateCategory(categoryId, { active: !!val });
-    await loadCategories();
-    await loadServices();
-    await loadStaffCounts();
-  } catch {
-    ElMessage.error('Failed to update category');
-  }
-};
-
-const deleteCategoryAction = async (categoryId: string) => {
-  if (categoryId === 'uncategorized') return;
-  if (!window.confirm('Delete this category? Services will move to Uncategorized.')) return;
-  try {
-    await deleteCategory(categoryId);
-    await loadCategories();
-    await loadServices();
-    await loadStaffCounts();
-    ElMessage.success('Category deleted');
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : 'Failed to delete category');
   }
 };
 
@@ -476,48 +449,6 @@ const handleCategorySelect = (val: string | null) => {
         </div>
       </div>
 
-      <div class="mb-3 grid gap-3 md:grid-cols-2">
-        <div
-          v-for="cat in categoryCards"
-          :key="cat.id"
-          class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 flex items-center justify-between"
-        >
-          <div class="flex items-center gap-2">
-            <span class="text-lg">{{ cat.icon }}</span>
-            <div class="space-y-0.5">
-              <div class="text-sm font-semibold text-slate-900">{{ cat.name }}</div>
-              <div class="text-xs text-slate-600">Order: {{ cat.sortOrder ?? 0 }}</div>
-            </div>
-          </div>
-          <div class="flex items-center gap-2 no-row-click">
-            <ElSwitch
-              :model-value="cat.active"
-              size="small"
-              @change="(val) => handleCategoryToggle(cat.id, val as boolean)"
-            />
-            <ElButton size="small" plain class="sf-btn sf-btn--table" @click.stop="openCategoryDialog(cat)">Edit</ElButton>
-            <ElButton
-              size="small"
-              plain
-              type="danger"
-              class="sf-btn sf-btn--table"
-              @click.stop="deleteCategoryAction(cat.id)"
-            >
-              Delete
-            </ElButton>
-          </div>
-        </div>
-        <div
-          v-if="sortedCategories.length === 0"
-          class="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-600 flex items-center justify-between"
-        >
-          <div>Add your first category to group services.</div>
-          <ElButton size="small" type="primary" class="sf-btn sf-btn--table sf-btn--icon" @click="openCategoryDialog()">
-            <span class="text-white" aria-hidden="true">+</span>
-            <span>Add</span>
-          </ElButton>
-        </div>
-      </div>
       <ElTable
         :data="filteredServices"
         style="width: 100%"
