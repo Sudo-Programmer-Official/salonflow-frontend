@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, computed, watch, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router';
-import { ElButton, ElCard, ElSkeleton, ElMessage, ElInput } from 'element-plus';
+import { ElButton, ElCard, ElSkeleton, ElMessage, ElInput, ElMessageBox } from 'element-plus';
 import { fetchQueue, checkoutCheckIn, type QueueItem } from '@/api/queue';
 import { formatPhone } from '@/utils/format';
 import { humanizeTime } from '@/utils/dates';
@@ -128,7 +128,16 @@ const selectedServiceObjects = computed(() => {
 const subtotal = computed(() =>
   selectedServiceObjects.value.reduce((acc, svc) => acc + (svc.priceCents ?? 0), 0) / 100,
 );
-const hasDraft = computed(() => selectedServiceIds.value.length > 0);
+const hasDirtyCheckout = computed(() => {
+  const hasServices = selectedServiceIds.value.length > 0;
+  const hasPaymentOptions = paymentOptions.value.cash || paymentOptions.value.card || paymentOptions.value.gift;
+  const hasPaymentAmounts =
+    Boolean((paymentAmounts.value.cash || '').trim()) || Boolean((paymentAmounts.value.card || '').trim());
+  const hasGiftCardData =
+    giftCards.value.some((g) => (g.number || '').trim() || (g.amount || '').trim()) || paymentOptions.value.gift;
+  const hasEntries = enteredPayments.value.length > 0;
+  return hasServices || hasPaymentOptions || hasPaymentAmounts || hasGiftCardData || hasEntries || subtotal.value > 0;
+});
 const giftCardsTotal = computed(() =>
   giftCards.value.reduce((acc, card) => {
     const amount = Number(card.amount);
@@ -181,7 +190,28 @@ const loadCheckin = async () => {
   }
 };
 
-const goBack = () => {
+const confirmDiscard = async (): Promise<boolean> => {
+  if (!hasDirtyCheckout.value) return true;
+  try {
+    await ElMessageBox.confirm(
+      'Discard checkout progress? Services and payments will be lost.',
+      'Discard checkout',
+      {
+        confirmButtonText: 'Discard',
+        cancelButtonText: 'Keep editing',
+        type: 'warning',
+      },
+    );
+    clearDraftForCurrent();
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const goBack = async () => {
+  const ok = await confirmDiscard();
+  if (!ok) return;
   router.push({ name: 'admin-queue' });
 };
 
@@ -298,13 +328,13 @@ const submitCheckout = async () => {
 
 // Leave guards to prevent accidental loss of checkout draft
 const beforeUnload = (e: BeforeUnloadEvent) => {
-  if (!hasDraft.value) return;
+  if (!hasDirtyCheckout.value) return;
   e.preventDefault();
   e.returnValue = '';
 };
 
 watch(
-  () => hasDraft.value,
+  () => hasDirtyCheckout.value,
   (val) => {
     if (val) {
       window.addEventListener('beforeunload', beforeUnload);
@@ -315,10 +345,10 @@ watch(
   { immediate: true },
 );
 
-onBeforeRouteLeave((_to, _from, next) => {
-  if (!hasDraft.value) return next();
-  const confirmLeave = window.confirm('You have an in-progress checkout. Leave anyway?');
-  return confirmLeave ? next() : next(false);
+onBeforeRouteLeave(async (_to, _from, next) => {
+  if (!hasDirtyCheckout.value) return next();
+  const ok = await confirmDiscard();
+  return ok ? next() : next(false);
 });
 
 onBeforeUnmount(() => {
