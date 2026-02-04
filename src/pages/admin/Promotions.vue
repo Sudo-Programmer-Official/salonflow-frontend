@@ -29,6 +29,7 @@ import {
   testPromotionEmail,
   previewPromotion,
 } from '../../api/promotions';
+import { fetchOnboardingStatus } from '../../api/onboarding';
 import { isWithinTcpaWindow, getBusinessTimezone } from '../../utils/dates';
 import dayjs from 'dayjs';
 import { generateAiSuggestions } from '../../api/smartReminders';
@@ -56,6 +57,7 @@ const aiTone = ref<'FRIENDLY' | 'URGENT' | 'PREMIUM' | 'CASUAL'>('FRIENDLY');
 const aiShort = ref(false);
 const wizardStep = ref(1);
 const totalSteps = 4;
+const businessNameCached = ref<string>('');
 
 const promotions = ref<Promotion[]>([]);
 const statsMap = ref<Record<string, any>>({});
@@ -141,12 +143,14 @@ const resetForm = () => {
   scheduleMeridiem.value = 'AM';
   evaluateTcpa();
   wizardStep.value = 1;
+  form.businessName = businessNameCached.value || '';
 };
 
 const openCreate = () => {
   resetForm();
   dialogOpen.value = true;
   evaluateTcpa();
+  loadBusinessName();
 };
 
 const loadPromotions = async () => {
@@ -602,6 +606,16 @@ const useSuggestion = (s: string) => {
   aiDialog.value = false;
 };
 
+const loadBusinessName = async () => {
+  if (businessNameCached.value) return;
+  try {
+    const status = await fetchOnboardingStatus(true);
+    businessNameCached.value = status.businessName || '';
+    form.businessName = businessNameCached.value;
+  } catch {
+    // best-effort only
+  }
+};
 loadPromotions();
 </script>
 
