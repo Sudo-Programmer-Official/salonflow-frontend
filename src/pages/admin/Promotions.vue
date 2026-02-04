@@ -942,13 +942,13 @@ loadPromotions();
             <div class="space-y-4">
               <ElCard class="bg-white">
                 <div class="space-y-3">
-                  <div class="space-y-1">
-                    <label class="text-sm font-medium text-slate-800">Channel</label>
-                    <ElRadioGroup v-model="form.channel" size="small" class="mt-1">
-                      <ElRadioButton label="sms">SMS</ElRadioButton>
-                      <ElRadioButton label="email">Email</ElRadioButton>
-                      <ElRadioButton label="both">Both</ElRadioButton>
-                    </ElRadioGroup>
+                <div class="space-y-1">
+                  <label class="text-sm font-medium text-slate-800">Channel</label>
+                  <ElRadioGroup v-model="form.channel" size="default" class="mt-2 channel-group">
+                    <ElRadioButton label="sms">SMS</ElRadioButton>
+                    <ElRadioButton label="email">Email</ElRadioButton>
+                    <ElRadioButton label="both">Both</ElRadioButton>
+                  </ElRadioGroup>
                     <p class="text-xs text-slate-600">
                       Preview recipients:
                       <span class="font-semibold">SMS {{ previewCounts?.sms ?? '—' }}</span>
@@ -1286,5 +1286,15 @@ loadPromotions();
   font-size: 13px;
   color: #475569;
   font-weight: 600;
+}
+.channel-group {
+  display: inline-flex;
+  gap: 6px;
+  padding-left: 4px;
+}
+.channel-group :deep(.el-radio-button__inner) {
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  padding: 10px 14px;
 }
 </style>
