@@ -153,36 +153,38 @@ const isToday = (day: string) => day === todayKey;
           </svg>
           <span>Contact</span>
         </div>
-        <a v-if="contact?.phone" class="sf-footer__link" :href="`tel:${contact.phone}`">
-          <svg class="sf-icon-inline" viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              d="M8.5 3.5 6 6c.5 4 3.5 7 7.5 7.5l2.5-2.5 3 3-1.8 1.8c-.4.4-1 .6-1.6.6-6 0-11-5-11-11 0-.6.2-1.2.6-1.6Z"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.6"
-              stroke-linejoin="round"
-            />
-          </svg>
-          <span>{{ contact.phone }}</span>
-        </a>
-        <a v-if="contact?.email" class="sf-footer__link" :href="`mailto:${contact.email}`">
-          <svg class="sf-icon-inline" viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              d="M4.5 5.75h15a.75.75 0 0 1 .75.75v11a.75.75 0 0 1-.75.75h-15A.75.75 0 0 1 3.75 17.5v-11a.75.75 0 0 1 .75-.75Z"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.6"
-            />
-            <path
-              d="m4.5 7 6.44 4.08a2 2 0 0 0 2.12 0L19.5 7"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.6"
-              stroke-linecap="round"
-            />
-          </svg>
-          <span>{{ contact.email }}</span>
-        </a>
+        <div class="sf-footer__contact">
+          <a v-if="contact?.phone" class="sf-footer__link" :href="`tel:${contact.phone}`">
+            <svg class="sf-icon-inline" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M8.5 3.5 6 6c.5 4 3.5 7 7.5 7.5l2.5-2.5 3 3-1.8 1.8c-.4.4-1 .6-1.6.6-6 0-11-5-11-11 0-.6.2-1.2.6-1.6Z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <span>{{ contact.phone }}</span>
+          </a>
+          <a v-if="contact?.email" class="sf-footer__link" :href="`mailto:${contact.email}`">
+            <svg class="sf-icon-inline" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M4.5 5.75h15a.75.75 0 0 1 .75.75v11a.75.75 0 0 1-.75.75h-15A.75.75 0 0 1 3.75 17.5v-11a.75.75 0 0 1 .75-.75Z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+              />
+              <path
+                d="m4.5 7 6.44 4.08a2 2 0 0 0 2.12 0L19.5 7"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+              />
+            </svg>
+            <span>{{ contact.email }}</span>
+          </a>
+        </div>
       </div>
 
       <div v-if="hasSocial" class="sf-footer__card">
@@ -329,6 +331,11 @@ const isToday = (day: string) => day === todayKey;
   padding: 4px 0;
   font-size: 15px;
   word-break: break-word;
+}
+.sf-footer__contact {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 .sf-footer__link:hover {
   color: #0f172a;
