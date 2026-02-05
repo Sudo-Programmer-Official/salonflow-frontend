@@ -1408,6 +1408,8 @@ watch(completedPage, async (val) => {
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   align-items: start;
   flex: 1 1 auto;
+  gap: 28px;
+  grid-auto-rows: minmax(0, auto);
 }
 .queue-scroll {
   display: flex;
@@ -1469,7 +1471,7 @@ watch(completedPage, async (val) => {
 .queue-card {
   align-self: flex-start;
   border-radius: 18px;
-  min-height: 220px;
+  min-height: 250px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -1487,7 +1489,7 @@ watch(completedPage, async (val) => {
   box-shadow: none;
 }
 .queue-card :deep(.el-card__body) {
-  padding: 14px;
+  padding: 16px;
 }
 .queue-phone {
   font-size: 1.05rem;
