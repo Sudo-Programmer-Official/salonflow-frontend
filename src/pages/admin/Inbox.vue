@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, computed } from 'vue';
 import { useRoute } from 'vue-router';
-import { ElButton, ElCard, ElEmpty, ElInput, ElMessage, ElSkeleton, ElTag } from 'element-plus';
+import { ElButton, ElCard, ElEmpty, ElInput, ElMessage, ElSkeleton, ElTag, ElSelect, ElOption } from 'element-plus';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import {
@@ -195,17 +195,15 @@ onUnmounted(() => {
     <ElCard class="md:col-span-1 h-full overflow-hidden flex flex-col">
       <div class="flex items-center justify-between mb-3">
         <div class="font-semibold">Inbox</div>
-        <div class="flex flex-wrap gap-2 text-sm">
-          <ElButton
-            v-for="opt in statusFilterOptions"
-            :key="opt.value"
-            size="small"
-            :type="statusFilter === opt.value ? 'primary' : 'default'"
-            @click="() => { statusFilter = opt.value; loadConversations(); }"
-          >
-            {{ opt.label }}
-          </ElButton>
-        </div>
+        <ElSelect
+          v-model="statusFilter"
+          size="small"
+          class="status-select"
+          @change="() => loadConversations()"
+          placeholder="Filter status"
+        >
+          <ElOption v-for="opt in statusFilterOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+        </ElSelect>
       </div>
       <div class="flex gap-2 mb-3 text-sm">
         <ElButton
@@ -383,3 +381,6 @@ onUnmounted(() => {
     </ElCard>
   </div>
 </template>
+<style scoped>
+.status-select { min-width: 160px; }
+</style>

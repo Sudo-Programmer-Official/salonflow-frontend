@@ -887,8 +887,11 @@ watch(completedPage, async (val) => {
     </ElCard>
 
     <div class="queue-toolbar">
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2">
         <div class="text-base font-semibold text-slate-900">Queue</div>
+        <span class="count-chip" aria-label="Waiting in queue">
+          Waiting {{ queueCounts.waiting }}
+        </span>
         <span v-if="isRefreshing" class="text-xs text-slate-500 animate-pulse">Updating…</span>
       </div>
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
@@ -1540,6 +1543,17 @@ watch(completedPage, async (val) => {
     align-items: center;
     justify-content: space-between;
   }
+}
+.count-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: #e0f2fe;
+  color: #0f172a;
+  font-weight: 700;
+  font-size: 13px;
 }
 .queue-grid {
   gap: 24px;

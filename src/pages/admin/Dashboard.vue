@@ -57,7 +57,7 @@ const load = async () => {
 onMounted(load);
 
 const waitingCount = computed(() =>
-  queueLocked.value ? 0 : queue.value.filter((q) => q.status === 'WAITING').length,
+  queueLocked.value ? 0 : queue.value.filter((q) => q.status === 'WAITING' || q.status === 'CALLED').length,
 );
 const inServiceCount = computed(() =>
   queueLocked.value ? 0 : queue.value.filter((q) => q.status === 'IN_SERVICE').length,
