@@ -1446,13 +1446,19 @@ watch(completedPage, async (val) => {
 }
 .queue-tabs {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   width: fit-content;
   max-width: 100%;
   gap: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
 .queue-tabs .sf-tab {
   white-space: nowrap;
+}
+.queue-tabs::-webkit-scrollbar {
+  display: none;
 }
 .checkin-form {
   padding: 4px 2px;
@@ -1471,8 +1477,8 @@ watch(completedPage, async (val) => {
 .queue-card {
   align-self: flex-start;
   border-radius: 18px;
-  min-height: 280px;
-  height: 280px;
+  min-height: 270px;
+  height: 270px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;

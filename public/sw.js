@@ -1,4 +1,4 @@
-const APP_VERSION = '2025-03-30-01';
+const APP_VERSION = '2025-04-05-01';
 const STATIC_CACHE = `salonflow-static-${APP_VERSION}`;
 const HTML_CACHE = `salonflow-html-${APP_VERSION}`;
 
@@ -19,6 +19,14 @@ self.addEventListener('activate', (event) => {
     ),
   );
   self.clients.claim();
+});
+
+self.addEventListener('message', (event) => {
+  const data = event.data || {};
+  if (data && data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+    return;
+  }
 });
 
 const cacheFirst = async (request, cacheName) => {
