@@ -7,7 +7,7 @@ import { formatPhone } from '@/utils/format';
 import { humanizeTime } from '@/utils/dates';
 import { fetchServices, type ServiceItem } from '@/api/services';
 import { fetchCategories, type ServiceCategory } from '@/api/serviceCategories';
-import { fetchGiftCard, type GiftCard } from '@/api/giftCards';
+import { fetchGiftCard, addLegacyGiftCard, type GiftCard } from '@/api/giftCards';
 
 const route = useRoute();
 const router = useRouter();
@@ -26,7 +26,9 @@ const paymentOptions = ref<{ cash: boolean; card: boolean; gift: boolean }>({
   gift: false,
 });
 const paymentAmounts = ref<{ cash: string; card: string }>({ cash: '', card: '' });
-const giftCards = ref<Array<{ id: number; number: string; amount: string }>>([{ id: 1, number: '', amount: '' }]);
+const giftCards = ref<
+  Array<{ id: number; number: string; amount: string; source?: 'new' | 'legacy'; legacyBalance?: string }>
+>([{ id: 1, number: '', amount: '', source: 'new', legacyBalance: '' }]);
 const nextGiftCardId = ref(2);
 const giftCardInfo = ref<Record<number, { loading: boolean; error: string; card: GiftCard | null }>>({});
 const fetchedNumbers = ref<Record<number, string>>({});
@@ -94,7 +96,7 @@ const clearDraftForCurrent = () => {
   draftSelections.value = { ...draftSelections.value, [checkinId.value]: [] };
   paymentOptions.value = { cash: false, card: false, gift: false };
   paymentAmounts.value = { cash: '', card: '' };
-  giftCards.value = [{ id: 1, number: '', amount: '' }];
+  giftCards.value = [{ id: 1, number: '', amount: '', source: 'new', legacyBalance: '' }];
   nextGiftCardId.value = 2;
   giftCardInfo.value = {};
   fetchedNumbers.value = {};
@@ -148,7 +150,17 @@ const giftCardsTotal = computed(() =>
     const amount = Number(card.amount);
     if (!Number.isFinite(amount) || amount <= 0) return acc;
     const bal = giftCardInfo.value[card.id]?.card?.balance;
-    const capped = bal !== undefined && bal !== null ? Math.min(amount, Math.max(0, bal)) : amount;
+    const manualBal =
+      !giftCardInfo.value[card.id]?.card && card.source === 'legacy'
+        ? Number(card.legacyBalance)
+        : undefined;
+    const usableBalance =
+      bal !== undefined && bal !== null
+        ? Math.max(0, bal)
+        : Number.isFinite(manualBal)
+          ? Math.max(0, manualBal as number)
+          : undefined;
+    const capped = usableBalance !== undefined ? Math.min(amount, usableBalance) : amount;
     return acc + capped;
   }, 0),
 );
@@ -278,12 +290,15 @@ const togglePaymentOption = (key: 'cash' | 'card' | 'gift', checked: boolean) =>
 };
 
 const addGiftCard = () => {
-  giftCards.value = [...giftCards.value, { id: nextGiftCardId.value++, number: '', amount: '' }];
+  giftCards.value = [
+    ...giftCards.value,
+    { id: nextGiftCardId.value++, number: '', amount: '', source: 'new', legacyBalance: '' },
+  ];
 };
 
 const removeGiftCard = (id: number) => {
   if (giftCards.value.length === 1) {
-    giftCards.value = [{ id: 1, number: '', amount: '' }];
+    giftCards.value = [{ id: 1, number: '', amount: '', source: 'new', legacyBalance: '' }];
     nextGiftCardId.value = 2;
     delete giftCardInfo.value[id];
     delete fetchedNumbers.value[id];
@@ -298,6 +313,16 @@ const ensureGiftCardState = (id: number) => {
   if (!giftCardInfo.value[id]) {
     giftCardInfo.value[id] = { loading: false, error: '', card: null };
   }
+};
+
+const availableGiftBalance = (card: { id: number; source?: 'new' | 'legacy'; legacyBalance?: string }) => {
+  const fetched = giftCardInfo.value[card.id]?.card?.balance;
+  if (fetched !== undefined && fetched !== null) return Math.max(0, fetched);
+  if (card.source === 'legacy') {
+    const manual = Number(card.legacyBalance);
+    if (Number.isFinite(manual) && manual >= 0) return manual;
+  }
+  return undefined;
 };
 
 const remainingBeforeGiftCard = (id: number) => {
@@ -316,19 +341,18 @@ const remainingBeforeGiftCard = (id: number) => {
 };
 
 const autopopulateGiftAmount = (id: number) => {
-  const info = giftCardInfo.value[id]?.card;
-  if (!info) return;
+  const card = giftCards.value.find((c) => c.id === id);
+  if (!card) return;
+  const bal = availableGiftBalance(card);
+  if (bal === undefined) return;
   const remaining = remainingBeforeGiftCard(id);
-  const suggested = Math.min(info.balance ?? 0, remaining);
+  const suggested = Math.min(bal, remaining);
   if (suggested >= 0) {
-    const card = giftCards.value.find((c) => c.id === id);
-    if (card) {
-      card.amount = suggested ? suggested.toFixed(2) : '';
-    }
+    card.amount = suggested ? suggested.toFixed(2) : '';
   }
 };
 
-const fetchGiftCardBalance = async (card: { id: number; number: string }) => {
+const fetchGiftCardBalance = async (card: { id: number; number: string; source?: 'new' | 'legacy'; legacyBalance?: string }) => {
   const num = (card.number || '').trim();
   ensureGiftCardState(card.id);
   if (!num) {
@@ -337,6 +361,10 @@ const fetchGiftCardBalance = async (card: { id: number; number: string }) => {
     return;
   }
   if (fetchedNumbers.value[card.id] === num && giftCardInfo.value[card.id]?.card) return;
+  if (card.source === 'legacy' && fetchedNumbers.value[card.id] === num && !giftCardInfo.value[card.id]?.card) {
+    // allow manual legacy without refetch
+    return;
+  }
   giftCardInfo.value[card.id] = { loading: true, error: '', card: null };
   try {
     const data = await fetchGiftCard(num);
@@ -344,16 +372,20 @@ const fetchGiftCardBalance = async (card: { id: number; number: string }) => {
     fetchedNumbers.value[card.id] = num;
     autopopulateGiftAmount(card.id);
   } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not load gift card';
+    // If explicitly legacy, allow missing cards to be created later
+    const isNotFound = message.toLowerCase().includes('not found');
     giftCardInfo.value[card.id] = {
       loading: false,
-      error: err instanceof Error ? err.message : 'Could not load gift card',
+      error: card.source === 'legacy' && isNotFound ? '' : message,
       card: null,
     };
+    fetchedNumbers.value[card.id] = num;
   }
 };
 
 watch(
-  () => giftCards.value.map((c) => ({ id: c.id, number: c.number })),
+  () => giftCards.value.map((c) => ({ id: c.id, number: c.number, source: c.source })),
   (cards) => {
     const ids = new Set(cards.map((c) => c.id));
     cards.forEach((c) => ensureGiftCardState(c.id));
@@ -367,6 +399,30 @@ watch(
   },
   { deep: true },
 );
+
+watch(
+  () => giftCards.value.map((c) => ({ id: c.id, legacyBalance: c.legacyBalance, source: c.source })),
+  (cards) => {
+    cards.forEach((c) => {
+      if (c.source === 'legacy') autopopulateGiftAmount(c.id);
+    });
+  },
+  { deep: true },
+);
+
+const ensureLegacyCards = async () => {
+  for (const card of giftCards.value) {
+    if (card.source !== 'legacy') continue;
+    const num = (card.number || '').trim();
+    if (!num) throw new Error('Enter a legacy gift card number');
+    const balance = availableGiftBalance(card);
+    if (balance === undefined) throw new Error('Enter legacy card balance before applying');
+    if (giftCardInfo.value[card.id]?.card) continue;
+    const created = await addLegacyGiftCard({ number: num, amount: balance });
+    giftCardInfo.value[card.id] = { loading: false, error: '', card: created };
+    fetchedNumbers.value[card.id] = num;
+  }
+};
 
 const validateGiftCards = () => {
   if (!paymentOptions.value.gift) return true;
@@ -386,7 +442,8 @@ const validateGiftCards = () => {
       ElMessage.warning(`Gift card ${num}: ${info.error}`);
       return false;
     }
-    if (info?.card && amt > info.card.balance) {
+    const bal = availableGiftBalance(card);
+    if (bal !== undefined && amt > bal) {
       ElMessage.warning(`Gift card ${num} exceeds available balance`);
       return false;
     }
@@ -401,6 +458,12 @@ const submitCheckout = async () => {
     return;
   }
   if (!validateGiftCards()) return;
+  try {
+    await ensureLegacyCards();
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : 'Could not record legacy gift card');
+    return;
+  }
   completing.value = true;
   try {
     const giftCardNumber = paymentOptions.value.gift
@@ -677,8 +740,8 @@ onBeforeUnmount(() => {
                       Available balance:
                       {{ Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(
                         giftCards.reduce((sum, c) => {
-                          const bal = giftCardInfo[c.id]?.card?.balance;
-                          return Number.isFinite(bal) ? sum + (bal as number) : sum;
+                          const bal = availableGiftBalance(c);
+                          return bal !== undefined ? sum + bal : sum;
                         }, 0),
                       ) }}
                     </span>
@@ -687,6 +750,10 @@ onBeforeUnmount(() => {
                 </div>
                 <div class="gift-list">
                   <div v-for="card in giftCards" :key="card.id" class="gift-row">
+                    <select v-model="card.source" class="gift-source">
+                      <option value="new">SalonFlow</option>
+                      <option value="legacy">Legacy</option>
+                    </select>
                     <ElInput v-model="card.number" placeholder="Number" />
                     <ElInput
                       v-model="card.amount"
@@ -725,6 +792,20 @@ onBeforeUnmount(() => {
                               giftCardInfo[card.id]?.card?.initialValue ?? 0,
                             )
                           }}
+                        </span>
+                      </template>
+                      <template v-else-if="card.source === 'legacy'">
+                        <span class="gift-chip legacy">Legacy</span>
+                        <span>
+                          Recorded balance:
+                          <ElInput
+                            v-model="card.legacyBalance"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="Balance"
+                            class="legacy-balance"
+                          />
                         </span>
                       </template>
                     </div>
@@ -1043,7 +1124,7 @@ onBeforeUnmount(() => {
 }
 .gift-row {
   display: grid;
-  grid-template-columns: 1fr 120px auto;
+  grid-template-columns: 120px 1fr 120px auto;
   gap: 8px;
   align-items: center;
 }
@@ -1057,6 +1138,15 @@ onBeforeUnmount(() => {
 .gift-total {
   font-size: 12px;
   color: #475569;
+}
+.gift-source {
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 10px;
+  padding: 10px;
+  background: #fff;
+  font-weight: 600;
+  color: #0f172a;
 }
 .gift-available {
   font-size: 12px;
@@ -1092,6 +1182,10 @@ onBeforeUnmount(() => {
 .gift-chip.new {
   background: #dbeafe;
   color: #1d4ed8;
+}
+.legacy-balance :deep(.el-input__wrapper) {
+  padding: 4px 10px;
+  height: 32px;
 }
 .bill-row {
   display: flex;
