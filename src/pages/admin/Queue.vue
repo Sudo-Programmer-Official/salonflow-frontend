@@ -61,6 +61,7 @@ const checkoutServices = ref<Array<{ name: string; priceCents: number | null }>>
 const currentCheckoutItem = computed(() =>
   checkoutTarget.value ? queue.value.find((q) => q.id === checkoutTarget.value) : null,
 );
+const focusCheckinId = ref<string | null>(null);
 const currentCustomerSummary = computed(() => {
   const item = currentCheckoutItem.value;
   if (!item) return null;
@@ -778,6 +779,34 @@ const handleFocus = () => {
   loadAppointments();
 };
 
+const focusCard = async (id: string) => {
+  focusCheckinId.value = id;
+  await nextTick();
+  const el = document.querySelector(`[data-queue-card-id="${id}"]`) as HTMLElement | null;
+  if (el?.scrollIntoView) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  window.setTimeout(() => {
+    if (focusCheckinId.value === id) focusCheckinId.value = null;
+  }, 2000);
+};
+
+const handleCallNext = async (item: QueueItem) => {
+  actionLoading.value = item.id;
+  try {
+    await callCheckIn(item.id).catch(() => undefined);
+    await startCheckIn(item.id);
+    activeTab.value = 'IN_SERVICE';
+    await Promise.all([loadQueue(), loadCounts()]);
+    await focusCard(item.id);
+    ElMessage.success(`${item.customerName || 'Customer'} moved to In Service`);
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : 'Failed to start service');
+  } finally {
+    actionLoading.value = null;
+  }
+};
+
 watch(checkoutOpen, async (open) => {
   if (open) {
     await nextTick();
@@ -956,14 +985,16 @@ watch(completedPage, async (val) => {
     </div>
 
     <div v-else class="queue-scroll flex-1">
-      <div class="grid gap-6 queue-grid">
-        <ElCard
-          v-for="item in displayedQueue"
-          :key="item.id"
-          shadow="hover"
-          class="queue-card glass-card"
-        >
-          <div class="flex items-start gap-3">
+          <div class="grid gap-6 queue-grid">
+            <ElCard
+              v-for="item in displayedQueue"
+              :key="item.id"
+              shadow="hover"
+              class="queue-card glass-card"
+              :class="{ 'queue-card--focused': focusCheckinId === item.id }"
+              :data-queue-card-id="item.id"
+            >
+              <div class="flex items-start gap-3">
             <div class="queue-avatar">
               {{ (item.customerName || '?').charAt(0).toUpperCase() }}
             </div>
@@ -1017,32 +1048,20 @@ watch(completedPage, async (val) => {
               type="primary"
               :loading="actionLoading === item.id"
               class="sf-btn"
-              @click="handleAction(item.id, () => callCheckIn(item.id))"
+              @click="handleCallNext(item)"
             >
               Call Next
             </ElButton>
             <template v-else-if="item.status === 'CALLED'">
-              <div class="queue-actions">
-                <ElButton
-                  size="small"
-                  type="success"
-                  :loading="actionLoading === item.id"
-                  class="sf-btn queue-action-btn primary"
-                  @click="handleAction(item.id, () => startCheckIn(item.id))"
-                >
-                  Mark In Service
-                </ElButton>
-                <ElButton
-                  size="small"
-                  type="danger"
-                  plain
-                  :loading="actionLoading === `${item.id}-no-show`"
-                  class="sf-btn queue-action-btn secondary"
-                  @click="handleAction(`${item.id}-no-show`, () => markNoShow(item.id))"
-                >
-                  No Show
-                </ElButton>
-              </div>
+              <ElButton
+                size="small"
+                type="success"
+                :loading="actionLoading === item.id"
+                class="sf-btn queue-action-btn primary"
+                @click="handleCallNext(item)"
+              >
+                Start Service
+              </ElButton>
             </template>
             <ElButton
               v-else-if="item.status === 'IN_SERVICE'"
@@ -1053,6 +1072,17 @@ watch(completedPage, async (val) => {
               @click="openCheckout(item.id)"
             >
               Complete
+            </ElButton>
+            <ElButton
+              v-if="item.status === 'IN_SERVICE'"
+              size="small"
+              type="danger"
+              plain
+              :loading="actionLoading === `${item.id}-no-show`"
+              class="sf-btn queue-action-btn secondary"
+              @click="handleAction(`${item.id}-no-show`, () => markNoShow(item.id))"
+            >
+              No Show
             </ElButton>
           </div>
         </ElCard>
@@ -1508,6 +1538,10 @@ watch(completedPage, async (val) => {
 }
 .queue-card * {
   box-sizing: border-box;
+}
+.queue-card--focused {
+  outline: 2px solid #38bdf8;
+  box-shadow: 0 12px 30px rgba(56, 189, 248, 0.25);
 }
 @supports (-webkit-touch-callout: none) {
   .queue-grid {
