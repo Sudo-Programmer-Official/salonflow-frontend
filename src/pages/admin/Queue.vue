@@ -1479,6 +1479,7 @@ watch(completedPage, async (val) => {
   border-radius: 18px;
   min-height: 270px;
   height: 270px;
+  margin-top: 60px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
