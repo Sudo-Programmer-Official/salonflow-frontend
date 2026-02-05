@@ -1403,13 +1403,18 @@ watch(completedPage, async (val) => {
 <style scoped>
 .queue-page {
   min-height: calc(100vh - 140px);
+  height: 100%;
+  max-height: 100vh;
+  overflow: hidden;
 }
 .queue-grid {
+  display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  align-items: start;
+  align-items: stretch;
   flex: 1 1 auto;
-  gap: 28px;
-  grid-auto-rows: minmax(0, auto);
+  gap: 16px;
+  grid-auto-rows: auto;
+  contain: layout paint;
 }
 .queue-scroll {
   display: flex;
@@ -1423,7 +1428,7 @@ watch(completedPage, async (val) => {
 .queue-scroll .queue-grid {
   flex: 1 1 auto;
   overflow-y: auto;
-  padding: 6px 4px 14px;
+  padding: 16px;
 }
 .appointment-list {
   max-height: 280px;
@@ -1477,12 +1482,17 @@ watch(completedPage, async (val) => {
 .queue-card {
   align-self: flex-start;
   border-radius: 18px;
-  min-height: 270px;
-  height: 270px;
-  margin-top: 60px;
+  min-height: 240px;
+  height: auto;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.queue-card * {
+  box-sizing: border-box;
 }
 .queue-card .queue-avatar {
   height: 42px;
