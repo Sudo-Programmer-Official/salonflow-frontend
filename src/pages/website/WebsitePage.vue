@@ -52,7 +52,71 @@ const page = computed(() => {
 
 const hero = computed(() => page.value?.content?.hero || {});
 const services = computed(() => page.value?.content?.services || []);
-const contact = computed(() => page.value?.content?.contact || {});
+const placeholderContactValues = new Set(['123 Demo St, Corpus Christi, TX', '(361) 555-0123', 'Mon-Sat 9am-7pm', 'Lun-Sáb 9am-7pm']);
+const isMeaningfulContactValue = (val: any) => {
+  if (val === null || val === undefined) return false;
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (!trimmed) return false;
+    if (placeholderContactValues.has(trimmed)) return false;
+    return true;
+  }
+  return Boolean(val);
+};
+const hasContactInfo = (c: any) => {
+  if (!c) return false;
+  const keys = [
+    'address',
+    'phone',
+    'email',
+    'hours',
+    'notes',
+    'policies',
+    'parking',
+    'policy',
+    'directions_url',
+    'map_embed',
+    'map_embed_url',
+    'mapUrl',
+    'mapUrlEmbed',
+  ];
+  return keys.some((key) => isMeaningfulContactValue((c as any)[key]));
+};
+const contactFallback = computed(() => {
+  const pages = data.value?.pages || [];
+  const localized = pages.filter((p) => p.locale === locale.value && p.slug !== slug.value);
+  const pickFromSlug = (slugName: string) => {
+    const found = localized.find((p) => p.slug === slugName);
+    if (found && hasContactInfo(found.content?.contact)) return found.content?.contact;
+    return null;
+  };
+  return (
+    pickFromSlug('contact') ||
+    pickFromSlug('services') ||
+    localized.find((p) => hasContactInfo(p.content?.contact))?.content?.contact ||
+    null
+  );
+});
+const mergeContactValues = (primary: any, fallback: any) => {
+  const merged: Record<string, any> = {};
+  const keys = new Set<string>([
+    ...Object.keys(fallback || {}),
+    ...Object.keys(primary || {}),
+  ]);
+  keys.forEach((key) => {
+    const primaryVal = (primary || {})[key];
+    if (isMeaningfulContactValue(primaryVal)) {
+      merged[key] = typeof primaryVal === 'string' ? primaryVal.trim() : primaryVal;
+      return;
+    }
+    const fallbackVal = (fallback || {})[key];
+    if (isMeaningfulContactValue(fallbackVal)) {
+      merged[key] = typeof fallbackVal === 'string' ? fallbackVal.trim() : fallbackVal;
+    }
+  });
+  return merged;
+};
+const contact = computed(() => mergeContactValues(page.value?.content?.contact || {}, contactFallback.value || {}));
 const servicesMode = computed(() => {
   const raw = (page.value?.content as any)?.servicesMode || (page.value?.content as any)?.services_mode;
   return raw === 'custom' || raw === 'live' ? raw : 'auto';
@@ -500,7 +564,7 @@ const injectHead = () => {
   // JSON-LD LocalBusiness
   const scriptId = 'ld-localbusiness';
   document.getElementById(scriptId)?.remove();
-  const contactData = page.value?.content?.contact || {};
+  const contactData = contact.value || {};
   const businessName =
     page.value?.content?.hero?.brand ||
     page.value?.content?.hero?.headline ||
