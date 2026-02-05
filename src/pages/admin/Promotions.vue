@@ -78,6 +78,34 @@ const audienceOptions = [
   { label: 'Booking users', value: 'booking' },
 ];
 
+const mapSmsTestError = (code?: string) => {
+  switch (code) {
+    case 'TCPA_BLOCKED':
+      return 'Messages can only be sent between 8am–8pm local time.';
+    case 'PROMOTIONS_SMS_DISABLED':
+      return 'Promotions SMS is disabled in this environment.';
+    case 'COMMS_PAUSED':
+      return 'Comms are paused. Enable SMS before sending tests.';
+    case 'SMS_DISABLED':
+      return 'SMS sending is disabled in this environment.';
+    case 'PROMOTIONS_BLOCKED':
+      return 'Promotional SMS is blocked for this tenant.';
+    case 'CAP_EXCEEDED':
+    case 'SMS_CAP_REACHED':
+      return 'SMS cap exceeded for this tenant.';
+    case 'NO_CREDITS':
+      return 'Insufficient SMS credits to send this test.';
+    case 'SMS_NOT_CONFIGURED':
+      return 'SMS provider is not configured.';
+    case 'SMS_BLOCKED':
+      return 'SMS sending is blocked for this tenant.';
+    case 'ACCOUNT_FROZEN':
+      return 'Account is frozen; SMS cannot be sent.';
+    default:
+      return null;
+  }
+};
+
 const form = reactive({
   name: '',
   offerType: 'percent' as 'percent' | 'amount',
@@ -310,8 +338,9 @@ const handleTest = async (id: string, phone: string) => {
     await testPromotion(id, phone.trim());
     ElMessage.success('Test sent');
   } catch (err: any) {
-    if (err?.code === 'TCPA_BLOCKED') {
-      ElMessage.error('Messages can only be sent between 8am–8pm local time.');
+    const mapped = mapSmsTestError(err?.code);
+    if (mapped) {
+      ElMessage.error(mapped);
     } else {
       ElMessage.error(err?.message || 'Failed to send test');
     }
@@ -338,10 +367,9 @@ const handleCreateTest = async () => {
         await testPromotionMessage(phoneVal, form.message.trim());
         ElMessage.success('Test SMS sent');
       } catch (err: any) {
-        if (err?.code === 'TCPA_BLOCKED') {
-          ElMessage.error('Messages can only be sent between 8am–8pm local time.');
-        } else if (err?.code === 'CAP_EXCEEDED') {
-          ElMessage.error('SMS cap exceeded for this tenant.');
+        const mapped = mapSmsTestError(err?.code);
+        if (mapped) {
+          ElMessage.error(mapped);
         } else {
           ElMessage.error(err?.message || 'Failed to send SMS test');
         }
@@ -367,10 +395,9 @@ const handleCreateTest = async () => {
     await testPromotionMessage(form.testPhone.trim(), form.message.trim());
     ElMessage.success('Test sent');
   } catch (err: any) {
-    if (err?.code === 'TCPA_BLOCKED') {
-      ElMessage.error('Messages can only be sent between 8am–8pm local time.');
-    } else if (err?.code === 'CAP_EXCEEDED') {
-      ElMessage.error('SMS cap exceeded for this tenant.');
+    const mapped = mapSmsTestError(err?.code);
+    if (mapped) {
+      ElMessage.error(mapped);
     } else {
       ElMessage.error(err?.message || 'Failed to send test');
     }
