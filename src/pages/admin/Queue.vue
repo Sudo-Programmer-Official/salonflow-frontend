@@ -1471,8 +1471,8 @@ watch(completedPage, async (val) => {
 .queue-card {
   align-self: flex-start;
   border-radius: 18px;
-  min-height: 250px;
-  height: 250px;
+  min-height: 280px;
+  height: 280px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
