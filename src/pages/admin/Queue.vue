@@ -1052,6 +1052,17 @@ watch(completedPage, async (val) => {
             >
               Call Next
             </ElButton>
+            <ElButton
+              v-if="item.status === 'WAITING'"
+              size="small"
+              type="danger"
+              plain
+              :loading="actionLoading === `${item.id}-no-show`"
+              class="sf-btn queue-action-btn secondary"
+              @click="handleAction(`${item.id}-no-show`, () => markNoShow(item.id))"
+            >
+              No Show
+            </ElButton>
             <template v-else-if="item.status === 'CALLED'">
               <ElButton
                 size="small"
@@ -1061,6 +1072,16 @@ watch(completedPage, async (val) => {
                 @click="handleCallNext(item)"
               >
                 Start Service
+              </ElButton>
+              <ElButton
+                size="small"
+                type="danger"
+                plain
+                :loading="actionLoading === `${item.id}-no-show`"
+                class="sf-btn queue-action-btn secondary"
+                @click="handleAction(`${item.id}-no-show`, () => markNoShow(item.id))"
+              >
+                No Show
               </ElButton>
             </template>
             <ElButton
@@ -1072,17 +1093,6 @@ watch(completedPage, async (val) => {
               @click="openCheckout(item.id)"
             >
               Complete
-            </ElButton>
-            <ElButton
-              v-if="item.status === 'IN_SERVICE'"
-              size="small"
-              type="danger"
-              plain
-              :loading="actionLoading === `${item.id}-no-show`"
-              class="sf-btn queue-action-btn secondary"
-              @click="handleAction(`${item.id}-no-show`, () => markNoShow(item.id))"
-            >
-              No Show
             </ElButton>
           </div>
         </ElCard>
