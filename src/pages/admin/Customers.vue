@@ -165,6 +165,16 @@ const goToPage = async (target: number) => {
   page.value = Math.min(Math.max(1, clamped), totalPages.value);
 };
 
+const pointsValue = (row: any) => {
+  const val =
+    row?.pointsBalance ??
+    row?.points_balance ??
+    row?.points ??
+    row?.loyaltyPoints ??
+    0;
+  return typeof val === 'number' && Number.isFinite(val) ? val : 0;
+};
+
 watch(results, () => {
   if (page.value > totalPages.value) {
     page.value = totalPages.value;
@@ -251,8 +261,8 @@ watch(results, () => {
                 <div class="space-y-1 text-xs text-slate-700">
                   <div class="flex items-center gap-1">
                     <span>⭐</span>
-                    <span :class="(row.pointsBalance ?? 0) >= 300 ? 'text-emerald-600 font-semibold' : 'text-slate-700'">
-                      {{ row.pointsBalance ?? 0 }} pts
+                    <span :class="pointsValue(row) >= 300 ? 'text-emerald-600 font-semibold' : 'text-slate-700'">
+                      {{ pointsValue(row) }} pts
                     </span>
                   </div>
                   <ElTag effect="light">
