@@ -261,7 +261,7 @@ const handleAction = async (id: string, action: () => Promise<unknown>) => {
   actionLoading.value = id;
   try {
     await action();
-    await loadQueue();
+    await Promise.all([loadQueue(), loadCounts()]);
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Action failed');
   } finally {
