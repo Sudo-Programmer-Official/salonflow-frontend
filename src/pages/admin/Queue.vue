@@ -1403,18 +1403,32 @@ watch(completedPage, async (val) => {
 <style scoped>
 .queue-page {
   min-height: calc(100vh - 140px);
-  height: 100%;
+  height: 100vh;
   max-height: 100vh;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 .queue-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   align-items: stretch;
+  align-content: start;
   flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
   gap: 16px;
   grid-auto-rows: auto;
+  contain: layout paint size;
+}
+.queue-grid > * {
+  display: block;
+  width: 100%;
+  min-height: fit-content;
+  height: auto;
+  align-self: stretch;
   contain: layout paint;
+  overflow: hidden;
 }
 .queue-scroll {
   display: flex;
@@ -1480,9 +1494,10 @@ watch(completedPage, async (val) => {
   font-size: 1rem;
 }
 .queue-card {
-  align-self: flex-start;
+  align-self: stretch;
+  width: 100%;
   border-radius: 18px;
-  min-height: 240px;
+  min-height: 160px;
   height: auto;
   display: flex;
   flex-direction: column;
@@ -1493,6 +1508,11 @@ watch(completedPage, async (val) => {
 }
 .queue-card * {
   box-sizing: border-box;
+}
+@supports (-webkit-touch-callout: none) {
+  .queue-grid {
+    grid-auto-rows: minmax(min-content, max-content);
+  }
 }
 .queue-card .queue-avatar {
   height: 42px;
