@@ -7,6 +7,7 @@ import { formatPhone } from '@/utils/format';
 import { humanizeTime } from '@/utils/dates';
 import { fetchServices, type ServiceItem } from '@/api/services';
 import { fetchCategories, type ServiceCategory } from '@/api/serviceCategories';
+import { fetchGiftCard, type GiftCard } from '@/api/giftCards';
 
 const route = useRoute();
 const router = useRouter();
@@ -27,6 +28,8 @@ const paymentOptions = ref<{ cash: boolean; card: boolean; gift: boolean }>({
 const paymentAmounts = ref<{ cash: string; card: string }>({ cash: '', card: '' });
 const giftCards = ref<Array<{ id: number; number: string; amount: string }>>([{ id: 1, number: '', amount: '' }]);
 const nextGiftCardId = ref(2);
+const giftCardInfo = ref<Record<number, { loading: boolean; error: string; card: GiftCard | null }>>({});
+const fetchedNumbers = ref<Record<number, string>>({});
 
 const DRAFT_KEY = 'checkoutDraftSelections';
 const PAYMENT_KEY = 'checkoutPayments';
@@ -93,6 +96,8 @@ const clearDraftForCurrent = () => {
   paymentAmounts.value = { cash: '', card: '' };
   giftCards.value = [{ id: 1, number: '', amount: '' }];
   nextGiftCardId.value = 2;
+  giftCardInfo.value = {};
+  fetchedNumbers.value = {};
 };
 
 const selectedServiceIds = computed({
@@ -141,8 +146,10 @@ const hasDirtyCheckout = computed(() => {
 const giftCardsTotal = computed(() =>
   giftCards.value.reduce((acc, card) => {
     const amount = Number(card.amount);
-    if (Number.isFinite(amount) && amount > 0) return acc + amount;
-    return acc;
+    if (!Number.isFinite(amount) || amount <= 0) return acc;
+    const bal = giftCardInfo.value[card.id]?.card?.balance;
+    const capped = bal !== undefined && bal !== null ? Math.min(amount, Math.max(0, bal)) : amount;
+    return acc + capped;
   }, 0),
 );
 const enteredPayments = computed(() => {
@@ -262,6 +269,8 @@ const togglePaymentOption = (key: 'cash' | 'card' | 'gift', checked: boolean) =>
     if (key === 'gift') {
       giftCards.value = [{ id: 1, number: '', amount: '' }];
       nextGiftCardId.value = 2;
+      giftCardInfo.value = {};
+      fetchedNumbers.value = {};
     } else {
       paymentAmounts.value = { ...paymentAmounts.value, [key]: '' };
     }
@@ -276,9 +285,113 @@ const removeGiftCard = (id: number) => {
   if (giftCards.value.length === 1) {
     giftCards.value = [{ id: 1, number: '', amount: '' }];
     nextGiftCardId.value = 2;
+    delete giftCardInfo.value[id];
+    delete fetchedNumbers.value[id];
     return;
   }
   giftCards.value = giftCards.value.filter((c) => c.id !== id);
+  delete giftCardInfo.value[id];
+  delete fetchedNumbers.value[id];
+};
+
+const ensureGiftCardState = (id: number) => {
+  if (!giftCardInfo.value[id]) {
+    giftCardInfo.value[id] = { loading: false, error: '', card: null };
+  }
+};
+
+const remainingBeforeGiftCard = (id: number) => {
+  const otherGift = giftCards.value.reduce((sum, c) => {
+    if (c.id === id) return sum;
+    const amt = Number(c.amount);
+    return Number.isFinite(amt) && amt > 0 ? sum + amt : sum;
+  }, 0);
+  const otherPay = (['cash', 'card'] as const).reduce((sum, key) => {
+    if (!paymentOptions.value[key]) return sum;
+    const val = Number(paymentAmounts.value[key]);
+    return Number.isFinite(val) && val > 0 ? sum + val : sum;
+  }, 0);
+  const remaining = subtotal.value - otherGift - otherPay;
+  return remaining > 0 ? Number(remaining.toFixed(2)) : 0;
+};
+
+const autopopulateGiftAmount = (id: number) => {
+  const info = giftCardInfo.value[id]?.card;
+  if (!info) return;
+  const remaining = remainingBeforeGiftCard(id);
+  const suggested = Math.min(info.balance ?? 0, remaining);
+  if (suggested >= 0) {
+    const card = giftCards.value.find((c) => c.id === id);
+    if (card) {
+      card.amount = suggested ? suggested.toFixed(2) : '';
+    }
+  }
+};
+
+const fetchGiftCardBalance = async (card: { id: number; number: string }) => {
+  const num = (card.number || '').trim();
+  ensureGiftCardState(card.id);
+  if (!num) {
+    giftCardInfo.value[card.id] = { loading: false, error: '', card: null };
+    delete fetchedNumbers.value[card.id];
+    return;
+  }
+  if (fetchedNumbers.value[card.id] === num && giftCardInfo.value[card.id]?.card) return;
+  giftCardInfo.value[card.id] = { loading: true, error: '', card: null };
+  try {
+    const data = await fetchGiftCard(num);
+    giftCardInfo.value[card.id] = { loading: false, error: '', card: data };
+    fetchedNumbers.value[card.id] = num;
+    autopopulateGiftAmount(card.id);
+  } catch (err) {
+    giftCardInfo.value[card.id] = {
+      loading: false,
+      error: err instanceof Error ? err.message : 'Could not load gift card',
+      card: null,
+    };
+  }
+};
+
+watch(
+  () => giftCards.value.map((c) => ({ id: c.id, number: c.number })),
+  (cards) => {
+    const ids = new Set(cards.map((c) => c.id));
+    cards.forEach((c) => ensureGiftCardState(c.id));
+    Object.keys(giftCardInfo.value).forEach((id) => {
+      if (!ids.has(Number(id))) {
+        delete giftCardInfo.value[Number(id)];
+        delete fetchedNumbers.value[Number(id)];
+      }
+    });
+    cards.forEach((card) => fetchGiftCardBalance(card));
+  },
+  { deep: true },
+);
+
+const validateGiftCards = () => {
+  if (!paymentOptions.value.gift) return true;
+  for (const card of giftCards.value) {
+    const num = (card.number || '').trim();
+    const amt = Number(card.amount);
+    if (!num) {
+      ElMessage.warning('Enter a gift card number');
+      return false;
+    }
+    if (!Number.isFinite(amt) || amt <= 0) {
+      ElMessage.warning('Enter a gift card amount greater than zero');
+      return false;
+    }
+    const info = giftCardInfo.value[card.id];
+    if (info?.error) {
+      ElMessage.warning(`Gift card ${num}: ${info.error}`);
+      return false;
+    }
+    if (info?.card && amt > info.card.balance) {
+      ElMessage.warning(`Gift card ${num} exceeds available balance`);
+      return false;
+    }
+  }
+  return true;
 };
 
 const submitCheckout = async () => {
@@ -287,6 +400,7 @@ const submitCheckout = async () => {
     ElMessage.warning('Add services and payments before checkout.');
     return;
   }
+  if (!validateGiftCards()) return;
   completing.value = true;
   try {
     const giftCardNumber = paymentOptions.value.gift
@@ -557,7 +671,18 @@ onBeforeUnmount(() => {
               </div>
               <div v-if="paymentOptions.gift" class="gift-block">
                 <div class="gift-header">
-                  <span>Gift cards</span>
+                  <div class="flex flex-col gap-1">
+                    <span>Gift cards</span>
+                    <span class="gift-available" v-if="giftCards.length">
+                      Available balance:
+                      {{ Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(
+                        giftCards.reduce((sum, c) => {
+                          const bal = giftCardInfo[c.id]?.card?.balance;
+                          return Number.isFinite(bal) ? sum + (bal as number) : sum;
+                        }, 0),
+                      ) }}
+                    </span>
+                  </div>
                   <button class="add-gift" type="button" @click="addGiftCard">+ Add</button>
                 </div>
                 <div class="gift-list">
@@ -578,9 +703,36 @@ onBeforeUnmount(() => {
                     >
                       ✕
                     </button>
+                    <div class="gift-meta" :class="{ error: giftCardInfo[card.id]?.error }">
+                      <span v-if="giftCardInfo[card.id]?.loading">Checking balance…</span>
+                      <span v-else-if="giftCardInfo[card.id]?.error">{{ giftCardInfo[card.id]?.error }}</span>
+                      <template v-else-if="giftCardInfo[card.id]?.card">
+                        <span class="gift-chip" :class="giftCardInfo[card.id]?.card?.source === 'legacy' ? 'legacy' : 'new'">
+                          {{ giftCardInfo[card.id]?.card?.source === 'legacy' ? 'Legacy' : 'SalonFlow' }}
+                        </span>
+                        <span>
+                          Balance:
+                          {{
+                            Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(
+                              giftCardInfo[card.id]?.card?.balance ?? 0,
+                            )
+                          }}
+                        </span>
+                        <span v-if="giftCardInfo[card.id]?.card?.initialValue">
+                          Issued:
+                          {{
+                            Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(
+                              giftCardInfo[card.id]?.card?.initialValue ?? 0,
+                            )
+                          }}
+                        </span>
+                      </template>
+                    </div>
                   </div>
                 </div>
-                <div class="gift-total">Gift total: {{ giftCardsTotal.toFixed(2) }}</div>
+                <div class="gift-total">
+                  Applying {{ Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(giftCardsTotal) }}
+                </div>
               </div>
             </div>
           </div>
@@ -905,6 +1057,41 @@ onBeforeUnmount(() => {
 .gift-total {
   font-size: 12px;
   color: #475569;
+}
+.gift-available {
+  font-size: 12px;
+  font-weight: 500;
+  color: #0f172a;
+}
+.gift-meta {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+  color: #475569;
+}
+.gift-meta.error {
+  color: #dc2626;
+}
+.gift-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: #e2e8f0;
+  color: #0f172a;
+}
+.gift-chip.legacy {
+  background: #fef3c7;
+  color: #92400e;
+}
+.gift-chip.new {
+  background: #dbeafe;
+  color: #1d4ed8;
 }
 .bill-row {
   display: flex;
