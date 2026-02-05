@@ -890,6 +890,7 @@ onBeforeUnmount(() => {
 }
 .checkout-panel {
   min-height: 480px;
+  min-width: 0;
 }
 .glass-card {
   border-radius: 14px;
@@ -1226,9 +1227,24 @@ onBeforeUnmount(() => {
   color: #475569;
   text-align: center;
 }
-@media (max-width: 1024px) {
+@media (max-width: 1280px) {
+  .checkout-body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .checkout-panel.bill {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 960px) {
   .checkout-body {
     grid-template-columns: 1fr;
+  }
+  .checkout-panel {
+    min-height: auto;
+  }
+  .bill-actions {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 </style>
