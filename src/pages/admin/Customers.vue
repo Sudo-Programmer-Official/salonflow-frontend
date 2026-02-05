@@ -28,6 +28,7 @@ const timeline = ref<CustomerTimelineType | null>(null);
 const page = ref(1);
 
 const totalPages = computed(() => Math.max(1, Math.ceil(results.value.length / PAGE_SIZE)));
+const totalCustomers = computed(() => results.value.length);
 
 const displayedResults = computed(() => {
   if (page.value > totalPages.value) page.value = totalPages.value;
@@ -184,11 +185,16 @@ watch(results, () => {
 
 <template>
   <div class="customers-page space-y-4">
-    <div>
-      <h1 class="text-2xl font-semibold text-slate-900">Customers</h1>
-      <p class="text-sm text-slate-600">
-        Search by name or phone to see visit history. Customers appear after their first visit or checkout.
-      </p>
+    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h1 class="text-2xl font-semibold text-slate-900">Customers</h1>
+        <p class="text-sm text-slate-600">
+          Search by name or phone to see visit history. Customers appear after their first visit or checkout.
+        </p>
+      </div>
+      <div class="stat-chip" aria-label="Total customers">
+        👥 Total: {{ totalCustomers }}
+      </div>
     </div>
 
     <ElCard class="bg-white">
@@ -217,7 +223,7 @@ watch(results, () => {
 
     <ElCard v-if="results.length > 0" class="bg-white">
       <div class="table-shell">
-        <div class="table-body">
+        <div class="table-body table-scroll">
           <ElTable :data="displayedResults" style="width: 100%">
             <ElTableColumn label="Customer" min-width="200">
               <template #default="{ row }">
@@ -280,30 +286,37 @@ watch(results, () => {
               </template>
             </ElTableColumn>
 
-            <ElTableColumn label="Actions" min-width="350" fixed="right" align="center" header-align="center">
+            <ElTableColumn label="Actions" min-width="140" width="160" fixed="right" align="center" header-align="center" class-name="actions-col">
               <template #default="{ row }">
-                <div class="table-actions">
-                  <ElButton
-                    size="small"
-                    type="primary"
-                    class="sf-btn sf-btn--table"
-                    :disabled="!canSendReminder(row)"
-                    @click="sendReminderAction(row)"
-                  >
-                    🔔 Reminder
-                  </ElButton>
-                  <ElButton
-                    size="small"
-                    type="primary"
-                    class="sf-btn sf-btn--table"
-                    :disabled="!canSendFeedback(row)"
-                    @click="sendFeedbackAction(row)"
-                  >
-                    📩 Feedback
-                  </ElButton>
-                  <ElButton size="small" class="sf-btn sf-btn--table" @click="openTimeline(row.id)">
-                    👁 View
-                  </ElButton>
+                <div class="table-actions icons">
+                  <ElTooltip content="Send reminder" placement="top">
+                    <ElButton
+                      circle
+                      size="small"
+                      type="primary"
+                      class="action-btn"
+                      :disabled="!canSendReminder(row)"
+                      @click.stop="sendReminderAction(row)"
+                    >
+                      🔔
+                    </ElButton>
+                  </ElTooltip>
+                  <ElTooltip content="Send feedback request" placement="top">
+                    <ElButton
+                      circle
+                      size="small"
+                      type="primary"
+                      plain
+                      class="action-btn"
+                      :disabled="!canSendFeedback(row)"
+                      @click.stop="sendFeedbackAction(row)"
+                    >
+                      ✉️
+                    </ElButton>
+                  </ElTooltip>
+                  <ElTooltip content="View timeline" placement="top">
+                    <ElButton circle size="small" class="action-btn" @click.stop="openTimeline(row.id)">👁</ElButton>
+                  </ElTooltip>
                 </div>
               </template>
             </ElTableColumn>
@@ -361,6 +374,10 @@ watch(results, () => {
   overflow-y: auto;
   padding-bottom: 12px;
 }
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
 .pagination-footer {
   position: sticky;
   bottom: 0;
@@ -380,5 +397,29 @@ watch(results, () => {
   padding: 6px 10px;
   border-radius: 12px;
   background: #f1f5f9;
+}
+.table-actions.icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.action-btn {
+  padding: 6px;
+  min-width: unset;
+}
+.actions-col {
+  min-width: 140px;
+  max-width: 180px;
+  white-space: nowrap;
+}
+.stat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: #f1f5f9;
+  font-weight: 600;
+  color: #0f172a;
 }
 </style>
