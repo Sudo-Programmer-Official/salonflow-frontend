@@ -1323,7 +1323,7 @@ watch(useClassicWelcome, (isClassic) => {
                   </p>
                 </div>
 
-                <div v-if="showPoints" class="done-rewards">
+                <div v-if="showPoints && currentPointsBalance !== null" class="done-rewards">
                   <div class="rewards-header">
                     <span class="rewards-icon" aria-hidden="true">💎</span>
                     <div
