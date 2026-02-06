@@ -26,6 +26,8 @@ const paymentOptions = ref<{ cash: boolean; card: boolean; gift: boolean }>({
   gift: false,
 });
 const paymentAmounts = ref<{ cash: string; card: string }>({ cash: '', card: '' });
+const customTotalMode = ref(false);
+const customTotalValue = ref('');
 const giftCards = ref<
   Array<{ id: number; number: string; amount: string; source?: 'new' | 'legacy'; legacyBalance?: string }>
 >([{ id: 1, number: '', amount: '', source: 'new', legacyBalance: '' }]);
@@ -50,6 +52,8 @@ const loadDrafts = () => {
     if (pay) {
       paymentOptions.value = { ...paymentOptions.value, ...(pay.options ?? {}) };
       paymentAmounts.value = { ...paymentAmounts.value, ...(pay.amounts ?? {}) };
+      customTotalMode.value = Boolean(pay.customTotal?.enabled);
+      customTotalValue.value = pay.customTotal?.amount || '';
       giftCards.value = pay.giftCards ?? [{ id: 1, number: '', amount: '' }];
       nextGiftCardId.value = giftCards.value.length
         ? Math.max(...giftCards.value.map((g) => g.id)) + 1
@@ -74,6 +78,7 @@ const persistPayments = () => {
   existing[checkinId.value] = {
     options: paymentOptions.value,
     amounts: paymentAmounts.value,
+    customTotal: { enabled: customTotalMode.value, amount: customTotalValue.value },
     giftCards: giftCards.value,
   };
   localStorage.setItem(PAYMENT_KEY, JSON.stringify(existing));
@@ -96,6 +101,8 @@ const clearDraftForCurrent = () => {
   draftSelections.value = { ...draftSelections.value, [checkinId.value]: [] };
   paymentOptions.value = { cash: false, card: false, gift: false };
   paymentAmounts.value = { cash: '', card: '' };
+  customTotalMode.value = false;
+  customTotalValue.value = '';
   giftCards.value = [{ id: 1, number: '', amount: '', source: 'new', legacyBalance: '' }];
   nextGiftCardId.value = 2;
   giftCardInfo.value = {};
@@ -132,9 +139,18 @@ const selectedServiceObjects = computed(() => {
     .filter((s): s is ServiceItem => Boolean(s));
 });
 
-const subtotal = computed(() =>
+const servicesSubtotal = computed(() =>
   selectedServiceObjects.value.reduce((acc, svc) => acc + (svc.priceCents ?? 0), 0) / 100,
 );
+const customTotalValid = computed(() => {
+  const val = Number(customTotalValue.value);
+  return customTotalMode.value && Number.isFinite(val) && val >= 0;
+});
+const subtotal = computed(() => {
+  if (customTotalValid.value) return Number(Number(customTotalValue.value).toFixed(2));
+  return servicesSubtotal.value;
+});
+const hasBillItems = computed(() => customTotalValid.value || selectedServiceObjects.value.length > 0);
 const hasDirtyCheckout = computed(() => {
   const hasServices = selectedServiceIds.value.length > 0;
   const hasPaymentOptions = paymentOptions.value.cash || paymentOptions.value.card || paymentOptions.value.gift;
@@ -143,7 +159,16 @@ const hasDirtyCheckout = computed(() => {
   const hasGiftCardData =
     giftCards.value.some((g) => (g.number || '').trim() || (g.amount || '').trim()) || paymentOptions.value.gift;
   const hasEntries = enteredPayments.value.length > 0;
-  return hasServices || hasPaymentOptions || hasPaymentAmounts || hasGiftCardData || hasEntries || subtotal.value > 0;
+  const hasCustom = customTotalMode.value || Boolean(customTotalValue.value.trim());
+  return (
+    hasServices ||
+    hasPaymentOptions ||
+    hasPaymentAmounts ||
+    hasGiftCardData ||
+    hasEntries ||
+    subtotal.value > 0 ||
+    hasCustom
+  );
 });
 const giftCardsTotal = computed(() =>
   giftCards.value.reduce((acc, card) => {
@@ -184,7 +209,7 @@ const remainingBalance = computed(() => {
   return Number.isFinite(remaining) ? Number(remaining.toFixed(2)) : 0;
 });
 const canCompleteCheckout = computed(
-  () => selectedServiceObjects.value.length > 0 && enteredPayments.value.length > 0 && Math.abs(remainingBalance.value) < 0.01,
+  () => hasBillItems.value && enteredPayments.value.length > 0 && Math.abs(remainingBalance.value) < 0.01,
 );
 const completing = ref(false);
 
@@ -254,7 +279,7 @@ watch(
   { deep: true },
 );
 watch(
-  () => [paymentOptions.value, paymentAmounts.value, giftCards.value],
+  () => [paymentOptions.value, paymentAmounts.value, giftCards.value, customTotalMode.value, customTotalValue.value],
   () => persistPayments(),
   { deep: true },
 );
@@ -454,7 +479,7 @@ const validateGiftCards = () => {
 const submitCheckout = async () => {
   if (!item.value) return;
   if (!canCompleteCheckout.value) {
-    ElMessage.warning('Add services and payments before checkout.');
+    ElMessage.warning('Add a total (services or custom) and payments before checkout.');
     return;
   }
   if (!validateGiftCards()) return;
@@ -645,11 +670,36 @@ onBeforeUnmount(() => {
         <ElCard v-else class="glass-card" shadow="never">
           <div class="panel-title">Bill</div>
           <div class="panel-sub">Review and complete checkout.</div>
-
-          <div v-if="!selectedServiceObjects.length" class="empty-state">
-            Add services to build the bill.
+          <div class="custom-total">
+            <button
+              type="button"
+              class="custom-toggle"
+              :class="{ active: customTotalMode }"
+              @click="customTotalMode = !customTotalMode"
+            >
+              Custom total
+            </button>
+            <div v-if="customTotalMode" class="custom-total-input">
+              <ElInput
+                v-model="customTotalValue"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="Enter total amount (e.g., 45.00)"
+              />
+              <div class="custom-hint">
+                Skip service selection; enter the final total here.
+              </div>
+              <button type="button" class="custom-reset" @click="() => { customTotalValue = ''; customTotalMode = false; }">
+                Clear custom total
+              </button>
+            </div>
           </div>
-          <div v-else class="selected-list">
+
+          <div v-if="!selectedServiceObjects.length && !customTotalValid" class="empty-state">
+            Add services or enable a custom total to build the bill.
+          </div>
+          <div v-else class="selected-list" v-if="selectedServiceObjects.length">
             <div
               v-for="svc in selectedServiceObjects"
               :key="svc.id"
@@ -672,6 +722,12 @@ onBeforeUnmount(() => {
               </div>
               <button class="remove-btn" type="button" @click="toggleService(svc.id)">✕</button>
             </div>
+          </div>
+          <div v-if="customTotalValid" class="custom-total-summary">
+            <span class="pill">Custom</span>
+            <span class="amount">
+              {{ Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(subtotal) }}
+            </span>
           </div>
 
           <div class="bill-summary">
@@ -906,6 +962,66 @@ onBeforeUnmount(() => {
   margin-top: 4px;
   font-size: 13px;
   color: #64748b;
+}
+.custom-total {
+  margin: 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.custom-toggle {
+  align-self: flex-start;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(59, 130, 246, 0.5);
+  background: #fff;
+  color: #0f172a;
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+.custom-toggle.active {
+  background: linear-gradient(180deg, #e8f2ff, #ffffff);
+  box-shadow: 0 6px 18px rgba(59, 130, 246, 0.2);
+}
+.custom-total-input {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 10px;
+  background: rgba(248, 250, 252, 0.8);
+}
+.custom-hint {
+  font-size: 12px;
+  color: #475569;
+}
+.custom-reset {
+  align-self: flex-start;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  background: #fff;
+  font-size: 12px;
+  color: #0f172a;
+}
+.custom-total-summary {
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.custom-total-summary .pill {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #ecfeff;
+  color: #0f172a;
+  font-weight: 700;
+  border: 1px solid #bae6fd;
+}
+.custom-total-summary .amount {
+  font-weight: 700;
+  color: #0f172a;
 }
 .bill-placeholder {
   margin-top: 16px;
