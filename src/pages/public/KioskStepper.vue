@@ -186,6 +186,12 @@ const useClassicWelcome = computed(() => welcomeStyle.value === "classic");
 const showRewardsCard = computed(
   () => settings.value?.kioskShowRewardsCard !== false,
 );
+const currentPointsBalance = computed(() => {
+  const pts = lookupResult.value?.customer?.pointsBalance;
+  if (pts === null || pts === undefined) return null;
+  const num = Number(pts);
+  return Number.isFinite(num) ? num : null;
+});
 const allowServiceSkip = computed(
   () =>
     !requireService.value && settings.value?.kioskAllowSkipService !== false,
@@ -1317,21 +1323,18 @@ watch(useClassicWelcome, (isClassic) => {
                   </p>
                 </div>
 
-                <div
-                  v-if="showPoints && lookupResult?.customer?.pointsBalance !== null && lookupResult?.customer?.pointsBalance !== undefined"
-                  class="done-rewards"
-                >
+                <div v-if="showPoints" class="done-rewards">
                   <div class="rewards-header">
                     <span class="rewards-icon" aria-hidden="true">💎</span>
                     <div
                       class="text-xl font-semibold"
                       :style="{ color: 'var(--kiosk-text-primary)' }"
                     >
-                      {{ lookupResult?.customer?.pointsBalance ?? 0 }} points balance
+                      {{ currentPointsBalance ?? 0 }} points balance
                     </div>
                   </div>
                   <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">
-                    Points update after your visit is processed.
+                    Balance before this visit; points from today add after checkout.
                   </div>
                 </div>
 
