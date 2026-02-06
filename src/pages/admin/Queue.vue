@@ -11,6 +11,9 @@ import {
   ElOption,
   ElInput,
   ElMessageBox,
+  ElDropdown,
+  ElDropdownMenu,
+  ElDropdownItem,
 } from 'element-plus';
 import {
   fetchQueue,
@@ -756,6 +759,10 @@ const handleManualCheckinEvent = () => {
   openCheckinModal();
 };
 
+const handleNoShow = async (item: QueueItem) => {
+  await handleAction(`${item.id}-no-show`, () => markNoShow(item.id));
+};
+
 const consumeNewCheckinQuery = async () => {
   if (route.query.newCheckin === '1') {
     openCheckinModal();
@@ -1010,6 +1017,18 @@ watch(completedPage, async (val) => {
                   <ElTag v-if="item.customerType" effect="plain" size="small">
                     {{ item.customerType === 'VIP' ? 'VIP' : item.customerType === 'SECOND_TIME' ? '2nd-time' : 'Regular' }}
                   </ElTag>
+                  <ElDropdown
+                    v-if="item.status === 'WAITING'"
+                    trigger="click"
+                    @command="(cmd: string) => cmd === 'no-show' && handleNoShow(item)"
+                  >
+                    <span class="queue-menu-btn" title="More actions">⋮</span>
+                    <template #dropdown>
+                      <ElDropdownMenu>
+                        <ElDropdownItem command="no-show">No Show</ElDropdownItem>
+                      </ElDropdownMenu>
+                    </template>
+                  </ElDropdown>
                 </div>
               </div>
               <div class="flex flex-wrap items-center gap-3 text-sm text-slate-700">
@@ -1051,17 +1070,6 @@ watch(completedPage, async (val) => {
               @click="handleCallNext(item)"
             >
               Call Next
-            </ElButton>
-            <ElButton
-              v-if="item.status === 'WAITING'"
-              size="small"
-              type="danger"
-              plain
-              :loading="actionLoading === `${item.id}-no-show`"
-              class="sf-btn queue-action-btn secondary"
-              @click="handleAction(`${item.id}-no-show`, () => markNoShow(item.id))"
-            >
-              No Show
             </ElButton>
             <template v-else-if="item.status === 'CALLED'">
               <ElButton
@@ -1552,6 +1560,24 @@ watch(completedPage, async (val) => {
 .queue-card--focused {
   outline: 2px solid #38bdf8;
   box-shadow: 0 12px 30px rgba(56, 189, 248, 0.25);
+}
+.queue-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: #fff;
+  cursor: pointer;
+  font-weight: 700;
+  color: #475569;
+  line-height: 1;
+}
+.queue-menu-btn:hover {
+  background: #f8fafc;
+  border-color: rgba(59, 130, 246, 0.6);
 }
 @supports (-webkit-touch-callout: none) {
   .queue-grid {
