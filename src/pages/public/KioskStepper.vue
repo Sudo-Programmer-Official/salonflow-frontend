@@ -191,16 +191,14 @@ const currentPointsBalance = computed(() => {
   const num = Number(pointsAtCheckin.value);
   if (Number.isFinite(num)) return Math.max(0, num);
   const pts = lookupResult.value?.customer?.pointsBalance;
-  if (pts === null || pts === undefined) return null;
+  if (pts === null || pts === undefined) return 0;
   const parsed = Number(pts);
-  return Number.isFinite(parsed) ? Math.max(0, parsed) : null;
+  return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
 });
 const pointsDisplay = computed(() => {
   const anim = Number(animatedPoints.value);
   if (Number.isFinite(anim)) return Math.max(0, anim);
-  const cur = currentPointsBalance.value;
-  if (cur !== null && cur !== undefined) return cur;
-  return null;
+  return currentPointsBalance.value ?? 0;
 });
 const allowServiceSkip = computed(
   () =>
