@@ -32,6 +32,7 @@ import {
   forceLogoutTenant,
   resetTenantUsage,
   updateTenantControl,
+  grantTenantSmsCredits,
   type TenantControl,
   type PlatformAuditRow,
 } from '../../api/platformTenantControls';
@@ -65,6 +66,10 @@ const reasonDialogTitle = computed(() => {
   if (pendingAction.value === 'reset-usage') return 'Reason for reset usage';
   return 'Reason required';
 });
+
+const grantAmount = ref<number | null>(null);
+const grantReason = ref('');
+const granting = ref(false);
 
 const statusType = (status: string) => (status === 'active' ? 'success' : 'danger');
 const billingDraft = ref<{ status: string; graceUntil: string; notes: string }>({
@@ -188,6 +193,8 @@ const loadControls = async () => {
     const res = await fetchTenantControl(businessId.value);
     controls.value = res.control;
     controlDraft.value = { ...res.control };
+    grantAmount.value = null;
+    grantReason.value = '';
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to load controls');
   }
@@ -340,6 +347,29 @@ const forceLogout = () => {
 
 const resetUsage = () => {
   openReasonModal('reset-usage');
+};
+
+const grantCredits = async () => {
+  if (!businessId.value) return;
+  if (!grantAmount.value || grantAmount.value <= 0) {
+    ElMessage.warning('Enter a positive amount to grant');
+    return;
+  }
+  if (!grantReason.value.trim()) {
+    ElMessage.warning('Reason is required');
+    return;
+  }
+  granting.value = true;
+  try {
+    await grantTenantSmsCredits(businessId.value, grantAmount.value, grantReason.value.trim());
+    ElMessage.success('SMS credits granted');
+    await loadControls();
+    await loadAudit();
+  } catch (err: any) {
+    ElMessage.error(err?.message || 'Failed to grant credits');
+  } finally {
+    granting.value = false;
+  }
 };
 
 const syncBillingDraft = () => {
@@ -515,6 +545,18 @@ const saveBilling = async () => {
             </ElFormItem>
             <p class="text-2xs text-slate-500 mb-2">Freeze halts SMS and email regardless of caps.</p>
             <ElButton size="small" @click="resetUsage" :disabled="savingControls">Reset usage timestamp</ElButton>
+            <div class="mt-4 space-y-2">
+              <div class="text-sm font-semibold">Grant SMS credits</div>
+              <div class="grid grid-cols-1 gap-2 md:grid-cols-[1fr,2fr] md:items-end">
+                <ElFormItem label="Amount">
+                  <ElInput v-model.number="grantAmount" type="number" min="1" placeholder="e.g. 100" />
+                </ElFormItem>
+                <ElFormItem label="Reason (required)">
+                  <ElInput v-model="grantReason" placeholder="Reason for grant" />
+                </ElFormItem>
+              </div>
+              <ElButton type="primary" size="small" :loading="granting" @click="grantCredits">Grant credits</ElButton>
+            </div>
           </ElForm>
         </div>
 

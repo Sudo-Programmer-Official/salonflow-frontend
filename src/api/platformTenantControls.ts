@@ -73,6 +73,17 @@ export async function resetTenantUsage(businessId: string, reason: string) {
   return body;
 }
 
+export async function grantTenantSmsCredits(businessId: string, amount: number, reason: string) {
+  const res = await fetch(apiUrl(`/platform/tenants/${businessId}/grant-sms-credits`), {
+    method: 'POST',
+    headers: buildHeaders({ auth: true, json: true }),
+    body: JSON.stringify({ amount, reason }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || 'Failed to grant SMS credits');
+  return body.balance;
+}
+
 export async function fetchTenantAudit(businessId: string, limit = 50): Promise<PlatformAuditRow[]> {
   const res = await fetch(apiUrl(`/platform/tenants/${businessId}/audit?limit=${limit}`), {
     headers: buildHeaders({ auth: true }),
