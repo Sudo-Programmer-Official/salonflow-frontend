@@ -962,7 +962,7 @@ onBeforeUnmount(() => {
 }
 .checkout-body {
   display: grid;
-  grid-template-columns: minmax(150px, 210px) 1fr 420px;
+  grid-template-columns: minmax(140px, max-content) minmax(0, 1fr) 420px;
   gap: 16px;
   align-items: start;
 }
@@ -1060,6 +1060,14 @@ onBeforeUnmount(() => {
   margin-top: 12px;
   width: fit-content;
   max-width: 220px;
+}
+.checkout-panel.categories {
+  width: max-content;
+  max-width: 220px;
+}
+.checkout-panel.categories .glass-card {
+  width: max-content;
+  min-width: 0;
 }
 .category-pill {
   width: auto;
