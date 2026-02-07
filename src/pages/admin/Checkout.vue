@@ -962,7 +962,7 @@ onBeforeUnmount(() => {
 }
 .checkout-body {
   display: grid;
-  grid-template-columns: 200px 1fr 420px;
+  grid-template-columns: minmax(150px, 210px) 1fr 420px;
   gap: 16px;
   align-items: start;
 }
@@ -1058,10 +1058,12 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 8px;
   margin-top: 12px;
+  width: fit-content;
   max-width: 220px;
 }
 .category-pill {
-  width: 100%;
+  width: auto;
+  min-width: 160px;
   display: flex;
   align-items: center;
   gap: 8px;
