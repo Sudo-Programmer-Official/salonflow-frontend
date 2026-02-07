@@ -925,9 +925,6 @@ watch(completedPage, async (val) => {
     <div class="queue-toolbar">
       <div class="flex flex-wrap items-center gap-2">
         <div class="text-base font-semibold text-slate-900">Queue</div>
-        <span class="count-chip" aria-label="Waiting in queue">
-          Waiting {{ queueCounts.waiting }}
-        </span>
         <span v-if="isRefreshing" class="text-xs text-slate-500 animate-pulse">Updating…</span>
       </div>
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
@@ -1641,7 +1638,7 @@ watch(completedPage, async (val) => {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 .queue-toolbar :deep(.el-select .el-input__wrapper) {
   font-size: 1rem;
