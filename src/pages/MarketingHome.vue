@@ -34,11 +34,6 @@ const faqs = [
   { q: 'Can you migrate my data?', a: 'We can import services and staff basics; customer data import is available on request.' },
 ];
 
-const googleDataPoints = [
-  'Public business profile info (name, address, hours, phone)',
-  'Reviews and ratings (if enabled by you)',
-  'Connection metadata (access/refresh tokens to sync as requested)',
-];
 </script>
 
 <template>
