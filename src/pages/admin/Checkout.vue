@@ -763,7 +763,7 @@ onBeforeUnmount(() => {
                 type="checkbox"
                 class="sr-only"
                 :checked="paymentOptions.cash"
-                @change="togglePaymentOption('cash', (event.target as HTMLInputElement).checked)"
+                @change="(e: Event) => togglePaymentOption('cash', (e.target as HTMLInputElement).checked)"
               />
               <span>Cash</span>
             </button>
@@ -777,7 +777,7 @@ onBeforeUnmount(() => {
                 type="checkbox"
                 class="sr-only"
                 :checked="paymentOptions.card"
-                @change="togglePaymentOption('card', (event.target as HTMLInputElement).checked)"
+                @change="(e: Event) => togglePaymentOption('card', (e.target as HTMLInputElement).checked)"
               />
               <span>Card</span>
             </button>
@@ -791,7 +791,7 @@ onBeforeUnmount(() => {
                 type="checkbox"
                 class="sr-only"
                 :checked="paymentOptions.gift"
-                @change="togglePaymentOption('gift', (event.target as HTMLInputElement).checked)"
+                @change="(e: Event) => togglePaymentOption('gift', (e.target as HTMLInputElement).checked)"
               />
               <span>Gift card</span>
             </button>
@@ -884,20 +884,6 @@ onBeforeUnmount(() => {
                               giftCardInfo[card.id]?.card?.initialValue ?? 0,
                             )
                           }}
-                        </span>
-                      </template>
-                      <template v-else-if="card.source === 'legacy'">
-                        <span class="gift-chip legacy">Old Gift Card</span>
-                        <span>
-                          Recorded balance:
-                          <ElInput
-                            v-model="card.legacyBalance"
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            placeholder="Balance"
-                            class="legacy-balance"
-                          />
                         </span>
                       </template>
                     </div>
