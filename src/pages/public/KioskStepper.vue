@@ -1344,7 +1344,7 @@ watch(useClassicWelcome, (isClassic) => {
                     </div>
                   </div>
                   <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">
-                    Balance before this visit; points from today add after checkout.
+                    Today’s points will be added after checkout.
                   </div>
                 </div>
 
