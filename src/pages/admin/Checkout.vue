@@ -1441,6 +1441,9 @@ onBeforeUnmount(() => {
     max-width: 220px;
     width: 100%;
   }
+  .checkout-panel.services {
+    margin-left: 30px;
+  }
 }
 @media (max-width: 960px) {
   .checkout-body {
