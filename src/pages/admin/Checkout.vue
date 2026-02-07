@@ -752,20 +752,50 @@ onBeforeUnmount(() => {
                 Remaining {{ Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(remainingBalance) }}
               </span>
             </div>
-            <div class="payments-options">
-              <label class="pay-toggle">
-                <input type="checkbox" v-model="paymentOptions.cash" @change="togglePaymentOption('cash', paymentOptions.cash)" />
-                Cash
-              </label>
-              <label class="pay-toggle">
-                <input type="checkbox" v-model="paymentOptions.card" @change="togglePaymentOption('card', paymentOptions.card)" />
-                Card
-              </label>
-              <label class="pay-toggle">
-                <input type="checkbox" v-model="paymentOptions.gift" @change="togglePaymentOption('gift', paymentOptions.gift)" />
-                Gift card
-              </label>
-            </div>
+          <div class="payments-options">
+            <button
+              type="button"
+              class="pay-card"
+              :class="{ active: paymentOptions.cash }"
+              @click="togglePaymentOption('cash', !paymentOptions.cash)"
+            >
+              <input
+                type="checkbox"
+                class="sr-only"
+                :checked="paymentOptions.cash"
+                @change="togglePaymentOption('cash', (event.target as HTMLInputElement).checked)"
+              />
+              <span>Cash</span>
+            </button>
+            <button
+              type="button"
+              class="pay-card"
+              :class="{ active: paymentOptions.card }"
+              @click="togglePaymentOption('card', !paymentOptions.card)"
+            >
+              <input
+                type="checkbox"
+                class="sr-only"
+                :checked="paymentOptions.card"
+                @change="togglePaymentOption('card', (event.target as HTMLInputElement).checked)"
+              />
+              <span>Card</span>
+            </button>
+            <button
+              type="button"
+              class="pay-card"
+              :class="{ active: paymentOptions.gift }"
+              @click="togglePaymentOption('gift', !paymentOptions.gift)"
+            >
+              <input
+                type="checkbox"
+                class="sr-only"
+                :checked="paymentOptions.gift"
+                @change="togglePaymentOption('gift', (event.target as HTMLInputElement).checked)"
+              />
+              <span>Gift card</span>
+            </button>
+          </div>
 
             <div class="payments-fields">
               <div v-if="paymentOptions.cash" class="pay-row">
@@ -808,16 +838,22 @@ onBeforeUnmount(() => {
                   <div v-for="card in giftCards" :key="card.id" class="gift-row">
                     <select v-model="card.source" class="gift-source">
                       <option value="new">SalonFlow</option>
-                      <option value="legacy">Legacy</option>
+                      <option value="legacy">Old Gift Card</option>
                     </select>
-                    <ElInput v-model="card.number" placeholder="Number" />
-                    <ElInput
-                      v-model="card.amount"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      placeholder="Amount"
-                    />
+                    <label class="gift-label">
+                      Gift Card Number
+                      <ElInput v-model="card.number" placeholder="Number" />
+                    </label>
+                    <label class="gift-label">
+                      Amount
+                      <ElInput
+                        v-model="card.amount"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="Amount"
+                      />
+                    </label>
                     <button
                       v-if="giftCards.length > 1"
                       type="button"
@@ -831,7 +867,7 @@ onBeforeUnmount(() => {
                       <span v-else-if="giftCardInfo[card.id]?.error">{{ giftCardInfo[card.id]?.error }}</span>
                       <template v-else-if="giftCardInfo[card.id]?.card">
                         <span class="gift-chip" :class="giftCardInfo[card.id]?.card?.source === 'legacy' ? 'legacy' : 'new'">
-                          {{ giftCardInfo[card.id]?.card?.source === 'legacy' ? 'Legacy' : 'SalonFlow' }}
+                          {{ giftCardInfo[card.id]?.card?.source === 'legacy' ? 'Old Gift Card' : 'SalonFlow' }}
                         </span>
                         <span>
                           Balance:
@@ -851,7 +887,7 @@ onBeforeUnmount(() => {
                         </span>
                       </template>
                       <template v-else-if="card.source === 'legacy'">
-                        <span class="gift-chip legacy">Legacy</span>
+                        <span class="gift-chip legacy">Old Gift Card</span>
                         <span>
                           Recorded balance:
                           <ElInput
@@ -940,7 +976,7 @@ onBeforeUnmount(() => {
 }
 .checkout-body {
   display: grid;
-  grid-template-columns: 240px 1fr 420px;
+  grid-template-columns: 200px 1fr 420px;
   gap: 16px;
   align-items: start;
 }
@@ -1036,6 +1072,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 8px;
   margin-top: 12px;
+  max-width: 220px;
 }
 .category-pill {
   width: 100%;
@@ -1195,11 +1232,41 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   font-size: 13px;
 }
-.pay-toggle {
+.pay-card {
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  background: #fff;
+  border-radius: 12px;
+  padding: 12px 16px;
+  min-height: 56px;
+  min-width: 120px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
   cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+}
+.pay-card.active {
+  border-color: rgba(34, 197, 94, 0.8);
+  background: linear-gradient(180deg, #f0fdf4, #ffffff);
+  box-shadow: 0 8px 24px rgba(34, 197, 94, 0.16);
+}
+.pay-card:hover {
+  transform: translateY(-1px);
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
 }
 .payments-fields {
   display: flex;
@@ -1299,6 +1366,17 @@ onBeforeUnmount(() => {
 .gift-chip.new {
   background: #dbeafe;
   color: #1d4ed8;
+}
+.gift-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 14px;
+}
+.gift-label :deep(.el-input__wrapper) {
+  min-height: 44px;
 }
 .legacy-balance :deep(.el-input__wrapper) {
   padding: 4px 10px;
