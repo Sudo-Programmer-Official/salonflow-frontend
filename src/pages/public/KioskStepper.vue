@@ -161,12 +161,7 @@ const kioskEnabled = computed(() => settings.value?.kioskEnabled ?? false);
 const publicEnabled = computed(
   () => settings.value?.publicCheckInEnabled !== false,
 );
-const showPoints = computed(() => {
-  if (!settings.value) return true;
-  const flag =
-    settings.value.showPointsPreview ?? settings.value.showPointsOnKiosk;
-  return flag !== false;
-});
+const showPoints = computed(() => true);
 const showStaffStep = computed(
   () => settings.value?.allowStaffSelection === true,
 );
