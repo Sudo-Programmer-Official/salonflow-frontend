@@ -23,6 +23,21 @@ applyThemeFromSettings();
 
 app.mount('#app');
 
+if (typeof document !== 'undefined') {
+  let lastTouchEnd = 0;
+  document.addEventListener(
+    'touchend',
+    (evt) => {
+      const now = Date.now();
+      if (now - lastTouchEnd <= 300) {
+        evt.preventDefault();
+      }
+      lastTouchEnd = now;
+    },
+    { passive: false },
+  );
+}
+
 // Refresh business timezone from API on app bootstrap to avoid stale localStorage.
 (async () => {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;

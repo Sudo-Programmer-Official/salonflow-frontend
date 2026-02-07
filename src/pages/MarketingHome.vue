@@ -1,13 +1,29 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router';
 
-const features = [
-  { title: 'Walk-in QR check-in', desc: 'Customers scan and check in within seconds.' },
-  { title: 'Online booking (public link)', desc: 'Share a booking link for appointments anytime.' },
-  { title: 'Live queue + staff mobile view', desc: 'Staff manage their own queue from their phone.' },
-  { title: 'Customer loyalty (1 point per $1)', desc: 'Automatic points, VIP tiers, and history.' },
-  { title: 'Review requests + reminders', desc: 'Consent-based SMS for reviews and appointments.' },
-  { title: 'Owner dashboard + staff tracking', desc: 'See performance, usage, and operations in one place.' },
+const growthCards = [
+  {
+    icon: '🖥️',
+    title: 'Your Website, Done',
+    desc: 'Modern salon site, booking link, and QR check-in kept up to date for you.',
+  },
+  {
+    icon: '📱',
+    title: 'Social Media, Simplified',
+    desc: 'Post to Instagram and Facebook from one place with AI-written captions and promos.',
+  },
+  {
+    icon: '📈',
+    title: 'More Customers, Automatically',
+    desc: 'Reviews, loyalty points, and promotions that bring guests back—without manual follow-up.',
+  },
+];
+
+const aiHighlights = [
+  'Write promo posts in seconds',
+  'Create seasonal offers without a marketer',
+  'Suggested captions, messages, and promos',
+  'You approve everything—no auto-posting',
 ];
 
 const faqs = [
@@ -35,26 +51,29 @@ const googleDataPoints = [
       <div class="relative mx-auto flex max-w-6xl flex-col gap-10 px-4 py-16 lg:flex-row lg:items-center lg:py-20">
         <div class="flex-1 space-y-6">
           <div class="inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-xs font-semibold text-sky-700 shadow-sm ring-1 ring-sky-100">
-            Run your salon smarter
+            Built for salon owners, not tech teams
           </div>
           <h1 class="text-3xl font-bold leading-tight text-slate-900 sm:text-4xl lg:text-5xl">
-            Run your salon smarter with SalonFlow
+            Grow your salon without extra work
           </h1>
           <p class="max-w-2xl text-lg text-slate-700">
-            Walk-ins, online booking, staff queue, loyalty, and SMS — all in one modern system.
+            SalonFlow handles your website, social media, and customer flow — so you can focus on clients, not tech.
+          </p>
+          <p class="text-sm font-medium text-slate-600">
+            Built for local salons. Setup included. No contracts.
           </p>
           <div class="flex flex-col gap-3 sm:flex-row">
             <RouterLink
               to="/start"
               class="inline-flex items-center justify-center rounded-lg bg-sky-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700"
             >
-              Request a free demo
+              Try SalonFlow free for 1 month
             </RouterLink>
             <RouterLink
               to="/salon-login"
               class="inline-flex items-center justify-center rounded-lg border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-800 transition hover:border-slate-300 hover:bg-slate-50"
             >
-              Login
+              See how it works
             </RouterLink>
           </div>
           <div class="mt-4 text-sm font-medium text-slate-600">
@@ -93,24 +112,25 @@ const googleDataPoints = [
     <section class="bg-white">
       <div class="mx-auto max-w-6xl px-4 py-10">
         <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-center text-sm font-semibold text-slate-700 sm:px-6">
-          Launching with MTV Nails (Corpus Christi)
+          Built with local salons in Corpus Christi (including MTV Nails)
         </div>
       </div>
     </section>
 
     <section class="bg-white">
-      <div class="mx-auto max-w-6xl px-4 py-12">
-        <h2 class="text-2xl font-semibold text-slate-900">Everything you need to run the floor</h2>
-        <p class="mt-2 text-slate-600">Six focused capabilities — no bloat.</p>
+      <div class="mx-auto max-w-6xl px-4 py-12 space-y-2">
+        <h2 class="text-2xl font-semibold text-slate-900">Everything your salon needs to grow — handled for you</h2>
+        <p class="text-slate-600">Website, social, and repeat business in one place.</p>
         <div class="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           <div
-            v-for="feature in features"
-            :key="feature.title"
+            v-for="card in growthCards"
+            :key="card.title"
             class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
           >
-            <div class="text-base font-semibold text-slate-900">{{ feature.title }}</div>
+            <div class="text-2xl">{{ card.icon }}</div>
+            <div class="mt-2 text-base font-semibold text-slate-900">{{ card.title }}</div>
             <p class="mt-2 text-sm text-slate-600">
-              {{ feature.desc }}
+              {{ card.desc }}
             </p>
           </div>
         </div>
@@ -118,24 +138,43 @@ const googleDataPoints = [
     </section>
 
     <section class="bg-slate-50">
+      <div class="mx-auto max-w-6xl px-4 py-12 space-y-3">
+        <h2 class="text-2xl font-semibold text-slate-900">Built-in AI that actually helps</h2>
+        <p class="text-slate-600">Speed up posts and promos without losing control.</p>
+        <div class="mt-6 grid gap-3 md:grid-cols-2">
+          <div
+            v-for="point in aiHighlights"
+            :key="point"
+            class="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-800 shadow-sm"
+          >
+            {{ point }}
+          </div>
+        </div>
+        <div class="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
+          You stay in control. AI assists — nothing is posted without your approval.
+        </div>
+      </div>
+    </section>
+
+    <section class="bg-slate-50">
       <div class="mx-auto max-w-6xl px-4 py-12">
-        <h2 class="text-2xl font-semibold text-slate-900">How it works</h2>
-        <p class="mt-2 text-slate-600">Simple flow for owners, staff, and customers.</p>
+        <h2 class="text-2xl font-semibold text-slate-900">Get started in minutes</h2>
+        <p class="mt-2 text-slate-600">We set it up, you run the floor.</p>
         <div class="mt-8 grid gap-6 md:grid-cols-3">
           <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div class="text-xs font-semibold uppercase text-sky-700">Step 1</div>
-            <div class="mt-2 text-lg font-semibold text-slate-900">Owner sets up services + staff</div>
-            <p class="mt-2 text-sm text-slate-600">Add services, durations, points, and enable staff access.</p>
+            <div class="mt-2 text-lg font-semibold text-slate-900">We set it up for you</div>
+            <p class="mt-2 text-sm text-slate-600">Website, services, staff, and booking—ready to go.</p>
           </div>
           <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div class="text-xs font-semibold uppercase text-sky-700">Step 2</div>
-            <div class="mt-2 text-lg font-semibold text-slate-900">Customers check in / book</div>
-            <p class="mt-2 text-sm text-slate-600">QR walk-ins or public booking link; everything stays tenant-scoped.</p>
+            <div class="mt-2 text-lg font-semibold text-slate-900">Customers check in or book</div>
+            <p class="mt-2 text-sm text-slate-600">Walk-ins, QR check-ins, or online booking.</p>
           </div>
           <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div class="text-xs font-semibold uppercase text-sky-700">Step 3</div>
-            <div class="mt-2 text-lg font-semibold text-slate-900">Staff serves, owner tracks</div>
-            <p class="mt-2 text-sm text-slate-600">Queues, reminders, loyalty, and reviews — all logged and visible.</p>
+            <div class="mt-2 text-lg font-semibold text-slate-900">You manage everything in one place</div>
+            <p class="mt-2 text-sm text-slate-600">Queue, checkout, promotions, and social—without juggling tools.</p>
           </div>
         </div>
       </div>
@@ -150,7 +189,8 @@ const googleDataPoints = [
               <p class="mt-2 text-slate-600">Founding plan for salons that want clarity and control.</p>
               <p class="mt-3 text-lg font-semibold text-slate-900">$65/month or $700/year</p>
               <p class="text-sm text-slate-600">Includes unlimited staff/customers, booking, check-in, loyalty, dashboards.</p>
-              <p class="mt-2 text-sm font-semibold text-slate-700">No long-term contracts. Cancel anytime.</p>
+              <p class="mt-2 text-sm font-semibold text-slate-700">No contracts. Cancel anytime. Setup included.</p>
+              <p class="mt-1 text-sm text-slate-600">Most salons recover the cost with 1–2 extra appointments.</p>
             </div>
             <div class="space-y-3 text-sm text-slate-700">
               <div class="rounded-lg bg-white p-4 shadow-sm">
@@ -168,32 +208,21 @@ const googleDataPoints = [
     </section>
 
     <section class="bg-white">
-      <div class="mx-auto max-w-6xl px-4 py-12 space-y-8">
-        <div>
-          <h2 class="text-2xl font-semibold text-slate-900">Google Business Profile integration</h2>
-          <p class="mt-2 text-slate-600">
-            Connect your Google Business Profile to view and manage your business info and reviews inside SalonFlow.
-            We only access Google data after you explicitly connect your account.
-          </p>
-        </div>
-        <div class="grid gap-6 md:grid-cols-2">
+      <div class="mx-auto max-w-6xl px-4 py-12 space-y-3">
+        <h2 class="text-2xl font-semibold text-slate-900">Built with and for local salons</h2>
+        <p class="text-slate-600">Real feedback from Corpus Christi salons, including MTV Nails.</p>
+        <div class="grid gap-4 md:grid-cols-3">
           <div class="rounded-xl border border-slate-200 bg-slate-50 p-5 shadow-sm">
-            <h3 class="text-lg font-semibold text-slate-900">What you can do</h3>
-            <ul class="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-700">
-              <li>Sync and view your Google Business Profile details and reviews.</li>
-              <li>Keep your SalonFlow data consistent with what customers see on Google.</li>
-              <li>Disconnect anytime from Settings → Integrations.</li>
-            </ul>
+            <div class="text-sm font-semibold text-slate-800">Local support</div>
+            <p class="mt-2 text-sm text-slate-600">Real humans, not a generic software company.</p>
           </div>
           <div class="rounded-xl border border-slate-200 bg-slate-50 p-5 shadow-sm">
-            <h3 class="text-lg font-semibold text-slate-900">What data we access</h3>
-            <ul class="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-700">
-              <li v-for="point in googleDataPoints" :key="point">{{ point }}</li>
-            </ul>
-            <p class="mt-3 text-sm text-slate-700">
-              Tokens are stored securely and used only to perform the actions you request. We do not sell Google user data or
-              share it with third parties.
-            </p>
+            <div class="text-sm font-semibold text-slate-800">Built with salons</div>
+            <p class="mt-2 text-sm text-slate-600">Features shaped by salon owners and staff.</p>
+          </div>
+          <div class="rounded-xl border border-slate-200 bg-slate-50 p-5 shadow-sm">
+            <div class="text-sm font-semibold text-slate-800">Outcome focused</div>
+            <p class="mt-2 text-sm text-slate-600">Designed to drive bookings, reviews, and loyalty.</p>
           </div>
         </div>
       </div>
@@ -220,14 +249,14 @@ const googleDataPoints = [
     <section class="bg-white">
       <div class="mx-auto max-w-6xl px-4 py-12">
         <div class="rounded-2xl border border-slate-200 bg-slate-50 p-8 text-center shadow-sm">
-          <h3 class="text-2xl font-semibold text-slate-900">Ready to simplify your salon?</h3>
-          <p class="mt-2 text-slate-600">Get a demo or try the customer check-in experience now.</p>
+          <h3 class="text-2xl font-semibold text-slate-900">Ready to grow your salon without more stress?</h3>
+          <p class="mt-2 text-slate-600">Try SalonFlow free for 1 month. Setup included. No credit card required.</p>
           <div class="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <RouterLink
               to="/start"
               class="inline-flex items-center justify-center rounded-lg bg-sky-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700"
             >
-              Request a free demo
+              Try SalonFlow free for 1 month
             </RouterLink>
           </div>
         </div>
