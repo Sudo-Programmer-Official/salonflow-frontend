@@ -340,6 +340,18 @@ const ensureGiftCardState = (id: number) => {
   }
 };
 
+const handleGiftSourceChange = (card: {
+  id: number;
+  source?: 'new' | 'legacy';
+  number: string;
+  legacyBalance?: string;
+}) => {
+  card.number = '';
+  card.legacyBalance = '';
+  delete giftCardInfo.value[card.id];
+  delete fetchedNumbers.value[card.id];
+};
+
 const availableGiftBalance = (card: { id: number; source?: 'new' | 'legacy'; legacyBalance?: string }) => {
   const fetched = giftCardInfo.value[card.id]?.card?.balance;
   if (fetched !== undefined && fetched !== null) return Math.max(0, fetched);
@@ -836,7 +848,7 @@ onBeforeUnmount(() => {
                 </div>
                 <div class="gift-list">
                   <div v-for="card in giftCards" :key="card.id" class="gift-row">
-                    <select v-model="card.source" class="gift-source">
+                    <select v-model="card.source" class="gift-source" @change="handleGiftSourceChange(card)">
                       <option value="new">SalonFlow</option>
                       <option value="legacy">Old Gift Card</option>
                     </select>
@@ -1304,7 +1316,7 @@ onBeforeUnmount(() => {
 }
 .gift-row {
   display: grid;
-  grid-template-columns: 120px 1fr 120px auto;
+  grid-template-columns: 140px 1fr 140px auto;
   gap: 8px;
   align-items: center;
 }
@@ -1323,7 +1335,8 @@ onBeforeUnmount(() => {
   width: 100%;
   border: 1px solid rgba(148, 163, 184, 0.35);
   border-radius: 10px;
-  padding: 10px;
+  padding: 12px;
+  min-height: 44px;
   background: #fff;
   font-weight: 600;
   color: #0f172a;
@@ -1419,10 +1432,14 @@ onBeforeUnmount(() => {
 }
 @media (max-width: 1280px) {
   .checkout-body {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(150px, 220px) minmax(0, 1fr);
   }
   .checkout-panel.bill {
     grid-column: 1 / -1;
+  }
+  .checkout-panel.categories {
+    max-width: 220px;
+    width: 100%;
   }
 }
 @media (max-width: 960px) {
