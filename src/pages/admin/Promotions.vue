@@ -1068,7 +1068,7 @@ loadPromotions();
           </template>
 
           <template v-else>
-            <ElCard class="bg-white">
+            <ElCard class="bg-white review-card">
               <div class="space-y-4">
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
@@ -1081,37 +1081,41 @@ loadPromotions();
                   </div>
                 </div>
 
-                <div>
-                  <label class="text-sm font-medium text-slate-800">Send timing</label>
-                  <ElRadioGroup v-model="form.sendWhen" size="small" class="mt-1">
-                    <ElRadioButton label="now">Send now</ElRadioButton>
-                    <ElRadioButton label="schedule">Schedule</ElRadioButton>
-                  </ElRadioGroup>
-                  <div v-if="tcpaWarning" class="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                    {{ tcpaWarning }}
+                <div class="send-timing-row">
+                  <div class="send-timing-label">
+                    <label class="text-sm font-medium text-slate-800">Send timing</label>
                   </div>
-                  <div v-if="form.sendWhen === 'schedule'" class="mt-3 space-y-2">
-                    <ElDatePicker v-model="scheduleDate" type="date" placeholder="Select date" class="w-full" />
-                    <div class="flex flex-wrap items-center gap-2">
-                      <ElSelect v-model="scheduleHour" placeholder="HH" style="width: 90px">
-                        <ElOption v-for="h in hourOptions" :key="h" :label="h.toString().padStart(2, '0')" :value="h" />
-                      </ElSelect>
-                      <span class="text-slate-500">:</span>
-                      <ElSelect v-model="scheduleMinute" placeholder="MM" style="width: 90px">
-                        <ElOption
-                          v-for="m in minuteOptions"
-                          :key="m"
-                          :label="m.toString().padStart(2, '0')"
-                          :value="m"
-                        />
-                      </ElSelect>
-                      <ElSelect v-model="scheduleMeridiem" style="width: 90px">
-                        <ElOption label="AM" value="AM" />
-                        <ElOption label="PM" value="PM" />
-                      </ElSelect>
+                  <div class="send-timing-actions">
+                    <ElRadioGroup v-model="form.sendWhen" size="small" class="send-timing-buttons">
+                      <ElRadioButton label="now">Send now</ElRadioButton>
+                      <ElRadioButton label="schedule">Schedule</ElRadioButton>
+                    </ElRadioGroup>
+                    <div v-if="tcpaWarning" class="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                      {{ tcpaWarning }}
                     </div>
-                    <p class="text-xs text-slate-500">12-hour format · seconds hidden · converts to your existing schedule payload.</p>
                   </div>
+                </div>
+                <div v-if="form.sendWhen === 'schedule'" class="mt-3 space-y-2">
+                  <ElDatePicker v-model="scheduleDate" type="date" placeholder="Select date" class="w-full" />
+                  <div class="flex flex-wrap items-center gap-2">
+                    <ElSelect v-model="scheduleHour" placeholder="HH" style="width: 90px">
+                      <ElOption v-for="h in hourOptions" :key="h" :label="h.toString().padStart(2, '0')" :value="h" />
+                    </ElSelect>
+                    <span class="text-slate-500">:</span>
+                    <ElSelect v-model="scheduleMinute" placeholder="MM" style="width: 90px">
+                      <ElOption
+                        v-for="m in minuteOptions"
+                        :key="m"
+                        :label="m.toString().padStart(2, '0')"
+                        :value="m"
+                      />
+                    </ElSelect>
+                    <ElSelect v-model="scheduleMeridiem" style="width: 90px">
+                      <ElOption label="AM" value="AM" />
+                      <ElOption label="PM" value="PM" />
+                    </ElSelect>
+                  </div>
+                  <p class="text-xs text-slate-500">12-hour format · seconds hidden · converts to your existing schedule payload.</p>
                 </div>
               </div>
             </ElCard>
@@ -1171,6 +1175,10 @@ loadPromotions();
 .promo-modal :deep(.el-dialog) {
   max-width: 960px;
   width: 92%;
+}
+.promo-modal :deep(.el-dialog__body) {
+  padding-top: 24px;
+  padding-bottom: 24px;
 }
 .promo-grid {
   display: grid;
@@ -1294,6 +1302,10 @@ loadPromotions();
   overflow-y: auto;
   padding-right: 4px;
 }
+.review-card :deep(.el-card__body) {
+  padding-top: 32px;
+  padding-bottom: 32px;
+}
 .wizard-footer {
   display: flex;
   align-items: center;
@@ -1323,5 +1335,33 @@ loadPromotions();
   font-weight: 700;
   letter-spacing: 0.01em;
   padding: 10px 14px;
+}
+.send-timing-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.send-timing-label {
+  min-width: 110px;
+  font-weight: 600;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+}
+.send-timing-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.send-timing-buttons :deep(.el-radio-button__inner) {
+  min-height: 44px;
+  min-width: 140px;
+  padding: 10px 18px;
+  font-size: 15px;
+  border-radius: 10px;
+  font-weight: 600;
 }
 </style>
