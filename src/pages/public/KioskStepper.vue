@@ -50,6 +50,7 @@ const errorMessage = ref("");
 const submitting = ref(false);
 const successName = ref("Guest");
 const successServices = ref<string[]>([]);
+const pointsAtCheckin = ref<number | null>(null);
 const animatedPoints = ref<number | null>(null);
 const pointsAnimationFrame = ref<number | null>(null);
 const doneCountdown = ref<number | null>(null);
@@ -187,10 +188,19 @@ const showRewardsCard = computed(
   () => settings.value?.kioskShowRewardsCard !== false,
 );
 const currentPointsBalance = computed(() => {
+  const num = Number(pointsAtCheckin.value);
+  if (Number.isFinite(num)) return Math.max(0, num);
   const pts = lookupResult.value?.customer?.pointsBalance;
   if (pts === null || pts === undefined) return null;
-  const num = Number(pts);
-  return Number.isFinite(num) ? num : null;
+  const parsed = Number(pts);
+  return Number.isFinite(parsed) ? Math.max(0, parsed) : null;
+});
+const pointsDisplay = computed(() => {
+  const anim = Number(animatedPoints.value);
+  if (Number.isFinite(anim)) return Math.max(0, anim);
+  const cur = currentPointsBalance.value;
+  if (cur !== null && cur !== undefined) return cur;
+  return null;
 });
 const allowServiceSkip = computed(
   () =>
@@ -431,6 +441,7 @@ const resetFlow = () => {
     pointsAnimationFrame.value = null;
   }
   animatedPoints.value = null;
+  pointsAtCheckin.value = null;
   phone.value = "";
   name.value = "";
   email.value = "";
@@ -646,6 +657,12 @@ const confirmCheckIn = async () => {
         null)
       : null;
     const serviceName = matchedService?.name || null;
+    const pointsBefore = lookupResult.value?.customer?.pointsBalance;
+    pointsAtCheckin.value =
+      pointsBefore !== null && pointsBefore !== undefined && Number.isFinite(Number(pointsBefore))
+        ? Math.max(0, Number(pointsBefore))
+        : 0;
+
     await createPublicCheckIn({
       name: personName,
       phoneE164: requirePhone.value ? normalizedPhone : normalizedPhone || null,
@@ -659,7 +676,7 @@ const confirmCheckIn = async () => {
     successServices.value = selectedServiceDetails.value
       .map((s) => s.name)
       .filter(Boolean);
-    startPointsAnimation(lookupResult.value?.customer?.pointsBalance ?? null);
+    startPointsAnimation(pointsAtCheckin.value);
     step.value = "done";
     startDoneCountdown();
   } catch (err: any) {
@@ -1323,14 +1340,14 @@ watch(useClassicWelcome, (isClassic) => {
                   </p>
                 </div>
 
-                <div v-if="showPoints && currentPointsBalance !== null" class="done-rewards">
+                <div v-if="showPoints && pointsDisplay !== null" class="done-rewards">
                   <div class="rewards-header">
                     <span class="rewards-icon" aria-hidden="true">💎</span>
                     <div
                       class="text-xl font-semibold"
                       :style="{ color: 'var(--kiosk-text-primary)' }"
                     >
-                      {{ currentPointsBalance ?? 0 }} points balance
+                      {{ pointsDisplay ?? 0 }} points balance
                     </div>
                   </div>
                   <div class="text-sm" :style="{ color: 'var(--kiosk-text-secondary)' }">
