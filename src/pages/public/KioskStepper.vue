@@ -384,7 +384,15 @@ const loadStaff = async () => {
   }
 };
 
-const preventTouch = (e: Event) => e.preventDefault();
+const isScrollAllowedTarget = (target: EventTarget | null) => {
+  if (!(target instanceof HTMLElement)) return false;
+  return Boolean(target.closest('[data-allow-scroll="true"]'));
+};
+
+const preventTouch = (e: Event) => {
+  if (isScrollAllowedTarget(e.target)) return;
+  e.preventDefault();
+};
 
 onMounted(async () => {
   if (tenant.value) {
@@ -1065,7 +1073,7 @@ watch(useClassicWelcome, (isClassic) => {
                 </div>
               </div>
 
-              <div v-else-if="step === 'services'" class="space-y-5">
+              <div v-else-if="step === 'services'" class="space-y-5 services-step">
                 <div class="kiosk-heading">
                   <div>
                     <p
@@ -1087,85 +1095,87 @@ watch(useClassicWelcome, (isClassic) => {
                   </div>
                 </div>
 
-                <div v-if="serviceSections.length" class="service-section-grid">
-                  <div
-                    v-for="category in serviceSections"
-                    :key="category.categoryId || 'uncategorized'"
-                    class="service-section glass-card"
-                  >
-                    <div class="section-header">
-                      <div class="section-icon">
-                        {{ category.categoryIcon || "💅" }}
-                      </div>
-                      <div>
-                        <div class="section-title">
-                          {{ category.categoryName || "Other services" }}
+                <div class="services-scroll" data-allow-scroll="true">
+                  <div v-if="serviceSections.length" class="service-section-grid">
+                    <div
+                      v-for="category in serviceSections"
+                      :key="category.categoryId || 'uncategorized'"
+                      class="service-section glass-card"
+                    >
+                      <div class="section-header">
+                        <div class="section-icon">
+                          {{ category.categoryIcon || "💅" }}
                         </div>
-                        <div class="section-sub">
-                          {{ category.services.length }} options
-                        </div>
-                      </div>
-                    </div>
-                    <div v-if="category.services.length" class="service-list">
-                      <label
-                        v-for="service in category.services"
-                        :key="service.id"
-                        class="service-row"
-                        :class="{
-                          active: selectedServiceIds.includes(service.id),
-                        }"
-                      >
-                        <input
-                          type="checkbox"
-                          class="service-checkbox"
-                          :checked="selectedServiceIds.includes(service.id)"
-                          @change="toggleService(service.id)"
-                        />
-                        <div class="service-copy">
-                          <div class="service-name">{{ service.name }}</div>
-                          <div class="service-meta">
-                            <span v-if="service.durationMinutes"
-                              >{{ service.durationMinutes }} min</span
-                            >
-                            <span
-                              v-if="
-                                service.priceCents !== undefined &&
-                                service.priceCents !== null
-                              "
-                              class="inline-flex items-center gap-1"
-                            >
-                              <span aria-hidden="true">•</span>
-                              {{
-                                Intl.NumberFormat("en-US", {
-                                  style: "currency",
-                                  currency:
-                                    service.currency ||
-                                    settings?.currency ||
-                                    "USD",
-                                  minimumFractionDigits: 0,
-                                }).format((service.priceCents || 0) / 100)
-                              }}
-                            </span>
+                        <div>
+                          <div class="section-title">
+                            {{ category.categoryName || "Other services" }}
+                          </div>
+                          <div class="section-sub">
+                            {{ category.services.length }} options
                           </div>
                         </div>
-                        <span
-                          class="service-chip"
-                          v-if="selectedServiceIds.includes(service.id)"
-                          >Selected</span
+                      </div>
+                      <div v-if="category.services.length" class="service-list">
+                        <label
+                          v-for="service in category.services"
+                          :key="service.id"
+                          class="service-row"
+                          :class="{
+                            active: selectedServiceIds.includes(service.id),
+                          }"
                         >
-                      </label>
-                    </div>
-                    <div v-else class="service-empty">
-                      No services in this category yet.
+                          <input
+                            type="checkbox"
+                            class="service-checkbox"
+                            :checked="selectedServiceIds.includes(service.id)"
+                            @change="toggleService(service.id)"
+                          />
+                          <div class="service-copy">
+                            <div class="service-name">{{ service.name }}</div>
+                            <div class="service-meta">
+                              <span v-if="service.durationMinutes"
+                                >{{ service.durationMinutes }} min</span
+                              >
+                              <span
+                                v-if="
+                                  service.priceCents !== undefined &&
+                                  service.priceCents !== null
+                                "
+                                class="inline-flex items-center gap-1"
+                              >
+                                <span aria-hidden="true">•</span>
+                                {{
+                                  Intl.NumberFormat("en-US", {
+                                    style: "currency",
+                                    currency:
+                                      service.currency ||
+                                      settings?.currency ||
+                                      "USD",
+                                    minimumFractionDigits: 0,
+                                  }).format((service.priceCents || 0) / 100)
+                                }}
+                              </span>
+                            </div>
+                          </div>
+                          <span
+                            class="service-chip"
+                            v-if="selectedServiceIds.includes(service.id)"
+                            >Selected</span
+                          >
+                        </label>
+                      </div>
+                      <div v-else class="service-empty">
+                        No services in this category yet.
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div
-                  v-else
-                  class="rounded-xl border border-white/10 bg-white/5 px-4 py-3"
-                  :style="{ color: 'var(--kiosk-text-secondary)' }"
-                >
-                  No services published yet.
+                  <div
+                    v-else
+                    class="rounded-xl border border-white/10 bg-white/5 px-4 py-3"
+                    :style="{ color: 'var(--kiosk-text-secondary)' }"
+                  >
+                    No services published yet.
+                  </div>
                 </div>
 
                 <div class="service-actions">
@@ -1935,6 +1945,34 @@ watch(useClassicWelcome, (isClassic) => {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+.services-step {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.services-scroll {
+  max-height: calc(100vh - 320px);
+  overflow-y: auto;
+  padding-right: 6px;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+.services-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.services-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--kiosk-primary) 40%, #94a3b8 60%);
+  border-radius: 999px;
+}
+.services-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (max-height: 880px) {
+  .services-scroll {
+    max-height: calc(100vh - 260px);
+  }
 }
 .service-row {
   display: grid;
