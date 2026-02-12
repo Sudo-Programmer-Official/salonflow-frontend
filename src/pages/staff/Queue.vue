@@ -84,8 +84,20 @@ const statusType = (status: QueueItem['status']) => {
               {{ item.customerName }}
             </div>
             <div class="queue-phone">{{ item.customerPhone }}</div>
-            <div class="text-sm text-slate-700">
-              {{ item.serviceName || 'No service selected' }}
+            <div>
+              <div class="queue-service-name" :title="item.services?.map((s) => s.serviceName).join(', ') || item.serviceName || 'No service selected'">
+                {{
+                  (item.services && item.services[0]?.serviceName) ||
+                  item.serviceName ||
+                  'No service selected'
+                }}
+              </div>
+              <div
+                v-if="(item.services?.length || 0) > 1"
+                class="queue-service-more"
+              >
+                +{{ (item.services?.length || 0) - 1 }} more
+              </div>
             </div>
             <div class="text-sm text-slate-600">
               Staff: {{ item.staffName || 'Unassigned' }}
@@ -151,5 +163,18 @@ const statusType = (status: QueueItem['status']) => {
   font-size: 1.05rem;
   font-weight: 650;
   color: #0f172a;
+}
+.queue-service-name {
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #0f172a;
+}
+.queue-service-more {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 2px;
 }
 </style>

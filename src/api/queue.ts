@@ -5,6 +5,14 @@ export type QueueItem = {
   customerName: string;
   customerPhone: string;
   serviceName: string | null;
+  services?: Array<{
+    serviceId?: string | null;
+    serviceName: string;
+    priceCents?: number | null;
+    durationMinutes?: number | null;
+    position?: number | null;
+    currency?: string | null;
+  }> | null;
   staffName: string | null;
   appointmentId?: string | null;
   createdAt: string;
