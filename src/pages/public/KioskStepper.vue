@@ -1099,78 +1099,63 @@ watch(useClassicWelcome, (isClassic) => {
                 </div>
 
                 <div class="services-scroll" data-allow-scroll="true">
-                  <div v-if="serviceSections.length" class="service-section-grid">
-                    <div
+                  <div v-if="serviceSections.length" class="services-wrapper">
+                    <section
                       v-for="category in serviceSections"
                       :key="category.categoryId || 'uncategorized'"
-                      class="service-section glass-card"
+                      class="service-column"
                     >
-                      <div class="section-header">
-                        <div class="section-icon">
+                      <h3 class="category-title">
+                        <span class="category-icon">
                           {{ category.categoryIcon || "💅" }}
-                        </div>
-                        <div>
-                          <div class="section-title">
-                            {{ category.categoryName || "Other services" }}
-                          </div>
-                          <div class="section-sub">
-                            {{ category.services.length }} options
-                          </div>
-                        </div>
-                      </div>
-                      <div v-if="category.services.length" class="service-list">
-                        <label
+                        </span>
+                        <span class="category-name">
+                          {{ category.categoryName || "Other services" }}
+                        </span>
+                        <span class="category-count">
+                          {{ category.services.length }} services
+                        </span>
+                      </h3>
+
+                      <div v-if="category.services.length" class="service-buttons">
+                        <button
                           v-for="service in category.services"
                           :key="service.id"
-                          class="service-row"
-                          :class="{
-                            active: selectedServiceIds.includes(service.id),
-                          }"
+                          type="button"
+                          class="service-button"
+                          :class="{ selected: selectedServiceIds.includes(service.id) }"
+                          :aria-pressed="selectedServiceIds.includes(service.id)"
+                          @click="toggleService(service.id)"
                         >
-                          <input
-                            type="checkbox"
-                            class="service-checkbox"
-                            :checked="selectedServiceIds.includes(service.id)"
-                            @change="toggleService(service.id)"
-                          />
-                          <div class="service-copy">
-                            <div class="service-name">{{ service.name }}</div>
-                            <div class="service-meta">
-                              <span v-if="service.durationMinutes"
-                                >{{ service.durationMinutes }} min</span
-                              >
+                          <div class="service-text">
+                            <div class="service-row">
+                              <span class="service-name">{{ service.name }}</span>
                               <span
-                                v-if="
-                                  service.priceCents !== undefined &&
-                                  service.priceCents !== null
-                                "
-                                class="inline-flex items-center gap-1"
+                                v-if="service.priceCents !== undefined && service.priceCents !== null"
+                                class="service-price"
                               >
-                                <span aria-hidden="true">•</span>
                                 {{
                                   Intl.NumberFormat("en-US", {
                                     style: "currency",
-                                    currency:
-                                      service.currency ||
-                                      settings?.currency ||
-                                      "USD",
+                                    currency: service.currency || settings?.currency || "USD",
                                     minimumFractionDigits: 0,
                                   }).format((service.priceCents || 0) / 100)
                                 }}
                               </span>
                             </div>
+                            <div
+                              v-if="service.durationMinutes"
+                              class="service-duration"
+                            >
+                              {{ service.durationMinutes }} min
+                            </div>
                           </div>
-                          <span
-                            class="service-chip"
-                            v-if="selectedServiceIds.includes(service.id)"
-                            >Selected</span
-                          >
-                        </label>
+                        </button>
                       </div>
                       <div v-else class="service-empty">
                         No services in this category yet.
                       </div>
-                    </div>
+                    </section>
                   </div>
                   <div
                     v-else
@@ -1887,75 +1872,49 @@ watch(useClassicWelcome, (isClassic) => {
   justify-content: space-between;
   gap: 12px;
 }
-.category-grid {
+.services-wrapper {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 32px;
 }
-.category-card {
-  border-radius: 14px;
-  border: 1px solid var(--kiosk-border);
-  background: var(--kiosk-surface);
-  backdrop-filter: blur(var(--kiosk-blur));
-  -webkit-backdrop-filter: blur(var(--kiosk-blur));
+.service-column {
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+  border-radius: 18px;
   padding: 16px;
-  text-align: left;
-  color: var(--kiosk-text-primary);
-  cursor: pointer;
-  transition:
-    transform 0.12s ease,
-    border 0.12s ease,
-    background 0.12s ease;
-}
-.category-card.active {
-  border-color: rgba(14, 165, 233, 0.8);
-  background: rgba(14, 165, 233, 0.1);
-}
-.category-card:hover {
-  transform: translateY(-2px);
-}
-.category-card:active {
-  transform: scale(0.985);
-  background: rgba(14, 165, 233, 0.14);
-}
-.service-section-grid {
-  display: grid;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
   gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
-.service-section {
-  border: 1px solid var(--kiosk-border);
-  background: var(--kiosk-surface);
-  backdrop-filter: blur(var(--kiosk-blur));
-  -webkit-backdrop-filter: blur(var(--kiosk-blur));
-  border-radius: 16px;
-  padding: 14px;
-  box-shadow: var(--glass-shadow);
-}
-.section-header {
+.category-title {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 10px;
+  gap: 10px;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--kiosk-text-primary, #0f172a);
+  margin: 0 0 6px;
 }
-.section-icon {
-  width: 40px;
-  height: 40px;
+.category-name {
+  flex: 1;
+}
+.category-icon {
+  width: 44px;
+  height: 44px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.08);
+  background: #f3f4f6;
   display: grid;
   place-items: center;
-  font-size: 20px;
+  font-size: 22px;
 }
-.section-title {
-  font-weight: 700;
-  color: var(--kiosk-text-primary);
+.category-count {
+  font-size: 14px;
+  color: #888;
+  margin-left: 8px;
+  white-space: nowrap;
 }
-.section-sub {
-  font-size: 13px;
-  color: var(--kiosk-text-secondary);
-}
-.service-list {
+.service-buttons {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1994,45 +1953,69 @@ watch(useClassicWelcome, (isClassic) => {
     max-height: calc(100vh - 110px);
   }
 }
+.service-button {
+  width: 100%;
+  min-height: 84px;
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid #eeeeee;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+  gap: 6px;
+  font-size: 18px;
+  color: var(--kiosk-text-primary, #0f172a);
+  cursor: pointer;
+  transition:
+    transform 0.1s ease,
+    box-shadow 0.15s ease,
+    border 0.12s ease,
+    background 0.15s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  -webkit-tap-highlight-color: transparent;
+}
+.service-button:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+.service-button:active {
+  transform: scale(0.98);
+}
+.service-button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--kiosk-primary) 65%, #ffffff 35%);
+  outline-offset: 2px;
+}
+.service-button.selected {
+  border: 2px solid #22c55e;
+  background: #f0fdf4;
+  box-shadow: 0 8px 18px rgba(34, 197, 94, 0.12);
+}
+.service-text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 .service-row {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
+  display: flex;
+  justify-content: space-between;
   align-items: center;
   gap: 12px;
-  border: 1px solid var(--kiosk-border);
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
-  padding: 12px;
-  transition:
-    border 0.12s ease,
-    transform 0.12s ease,
-    background 0.12s ease;
 }
-.service-row.active {
-  border-color: color-mix(in srgb, var(--kiosk-primary) 70%, #fff 30%);
-  background: color-mix(in srgb, var(--kiosk-primary) 12%, transparent);
-  transform: translateY(-1px);
+.service-name {
+  color: var(--kiosk-text-primary, #0f172a);
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 1.2;
 }
-.service-checkbox {
-  width: 22px;
-  height: 22px;
-  border-radius: 8px;
-  border: 2px solid rgba(255, 255, 255, 0.5);
-  background: transparent;
-  appearance: none;
-  -webkit-appearance: none;
-  display: grid;
-  place-items: center;
-  position: relative;
+.service-price {
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--kiosk-text-primary, #0f172a);
 }
-.service-checkbox:checked {
-  border-color: color-mix(in srgb, var(--kiosk-primary) 80%, #fff 20%);
-  background: color-mix(in srgb, var(--kiosk-primary) 18%, transparent);
-}
-.service-checkbox:checked::after {
-  content: "✓";
-  font-size: 13px;
-  color: var(--kiosk-text-primary);
+.service-duration {
+  font-size: 14px;
+  color: #888;
 }
 .kiosk-shell :deep(.el-button--primary) {
   background: var(--kiosk-primary);
@@ -2048,33 +2031,23 @@ watch(useClassicWelcome, (isClassic) => {
   color: rgba(255, 255, 255, 0.6);
   box-shadow: none;
 }
-.service-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.service-name {
-  color: var(--kiosk-text-primary);
-  font-weight: 700;
-  font-size: 16px;
-}
-.service-meta {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  color: var(--kiosk-text-secondary);
-  font-size: 13px;
-}
 .service-empty {
   color: var(--kiosk-text-secondary);
   font-size: 14px;
+  padding: 12px 10px;
+  border: 1px dashed #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
 }
 .service-actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  padding-top: 6px;
+  padding: 18px 24px 10px;
   flex-wrap: wrap;
+  background: color-mix(in srgb, var(--kiosk-surface) 95%, #ffffff 5%);
+  box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.04);
+  border-radius: 14px;
 }
 .services-grid {
   display: grid;
