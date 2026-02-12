@@ -1164,7 +1164,7 @@ watch(completedPage, async (val) => {
       <span v-else>No active check-ins.</span>
     </div>
 
-    <ElDialog v-if="false" v-model="checkoutOpen" title="Checkout" width="960px" class="checkout-modal">
+    <ElDialog v-model="checkoutOpen" title="Checkout" width="960px" class="checkout-modal">
       <div class="checkout-body space-y-4">
         <div
           v-if="currentCustomerSummary"
@@ -1777,11 +1777,6 @@ watch(completedPage, async (val) => {
   gap: 10px;
   z-index: 10;
   right: 0;
-}
-@media screen and (max-width: 1023px) {
-  .quick-nav {
-    display: none;
-  }
 }
 .queue-date-picker {
   height: 44px;
