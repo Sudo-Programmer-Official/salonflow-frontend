@@ -1184,7 +1184,7 @@ watch(completedPage, async (val) => {
           </div>
         </div>
 
-        <div class="quick-nav lg:hidden">
+        <div class="quick-nav">
           <button class="jump-payment-btn" type="button" @click="scrollToTop" aria-label="Scroll to top">
             ↑
           </button>
