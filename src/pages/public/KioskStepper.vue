@@ -1404,7 +1404,7 @@ watch(useClassicWelcome, (isClassic) => {
                   </div>
                 </div>
 
-                <div class="mt-5 flex flex-col items-center gap-2">
+                <div class="restart-block mt-5 flex flex-col items-center gap-2">
                   <div
                     class="text-sm"
                     :style="{ color: 'var(--kiosk-text-secondary)' }"
@@ -2149,6 +2149,10 @@ watch(useClassicWelcome, (isClassic) => {
   -webkit-backdrop-filter: blur(var(--kiosk-glass-blur));
   box-shadow: var(--glass-shadow);
   color: var(--kiosk-text-primary);
+  display: grid;
+  grid-template-rows: auto auto auto auto;
+  gap: 16px;
+  justify-items: center;
 }
 .done-header {
   display: flex;
@@ -2218,8 +2222,8 @@ watch(useClassicWelcome, (isClassic) => {
   font-size: 16px;
 }
 .final-services {
-  margin: 20px auto 0;
-  max-width: 620px;
+  margin: 12px auto 0;
+  max-width: 800px;
   text-align: center;
 }
 .final-services .label {
@@ -2230,6 +2234,9 @@ watch(useClassicWelcome, (isClassic) => {
   gap: 6px;
   align-items: center;
   justify-content: center;
+}
+.final-services .service-chip-card {
+  margin-top: 4px;
 }
 .service-chip-card {
   display: inline-flex;
@@ -2256,6 +2263,9 @@ watch(useClassicWelcome, (isClassic) => {
     var(--kiosk-surface) 94%,
     rgba(255, 255, 255, 0.06) 6%
   );
+}
+.done-card .restart-block {
+  margin-top: 4px;
 }
 @keyframes pop-in {
   from {
