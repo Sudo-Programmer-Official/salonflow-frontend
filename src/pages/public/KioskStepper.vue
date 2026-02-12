@@ -1117,7 +1117,7 @@ watch(useClassicWelcome, (isClassic) => {
                         </span>
                       </h3>
 
-                      <div v-if="category.services.length" class="service-buttons">
+                      <div v-if="category.services.length" class="category-services">
                         <button
                           v-for="service in category.services"
                           :key="service.id"
@@ -1873,8 +1873,8 @@ watch(useClassicWelcome, (isClassic) => {
   gap: 12px;
 }
 .services-wrapper {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 32px;
 }
 .service-column {
@@ -1886,6 +1886,8 @@ watch(useClassicWelcome, (isClassic) => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #f1f5f9;
 }
 .category-title {
   display: flex;
@@ -1914,10 +1916,15 @@ watch(useClassicWelcome, (isClassic) => {
   margin-left: 8px;
   white-space: nowrap;
 }
-.service-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.category-services {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+@media (max-width: 768px) {
+  .category-services {
+    grid-template-columns: 1fr;
+  }
 }
 .services-step {
   display: grid;
