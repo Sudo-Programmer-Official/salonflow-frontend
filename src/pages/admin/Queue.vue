@@ -236,6 +236,19 @@ const loadCounts = async () => {
   }
 };
 
+const primaryServiceName = (item: QueueItem) =>
+  (item.services && item.services[0]?.serviceName) ||
+  item.serviceName ||
+  'No service selected';
+
+const additionalServiceCount = (item: QueueItem) =>
+  Math.max((item.services?.length || 1) - 1, 0);
+
+const allServicesTitle = (item: QueueItem) =>
+  item.services?.map((s) => s.serviceName).join(', ') ||
+  item.serviceName ||
+  '';
+
 onMounted(() => {
   loadQueue();
   loadCounts();
@@ -1031,7 +1044,17 @@ watch(completedPage, async (val) => {
               <div class="flex flex-wrap items-center gap-3 text-sm text-slate-700">
                 <div class="flex items-center gap-1 service-row">
                   ✂️
-                  <span>{{ item.serviceName || 'No service selected' }}</span>
+                  <div class="service-lines">
+                    <span class="queue-service-name" :title="allServicesTitle(item)">
+                      {{ primaryServiceName(item) }}
+                    </span>
+                    <span
+                      v-if="additionalServiceCount(item) > 0"
+                      class="queue-service-more"
+                    >
+                      +{{ additionalServiceCount(item) }} more
+                    </span>
+                  </div>
                 </div>
                 <div v-if="item.servedByName" class="flex items-center gap-1 service-row">
                   👤
@@ -1674,6 +1697,24 @@ watch(completedPage, async (val) => {
   margin-top: 8px;
   margin-bottom: 8px;
   opacity: 0.9;
+  gap: 6px;
+}
+.queue-card .service-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.queue-card .queue-service-name {
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+.queue-card .queue-service-more {
+  font-size: 12px;
+  color: #6b7280;
 }
 .queue-card .service-row svg {
   margin-right: 6px;
