@@ -1776,8 +1776,9 @@ watch(completedPage, async (val) => {
   flex-direction: column;
   gap: 10px;
   z-index: 10;
+  right: 0;
 }
-@media (min-width: 1024px) {
+@media (min-width: 1280px) {
   .quick-nav {
     display: none;
   }
