@@ -1099,92 +1099,94 @@ watch(useClassicWelcome, (isClassic) => {
                   </div>
                 </div>
 
-                <div class="services-scroll" data-allow-scroll="true">
-                  <div v-if="serviceSections.length" class="services-wrapper">
-                    <section
-                      v-for="category in serviceSections"
-                      :key="category.categoryId || 'uncategorized'"
-                      class="service-column"
-                    >
-                      <h3 class="category-title">
-                        <span class="category-icon">
-                          {{ category.categoryIcon || "💅" }}
-                        </span>
-                        <span class="category-name">
-                          {{ category.categoryName || "Other services" }}
-                        </span>
-                        <span class="category-count">
-                          {{ category.services.length }} services
-                        </span>
-                      </h3>
+                <div class="services-layout">
+                  <div class="services-scroll" data-allow-scroll="true">
+                    <div v-if="serviceSections.length" class="services-wrapper">
+                      <section
+                        v-for="category in serviceSections"
+                        :key="category.categoryId || 'uncategorized'"
+                        class="service-column"
+                      >
+                        <h3 class="category-title">
+                          <span class="category-icon">
+                            {{ category.categoryIcon || "💅" }}
+                          </span>
+                          <span class="category-name">
+                            {{ category.categoryName || "Other services" }}
+                          </span>
+                          <span class="category-count">
+                            {{ category.services.length }} services
+                          </span>
+                        </h3>
 
-                      <div v-if="category.services.length" class="category-services">
-                        <button
-                          v-for="service in category.services"
-                          :key="service.id"
-                          type="button"
-                          class="service-button"
-                          :class="{ selected: selectedServiceIds.includes(service.id) }"
-                          :aria-pressed="selectedServiceIds.includes(service.id)"
-                          @click="toggleService(service.id)"
-                        >
-                          <div class="service-text">
-                            <div class="service-row">
-                              <span class="service-name">{{ service.name }}</span>
-                              <span
-                                v-if="service.priceCents !== undefined && service.priceCents !== null"
-                                class="service-price"
+                        <div v-if="category.services.length" class="category-services">
+                          <button
+                            v-for="service in category.services"
+                            :key="service.id"
+                            type="button"
+                            class="service-button"
+                            :class="{ selected: selectedServiceIds.includes(service.id) }"
+                            :aria-pressed="selectedServiceIds.includes(service.id)"
+                            @click="toggleService(service.id)"
+                          >
+                            <div class="service-text">
+                              <div class="service-row">
+                                <span class="service-name">{{ service.name }}</span>
+                                <span
+                                  v-if="service.priceCents !== undefined && service.priceCents !== null"
+                                  class="service-price"
+                                >
+                                  {{
+                                    Intl.NumberFormat("en-US", {
+                                      style: "currency",
+                                      currency: service.currency || settings?.currency || "USD",
+                                      minimumFractionDigits: 0,
+                                    }).format((service.priceCents || 0) / 100)
+                                  }}
+                                </span>
+                              </div>
+                              <div
+                                v-if="service.durationMinutes"
+                                class="service-duration"
                               >
-                                {{
-                                  Intl.NumberFormat("en-US", {
-                                    style: "currency",
-                                    currency: service.currency || settings?.currency || "USD",
-                                    minimumFractionDigits: 0,
-                                  }).format((service.priceCents || 0) / 100)
-                                }}
-                              </span>
+                                {{ service.durationMinutes }} min
+                              </div>
                             </div>
-                            <div
-                              v-if="service.durationMinutes"
-                              class="service-duration"
-                            >
-                              {{ service.durationMinutes }} min
-                            </div>
-                          </div>
-                        </button>
-                      </div>
-                      <div v-else class="service-empty">
-                        No services in this category yet.
-                      </div>
-                    </section>
+                          </button>
+                        </div>
+                        <div v-else class="service-empty">
+                          No services in this category yet.
+                        </div>
+                      </section>
+                    </div>
+                    <div
+                      v-else
+                      class="rounded-xl border border-white/10 bg-white/5 px-4 py-3"
+                      :style="{ color: 'var(--kiosk-text-secondary)' }"
+                    >
+                      No services published yet.
+                    </div>
                   </div>
-                  <div
-                    v-else
-                    class="rounded-xl border border-white/10 bg-white/5 px-4 py-3"
-                    :style="{ color: 'var(--kiosk-text-secondary)' }"
-                  >
-                    No services published yet.
-                  </div>
-                </div>
 
-                <div class="service-actions">
-                  <ElButton size="large" @click="step = 'name'">Back</ElButton>
-                  <ElButton
-                    v-if="allowServiceSkip"
-                    size="large"
-                    plain
-                    @click="skipServiceSelection"
-                  >
-                    Skip
-                  </ElButton>
-                  <ElButton
-                    type="primary"
-                    size="large"
-                    :disabled="!canAdvanceFromServices"
-                    @click="goNextFromServices"
-                  >
-                    Next
-                  </ElButton>
+                  <div class="service-actions">
+                    <ElButton size="large" @click="step = 'name'">Back</ElButton>
+                    <ElButton
+                      v-if="allowServiceSkip"
+                      size="large"
+                      plain
+                      @click="skipServiceSelection"
+                    >
+                      Skip
+                    </ElButton>
+                    <ElButton
+                      type="primary"
+                      size="large"
+                      :disabled="!canAdvanceFromServices"
+                      @click="goNextFromServices"
+                    >
+                      Next
+                    </ElButton>
+                  </div>
                 </div>
               </div>
 
@@ -1933,11 +1935,19 @@ watch(useClassicWelcome, (isClassic) => {
   gap: 16px;
   min-height: calc(100vh - 280px);
 }
-.services-scroll {
-  min-height: 0;
+
+.services-layout {
+  display: flex;
+  flex-direction: column;
   height: 100%;
+  position: relative;
+}
+.services-scroll {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding-right: 6px;
+  padding-bottom: 120px;
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
 }
@@ -1955,7 +1965,6 @@ watch(useClassicWelcome, (isClassic) => {
 @media (max-height: 880px) {
   .services-scroll {
     min-height: 0;
-    height: 100%;
   }
   .kiosk-card--clamped {
     max-height: calc(100vh - 110px);
@@ -2051,11 +2060,23 @@ watch(useClassicWelcome, (isClassic) => {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  padding: 18px 24px 10px;
+  padding: 20px 24px;
   flex-wrap: wrap;
-  background: color-mix(in srgb, var(--kiosk-surface) 95%, #ffffff 5%);
-  box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.04);
-  border-radius: 14px;
+  background: #ffffff;
+  position: sticky;
+  bottom: 0;
+  border-top: 1px solid #e5e7eb;
+  box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.05);
+  z-index: 5;
+}
+.service-actions::before {
+  content: "";
+  position: absolute;
+  top: -20px;
+  left: 0;
+  right: 0;
+  height: 20px;
+  background: linear-gradient(to top, #ffffff, rgba(255, 255, 255, 0));
 }
 .services-grid {
   display: grid;
