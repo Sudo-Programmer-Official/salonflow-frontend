@@ -1778,7 +1778,7 @@ watch(completedPage, async (val) => {
   z-index: 10;
   right: 0;
 }
-@media screen and (min-width: 1024px) {
+@media screen and (max-width: 1023px) {
   .quick-nav {
     display: none;
   }
