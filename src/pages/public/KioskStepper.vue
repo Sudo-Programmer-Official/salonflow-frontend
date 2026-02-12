@@ -827,7 +827,10 @@ watch(useClassicWelcome, (isClassic) => {
           {{ errorMessage }}
         </div>
 
-        <ElCard class="kiosk-card glass-card">
+        <ElCard
+          class="kiosk-card glass-card"
+          :class="{ 'kiosk-card--clamped': step === 'services' }"
+        >
           <template #default>
             <div
               v-if="!publicEnabled"
@@ -1484,6 +1487,17 @@ watch(useClassicWelcome, (isClassic) => {
   -webkit-backdrop-filter: blur(var(--kiosk-blur));
   box-shadow: 0 14px 36px rgba(15, 23, 42, 0.08);
 }
+.kiosk-card--clamped {
+  max-height: calc(100vh - 140px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.kiosk-card--clamped :deep(.el-card__body) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
 .kiosk-disabled {
   border: 1px dashed var(--kiosk-border);
   background: var(--kiosk-surface);
@@ -1947,12 +1961,14 @@ watch(useClassicWelcome, (isClassic) => {
   gap: 10px;
 }
 .services-step {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 16px;
+  min-height: calc(100vh - 280px);
 }
 .services-scroll {
-  max-height: calc(100vh - 320px);
+  min-height: 0;
+  height: 100%;
   overflow-y: auto;
   padding-right: 6px;
   -webkit-overflow-scrolling: touch;
@@ -1971,7 +1987,11 @@ watch(useClassicWelcome, (isClassic) => {
 
 @media (max-height: 880px) {
   .services-scroll {
-    max-height: calc(100vh - 260px);
+    min-height: 0;
+    height: 100%;
+  }
+  .kiosk-card--clamped {
+    max-height: calc(100vh - 110px);
   }
 }
 .service-row {
