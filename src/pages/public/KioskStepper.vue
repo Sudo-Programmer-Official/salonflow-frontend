@@ -151,9 +151,9 @@ const currentStepIndex = computed(() =>
   stepItems.value.findIndex((s) => s.key === step.value),
 );
 
-const allowMultiService = computed(
-  () => settings.value?.allowMultiService ?? false,
-);
+// Kiosk UX: always allow selecting multiple services.
+// Backend still receives the primary (first) service ID per current contract.
+const allowMultiService = computed(() => true);
 const requireService = computed(() => settings.value?.requireService ?? false);
 const requirePhone = computed(() => settings.value?.requirePhone !== false);
 const allowPhoneSkip = computed(() => !requirePhone.value);
@@ -658,6 +658,10 @@ const confirmCheckIn = async () => {
         null)
       : null;
     const serviceName = matchedService?.name || null;
+    const servicesPayload = selectedServiceDetails.value.map((svc) => ({
+      serviceId: svc.id,
+      serviceName: svc.name,
+    }));
     const pointsBefore = lookupResult.value?.customer?.pointsBalance;
     pointsAtCheckin.value =
       pointsBefore !== null && pointsBefore !== undefined && Number.isFinite(Number(pointsBefore))
@@ -669,6 +673,7 @@ const confirmCheckIn = async () => {
       phoneE164: requirePhone.value ? normalizedPhone : normalizedPhone || null,
       serviceId: primaryServiceId,
       serviceName,
+      services: servicesPayload,
       staffId: selectedStaffId.value,
       email: email.value.trim() || null,
     });
@@ -1089,11 +1094,7 @@ watch(useClassicWelcome, (isClassic) => {
                       class="text-sm"
                       :style="{ color: 'var(--kiosk-text-secondary)' }"
                     >
-                      {{
-                        allowMultiService
-                          ? "Tap all that apply."
-                          : "Choose one service."
-                      }}
+                      Tap all that apply.
                     </p>
                   </div>
                 </div>

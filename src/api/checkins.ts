@@ -14,6 +14,7 @@ export type CreateCheckInPayload = {
   phoneE164?: string | null;
   serviceId?: string | null;
   serviceName?: string | null;
+  services?: Array<{ serviceId?: string | null; serviceName?: string | null }>;
   staffId?: string | null;
   appointmentId?: string | null;
   email?: string | null;
