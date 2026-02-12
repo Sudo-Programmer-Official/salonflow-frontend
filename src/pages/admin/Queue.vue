@@ -75,6 +75,30 @@ const currentCustomerSummary = computed(() => {
   };
 });
 const canRedeem = computed(() => (currentCheckoutItem.value?.pointsBalance ?? 0) >= 300);
+const checkoutServiceSummary = computed(() => {
+  const names: string[] = [];
+  if (checkoutServices.value.length) {
+    names.push(
+      ...checkoutServices.value
+        .map((s) => s.name)
+        .filter((s): s is string => Boolean(s && s.trim())),
+    );
+  }
+  const item = currentCheckoutItem.value;
+  if (!names.length && item?.services?.length) {
+    names.push(
+      ...item.services
+        .map((s) => s.serviceName)
+        .filter((s): s is string => Boolean(s && s.trim())),
+    );
+  }
+  if (!names.length && item?.serviceName) {
+    names.push(item.serviceName);
+  }
+  if (!names.length) return '';
+  if (names.length === 1) return names[0];
+  return `${names[0]} +${names.length - 1} more`;
+});
 const staff = ref<StaffMember[]>([]);
 const loadingStaff = ref(false);
 const todayAppointments = ref<TodayAppointment[]>([]);
@@ -1166,34 +1190,32 @@ watch(completedPage, async (val) => {
 
     <ElDialog v-model="checkoutOpen" title="Checkout" width="960px" class="checkout-modal">
       <div class="checkout-body space-y-4">
-        <div
-          v-if="currentCustomerSummary"
-          class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"
-        >
-          <div class="flex flex-col">
-            <span class="text-xs font-semibold text-slate-600">Customer</span>
-            <span class="text-base font-semibold text-slate-900">{{ currentCustomerSummary?.name || 'Customer' }}</span>
+        <div class="checkout-meta-wrap">
+          <div
+            v-if="currentCustomerSummary"
+            class="customer-meta-card"
+          >
+            <div class="checkout-customer-meta">
+              <div class="checkout-customer-name">{{ currentCustomerSummary?.name || 'Customer' }}</div>
+              <div class="checkout-customer-phone">{{ currentCustomerSummary?.phone || '—' }}</div>
+              <div class="checkout-customer-meta-sub">
+                <span>Points: {{ currentCustomerSummary?.points ?? 0 }}</span>
+                <span v-if="checkoutServiceSummary">• {{ checkoutServiceSummary }}</span>
+              </div>
+            </div>
           </div>
-          <div class="flex flex-col">
-            <span class="text-xs font-semibold text-slate-600">Phone</span>
-            <span class="text-sm text-slate-800">{{ currentCustomerSummary?.phone || '—' }}</span>
-          </div>
-          <div class="flex flex-col text-right">
-            <span class="text-xs font-semibold text-slate-600">Points</span>
-            <span class="text-sm font-semibold text-slate-900">{{ currentCustomerSummary?.points ?? 0 }}</span>
-          </div>
-        </div>
 
-        <div class="quick-nav">
-          <button class="jump-payment-btn" type="button" @click="scrollToTop" aria-label="Scroll to top">
-            ↑
-          </button>
-          <button class="jump-payment-btn" type="button" @click="scrollToPayment" aria-label="Jump to payment">
-            💳
-          </button>
-          <button class="jump-payment-btn" type="button" @click="scrollToBottom" aria-label="Scroll to bottom">
-            ↓
-          </button>
+          <div class="quick-nav">
+            <button class="jump-payment-btn" type="button" @click="scrollToTop" aria-label="Scroll to top">
+              ↑
+            </button>
+            <button class="jump-payment-btn" type="button" @click="scrollToPayment" aria-label="Jump to payment">
+              💳
+            </button>
+            <button class="jump-payment-btn" type="button" @click="scrollToBottom" aria-label="Scroll to bottom">
+              ↓
+            </button>
+          </div>
         </div>
 
         <div class="checkout-grid">
@@ -1768,15 +1790,59 @@ watch(completedPage, async (val) => {
   display: grid;
   place-items: center;
 }
+.checkout-meta-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+}
+.customer-meta-card {
+  flex: 1 1 240px;
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #f8fafc;
+  box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.2);
+}
+.checkout-customer-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.checkout-customer-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+.checkout-customer-phone {
+  font-size: 14px;
+  color: #475569;
+}
+.checkout-customer-meta-sub {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 13px;
+  color: #64748b;
+}
 .quick-nav {
   position: sticky;
   top: 12px;
-  align-self: flex-end;
+  align-self: flex-start;
   display: flex;
   flex-direction: column;
   gap: 10px;
   z-index: 10;
   right: 0;
+}
+@media (max-width: 640px) {
+  .checkout-meta-wrap {
+    flex-direction: column;
+  }
+  .quick-nav {
+    position: static;
+    flex-direction: row;
+  }
 }
 .queue-date-picker {
   height: 44px;
