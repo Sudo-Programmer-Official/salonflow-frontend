@@ -1354,21 +1354,13 @@ watch(useClassicWelcome, (isClassic) => {
                     <span class="label-icon" aria-hidden="true">📋</span>
                     <span>You’re checked in for</span>
                   </p>
-                  <div
-                    v-if="successServices.length"
-                    class="flex flex-wrap justify-center gap-2"
-                  >
+                  <div v-if="successServices.length" class="selected-services-scroll" aria-label="Selected services">
                     <div
                       v-for="svc in successServices"
                       :key="svc"
-                      class="service-chip-card"
+                      class="selected-service-pill"
                     >
-                      <span class="text-lg">💅</span>
-                      <span
-                        class="text-sm font-semibold"
-                        :style="{ color: 'var(--kiosk-text-primary)' }"
-                        >{{ svc }}</span
-                      >
+                      💅 {{ svc }}
                     </div>
                   </div>
                   <div
@@ -2235,22 +2227,30 @@ watch(useClassicWelcome, (isClassic) => {
   align-items: center;
   justify-content: center;
 }
-.final-services .service-chip-card {
-  margin-top: 4px;
+.selected-services-scroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  padding-bottom: 6px;
+  scrollbar-width: none;
+  justify-content: center;
 }
-.service-chip-card {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  border-radius: 14px;
-  background: var(--kiosk-surface);
-  border: 1px solid var(--kiosk-border);
-  backdrop-filter: blur(var(--kiosk-blur));
-  -webkit-backdrop-filter: blur(var(--kiosk-blur));
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+.selected-services-scroll::-webkit-scrollbar {
+  display: none;
 }
-.service-chip-card span {
+.selected-service-pill {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  font-size: 14px;
+  font-weight: 500;
+  max-width: 220px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
   color: var(--kiosk-text-primary);
 }
 .estimated-total {
