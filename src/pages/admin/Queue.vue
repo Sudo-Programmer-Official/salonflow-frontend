@@ -124,6 +124,21 @@ const formattedCheckinPhone = computed(() =>
 const isOnline = ref(typeof navigator !== 'undefined' ? navigator.onLine : true);
 const activeCheckinAppt = ref<TodayAppointment | null>(null);
 
+const scrollToPayment = () => {
+  const el = document.getElementById('payment-section');
+  if (!el) return;
+  const y = el.getBoundingClientRect().top + window.pageYOffset - 80;
+  window.scrollTo({ top: y, behavior: 'smooth' });
+};
+
+const scrollToTop = () => {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+const scrollToBottom = () => {
+  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+};
+
 const dateRange = computed(() => {
   const now = new Date();
   const end = new Date(now);
@@ -1169,6 +1184,18 @@ watch(completedPage, async (val) => {
           </div>
         </div>
 
+        <div class="quick-nav lg:hidden">
+          <button class="jump-payment-btn" type="button" @click="scrollToTop" aria-label="Scroll to top">
+            ↑
+          </button>
+          <button class="jump-payment-btn" type="button" @click="scrollToPayment" aria-label="Jump to payment">
+            💳
+          </button>
+          <button class="jump-payment-btn" type="button" @click="scrollToBottom" aria-label="Scroll to bottom">
+            ↓
+          </button>
+        </div>
+
         <div class="checkout-grid">
           <div class="checkout-col space-y-3">
             <div class="rounded-md border border-slate-200 bg-slate-50 p-2 text-xs text-slate-700">
@@ -1238,7 +1265,7 @@ watch(completedPage, async (val) => {
             </div>
           </div>
 
-          <div class="checkout-col space-y-3">
+          <div id="payment-section" class="checkout-col space-y-3">
             <div class="space-y-2 rounded-md border border-slate-200 bg-white px-3 py-2">
               <div class="text-sm font-medium text-slate-800">Payments</div>
               <div class="space-y-2">
@@ -1725,6 +1752,35 @@ watch(completedPage, async (val) => {
 .queue-card .meta {
   font-size: 0.85rem;
   opacity: 0.75;
+}
+.jump-payment-btn {
+  background: #22c55e;
+  color: #ffffff;
+  padding: 8px 14px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 14px;
+  box-shadow: 0 6px 16px rgba(34, 197, 94, 0.28);
+  border: none;
+  cursor: pointer;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+}
+.quick-nav {
+  position: sticky;
+  top: 12px;
+  align-self: flex-end;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 10;
+}
+@media (min-width: 1024px) {
+  .quick-nav {
+    display: none;
+  }
 }
 .queue-date-picker {
   height: 44px;
