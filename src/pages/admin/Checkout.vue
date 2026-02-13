@@ -333,6 +333,19 @@ const togglePaymentOption = (key: 'cash' | 'card' | 'gift', checked: boolean) =>
   }
 };
 
+const seedCustomTotal = () => {
+  if (customTotalValue.value !== '') return;
+  const seed = servicesSubtotal.value;
+  if (Number.isFinite(seed) && seed > 0) {
+    customTotalValue.value = seed.toFixed(2);
+  }
+};
+
+const toggleCustomTotal = () => {
+  customTotalMode.value = !customTotalMode.value;
+  if (customTotalMode.value) seedCustomTotal();
+};
+
 const addGiftCard = () => {
   giftCards.value = [
     ...giftCards.value,
@@ -454,6 +467,15 @@ watch(
     cards.forEach((card) => fetchGiftCardBalance(card));
   },
   { deep: true },
+);
+
+watch(
+  () => servicesSubtotal.value,
+  (val) => {
+    if (!customTotalMode.value) return;
+    if (customTotalValue.value !== '' || !Number.isFinite(val) || val <= 0) return;
+    customTotalValue.value = val.toFixed(2);
+  },
 );
 
 watch(
@@ -739,7 +761,7 @@ onBeforeUnmount(() => {
               type="button"
               class="custom-toggle"
               :class="{ active: customTotalMode }"
-              @click="customTotalMode = !customTotalMode"
+              @click="toggleCustomTotal"
             >
               <span class="custom-icon">✏️</span>
               <span>Custom total</span>
