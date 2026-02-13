@@ -348,6 +348,35 @@ watch(
   },
 );
 
+watch(
+  () => totalDue.value,
+  () => {
+    const remaining = totalDue.value - enteredTotal.value;
+    // If underpaid, prefill first active payment option
+    if (remaining > 0.009) {
+      const active = (['cash', 'card'] as const).find((k) => paymentOptions.value[k]);
+      if (active) {
+        paymentAmounts.value = {
+          ...paymentAmounts.value,
+          [active]: remaining.toFixed(2),
+        };
+      }
+    }
+    // If overpaid, trim the first active payment option to remove overage
+    if (remaining < -0.009) {
+      const active = (['cash', 'card'] as const).find((k) => paymentOptions.value[k]);
+      if (active) {
+        const current = Number(paymentAmounts.value[active]) || 0;
+        const adjusted = Math.max(0, current + remaining); // remaining is negative
+        paymentAmounts.value = {
+          ...paymentAmounts.value,
+          [active]: adjusted ? adjusted.toFixed(2) : '',
+        };
+      }
+    }
+  },
+);
+
 const toggleService = (id: string) => {
   const current = new Set(selectedServiceIds.value);
   if (current.has(id)) {
