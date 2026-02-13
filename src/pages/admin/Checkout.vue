@@ -613,7 +613,13 @@ onBeforeUnmount(() => {
       </div>
     </header>
 
-    <main class="checkout-body" :class="{ 'payment-view': checkoutStep === 'payment' }">
+    <main
+      class="checkout-body"
+      :class="{
+        'payment-view': checkoutStep === 'payment',
+        'services-view': checkoutStep === 'services',
+      }"
+    >
       <!-- Column 1: Categories -->
       <section class="checkout-panel categories" v-if="checkoutStep === 'services'">
         <ElCard v-if="loading" class="glass-card" shadow="never">
@@ -703,8 +709,8 @@ onBeforeUnmount(() => {
         </ElCard>
       </section>
 
-      <!-- Column 3: Bill -->
-      <section class="checkout-panel bill">
+      <!-- Column 3: Bill (payment step only) -->
+      <section v-if="checkoutStep === 'payment'" class="checkout-panel bill">
         <ElCard v-if="loading" class="glass-card" shadow="never">
           <ElSkeleton :rows="6" animated />
         </ElCard>
@@ -967,9 +973,6 @@ onBeforeUnmount(() => {
         <div class="step-info">Step 2 of 2 — Payment</div>
         <div class="step-buttons">
           <ElButton text @click="goToServicesStep">← Back</ElButton>
-          <ElButton type="success" :disabled="!canCompleteCheckout" :loading="completing" @click="submitCheckout">
-            Checkout
-          </ElButton>
         </div>
       </template>
     </div>
@@ -1031,6 +1034,9 @@ onBeforeUnmount(() => {
   grid-template-columns: minmax(140px, max-content) minmax(0, 1fr) 420px;
   gap: 16px;
   align-items: start;
+}
+.checkout-body.services-view {
+  grid-template-columns: minmax(140px, max-content) minmax(0, 1fr);
 }
 .checkout-body.payment-view {
   grid-template-columns: 1fr;
