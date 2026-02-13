@@ -985,6 +985,8 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  min-height: 100vh;
+  max-height: 100vh;
   overflow: hidden;
   background: linear-gradient(180deg, #f8fafc, #eef2ff);
   padding: 16px 20px 0;
@@ -1028,12 +1030,14 @@ onBeforeUnmount(() => {
   flex: 1 1 auto;
   overflow-y: auto;
   padding: 4px 0 96px;
+  min-height: 0;
 }
 .checkout-body {
   display: grid;
   grid-template-columns: minmax(140px, max-content) minmax(0, 1fr) 420px;
   gap: 16px;
   align-items: start;
+  min-height: 0;
 }
 .checkout-body.services-view {
   grid-template-columns: minmax(140px, max-content) minmax(0, 1fr);
@@ -1516,7 +1520,7 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  z-index: 10;
+  z-index: 20;
   box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.06);
 }
 .step-info {
