@@ -35,27 +35,41 @@ const nextGiftCardId = ref(2);
 const giftCardInfo = ref<Record<number, { loading: boolean; error: string; card: GiftCard | null }>>({});
 const fetchedNumbers = ref<Record<number, string>>({});
 
-const scrollContainer = () =>
-  (document.querySelector('.checkout-body') as HTMLElement | null) ?? null;
+const scrollContainer = () => {
+  const el = document.querySelector('.checkout-body') as HTMLElement | null;
+  if (el && el.scrollHeight - el.clientHeight > 2) return el;
+  return null;
+};
 
 const scrollToPayment = () => {
-  const container = scrollContainer();
   const target = document.getElementById('payment-section');
-  if (!container || !target) return;
-  const offset = target.offsetTop - 20;
-  container.scrollTo({ top: offset, behavior: 'smooth' });
+  if (!target) return;
+  const container = scrollContainer();
+  if (container) {
+    const offset = target.offsetTop - 20;
+    container.scrollTo({ top: offset, behavior: 'smooth' });
+    return;
+  }
+  const y = target.getBoundingClientRect().top + window.pageYOffset - 80;
+  window.scrollTo({ top: y, behavior: 'smooth' });
 };
 
 const scrollToTop = () => {
   const container = scrollContainer();
-  if (!container) return;
-  container.scrollTo({ top: 0, behavior: 'smooth' });
+  if (container) {
+    container.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
 const scrollToBottom = () => {
   const container = scrollContainer();
-  if (!container) return;
-  container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+  if (container) {
+    container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+    return;
+  }
+  window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
 };
 
 const DRAFT_KEY = 'checkoutDraftSelections';
@@ -609,13 +623,21 @@ onBeforeUnmount(() => {
       </div>
       <div class="quick-nav xl:hidden">
         <button class="jump-payment-btn" type="button" @click="scrollToTop" aria-label="Scroll to top">
-          ↑
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 5l-7 7h4v7h6v-7h4l-7-7z" fill="currentColor"/>
+          </svg>
         </button>
         <button class="jump-payment-btn" type="button" @click="scrollToPayment" aria-label="Jump to payment">
-          💳
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="3" y="5" width="18" height="14" rx="2" ry="2" stroke="currentColor" stroke-width="1.7" fill="none"/>
+            <rect x="3" y="9" width="18" height="3" fill="currentColor" />
+            <rect x="6.5" y="14" width="5" height="1.8" rx=".4" fill="currentColor"/>
+          </svg>
         </button>
         <button class="jump-payment-btn" type="button" @click="scrollToBottom" aria-label="Scroll to bottom">
-          ↓
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 19l7-7h-4V5h-6v7H5l7 7z" fill="currentColor"/>
+          </svg>
         </button>
       </div>
     </header>
@@ -997,8 +1019,8 @@ onBeforeUnmount(() => {
   box-shadow: 0 4px 10px rgba(15, 23, 42, 0.12);
   border: 1px solid #e2e8f0;
   cursor: pointer;
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
   transition: all 0.2s ease;
