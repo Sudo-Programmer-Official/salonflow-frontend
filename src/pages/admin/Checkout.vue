@@ -35,6 +35,17 @@ const nextGiftCardId = ref(2);
 const giftCardInfo = ref<Record<number, { loading: boolean; error: string; card: GiftCard | null }>>({});
 const fetchedNumbers = ref<Record<number, string>>({});
 
+const scrollToPayment = () => {
+  const el = document.getElementById('payment-section');
+  if (!el) return;
+  const y = el.getBoundingClientRect().top + window.pageYOffset - 80;
+  window.scrollTo({ top: y, behavior: 'smooth' });
+};
+
+const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+const scrollToBottom = () =>
+  window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+
 const DRAFT_KEY = 'checkoutDraftSelections';
 const PAYMENT_KEY = 'checkoutPayments';
 
@@ -584,6 +595,17 @@ onBeforeUnmount(() => {
           </div>
         </div>
       </div>
+      <div class="quick-nav xl:hidden">
+        <button class="jump-payment-btn" type="button" @click="scrollToTop" aria-label="Scroll to top">
+          ↑
+        </button>
+        <button class="jump-payment-btn" type="button" @click="scrollToPayment" aria-label="Jump to payment">
+          💳
+        </button>
+        <button class="jump-payment-btn" type="button" @click="scrollToBottom" aria-label="Scroll to bottom">
+          ↓
+        </button>
+      </div>
     </header>
 
     <main class="checkout-body">
@@ -757,7 +779,7 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <div class="payments-block">
+          <div id="payment-section" class="payments-block">
             <div class="payments-header">
               <span>Payments</span>
               <span class="payments-remaining" :class="{ ok: Math.abs(remainingBalance) < 0.01 }">
@@ -943,6 +965,35 @@ onBeforeUnmount(() => {
   position: sticky;
   top: 0;
   z-index: 5;
+}
+.quick-nav {
+  position: sticky;
+  top: 12px;
+  align-self: flex-end;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 10;
+}
+.jump-payment-btn {
+  background: #22c55e;
+  color: #ffffff;
+  padding: 8px 14px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 14px;
+  box-shadow: 0 6px 16px rgba(34, 197, 94, 0.28);
+  border: none;
+  cursor: pointer;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+}
+@media (min-width: 1280px) {
+  .quick-nav {
+    display: none;
+  }
 }
 .header-left {
   display: flex;

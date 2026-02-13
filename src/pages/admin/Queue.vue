@@ -1202,31 +1202,8 @@ watch(completedPage, async (val) => {
                 <span>Points: {{ currentCustomerSummary?.points ?? 0 }}</span>
                 <span v-if="checkoutServiceSummary">• {{ checkoutServiceSummary }}</span>
               </div>
-              <div class="checkout-customer-meta-actions">
-            <button class="jump-payment-btn" type="button" @click="scrollToTop" aria-label="Scroll to top">
-              ↑
-            </button>
-            <button class="jump-payment-btn" type="button" @click="scrollToPayment" aria-label="Jump to payment">
-              💳
-            </button>
-            <button class="jump-payment-btn" type="button" @click="scrollToBottom" aria-label="Scroll to bottom">
-              ↓
-            </button>
-          </div>
             </div>
           </div>
-<!-- 
-          <div class="quick-nav">
-            <button class="jump-payment-btn" type="button" @click="scrollToTop" aria-label="Scroll to top">
-              ↑
-            </button>
-            <button class="jump-payment-btn" type="button" @click="scrollToPayment" aria-label="Jump to payment">
-              💳
-            </button>
-            <button class="jump-payment-btn" type="button" @click="scrollToBottom" aria-label="Scroll to bottom">
-              ↓
-            </button>
-          </div> -->
         </div>
 
         <div class="checkout-grid">
@@ -1836,23 +1813,9 @@ watch(completedPage, async (val) => {
   font-size: 13px;
   color: #64748b;
 }
-.quick-nav {
-  position: sticky;
-  top: 12px;
-  align-self: flex-start;
-  margin-left: auto; /* if you want it on the right */
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  z-index: 10;
-}
 @media screen and (max-width: 640px) {
   .checkout-meta-wrap {
     flex-direction: column;
-  }
-  .quick-nav {
-    position: static;
-    flex-direction: row;
   }
 }
 .queue-date-picker {
