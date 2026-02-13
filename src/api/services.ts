@@ -12,6 +12,7 @@ export type ServiceItem = {
   currency?: string;
   bookingRules?: Record<string, any>;
   staffCount?: number;
+  usageCount?: number;
 };
 
 const apiBase = apiUrl('/services');
