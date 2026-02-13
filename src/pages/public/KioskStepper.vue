@@ -997,7 +997,7 @@ watch(useClassicWelcome, (isClassic) => {
                       <ElButton
                         v-if="allowPhoneSkip"
                         size="large"
-                        plain
+                        class="kiosk-skip"
                         @click="skipPhoneStep"
                       >
                         Skip phone
@@ -1006,7 +1006,7 @@ watch(useClassicWelcome, (isClassic) => {
                         type="primary"
                         size="large"
                         v-if="canAdvanceFromPhone"
-                        class="kiosk-next-btn"
+                        class="kiosk-next-btn kiosk-primary"
                         @click="proceedFromPhone"
                       >
                         Next
@@ -1174,7 +1174,7 @@ watch(useClassicWelcome, (isClassic) => {
                   </div>
 
                   <div class="service-actions">
-                    <ElButton size="large" @click="step = 'name'">Back</ElButton>
+                    <ElButton size="large" class="kiosk-secondary" @click="step = 'name'">Back</ElButton>
                     <ElButton
                       v-if="allowServiceSkip"
                       size="large"
@@ -1187,6 +1187,7 @@ watch(useClassicWelcome, (isClassic) => {
                       type="primary"
                       size="large"
                       :disabled="!canAdvanceFromServices"
+                      class="kiosk-next-btn kiosk-primary"
                       @click="goNextFromServices"
                     >
                       Next
@@ -2067,26 +2068,54 @@ watch(useClassicWelcome, (isClassic) => {
   color: rgba(255, 255, 255, 0.6);
   box-shadow: none;
 }
+.service-actions {
+  display: flex;
+  gap: 16px;
+  padding: 20px 24px;
+  flex-wrap: wrap;
+  background: #ffffff;
+  position: sticky;
+  bottom: 0;
+  border-top: 1px solid #e5e7eb;
+  box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.05);
+  z-index: 5;
+}
+.service-actions::before {
+  content: '';
+  position: absolute;
+  top: -20px;
+  left: 0;
+  right: 0;
+  height: 20px;
+  background: linear-gradient(to top, #ffffff, rgba(255, 255, 255, 0));
+}
+.service-actions :deep(.el-button) {
+  height: 56px;
+  border-radius: 14px;
+  font-size: 16px;
+  font-weight: 600;
+  flex: 1;
+}
 .service-actions .kiosk-skip {
   background: #facc15;
   border: 1px solid #eab308;
   color: #1f2937;
   box-shadow: none;
-  height: 56px;
-  padding: 0 18px;
-  border-radius: 14px;
-  font-size: 16px;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.08s ease, filter 0.1s ease;
 }
 .service-actions .kiosk-skip:hover {
   filter: brightness(1.02);
 }
 .service-actions .kiosk-skip:active {
   transform: scale(0.985);
+}
+.service-actions .kiosk-secondary {
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #1f2937;
+  box-shadow: none;
+}
+.service-actions .kiosk-primary {
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.22);
 }
 .service-empty {
   color: var(--kiosk-text-secondary);
