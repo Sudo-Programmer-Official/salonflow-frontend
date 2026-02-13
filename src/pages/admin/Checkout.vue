@@ -680,15 +680,16 @@ onBeforeUnmount(() => {
           <ElSkeleton :rows="6" animated />
         </ElCard>
         <ElCard v-else class="glass-card" shadow="never">
-          <div class="panel-title">Services</div>
-          <div class="panel-sub">Tap to add/remove. Filters by category.</div>
-          <ElInput
-            v-model="search"
-            size="large"
-            placeholder="Search services"
-            class="mb-3 service-search"
-            clearable
-          />
+          <div class="services-header">
+            <div class="services-title">Services</div>
+            <ElInput
+              v-model="search"
+              size="large"
+              placeholder="Search services"
+              class="services-search"
+              clearable
+            />
+          </div>
           <div v-if="!filteredServices.length" class="empty-state">No services match.</div>
           <div v-else class="service-list-scroll scrollable-pane">
             <div class="service-grid">
@@ -1103,6 +1104,34 @@ onBeforeUnmount(() => {
   border-radius: 14px;
   border: 1px solid rgba(148, 163, 184, 0.28);
   box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+}
+.services-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.services-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+.services-search {
+  width: 260px;
+}
+.services-search :deep(.el-input__wrapper) {
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  padding: 0 14px;
+  background: #f9fafb;
+  box-shadow: none;
+}
+.services-search :deep(.el-input__wrapper.is-focus) {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.12);
+  background: #fff;
 }
 .panel-title {
   font-size: 16px;
