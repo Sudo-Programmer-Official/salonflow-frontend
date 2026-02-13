@@ -686,7 +686,7 @@ onBeforeUnmount(() => {
             v-model="search"
             size="large"
             placeholder="Search services"
-            class="mb-3"
+            class="mb-3 service-search"
             clearable
           />
           <div v-if="!filteredServices.length" class="empty-state">No services match.</div>
@@ -1239,6 +1239,10 @@ onBeforeUnmount(() => {
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 10px;
 }
+.service-search {
+  width: 50%;
+  min-width: 260px;
+}
 .service-tile {
   border: 1px solid rgba(148, 163, 184, 0.35);
   border-radius: 12px;
@@ -1494,11 +1498,14 @@ onBeforeUnmount(() => {
   width: 100%;
   border: 1px solid rgba(148, 163, 184, 0.35);
   border-radius: 10px;
-  padding: 12px;
-  min-height: 44px;
+  padding: 0 12px;
+  height: 44px;
   background: #fff;
   font-weight: 600;
   color: #0f172a;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
 }
 .gift-available {
   font-size: 12px;
@@ -1551,7 +1558,7 @@ onBeforeUnmount(() => {
   height: 32px;
 }
 .checkout-footer {
-  position: sticky;
+  position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
