@@ -622,7 +622,7 @@ onBeforeUnmount(() => {
         <ElCard v-else class="glass-card" shadow="never">
           <div class="panel-title">Categories</div>
           <div class="panel-sub">Pick a category to filter services.</div>
-          <div class="category-list">
+          <div class="category-list scrollable-pane">
             <button
               type="button"
               class="category-pill"
@@ -670,33 +670,35 @@ onBeforeUnmount(() => {
             clearable
           />
           <div v-if="!filteredServices.length" class="empty-state">No services match.</div>
-          <div v-else class="service-grid">
-            <button
-              v-for="svc in filteredServices"
-              :key="svc.id"
-              type="button"
-              class="service-tile"
-              :class="{ active: isSelected(svc.id) }"
-              @click="toggleService(svc.id)"
-            >
-              <div class="svc-top">
-                <span class="svc-icon">{{ svc.icon || '💅' }}</span>
-                <span v-if="isSelected(svc.id)" class="svc-check">✓</span>
-              </div>
-              <div class="svc-name">{{ svc.name }}</div>
-              <div class="svc-meta">
-                <span v-if="svc.durationMinutes">{{ svc.durationMinutes }} min</span>
-                <span v-if="svc.priceCents !== undefined && svc.priceCents !== null">
-                  {{
-                    Intl.NumberFormat('en-US', {
-                      style: 'currency',
-                      currency: svc.currency || 'USD',
-                      minimumFractionDigits: 2,
-                    }).format((svc.priceCents ?? 0) / 100)
-                  }}
-                </span>
-              </div>
-            </button>
+          <div v-else class="service-list-scroll scrollable-pane">
+            <div class="service-grid">
+              <button
+                v-for="svc in filteredServices"
+                :key="svc.id"
+                type="button"
+                class="service-tile"
+                :class="{ active: isSelected(svc.id) }"
+                @click="toggleService(svc.id)"
+              >
+                <div class="svc-top">
+                  <span class="svc-icon">{{ svc.icon || '💅' }}</span>
+                  <span v-if="isSelected(svc.id)" class="svc-check">✓</span>
+                </div>
+                <div class="svc-name">{{ svc.name }}</div>
+                <div class="svc-meta">
+                  <span v-if="svc.durationMinutes">{{ svc.durationMinutes }} min</span>
+                  <span v-if="svc.priceCents !== undefined && svc.priceCents !== null">
+                    {{
+                      Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency: svc.currency || 'USD',
+                        minimumFractionDigits: 2,
+                      }).format((svc.priceCents ?? 0) / 100)
+                    }}
+                  </span>
+                </div>
+              </button>
+            </div>
           </div>
         </ElCard>
       </section>
@@ -1032,6 +1034,21 @@ onBeforeUnmount(() => {
 }
 .checkout-body.payment-view {
   grid-template-columns: 1fr;
+}
+.scrollable-pane {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+.scrollable-pane::-webkit-scrollbar {
+  width: 8px;
+}
+.scrollable-pane::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 8px;
+}
+.scrollable-pane::-webkit-scrollbar-track {
+  background: transparent;
 }
 .step-toggle {
   display: inline-flex;
