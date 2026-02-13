@@ -752,11 +752,8 @@ onBeforeUnmount(() => {
           <ElSkeleton :rows="6" animated />
         </ElCard>
         <ElCard v-else class="glass-card" shadow="never">
-          <div class="panel-title">Bill</div>
-          <div class="panel-sub">
-            {{ checkoutStep === 'payment' ? 'Review and complete checkout.' : 'Review before payment.' }}
-          </div>
-          <div class="custom-total">
+          <div class="bill-header">
+            <div class="bill-title">Bill</div>
             <button
               type="button"
               class="custom-toggle"
@@ -766,7 +763,9 @@ onBeforeUnmount(() => {
               <span class="custom-icon">✏️</span>
               <span>Custom total</span>
             </button>
-            <div v-if="customTotalMode" class="custom-total-input">
+          </div>
+          <div v-if="customTotalMode" class="custom-total">
+            <div class="custom-total-input">
               <ElInput
                 v-model="customTotalValue"
                 type="number"
@@ -1127,6 +1126,17 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(148, 163, 184, 0.28);
   box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
 }
+.bill-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.bill-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
 .services-header {
   display: flex;
   align-items: center;
@@ -1172,22 +1182,22 @@ onBeforeUnmount(() => {
   gap: 8px;
 }
 .custom-toggle {
-  align-self: flex-start;
   padding: 10px 14px;
-  border-radius: 14px;
-  border: 1px solid #e5e7eb;
-  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
   color: #0f172a;
-  font-weight: 700;
+  font-weight: 600;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  transition: all 0.15s ease;
+  transition: all 0.2s ease;
+  height: 40px;
 }
 .custom-toggle.active {
-  background: #e0f2fe;
+  background: #eef2ff;
   border-color: #2563eb;
-  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.15);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.12);
 }
 .custom-icon {
   font-size: 18px;
