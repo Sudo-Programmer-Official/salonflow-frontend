@@ -956,7 +956,7 @@ watch(useClassicWelcome, (isClassic) => {
                     </div>
                     <div class="phone-display" aria-label="Phone number">
                       <div
-                        class="text-4xl font-semibold"
+                        class="phone-display-value"
                         :style="{ color: 'var(--kiosk-text-primary)' }"
                       >
                         {{ displayPhone }}
@@ -1178,7 +1178,7 @@ watch(useClassicWelcome, (isClassic) => {
                     <ElButton
                       v-if="allowServiceSkip"
                       size="large"
-                      plain
+                      class="kiosk-skip"
                       @click="skipServiceSelection"
                     >
                       Skip
@@ -1622,6 +1622,15 @@ watch(useClassicWelcome, (isClassic) => {
   backdrop-filter: blur(var(--kiosk-blur));
   -webkit-backdrop-filter: blur(var(--kiosk-blur));
   padding: 12px;
+  display: flex;
+  align-items: center;
+  min-height: 68px;
+}
+.phone-display-value {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: 6px;
+  line-height: 1.1;
 }
 .keypad {
   /* Kiosk keypad grid: adjust spacing here */
@@ -1636,8 +1645,8 @@ watch(useClassicWelcome, (isClassic) => {
 }
 .keypad-key {
   /* Kiosk keypad keys: size/shape/feel */
-  width: 108px;
-  height: 108px;
+  width: 116px;
+  height: 116px;
   border-radius: 50%;
   background:
     radial-gradient(
@@ -1664,8 +1673,8 @@ watch(useClassicWelcome, (isClassic) => {
 }
 .keypad-key--spacer {
   visibility: hidden;
-  width: 108px;
-  height: 108px;
+  width: 116px;
+  height: 116px;
 }
 .keypad-key.action {
   background: rgba(255, 255, 255, 0.14);
@@ -1683,6 +1692,19 @@ watch(useClassicWelcome, (isClassic) => {
   transform: scale(0.94);
   background: color-mix(in srgb, var(--kiosk-primary) 82%, #000 18%);
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45), 0 0 0 6px rgba(255, 255, 255, 0.05);
+}
+
+@media (max-width: 1100px) and (min-width: 768px) {
+  .keypad {
+    row-gap: 10px;
+    column-gap: 10px;
+  }
+  .keypad-key,
+  .keypad-key--spacer {
+    width: 124px;
+    height: 124px;
+    font-size: 28px;
+  }
 }
 .keypad-actions {
   margin-top: auto;
@@ -2044,6 +2066,27 @@ watch(useClassicWelcome, (isClassic) => {
   border-color: rgba(255, 255, 255, 0.14);
   color: rgba(255, 255, 255, 0.6);
   box-shadow: none;
+}
+.service-actions .kiosk-skip {
+  background: #facc15;
+  border: 1px solid #eab308;
+  color: #1f2937;
+  box-shadow: none;
+  height: 56px;
+  padding: 0 18px;
+  border-radius: 14px;
+  font-size: 16px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.08s ease, filter 0.1s ease;
+}
+.service-actions .kiosk-skip:hover {
+  filter: brightness(1.02);
+}
+.service-actions .kiosk-skip:active {
+  transform: scale(0.985);
 }
 .service-empty {
   color: var(--kiosk-text-secondary);
