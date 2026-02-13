@@ -35,16 +35,28 @@ const nextGiftCardId = ref(2);
 const giftCardInfo = ref<Record<number, { loading: boolean; error: string; card: GiftCard | null }>>({});
 const fetchedNumbers = ref<Record<number, string>>({});
 
+const scrollContainer = () =>
+  (document.querySelector('.checkout-body') as HTMLElement | null) ?? null;
+
 const scrollToPayment = () => {
-  const el = document.getElementById('payment-section');
-  if (!el) return;
-  const y = el.getBoundingClientRect().top + window.pageYOffset - 80;
-  window.scrollTo({ top: y, behavior: 'smooth' });
+  const container = scrollContainer();
+  const target = document.getElementById('payment-section');
+  if (!container || !target) return;
+  const offset = target.offsetTop - 20;
+  container.scrollTo({ top: offset, behavior: 'smooth' });
 };
 
-const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
-const scrollToBottom = () =>
-  window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+const scrollToTop = () => {
+  const container = scrollContainer();
+  if (!container) return;
+  container.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+const scrollToBottom = () => {
+  const container = scrollContainer();
+  if (!container) return;
+  container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+};
 
 const DRAFT_KEY = 'checkoutDraftSelections';
 const PAYMENT_KEY = 'checkoutPayments';
@@ -969,28 +981,32 @@ onBeforeUnmount(() => {
 .quick-nav {
   position: sticky;
   top: 12px;
-  align-self: flex-end;
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  flex-direction: row;
+  gap: 8px;
+  justify-content: flex-end;
   z-index: 10;
 }
 .jump-payment-btn {
-  background: #22c55e;
-  color: #ffffff;
-  padding: 8px 14px;
-  border-radius: 12px;
+  background: #f1f5f9;
+  color: #334155;
+  padding: 0;
+  border-radius: 10px;
   font-weight: 700;
   font-size: 14px;
-  box-shadow: 0 6px 16px rgba(34, 197, 94, 0.28);
-  border: none;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.12);
+  border: 1px solid #e2e8f0;
   cursor: pointer;
-  width: 44px;
-  height: 44px;
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
+  transition: all 0.2s ease;
 }
-@media (min-width: 1280px) {
+.jump-payment-btn:hover {
+  background: #e2e8f0;
+}
+@media (min-width: 1024px) {
   .quick-nav {
     display: none;
   }
