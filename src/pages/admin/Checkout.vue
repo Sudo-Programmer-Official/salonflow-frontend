@@ -28,6 +28,7 @@ const paymentOptions = ref<{ cash: boolean; card: boolean; gift: boolean }>({
 const paymentAmounts = ref<{ cash: string; card: string }>({ cash: '', card: '' });
 const customTotalMode = ref(false);
 const customTotalValue = ref('');
+const redeemPoints = ref(false);
 const giftCards = ref<
   Array<{ id: number; number: string; amount: string; source?: 'new' | 'legacy'; legacyBalance?: string }>
 >([{ id: 1, number: '', amount: '', source: 'new', legacyBalance: '' }]);
@@ -129,6 +130,32 @@ const filteredCategories = computed(() =>
   categories.value.slice().sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)),
 );
 
+const categoryColors: Record<string, string> = {
+  manicure: '#34D399',
+  nails: '#F59E0B',
+  pedicure: '#38BDF8',
+  acrylic: '#A78BFA',
+  sns: '#F472B6',
+  wax: '#FB923C',
+};
+
+const getCategoryKey = (cat?: string | null) => (cat || '').toLowerCase().trim();
+const getCategoryColor = (catName?: string | null) => categoryColors[getCategoryKey(catName)] || '#e2e8f0';
+const categoryStyle = (cat: ServiceCategory) => {
+  const color = getCategoryColor(cat.name);
+  return {
+    borderLeft: `4px solid ${color}`,
+    background: `${color}14`, // light tint
+  };
+};
+const serviceStyle = (svc: ServiceItem) => {
+  const cat = categories.value.find((c) => c.id === svc.categoryId);
+  const color = getCategoryColor(cat?.name);
+  return {
+    borderLeft: `4px solid ${color}`,
+  };
+};
+
 const filteredServices = computed(() => {
   const q = search.value.trim().toLowerCase();
   return services.value
@@ -160,6 +187,10 @@ const subtotal = computed(() => {
   if (customTotalValid.value) return Number(Number(customTotalValue.value).toFixed(2));
   return servicesSubtotal.value;
 });
+const availablePoints = computed(() => item.value?.pointsBalance ?? 0);
+const canRedeemPoints = computed(() => availablePoints.value >= 300);
+const redeemValue = computed(() => (redeemPoints.value && canRedeemPoints.value ? 5 : 0));
+const totalDue = computed(() => Math.max(0, Number((subtotal.value - redeemValue.value).toFixed(2))));
 const hasBillItems = computed(() => customTotalValid.value || selectedServiceObjects.value.length > 0);
 const hasDirtyCheckout = computed(() => {
   const hasServices = selectedServiceIds.value.length > 0;
@@ -215,7 +246,7 @@ const enteredPayments = computed(() => {
 });
 const enteredTotal = computed(() => enteredPayments.value.reduce((acc, cur) => acc + cur.amount, 0));
 const remainingBalance = computed(() => {
-  const remaining = subtotal.value - enteredTotal.value;
+  const remaining = totalDue.value - enteredTotal.value;
   return Number.isFinite(remaining) ? Number(remaining.toFixed(2)) : 0;
 });
 const remainingState = computed<'due' | 'paid' | 'over'>(() => {
@@ -299,9 +330,22 @@ watch(
   { deep: true },
 );
 watch(
-  () => [paymentOptions.value, paymentAmounts.value, giftCards.value, customTotalMode.value, customTotalValue.value],
+  () => [
+    paymentOptions.value,
+    paymentAmounts.value,
+    giftCards.value,
+    customTotalMode.value,
+    customTotalValue.value,
+  ],
   () => persistPayments(),
   { deep: true },
+);
+
+watch(
+  () => canRedeemPoints.value,
+  (can) => {
+    if (!can) redeemPoints.value = false;
+  },
 );
 
 const toggleService = (id: string) => {
@@ -319,7 +363,7 @@ const isSelected = (id: string) => selectedServiceIds.value.includes(id);
 const togglePaymentOption = (key: 'cash' | 'card' | 'gift', checked: boolean) => {
   paymentOptions.value = { ...paymentOptions.value, [key]: checked };
   if (key !== 'gift' && checked) {
-    const rem = Math.max(0, subtotal.value - enteredTotal.value);
+    const rem = Math.max(0, totalDue.value - enteredTotal.value);
     paymentAmounts.value = { ...paymentAmounts.value, [key]: rem ? rem.toFixed(2) : '' };
   }
   if (!checked) {
@@ -406,7 +450,7 @@ const remainingBeforeGiftCard = (id: number) => {
     const val = Number(paymentAmounts.value[key]);
     return Number.isFinite(val) && val > 0 ? sum + val : sum;
   }, 0);
-  const remaining = subtotal.value - otherGift - otherPay;
+  const remaining = totalDue.value - otherGift - otherPay;
   return remaining > 0 ? Number(remaining.toFixed(2)) : 0;
 };
 
@@ -566,7 +610,7 @@ const submitCheckout = async () => {
       amountPaid: enteredTotal.value,
       reviewSmsConsent: true,
       servedByName: null,
-      redeemPoints: false,
+      redeemPoints: redeemPoints.value && canRedeemPoints.value,
       payments: enteredPayments.value,
       giftCardNumber,
       giftCardAmount,
@@ -688,6 +732,7 @@ onBeforeUnmount(() => {
               type="button"
               class="category-pill"
               :class="{ active: selectedCategory === cat.id }"
+              :style="categoryStyle(cat)"
               @click="selectedCategory = cat.id"
             >
               <span class="cat-icon">{{ cat.icon || '🗂' }}</span>
@@ -722,6 +767,7 @@ onBeforeUnmount(() => {
                 type="button"
                 class="service-tile"
                 :class="{ active: isSelected(svc.id) }"
+                :style="serviceStyle(svc)"
                 @click="toggleService(svc.id)"
               >
                 <div class="svc-top">
@@ -823,13 +869,17 @@ onBeforeUnmount(() => {
               <span>Subtotal</span>
               <span>{{ Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(subtotal) }}</span>
             </div>
+            <div class="bill-row" v-if="redeemValue > 0">
+              <span>Redeem points</span>
+              <span>-{{ Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(redeemValue) }}</span>
+            </div>
             <div class="bill-row">
               <span>Tax</span>
               <span>—</span>
             </div>
             <div class="bill-row total">
               <span>Total</span>
-              <span>{{ Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(subtotal) }}</span>
+              <span>{{ Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(totalDue) }}</span>
             </div>
           </div>
 
@@ -843,6 +893,14 @@ onBeforeUnmount(() => {
               <div class="payments-remaining" :class="remainingState">
                 Remaining {{ Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(remainingBalance) }}
               </div>
+            </div>
+            <div class="redeem-row" v-if="canRedeemPoints">
+              <label class="redeem-toggle">
+                <input type="checkbox" v-model="redeemPoints" :disabled="!canRedeemPoints" />
+                <span>
+                  Redeem 300 points (Available: {{ availablePoints }} pts)
+                </span>
+              </label>
             </div>
             <div class="payments-section">
               <div class="payments-section-title">Select payment method</div>
@@ -1282,6 +1340,7 @@ onBeforeUnmount(() => {
   font-weight: 600;
   color: #0f172a;
   transition: all 0.15s ease;
+  border-left-width: 4px;
 }
 .category-pill:hover {
   border-color: rgba(59, 130, 246, 0.6);
@@ -1319,6 +1378,7 @@ onBeforeUnmount(() => {
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
   position: relative;
   min-height: 76px;
+  border-left-width: 4px;
 }
 .service-tile:hover {
   transform: translateY(-2px);
@@ -1458,6 +1518,32 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+.redeem-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px dashed rgba(148, 163, 184, 0.45);
+  border-radius: 10px;
+  background: rgba(240, 253, 250, 0.6);
+  font-size: 13px;
+  color: #0f172a;
+}
+.redeem-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+.redeem-row input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+}
+.redeem-hint {
+  font-size: 12px;
+  color: #475569;
 }
 .payments-section-title {
   font-weight: 700;
