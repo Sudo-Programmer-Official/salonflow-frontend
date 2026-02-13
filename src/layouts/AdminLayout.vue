@@ -23,12 +23,13 @@ const hideOnboardingRoutes = ['admin-queue', 'admin-checkout'];
 const showOnboardingAllowed = computed(
   () => !hideOnboardingRoutes.includes((route.name as string) || ''),
 );
-const hideHeaderRoutes = ['admin-queue'];
+const hideHeaderRoutes = ['admin-queue', 'admin-checkout'];
 const showHeader = computed(
   () => !hideHeaderRoutes.includes((route.name as string) || ''),
 );
 const hideSidebarRoutes = ['admin-checkout'];
 const showSidebar = computed(() => !hideSidebarRoutes.includes((route.name as string) || ''));
+const isCheckoutRoute = computed(() => (route.name as string) === 'admin-checkout');
 
 const showEndedBanner = computed(() => isOwner.value && trialExpired.value && !dismissBanner.value);
 const showCountdownBanner = computed(
@@ -429,7 +430,7 @@ const toggleSidebarCollapse = () => {
         <div class="flex items-center gap-3"></div>
       </header>
 
-      <main class="admin-content">
+      <main class="admin-content" :class="{ 'admin-content--kiosk': isCheckoutRoute }">
         <div
           v-if="showMaintenanceBanner"
           class="flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
@@ -600,6 +601,11 @@ const toggleSidebarCollapse = () => {
   padding: 20px 24px;
   overflow-y: auto;
   overflow-x: hidden;
+}
+.admin-content--kiosk {
+  padding: 0;
+  overflow: hidden;
+  background: transparent;
 }
 .sidebar {
   width: 16rem;

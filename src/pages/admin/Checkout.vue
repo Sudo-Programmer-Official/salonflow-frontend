@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref, computed, watch, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router';
-import { ElButton, ElCard, ElSkeleton, ElMessage, ElInput, ElMessageBox } from 'element-plus';
+import { ElButton, ElCard, ElSkeleton, ElMessage, ElInput, ElMessageBox, ElIcon } from 'element-plus';
+import { Money, CreditCard, Present } from '@element-plus/icons-vue';
 import { fetchQueue, checkoutCheckIn, type QueueItem } from '@/api/queue';
 import { humanizeTime } from '@/utils/dates';
 import { fetchServices, type ServiceItem } from '@/api/services';
@@ -216,6 +217,11 @@ const remainingBalance = computed(() => {
   const remaining = subtotal.value - enteredTotal.value;
   return Number.isFinite(remaining) ? Number(remaining.toFixed(2)) : 0;
 });
+const remainingState = computed<'due' | 'paid' | 'over'>(() => {
+  if (remainingBalance.value > 0.009) return 'due';
+  if (remainingBalance.value < -0.009) return 'over';
+  return 'paid';
+});
 const canCompleteCheckout = computed(
   () => hasBillItems.value && enteredPayments.value.length > 0 && Math.abs(remainingBalance.value) < 0.01,
 );
@@ -268,6 +274,11 @@ const goBack = async () => {
 };
 
 onMounted(() => {
+  // Lock body scroll in kiosk mode
+  const prevOverflow = document.body.style.overflow;
+  document.body.dataset.prevOverflow = prevOverflow;
+  document.body.style.overflow = 'hidden';
+
   loadDrafts();
   loadCheckin();
   Promise.all([fetchCategories(), fetchServices()])
@@ -575,11 +586,15 @@ onBeforeRouteLeave(async (_to, _from, next) => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('beforeunload', beforeUnload);
+  // Restore body scroll
+  const prev = document.body.dataset.prevOverflow ?? '';
+  document.body.style.overflow = prev;
+  delete document.body.dataset.prevOverflow;
 });
 </script>
 
 <template>
-  <div class="checkout-shell">
+  <div class="checkout-kiosk checkout-shell">
     <header class="checkout-header">
       <div class="header-left">
         <ElButton text type="primary" size="large" @click="goBack">← Back to Queue</ElButton>
@@ -725,7 +740,8 @@ onBeforeUnmount(() => {
               :class="{ active: customTotalMode }"
               @click="customTotalMode = !customTotalMode"
             >
-              Custom total
+              <span class="custom-icon">✏️</span>
+              <span>Custom total</span>
             </button>
             <div v-if="customTotalMode" class="custom-total-input">
               <ElInput
@@ -799,57 +815,46 @@ onBeforeUnmount(() => {
             class="payments-block"
           >
             <div class="payments-header">
-              <span>Payments</span>
-              <span class="payments-remaining" :class="{ ok: Math.abs(remainingBalance) < 0.01 }">
+              <div class="payments-title">Payments</div>
+              <div class="payments-remaining" :class="remainingState">
                 Remaining {{ Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(remainingBalance) }}
-              </span>
+              </div>
             </div>
-          <div class="payments-options">
-            <button
-              type="button"
-              class="pay-card"
-              :class="{ active: paymentOptions.cash }"
-              @click="togglePaymentOption('cash', !paymentOptions.cash)"
-            >
-              <input
-                type="checkbox"
-                class="sr-only"
-                :checked="paymentOptions.cash"
-                @change="(e: Event) => togglePaymentOption('cash', (e.target as HTMLInputElement).checked)"
-              />
-              <span>Cash</span>
-            </button>
-            <button
-              type="button"
-              class="pay-card"
-              :class="{ active: paymentOptions.card }"
-              @click="togglePaymentOption('card', !paymentOptions.card)"
-            >
-              <input
-                type="checkbox"
-                class="sr-only"
-                :checked="paymentOptions.card"
-                @change="(e: Event) => togglePaymentOption('card', (e.target as HTMLInputElement).checked)"
-              />
-              <span>Card</span>
-            </button>
-            <button
-              type="button"
-              class="pay-card"
-              :class="{ active: paymentOptions.gift }"
-              @click="togglePaymentOption('gift', !paymentOptions.gift)"
-            >
-              <input
-                type="checkbox"
-                class="sr-only"
-                :checked="paymentOptions.gift"
-                @change="(e: Event) => togglePaymentOption('gift', (e.target as HTMLInputElement).checked)"
-              />
-              <span>Gift card</span>
-            </button>
-          </div>
+            <div class="payments-section">
+              <div class="payments-section-title">Select payment method</div>
+              <div class="payments-options">
+                <button
+                  type="button"
+                  class="payment-method"
+                  :class="{ active: paymentOptions.cash }"
+                  @click="togglePaymentOption('cash', !paymentOptions.cash)"
+                >
+                  <ElIcon class="payment-icon"><Money /></ElIcon>
+                  <span>Cash</span>
+                </button>
+                <button
+                  type="button"
+                  class="payment-method"
+                  :class="{ active: paymentOptions.card }"
+                  @click="togglePaymentOption('card', !paymentOptions.card)"
+                >
+                  <ElIcon class="payment-icon"><CreditCard /></ElIcon>
+                  <span>Card</span>
+                </button>
+                <button
+                  type="button"
+                  class="payment-method"
+                  :class="{ active: paymentOptions.gift }"
+                  @click="togglePaymentOption('gift', !paymentOptions.gift)"
+                >
+                  <ElIcon class="payment-icon"><Present /></ElIcon>
+                  <span>Gift card</span>
+                </button>
+              </div>
+            </div>
 
             <div class="payments-fields">
+              <div class="payments-section-title">Enter amount</div>
               <div v-if="paymentOptions.cash" class="pay-row">
                 <span>Cash</span>
                 <ElInput
@@ -957,14 +962,14 @@ onBeforeUnmount(() => {
       <template v-if="checkoutStep === 'services'">
         <div class="step-info">Step 1 of 2 — Services</div>
         <div class="step-buttons">
-          <ElButton text @click="goToPaymentStep">Skip</ElButton>
-          <ElButton type="primary" @click="goToPaymentStep">Next →</ElButton>
+          <ElButton class="checkout-secondary" @click="goToPaymentStep">Skip</ElButton>
+          <ElButton class="checkout-primary" type="primary" @click="goToPaymentStep">Next →</ElButton>
         </div>
       </template>
       <template v-else>
         <div class="step-info">Step 2 of 2 — Payment</div>
         <div class="step-buttons">
-          <ElButton text @click="goToServicesStep">← Back</ElButton>
+          <ElButton class="checkout-secondary" @click="goToServicesStep">← Back</ElButton>
           <ElButton
             class="checkout-primary"
             type="primary"
@@ -981,15 +986,20 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.checkout-kiosk {
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
 .checkout-shell {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  min-height: 100vh;
-  max-height: 100vh;
-  overflow: hidden;
+  height: 100%;
+  min-height: 100%;
+  max-height: 100%;
   background: linear-gradient(180deg, #f8fafc, #eef2ff);
-  padding: 16px 20px 0;
+  padding: 12px 20px 0;
   gap: 12px;
 }
 .checkout-header {
@@ -997,10 +1007,11 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 16px 20px;
-  border-radius: 14px;
+  padding: 12px 20px;
+  border-radius: 16px;
   background: #ffffff;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  margin-bottom: 12px;
 }
 .header-left {
   display: flex;
@@ -1029,7 +1040,7 @@ onBeforeUnmount(() => {
 .checkout-content {
   flex: 1 1 auto;
   overflow-y: auto;
-  padding: 4px 0 96px;
+  padding: 16px 20px 120px;
   min-height: 0;
 }
 .checkout-body {
@@ -1111,17 +1122,24 @@ onBeforeUnmount(() => {
 }
 .custom-toggle {
   align-self: flex-start;
-  padding: 8px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(59, 130, 246, 0.5);
-  background: #fff;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
   color: #0f172a;
-  font-weight: 600;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   transition: all 0.15s ease;
 }
 .custom-toggle.active {
-  background: linear-gradient(180deg, #e8f2ff, #ffffff);
-  box-shadow: 0 6px 18px rgba(59, 130, 246, 0.2);
+  background: #e0f2fe;
+  border-color: #2563eb;
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.15);
+}
+.custom-icon {
+  font-size: 18px;
 }
 .custom-total-input {
   display: flex;
@@ -1317,6 +1335,17 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 8px;
 }
+.bill-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  color: #0f172a;
+}
+.bill-row.total {
+  font-size: 22px;
+  font-weight: 800;
+}
 .payments-block {
   margin-top: 12px;
   padding: 12px;
@@ -1333,43 +1362,67 @@ onBeforeUnmount(() => {
   font-weight: 700;
   color: #0f172a;
 }
+.payments-title {
+  font-size: 15px;
+  font-weight: 800;
+}
 .payments-remaining {
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.payments-remaining.due {
   color: #dc2626;
 }
-.payments-remaining.ok {
+.payments-remaining.paid {
   color: #16a34a;
 }
-.payments-options {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  font-size: 13px;
+.payments-remaining.over {
+  color: #2563eb;
 }
-.pay-card {
-  border: 1px solid rgba(148, 163, 184, 0.5);
-  background: #fff;
-  border-radius: 12px;
-  padding: 12px 16px;
-  min-height: 56px;
-  min-width: 120px;
-  display: inline-flex;
+.payments-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.payments-section-title {
+  font-weight: 700;
+  color: #0f172a;
+  font-size: 14px;
+}
+.payments-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+.payment-method {
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+  border-radius: 16px;
+  padding: 14px;
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   color: #0f172a;
   cursor: pointer;
   transition: all 0.15s ease;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
 }
-.pay-card.active {
-  border-color: rgba(34, 197, 94, 0.8);
-  background: linear-gradient(180deg, #f0fdf4, #ffffff);
-  box-shadow: 0 8px 24px rgba(34, 197, 94, 0.16);
+.payment-method .payment-icon {
+  font-size: 26px;
+  color: #0f172a;
 }
-.pay-card:hover {
+.payment-method.active {
+  background: #e0f2fe;
+  border-color: #2563eb;
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.18);
+  transform: translateY(-1px) scale(1.02);
+}
+.payment-method:hover {
   transform: translateY(-1px);
 }
 .sr-only {
@@ -1497,17 +1550,6 @@ onBeforeUnmount(() => {
   padding: 4px 10px;
   height: 32px;
 }
-.bill-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 14px;
-  color: #0f172a;
-}
-.bill-row.total {
-  font-size: 18px;
-  font-weight: 800;
-}
 .checkout-footer {
   position: sticky;
   bottom: 0;
@@ -1515,7 +1557,7 @@ onBeforeUnmount(() => {
   right: 0;
   background: #ffffff;
   border-top: 1px solid #e5e7eb;
-  padding: 14px 4px 14px;
+  padding: 16px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1530,8 +1572,10 @@ onBeforeUnmount(() => {
 }
 .step-buttons {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   align-items: center;
+  flex: 1;
+  justify-content: flex-end;
 }
 .empty-state {
   padding: 12px;
@@ -1541,13 +1585,35 @@ onBeforeUnmount(() => {
   text-align: center;
 }
 .checkout-primary {
-  background: #3b82f6;
-  border-color: #3b82f6;
+  flex: 1;
+  height: 56px;
+  font-size: 18px;
+  font-weight: 600;
+  border-radius: 14px;
+  background: #2563eb;
+  border-color: #2563eb;
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.25);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .checkout-primary:hover,
 .checkout-primary:focus {
   background: #2563eb;
   border-color: #2563eb;
+}
+.checkout-secondary {
+  height: 56px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 14px;
+  padding: 0 18px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #0f172a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 @media (max-width: 1280px) {
   .checkout-body {
