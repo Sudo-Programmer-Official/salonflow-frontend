@@ -34,43 +34,29 @@ const giftCards = ref<
 const nextGiftCardId = ref(2);
 const giftCardInfo = ref<Record<number, { loading: boolean; error: string; card: GiftCard | null }>>({});
 const fetchedNumbers = ref<Record<number, string>>({});
+const checkoutStep = ref<'services' | 'payment'>('services');
 
-const scrollContainer = () => {
-  const el = document.querySelector('.checkout-body') as HTMLElement | null;
-  if (el && el.scrollHeight - el.clientHeight > 2) return el;
-  return null;
+const goToPaymentStep = () => {
+  checkoutStep.value = 'payment';
 };
 
-const scrollToPayment = () => {
-  const target = document.getElementById('payment-section');
-  if (!target) return;
-  const container = scrollContainer();
-  if (container) {
-    const offset = target.offsetTop - 20;
-    container.scrollTo({ top: offset, behavior: 'smooth' });
-    return;
+const goToServicesStep = () => {
+  checkoutStep.value = 'services';
+};
+
+const getScrollContainer = () => {
+  const candidates = [
+    document.querySelector('.admin-content') as HTMLElement | null,
+    document.querySelector('.checkout-body') as HTMLElement | null,
+  ];
+  for (const el of candidates) {
+    if (!el) continue;
+    const hasScrollArea = el.scrollHeight - el.clientHeight > 2;
+    if (hasScrollArea) return el;
   }
-  const y = target.getBoundingClientRect().top + window.pageYOffset - 80;
-  window.scrollTo({ top: y, behavior: 'smooth' });
+  return candidates.find(Boolean) ?? (document.scrollingElement as HTMLElement | null);
 };
 
-const scrollToTop = () => {
-  const container = scrollContainer();
-  if (container) {
-    container.scrollTo({ top: 0, behavior: 'smooth' });
-    return;
-  }
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-};
-
-const scrollToBottom = () => {
-  const container = scrollContainer();
-  if (container) {
-    container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
-    return;
-  }
-  window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
-};
 
 const DRAFT_KEY = 'checkoutDraftSelections';
 const PAYMENT_KEY = 'checkoutPayments';
@@ -621,30 +607,29 @@ onBeforeUnmount(() => {
           </div>
         </div>
       </div>
-      <div class="quick-nav xl:hidden">
-        <button class="jump-payment-btn" type="button" @click="scrollToTop" aria-label="Scroll to top">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M12 5l-7 7h4v7h6v-7h4l-7-7z" fill="currentColor"/>
-          </svg>
+      <div class="step-toggle">
+        <button
+          class="step-tab"
+          :class="{ active: checkoutStep === 'services' }"
+          @click="checkoutStep = 'services'"
+          type="button"
+        >
+          Services
         </button>
-        <button class="jump-payment-btn" type="button" @click="scrollToPayment" aria-label="Jump to payment">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <rect x="3" y="5" width="18" height="14" rx="2" ry="2" stroke="currentColor" stroke-width="1.7" fill="none"/>
-            <rect x="3" y="9" width="18" height="3" fill="currentColor" />
-            <rect x="6.5" y="14" width="5" height="1.8" rx=".4" fill="currentColor"/>
-          </svg>
-        </button>
-        <button class="jump-payment-btn" type="button" @click="scrollToBottom" aria-label="Scroll to bottom">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M12 19l7-7h-4V5h-6v7H5l7 7z" fill="currentColor"/>
-          </svg>
+        <button
+          class="step-tab"
+          :class="{ active: checkoutStep === 'payment' }"
+          @click="checkoutStep = 'payment'"
+          type="button"
+        >
+          Payment
         </button>
       </div>
     </header>
 
-    <main class="checkout-body">
+    <main class="checkout-body" :class="{ 'payment-view': checkoutStep === 'payment' }">
       <!-- Column 1: Categories -->
-      <section class="checkout-panel categories">
+      <section class="checkout-panel categories" v-if="checkoutStep === 'services'">
         <ElCard v-if="loading" class="glass-card" shadow="never">
           <ElSkeleton :rows="6" animated />
         </ElCard>
@@ -684,7 +669,7 @@ onBeforeUnmount(() => {
       </section>
 
       <!-- Column 2: Services -->
-      <section class="checkout-panel services">
+      <section class="checkout-panel services" v-if="checkoutStep === 'services'">
         <ElCard v-if="loading" class="glass-card" shadow="never">
           <ElSkeleton :rows="6" animated />
         </ElCard>
@@ -737,7 +722,9 @@ onBeforeUnmount(() => {
         </ElCard>
         <ElCard v-else class="glass-card" shadow="never">
           <div class="panel-title">Bill</div>
-          <div class="panel-sub">Review and complete checkout.</div>
+          <div class="panel-sub">
+            {{ checkoutStep === 'payment' ? 'Review and complete checkout.' : 'Review before payment.' }}
+          </div>
           <div class="custom-total">
             <button
               type="button"
@@ -813,7 +800,11 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <div id="payment-section" class="payments-block">
+          <div
+            v-if="checkoutStep === 'payment'"
+            id="payment-section"
+            class="payments-block"
+          >
             <div class="payments-header">
               <span>Payments</span>
               <span class="payments-remaining" :class="{ ok: Math.abs(remainingBalance) < 0.01 }">
@@ -964,7 +955,7 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <div class="bill-footer">
+          <div class="bill-footer" v-if="checkoutStep === 'payment'">
             <div class="bill-actions">
               <ElButton plain size="large" @click="goBack">Cancel</ElButton>
               <ElButton type="success" size="large" :disabled="!canCompleteCheckout" :loading="completing" @click="submitCheckout">
@@ -975,6 +966,25 @@ onBeforeUnmount(() => {
         </ElCard>
       </section>
     </main>
+
+    <div class="step-actions">
+      <template v-if="checkoutStep === 'services'">
+        <div class="step-info">Step 1 of 2 — Services</div>
+        <div class="step-buttons">
+          <ElButton text @click="goToPaymentStep">Skip</ElButton>
+          <ElButton type="primary" @click="goToPaymentStep">Next →</ElButton>
+        </div>
+      </template>
+      <template v-else>
+        <div class="step-info">Step 2 of 2 — Payment</div>
+        <div class="step-buttons">
+          <ElButton text @click="goToServicesStep">← Back</ElButton>
+          <ElButton type="success" :disabled="!canCompleteCheckout" :loading="completing" @click="submitCheckout">
+            Checkout
+          </ElButton>
+        </div>
+      </template>
+    </div>
   </div>
 </template>
 
@@ -999,39 +1009,6 @@ onBeforeUnmount(() => {
   position: sticky;
   top: 0;
   z-index: 5;
-}
-.quick-nav {
-  position: sticky;
-  top: 12px;
-  display: flex;
-  flex-direction: row;
-  gap: 8px;
-  justify-content: flex-end;
-  z-index: 10;
-}
-.jump-payment-btn {
-  background: #f1f5f9;
-  color: #334155;
-  padding: 0;
-  border-radius: 10px;
-  font-weight: 700;
-  font-size: 14px;
-  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.12);
-  border: 1px solid #e2e8f0;
-  cursor: pointer;
-  width: 44px;
-  height: 44px;
-  display: grid;
-  place-items: center;
-  transition: all 0.2s ease;
-}
-.jump-payment-btn:hover {
-  background: #e2e8f0;
-}
-@media (min-width: 1280px) {
-  .quick-nav {
-    display: none;
-  }
 }
 .header-left {
   display: flex;
@@ -1066,6 +1043,33 @@ onBeforeUnmount(() => {
   grid-template-columns: minmax(140px, max-content) minmax(0, 1fr) 420px;
   gap: 16px;
   align-items: start;
+}
+.checkout-body.payment-view {
+  grid-template-columns: 1fr;
+}
+.step-toggle {
+  display: inline-flex;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 4px;
+  gap: 4px;
+}
+.step-tab {
+  border: none;
+  background: transparent;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 14px;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.step-tab.active {
+  background: #0ea5e9;
+  color: #ffffff;
+  box-shadow: 0 6px 16px rgba(14, 165, 233, 0.28);
 }
 .checkout-panel {
   min-height: 480px;
@@ -1511,6 +1515,24 @@ onBeforeUnmount(() => {
   border-top: 1px solid rgba(148, 163, 184, 0.25);
   border-radius: 16px;
   box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.06);
+}
+.step-actions {
+  margin-top: 14px;
+  padding: 12px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.step-info {
+  font-size: 13px;
+  color: #475569;
+  font-weight: 600;
+}
+.step-buttons {
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
 .empty-state {
   padding: 12px;
