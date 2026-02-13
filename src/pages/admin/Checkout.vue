@@ -3,7 +3,6 @@ import { onMounted, ref, computed, watch, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router';
 import { ElButton, ElCard, ElSkeleton, ElMessage, ElInput, ElMessageBox } from 'element-plus';
 import { fetchQueue, checkoutCheckIn, type QueueItem } from '@/api/queue';
-import { formatPhone } from '@/utils/format';
 import { humanizeTime } from '@/utils/dates';
 import { fetchServices, type ServiceItem } from '@/api/services';
 import { fetchCategories, type ServiceCategory } from '@/api/serviceCategories';
@@ -586,10 +585,9 @@ onBeforeUnmount(() => {
         <ElButton text type="primary" size="large" @click="goBack">← Back to Queue</ElButton>
         <div v-if="item" class="customer-meta">
           <div class="customer-name">{{ item.customerName || 'Customer' }}</div>
-          <div class="customer-phone">{{ formatPhone(item.customerPhone) }}</div>
           <div class="customer-meta-sub">
             <span v-if="item.serviceName">Service: {{ item.serviceName }}</span>
-            <span v-if="item.startedAt"> • In service for {{ humanizeTime(item.startedAt) }}</span>
+            <span v-if="item.startedAt"> · In service for {{ humanizeTime(item.startedAt) }}</span>
           </div>
         </div>
       </div>
@@ -613,13 +611,14 @@ onBeforeUnmount(() => {
       </div>
     </header>
 
-    <main
-      class="checkout-body"
-      :class="{
-        'payment-view': checkoutStep === 'payment',
-        'services-view': checkoutStep === 'services',
-      }"
-    >
+    <div class="checkout-content">
+      <main
+        class="checkout-body"
+        :class="{
+          'payment-view': checkoutStep === 'payment',
+          'services-view': checkoutStep === 'services',
+        }"
+      >
       <!-- Column 1: Categories -->
       <section class="checkout-panel categories" v-if="checkoutStep === 'services'">
         <ElCard v-if="loading" class="glass-card" shadow="never">
@@ -949,19 +948,12 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <div class="bill-footer" v-if="checkoutStep === 'payment'">
-            <div class="bill-actions">
-              <ElButton plain size="large" @click="goBack">Cancel</ElButton>
-              <ElButton type="success" size="large" :disabled="!canCompleteCheckout" :loading="completing" @click="submitCheckout">
-                Checkout
-              </ElButton>
-            </div>
-          </div>
         </ElCard>
       </section>
-    </main>
+      </main>
+    </div>
 
-    <div class="step-actions">
+    <div class="checkout-footer">
       <template v-if="checkoutStep === 'services'">
         <div class="step-info">Step 1 of 2 — Services</div>
         <div class="step-buttons">
@@ -973,6 +965,15 @@ onBeforeUnmount(() => {
         <div class="step-info">Step 2 of 2 — Payment</div>
         <div class="step-buttons">
           <ElButton text @click="goToServicesStep">← Back</ElButton>
+          <ElButton
+            class="checkout-primary"
+            type="primary"
+            :disabled="!canCompleteCheckout"
+            :loading="completing"
+            @click="submitCheckout"
+          >
+            Checkout
+          </ElButton>
         </div>
       </template>
     </div>
@@ -983,23 +984,21 @@ onBeforeUnmount(() => {
 .checkout-shell {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   background: linear-gradient(180deg, #f8fafc, #eef2ff);
-  padding: 18px 20px 24px;
-  gap: 16px;
+  padding: 16px 20px 0;
+  gap: 12px;
 }
 .checkout-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 16px;
+  padding: 16px 20px;
   border-radius: 14px;
   background: #ffffff;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
-  position: sticky;
-  top: 0;
-  z-index: 5;
 }
 .header-left {
   display: flex;
@@ -1016,10 +1015,6 @@ onBeforeUnmount(() => {
   font-weight: 700;
   color: #0f172a;
 }
-.customer-phone {
-  font-size: 14px;
-  color: #475569;
-}
 .customer-meta-sub {
   font-size: 13px;
   color: #64748b;
@@ -1028,6 +1023,11 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+.checkout-content {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 4px 0 96px;
 }
 .checkout-body {
   display: grid;
@@ -1504,34 +1504,20 @@ onBeforeUnmount(() => {
   font-size: 18px;
   font-weight: 800;
 }
-.bill-actions {
-  margin-top: 8px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-}
-.bill-actions :deep(button) {
-  height: 48px;
-  border-radius: 12px;
-  font-size: 16px;
-}
-.bill-footer {
+.checkout-footer {
   position: sticky;
   bottom: 0;
-  background: #fff;
-  padding: 16px;
-  margin-top: 8px;
-  border-top: 1px solid rgba(148, 163, 184, 0.25);
-  border-radius: 16px;
-  box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.06);
-}
-.step-actions {
-  margin-top: 14px;
-  padding: 12px 0;
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border-top: 1px solid #e5e7eb;
+  padding: 14px 4px 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  z-index: 10;
+  box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.06);
 }
 .step-info {
   font-size: 13px;
@@ -1549,6 +1535,15 @@ onBeforeUnmount(() => {
   border-radius: 10px;
   color: #475569;
   text-align: center;
+}
+.checkout-primary {
+  background: #3b82f6;
+  border-color: #3b82f6;
+}
+.checkout-primary:hover,
+.checkout-primary:focus {
+  background: #2563eb;
+  border-color: #2563eb;
 }
 @media (max-width: 1280px) {
   .checkout-body {
@@ -1571,10 +1566,6 @@ onBeforeUnmount(() => {
   }
   .checkout-panel {
     min-height: auto;
-  }
-  .bill-actions {
-    flex-direction: column;
-    align-items: stretch;
   }
 }
 </style>
