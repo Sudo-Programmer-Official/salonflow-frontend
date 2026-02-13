@@ -1202,7 +1202,7 @@ watch(completedPage, async (val) => {
                 <span>Points: {{ currentCustomerSummary?.points ?? 0 }}</span>
                 <span v-if="checkoutServiceSummary">• {{ checkoutServiceSummary }}</span>
               </div>
-              <div class="quick-nav">
+              <div class="checkout-customer-meta-actions">
             <button class="jump-payment-btn" type="button" @click="scrollToTop" aria-label="Scroll to top">
               ↑
             </button>
