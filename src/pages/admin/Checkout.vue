@@ -140,6 +140,7 @@ const filteredServices = computed(() => {
     })
     .filter((svc) => (q ? svc.name.toLowerCase().includes(q) : true));
 });
+const popularServiceIds = computed(() => filteredServices.value.slice(0, 3).map((s) => s.id));
 
 const selectedServiceObjects = computed(() => {
   const map = new Map(services.value.map((s) => [s.id, s]));
@@ -726,6 +727,7 @@ onBeforeUnmount(() => {
                 <div class="svc-top">
                   <span class="svc-icon">{{ svc.icon || '💅' }}</span>
                   <span v-if="isSelected(svc.id)" class="svc-check">✓</span>
+                  <span v-else-if="popularServiceIds.includes(svc.id)" class="svc-popular">Popular</span>
                 </div>
                 <div class="svc-name">{{ svc.name }}</div>
                 <div class="svc-meta">
@@ -1343,6 +1345,14 @@ onBeforeUnmount(() => {
   font-weight: 800;
   font-size: 12px;
   box-shadow: 0 6px 14px rgba(22, 163, 74, 0.35);
+}
+.svc-popular {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
+  color: #0f172a;
+  font-size: 11px;
+  font-weight: 700;
 }
 .svc-icon {
   font-size: 18px;
