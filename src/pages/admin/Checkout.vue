@@ -44,20 +44,6 @@ const goToServicesStep = () => {
   checkoutStep.value = 'services';
 };
 
-const getScrollContainer = () => {
-  const candidates = [
-    document.querySelector('.admin-content') as HTMLElement | null,
-    document.querySelector('.checkout-body') as HTMLElement | null,
-  ];
-  for (const el of candidates) {
-    if (!el) continue;
-    const hasScrollArea = el.scrollHeight - el.clientHeight > 2;
-    if (hasScrollArea) return el;
-  }
-  return candidates.find(Boolean) ?? (document.scrollingElement as HTMLElement | null);
-};
-
-
 const DRAFT_KEY = 'checkoutDraftSelections';
 const PAYMENT_KEY = 'checkoutPayments';
 
