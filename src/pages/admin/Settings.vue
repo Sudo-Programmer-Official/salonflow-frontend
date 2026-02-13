@@ -880,6 +880,17 @@ onMounted(loadSettings);
                 @change="(val) => handleToggle('allowMultiService', val)"
               />
             </div>
+
+            <div class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <div>
+                <div class="text-sm font-semibold text-slate-900">Show prices on kiosk</div>
+                <div class="text-xs text-slate-600">Hide to run name-only services; removes totals from kiosk.</div>
+              </div>
+              <ElSwitch
+                :model-value="settings.kioskShowPrice !== false"
+                @change="(val) => handleToggle('kioskShowPrice', val)"
+              />
+            </div>
           </div>
 
           <div class="space-y-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
