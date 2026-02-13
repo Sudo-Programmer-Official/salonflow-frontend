@@ -148,21 +148,6 @@ const formattedCheckinPhone = computed(() =>
 const isOnline = ref(typeof navigator !== 'undefined' ? navigator.onLine : true);
 const activeCheckinAppt = ref<TodayAppointment | null>(null);
 
-const scrollToPayment = () => {
-  const el = document.getElementById('payment-section');
-  if (!el) return;
-  const y = el.getBoundingClientRect().top + window.pageYOffset - 80;
-  window.scrollTo({ top: y, behavior: 'smooth' });
-};
-
-const scrollToTop = () => {
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-};
-
-const scrollToBottom = () => {
-  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-};
-
 const dateRange = computed(() => {
   const now = new Date();
   const end = new Date(now);
