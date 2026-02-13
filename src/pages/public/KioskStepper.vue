@@ -89,6 +89,7 @@ const defaultSettings: BusinessSettings = {
   requireStaffSelection: false,
   kioskWelcomeStyle: "classic",
   kioskShowRewardsCard: true,
+  kioskShowPrice: true,
   kioskAllowSkipService: true,
   kioskAllowSkipStaff: true,
   kioskAutoResetSeconds: null,
@@ -206,6 +207,7 @@ const autoResetSeconds = computed(() => {
   if (Number.isNaN(n)) return 10;
   return Math.min(Math.max(Math.round(n), 5), 120);
 });
+const kioskShowPrice = computed(() => settings.value?.kioskShowPrice !== false);
 
 const selectedServiceDetails = computed<ServiceGroup["services"][number][]>(
   () => {
@@ -1125,7 +1127,10 @@ watch(useClassicWelcome, (isClassic) => {
                             :key="service.id"
                             type="button"
                             class="service-button"
-                            :class="{ selected: selectedServiceIds.includes(service.id) }"
+                            :class="{
+                              selected: selectedServiceIds.includes(service.id),
+                              'no-price': !kioskShowPrice,
+                            }"
                             :aria-pressed="selectedServiceIds.includes(service.id)"
                             @click="toggleService(service.id)"
                           >
@@ -1133,7 +1138,7 @@ watch(useClassicWelcome, (isClassic) => {
                               <div class="service-row">
                                 <span class="service-name">{{ service.name }}</span>
                                 <span
-                                  v-if="service.priceCents !== undefined && service.priceCents !== null"
+                                  v-if="kioskShowPrice && service.priceCents !== undefined && service.priceCents !== null"
                                   class="service-price"
                                 >
                                   {{
@@ -1146,7 +1151,7 @@ watch(useClassicWelcome, (isClassic) => {
                                 </span>
                               </div>
                               <div
-                                v-if="service.durationMinutes"
+                                v-if="kioskShowPrice && service.durationMinutes"
                                 class="service-duration"
                               >
                                 {{ service.durationMinutes }} min
@@ -1373,7 +1378,7 @@ watch(useClassicWelcome, (isClassic) => {
                 </div>
 
                 <div
-                  v-if="estimatedTotal.totalCents > 0"
+                  v-if="kioskShowPrice && estimatedTotal.totalCents > 0"
                   class="estimated-total text-center"
                 >
                   <div
@@ -2104,6 +2109,14 @@ watch(useClassicWelcome, (isClassic) => {
 .service-card:active {
   transform: scale(0.985);
   background: rgba(99, 102, 241, 0.16);
+}
+.service-button.no-price .service-row {
+  justify-content: center;
+  text-align: center;
+}
+.service-button.no-price .service-text {
+  gap: 4px;
+  align-items: center;
 }
 .service-chip {
   padding: 4px 8px;

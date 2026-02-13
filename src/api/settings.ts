@@ -77,6 +77,7 @@ export type BusinessSettings = {
   kioskAllowSkipService: boolean;
   kioskAllowSkipStaff: boolean;
   kioskAutoResetSeconds: number | null;
+  kioskShowPrice?: boolean;
   enforceStaffAvailability: boolean;
   uiFontScale: number;
   uiGlassEnabled: boolean;
@@ -117,6 +118,7 @@ export type SettingsPatch = Partial<
     | 'kioskAllowSkipService'
     | 'kioskAllowSkipStaff'
     | 'kioskAutoResetSeconds'
+    | 'kioskShowPrice'
     | 'enforceStaffAvailability'
     | 'currency'
     | 'uiFontScale'
