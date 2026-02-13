@@ -1202,10 +1202,7 @@ watch(completedPage, async (val) => {
                 <span>Points: {{ currentCustomerSummary?.points ?? 0 }}</span>
                 <span v-if="checkoutServiceSummary">• {{ checkoutServiceSummary }}</span>
               </div>
-            </div>
-          </div>
-
-          <div class="quick-nav">
+              <div class="quick-nav">
             <button class="jump-payment-btn" type="button" @click="scrollToTop" aria-label="Scroll to top">
               ↑
             </button>
@@ -1216,6 +1213,20 @@ watch(completedPage, async (val) => {
               ↓
             </button>
           </div>
+            </div>
+          </div>
+<!-- 
+          <div class="quick-nav">
+            <button class="jump-payment-btn" type="button" @click="scrollToTop" aria-label="Scroll to top">
+              ↑
+            </button>
+            <button class="jump-payment-btn" type="button" @click="scrollToPayment" aria-label="Jump to payment">
+              💳
+            </button>
+            <button class="jump-payment-btn" type="button" @click="scrollToBottom" aria-label="Scroll to bottom">
+              ↓
+            </button>
+          </div> -->
         </div>
 
         <div class="checkout-grid">
@@ -1835,7 +1846,7 @@ watch(completedPage, async (val) => {
   gap: 10px;
   z-index: 10;
 }
-@media (max-width: 640px) {
+@media screen and (max-width: 640px) {
   .checkout-meta-wrap {
     flex-direction: column;
   }
