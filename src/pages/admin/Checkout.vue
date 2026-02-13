@@ -1028,7 +1028,7 @@ onBeforeUnmount(() => {
 .jump-payment-btn:hover {
   background: #e2e8f0;
 }
-@media (min-width: 1024px) {
+@media (min-width: 1280px) {
   .quick-nav {
     display: none;
   }

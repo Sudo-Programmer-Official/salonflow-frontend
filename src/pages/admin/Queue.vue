@@ -1540,7 +1540,7 @@ watch(completedPage, async (val) => {
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
-@media (min-width: 1280px) {
+@media (min-width: 1024px) {
   .appointment-list {
     max-height: 320px;
   }
