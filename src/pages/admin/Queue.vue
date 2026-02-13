@@ -1829,11 +1829,11 @@ watch(completedPage, async (val) => {
   position: sticky;
   top: 12px;
   align-self: flex-start;
+  margin-left: auto; /* if you want it on the right */
   display: flex;
   flex-direction: column;
   gap: 10px;
   z-index: 10;
-  right: 0;
 }
 @media (max-width: 640px) {
   .checkout-meta-wrap {
