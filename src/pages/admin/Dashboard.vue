@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue';
 import { ElCard, ElButton, ElTag, ElAlert, ElSkeleton } from 'element-plus';
-import { fetchQueue, type QueueItem, type QueueResponse } from '../../api/queue';
+import { fetchQueue, fetchQueueSummary, type QueueItem, type QueueResponse } from '../../api/queue';
 import {
   fetchTodayAppointments,
   type TodayAppointment,
@@ -22,6 +22,12 @@ const appointmentsLocked = ref(false);
 const onboardingIncomplete = ref(false);
 const reviewSmsEnabled = ref(true);
 const reviewSmsLocked = ref(false);
+const queueSummary = ref<{ waiting: number; inService: number; completed: number; noShow: number }>({
+  waiting: 0,
+  inService: 0,
+  completed: 0,
+  noShow: 0,
+});
 
 const loading = ref(true);
 const error = ref('');
@@ -31,20 +37,32 @@ const load = async () => {
   loading.value = true;
   error.value = '';
   try {
-    const [queueRes, apptRes, onboardingRes, reviewRes] = await Promise.all([
+    const [onboardingRes] = await Promise.all([fetchOnboardingStatus(true)]);
+    const tz = onboardingRes?.timezone?.trim() || DEFAULT_TIMEZONE;
+    businessTimezone.value = tz;
+    setBusinessTimezone(tz);
+
+    const start = dayjs().tz(tz).startOf('day');
+    const end = start.add(1, 'day');
+    const todayRange = { from: start.toDate().toISOString(), to: end.toDate().toISOString() };
+
+    const [queueRes, summaryRes, apptRes, reviewRes] = await Promise.all([
       fetchQueue(),
+      fetchQueueSummary(todayRange),
       fetchTodayAppointments(),
-      fetchOnboardingStatus(true),
       fetchReviewSmsSettings(),
     ]);
     queueLocked.value = (queueRes as QueueResponse).locked === true;
     appointmentsLocked.value = (apptRes as TodayAppointmentsResponse).locked === true;
     queue.value = queueLocked.value ? [] : (queueRes as any).items ?? [];
     appointments.value = appointmentsLocked.value ? [] : (apptRes as any).items ?? [];
+    queueSummary.value = {
+      waiting: Number((summaryRes as any)?.waiting ?? 0),
+      inService: Number((summaryRes as any)?.inService ?? 0),
+      completed: Number((summaryRes as any)?.completed ?? 0),
+      noShow: Number((summaryRes as any)?.noShow ?? 0),
+    };
     onboardingIncomplete.value = !(onboardingRes?.completed ?? false);
-    const tz = onboardingRes?.timezone?.trim() || DEFAULT_TIMEZONE;
-    businessTimezone.value = tz;
-    setBusinessTimezone(tz);
     reviewSmsLocked.value = (reviewRes as ReviewSettingsResponse).locked === true;
     reviewSmsEnabled.value = reviewSmsLocked.value ? false : reviewRes.enabled;
   } catch (err) {
@@ -57,13 +75,13 @@ const load = async () => {
 onMounted(load);
 
 const waitingCount = computed(() =>
-  queueLocked.value ? 0 : queue.value.filter((q) => q.status === 'WAITING' || q.status === 'CALLED').length,
+  queueLocked.value ? 0 : queueSummary.value.waiting,
 );
 const inServiceCount = computed(() =>
-  queueLocked.value ? 0 : queue.value.filter((q) => q.status === 'IN_SERVICE').length,
+  queueLocked.value ? 0 : queueSummary.value.inService,
 );
 const completedCount = computed(() =>
-  queueLocked.value ? 0 : queue.value.filter((q) => q.status === 'COMPLETED').length,
+  queueLocked.value ? 0 : queueSummary.value.completed,
 );
 const appointmentsToday = computed(() => (appointmentsLocked.value ? 0 : appointments.value.length));
 
