@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue';
-import { ElCard, ElButton, ElAlert, ElMessage, ElDivider } from 'element-plus';
+import { ElCard, ElButton, ElAlert, ElMessage, ElDivider, ElInputNumber } from 'element-plus';
 import {
   fetchBillingStatus,
   createCheckoutSession,
@@ -34,6 +34,11 @@ const smsCredits = ref<SmsCredits | null>(null);
 const smsUsage = ref<SmsUsage | null>(null);
 const smsPricing = ref<SmsPricing | null>(null);
 const smsPacks = ref<SmsPackInfo[]>([]);
+const packQuantities = ref<Record<number, number>>({
+  500: 1,
+  1500: 1,
+  4000: 1,
+});
 const success = ref('');
 const error = ref('');
 
@@ -122,7 +127,8 @@ const handlePortal = async () => {
 const handleSmsPack = async (pack: 500 | 1500 | 4000) => {
   actionLoading.value = `sms-${pack}`;
   try {
-    const { url } = await createSmsPackCheckout(pack);
+    const quantity = Math.min(20, Math.max(1, Number(packQuantities.value[pack] ?? 1)));
+    const { url } = await createSmsPackCheckout(pack, quantity);
     if (url) {
       window.location.href = url;
     } else {
@@ -171,6 +177,18 @@ const normalizedPacks = computed(() => {
     : allowed.map((size) => ({ size, price: Number((size * unitPrice.value).toFixed(2)) }));
   return list.sort((a, b) => a.size - b.size);
 });
+
+const packTotal = (pack: SmsPackInfo) => {
+  const qty = Math.min(20, Math.max(1, Number(packQuantities.value[pack.size] ?? 1)));
+  return pack.price * qty;
+};
+
+const updateQty = (packSize: number, val: number | undefined) => {
+  const next = Number.isFinite(val)
+    ? Math.min(20, Math.max(1, Math.round(Number(val))))
+    : 1;
+  packQuantities.value = { ...packQuantities.value, [packSize]: next };
+};
 </script>
 
 <template>
@@ -347,8 +365,22 @@ const normalizedPacks = computed(() => {
               class="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-4 shadow-[0_1px_3px_rgba(0,0,0,0.05)]"
             >
               <div class="text-base font-semibold text-slate-900">{{ pack.size.toLocaleString() }} SMS</div>
-              <div class="text-xl font-bold text-slate-900">${{ pack.price.toFixed(2) }}</div>
+              <div class="text-xl font-bold text-slate-900">${{ pack.price.toFixed(2) }} each</div>
               <div class="text-xs text-slate-600">Pass-through pricing</div>
+              <div class="flex items-center gap-2">
+                <span class="text-sm text-slate-700">Qty</span>
+                <ElInputNumber
+                  v-model="packQuantities[pack.size]"
+                  :min="1"
+                  :max="20"
+                  size="small"
+                  controls-position="right"
+                  @change="(val: number | undefined) => updateQty(pack.size, val)"
+                />
+              </div>
+              <div class="text-sm font-semibold text-slate-900">
+                Total: ${{ packTotal(pack).toFixed(2) }}
+              </div>
               <ElButton
                 type="default"
                 plain
@@ -357,7 +389,7 @@ const normalizedPacks = computed(() => {
                 :loading="actionLoading === `sms-${pack.size}` || smsLoading"
                 @click="handleSmsPack(pack.size as 500 | 1500 | 4000)"
               >
-                Buy {{ pack.size.toLocaleString() }} SMS
+                Buy {{ (pack.size * Math.max(1, packQuantities[pack.size] || 1)).toLocaleString() }} SMS
               </ElButton>
             </div>
           </div>

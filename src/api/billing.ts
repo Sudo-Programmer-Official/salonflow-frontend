@@ -102,11 +102,11 @@ export async function fetchSmsCredits(): Promise<SmsCredits> {
   return res.json();
 }
 
-export async function createSmsPackCheckout(pack: SmsPack) {
+export async function createSmsPackCheckout(pack: SmsPack, quantity: number) {
   const res = await fetch(`${apiBase}/sms-pack`, {
     method: 'POST',
     headers: buildHeaders({ auth: true, tenant: true, json: true }),
-    body: JSON.stringify({ pack }),
+    body: JSON.stringify({ pack, quantity }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
