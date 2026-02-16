@@ -959,9 +959,7 @@ watch(useClassicWelcome, (isClassic) => {
                         <template v-if="hasPhoneDigits">
                           {{ displayPhone }}
                         </template>
-                        <template v-else>
-                          <span class="phone-placeholder">Enter phone number</span>
-                        </template>
+                        <template v-else><span aria-hidden="true">&nbsp;</span></template>
                       </div>
                     </div>
                     <div class="keypad kiosk-keypad">
@@ -1637,12 +1635,6 @@ watch(useClassicWelcome, (isClassic) => {
   min-height: 32px;
   display: flex;
   align-items: center;
-}
-.phone-placeholder {
-  font-size: 18px;
-  font-weight: 500;
-  color: #94a3b8;
-  letter-spacing: 1px;
 }
 .keypad {
   /* Kiosk keypad grid: adjust spacing here */
