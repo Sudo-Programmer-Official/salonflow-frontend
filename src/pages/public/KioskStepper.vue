@@ -230,7 +230,7 @@ const serviceSections = computed(() => {
   return [...active, ...uncategorized];
 });
 
-const displayPhone = computed(() => formatUSPhone(phone.value) || "• • • •");
+const displayPhone = computed(() => formatUSPhone(phone.value) || "");
 
 const keypad = [
   ["1", "2", "3"],
@@ -955,11 +955,13 @@ watch(useClassicWelcome, (isClassic) => {
                       </p>
                     </div>
                     <div class="phone-display" aria-label="Phone number">
-                      <div
-                        class="phone-display-value"
-                        :style="{ color: 'var(--kiosk-text-primary)' }"
-                      >
-                        {{ displayPhone }}
+                      <div class="phone-display-value">
+                        <template v-if="hasPhoneDigits">
+                          {{ displayPhone }}
+                        </template>
+                        <template v-else>
+                          <span class="phone-placeholder">Enter phone number</span>
+                        </template>
                       </div>
                     </div>
                     <div class="keypad kiosk-keypad">
@@ -1632,6 +1634,15 @@ watch(useClassicWelcome, (isClassic) => {
   font-weight: 800;
   letter-spacing: 6px;
   line-height: 1.1;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+}
+.phone-placeholder {
+  font-size: 18px;
+  font-weight: 500;
+  color: #94a3b8;
+  letter-spacing: 1px;
 }
 .keypad {
   /* Kiosk keypad grid: adjust spacing here */

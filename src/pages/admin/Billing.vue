@@ -26,6 +26,8 @@ const billing = ref<{
   canSubscribe?: boolean;
   subscriptionId?: string | null;
   customerId?: string | null;
+  graceUntil?: string | null;
+  inGrace?: boolean;
 } | null>(null);
 const loading = ref(false);
 const actionLoading = ref<string | null>(null);
@@ -145,6 +147,7 @@ const statusLabel = (s: SubscriptionStatus | null) => {
   if (billing.value) {
     if (billing.value.status === 'active' && billing.value.plan === 'demo') return 'Active (Demo)';
     if (billing.value.status === 'active') return 'Active';
+    if (billing.value.status === 'grace') return 'Grace Period';
     if (billing.value.status === 'past_due') return 'Past Due';
     if (billing.value.status === 'trial') return 'Trial';
     if (billing.value.status === 'inactive') return 'Not Subscribed';
@@ -158,6 +161,13 @@ const statusLabel = (s: SubscriptionStatus | null) => {
 };
 
 const renewalText = computed(() => {
+  if (billing.value?.status === 'grace' && billing.value?.graceUntil) {
+    const until = new Date(billing.value.graceUntil);
+    const days = Math.ceil((until.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    const dateLabel = formatInBusinessTz(until.toISOString(), 'MMM D, YYYY');
+    const remaining = days > 0 ? `${days} day${days === 1 ? '' : 's'}` : 'today';
+    return `Grace access until ${dateLabel} (${remaining} left)`;
+  }
   if (!billing.value?.renewsAt) return null;
   const renewDate = new Date(billing.value.renewsAt);
   const days = Math.ceil((renewDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
@@ -167,6 +177,17 @@ const renewalText = computed(() => {
 });
 
 const canSubscribe = computed(() => billing.value?.canSubscribe !== false);
+
+const statusBadgeClass = computed(() => {
+  const base = 'rounded-md px-3 py-1 text-sm font-semibold';
+  const status = billing.value?.status;
+  if (status === 'grace') return `${base} bg-amber-100 text-amber-800`;
+  if (status === 'past_due' || status === 'canceled' || status === 'cancelled')
+    return `${base} bg-red-100 text-red-800`;
+  if (status === 'active') return `${base} bg-emerald-100 text-emerald-800`;
+  if (status === 'trial') return `${base} bg-blue-100 text-blue-800`;
+  return `${base} bg-slate-100 text-slate-800`;
+});
 
 const unitPrice = computed(() => smsPricing.value?.unitPrice ?? 0.0083);
 
@@ -257,7 +278,7 @@ const updateQty = (packSize: number, val: number | undefined) => {
         <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div class="space-y-1">
             <div class="flex flex-wrap items-center gap-2">
-              <span class="rounded-md bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-800">
+              <span :class="statusBadgeClass">
                 {{ statusLabel(status) }}
               </span>
               <span
@@ -280,7 +301,12 @@ const updateQty = (packSize: number, val: number | undefined) => {
               </span>
             </div>
             <div class="text-sm text-slate-700">
-              {{ renewalText || `Renews at: ${billing?.renewsAt || '—'}` }}
+              <template v-if="billing?.status === 'grace'">
+                {{ renewalText || 'Grace access active' }}
+              </template>
+              <template v-else>
+                {{ renewalText || `Renews at: ${billing?.renewsAt || '—'}` }}
+              </template>
             </div>
             <div class="text-xs text-slate-500">
               Subscription ID: {{ billing?.subscriptionId || '—' }} · Customer: {{ billing?.customerId || '—' }}
