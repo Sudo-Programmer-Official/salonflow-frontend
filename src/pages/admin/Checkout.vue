@@ -1560,23 +1560,23 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
+  gap: 10px;
+  padding: 12px 14px;
   border: 1px dashed rgba(148, 163, 184, 0.45);
-  border-radius: 10px;
+  border-radius: 12px;
   background: rgba(240, 253, 250, 0.6);
-  font-size: 13px;
+  font-size: 15px;
   color: #0f172a;
 }
 .redeem-toggle {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-weight: 600;
+  font-weight: 700;
 }
 .redeem-row input[type='checkbox'] {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
 }
 .redeem-hint {
   font-size: 12px;
