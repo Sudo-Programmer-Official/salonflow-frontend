@@ -1455,7 +1455,7 @@ onBeforeUnmount(() => {
   font-weight: 600;
 }
 .svc-price {
-  font-size: 38px;
+  font-size: 34px;
   font-weight: 800;
   color: #111;
   line-height: 1;
