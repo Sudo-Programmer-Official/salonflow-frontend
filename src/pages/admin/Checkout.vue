@@ -805,17 +805,20 @@ onBeforeUnmount(() => {
                   <span v-else-if="popularServiceIds.includes(svc.id)" class="svc-popular">Popular</span>
                 </div>
                 <div class="svc-name">{{ svc.name }}</div>
-                <div class="svc-meta">
-                  <span v-if="svc.durationMinutes">{{ svc.durationMinutes }} min</span>
-                  <span v-if="svc.priceCents !== undefined && svc.priceCents !== null">
-                    {{
-                      Intl.NumberFormat('en-US', {
-                        style: 'currency',
-                        currency: svc.currency || 'USD',
-                        minimumFractionDigits: 2,
-                      }).format((svc.priceCents ?? 0) / 100)
-                    }}
-                  </span>
+                <div
+                  v-if="svc.priceCents !== undefined && svc.priceCents !== null"
+                  class="svc-price"
+                >
+                  {{
+                    Intl.NumberFormat('en-US', {
+                      style: 'currency',
+                      currency: svc.currency || 'USD',
+                      minimumFractionDigits: 2,
+                    }).format((svc.priceCents ?? 0) / 100)
+                  }}
+                </div>
+                <div v-if="svc.durationMinutes" class="svc-duration">
+                  {{ svc.durationMinutes }} min
                 </div>
               </button>
             </div>
@@ -1387,7 +1390,7 @@ onBeforeUnmount(() => {
 }
 .service-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 10px;
 }
 .service-search {
@@ -1395,32 +1398,31 @@ onBeforeUnmount(() => {
   min-width: 260px;
 }
 .service-tile {
-  border: 1px solid rgba(148, 163, 184, 0.35);
+  border: 1px solid rgba(148, 163, 184, 0.28);
   border-radius: 12px;
   background: #fff;
-  padding: 14px;
+  padding: 20px;
   text-align: left;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   transition: all 0.12s ease;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.05);
   position: relative;
-  min-height: 76px;
-  border-left-width: 4px;
+  min-height: 160px;
 }
 .service-tile:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
 }
 .service-tile.active {
-  border-color: rgba(34, 197, 94, 0.9);
-  box-shadow: 0 10px 28px rgba(34, 197, 94, 0.16);
-  background: linear-gradient(180deg, #f5fff7, #ffffff);
+  border-color: #3b82f6;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  transform: scale(1.02);
 }
 .svc-top {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
 }
 .svc-check {
@@ -1444,19 +1446,25 @@ onBeforeUnmount(() => {
   font-weight: 700;
 }
 .svc-icon {
-  font-size: 18px;
+  font-size: 16px;
 }
 .svc-name {
   font-weight: 700;
   color: #0f172a;
-  font-size: 15px;
+  font-size: 20px;
+  font-weight: 600;
 }
-.svc-meta {
-  font-size: 12px;
-  color: #475569;
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+.svc-price {
+  font-size: 40px;
+  font-weight: 800;
+  color: #111;
+  line-height: 1;
+  margin-top: 8px;
+}
+.svc-duration {
+  font-size: 16px;
+  color: #555;
+  margin-top: 4px;
 }
 .selected-list {
   display: flex;
