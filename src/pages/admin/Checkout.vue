@@ -416,6 +416,14 @@ const isAddInService = (svc?: ServiceItem | CustomAddIn | null) => {
   if ((svc as any).isAddIn) return true;
   return (svc.name || '').trim().toLowerCase() === 'add in';
 };
+const currentAddIn = computed(() => customAddIns.value[0] ?? null);
+
+const formatCurrency = (amount: number, currency?: string | null) =>
+  Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currency || 'USD',
+    minimumFractionDigits: 2,
+  }).format(amount);
 
 const toggleService = (id: string) => {
   const svc = services.value.find((s) => s.id === id);
@@ -916,7 +924,11 @@ onBeforeUnmount(() => {
                 :key="svc.id"
                 type="button"
                 class="service-tile"
-                :class="{ active: isSelected(svc.id) && !isAddInService(svc), addin: isAddInService(svc) }"
+                :class="{
+                  active: isSelected(svc.id) && !isAddInService(svc),
+                  addin: isAddInService(svc),
+                  'addin-filled': isAddInService(svc) && currentAddIn,
+                }"
                 :style="serviceStyle(svc)"
                 @click="toggleService(svc.id)"
               >
@@ -927,26 +939,21 @@ onBeforeUnmount(() => {
                     >Popular</span
                   >
                 </div>
-                <div class="svc-name">{{ isAddInService(svc) ? 'Add custom charge' : svc.name }}</div>
                 <template v-if="!isAddInService(svc)">
-                  <div
-                    v-if="svc.priceCents !== undefined && svc.priceCents !== null"
-                    class="svc-price"
-                  >
-                    {{
-                      Intl.NumberFormat('en-US', {
-                        style: 'currency',
-                        currency: svc.currency || 'USD',
-                        minimumFractionDigits: 2,
-                      }).format((svc.priceCents ?? 0) / 100)
-                    }}
+                  <div class="svc-name">{{ svc.name }}</div>
+                  <div v-if="svc.priceCents !== undefined && svc.priceCents !== null" class="svc-price">
+                    {{ formatCurrency((svc.priceCents ?? 0) / 100, svc.currency || 'USD') }}
                   </div>
                   <div v-if="svc.durationMinutes" class="svc-duration">
                     {{ svc.durationMinutes }} min
                   </div>
                 </template>
                 <template v-else>
-                  <div class="svc-addin-hint">Tap to enter amount</div>
+                  <div class="svc-name">{{ currentAddIn ? currentAddIn.name : 'Add custom charge' }}</div>
+                  <div v-if="currentAddIn" class="svc-addin-amount">
+                    {{ formatCurrency(currentAddIn.priceCents / 100, currentAddIn.currency) }} added · Tap to edit
+                  </div>
+                  <div v-else class="svc-addin-hint">Tap to enter amount</div>
                 </template>
               </button>
             </div>
@@ -1547,6 +1554,11 @@ onBeforeUnmount(() => {
 }
 .service-tile.addin {
   border-style: dashed;
+  border-color: rgba(59, 130, 246, 0.6);
+}
+.service-tile.addin-filled {
+  border-style: solid;
+  border-color: rgba(34, 197, 94, 0.7);
 }
 .service-tile:hover {
   transform: translateY(-2px);
@@ -1597,6 +1609,12 @@ onBeforeUnmount(() => {
   color: #111;
   line-height: 1;
   margin-top: 8px;
+}
+.svc-addin-amount {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-top: 6px;
 }
 .svc-addin-hint {
   font-size: 14px;
