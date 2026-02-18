@@ -2215,6 +2215,93 @@ watch(useClassicWelcome, (isClassic) => {
   user-select: text;
   color: var(--kiosk-text-primary);
 }
+
+/* ------------------------------------------------------------------
+ * Glass / Dark mode overrides (scoped to avoid touching light theme)
+ * ------------------------------------------------------------------ */
+.theme-dark.glass {
+  background: #000;
+  color: #fff;
+}
+.theme-dark.glass .kiosk-shell,
+.theme-dark.glass .kiosk-pane,
+.theme-dark.glass .kiosk-step-panel,
+.theme-dark.glass .glass-card {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(26px);
+  -webkit-backdrop-filter: blur(26px);
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+.theme-dark.glass .services-wrapper .service-button {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+.theme-dark.glass .services-wrapper .service-button.selected {
+  border-color: rgba(99, 102, 241, 0.9);
+  background: rgba(99, 102, 241, 0.14);
+  box-shadow: 0 16px 48px rgba(99, 102, 241, 0.35);
+}
+.theme-dark.glass .service-name {
+  color: #fff;
+}
+.theme-dark.glass .service-price {
+  color: #fff;
+  font-size: 34px;
+  font-weight: 800;
+}
+.theme-dark.glass .service-duration {
+  color: rgba(255, 255, 255, 0.7);
+}
+.theme-dark.glass .keypad-key {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 28px;
+  font-weight: 700;
+  backdrop-filter: blur(20px);
+}
+@media (min-width: 1024px) {
+  .theme-dark.glass .keypad-key {
+    font-size: 32px;
+  }
+}
+.theme-dark.glass .keypad-key.action {
+  color: #e2e8f0;
+}
+.theme-dark.glass .keypad-key:active {
+  background: rgba(255, 255, 255, 0.15);
+}
+.theme-dark.glass .phone-display {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.theme-dark.glass .phone-display-value {
+  color: #fff;
+}
+.theme-dark.glass input,
+.theme-dark.glass .el-input__inner {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: #fff !important;
+  font-size: 28px;
+  font-weight: 600;
+}
+.theme-dark.glass input::placeholder,
+.theme-dark.glass .el-input__inner::placeholder {
+  color: rgba(255, 255, 255, 0.45) !important;
+}
+.theme-dark.glass input:focus,
+.theme-dark.glass .el-input__inner:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.4) !important;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.15);
+}
 .done-card {
   text-align: center;
   padding: 36px 24px;
