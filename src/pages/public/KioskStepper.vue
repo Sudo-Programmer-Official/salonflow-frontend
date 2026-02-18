@@ -2269,6 +2269,41 @@ watch(useClassicWelcome, (isClassic) => {
 .theme-dark.glass .service-duration {
   color: rgba(255, 255, 255, 0.7);
 }
+.theme-dark.glass .service-actions {
+  background: rgba(255, 255, 255, 0.05);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.45);
+}
+.theme-dark.glass .service-actions :deep(.el-button--default) {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+.theme-dark.glass :deep(.el-button--primary) {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  backdrop-filter: blur(18px);
+  box-shadow:
+    0 10px 40px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+.theme-dark.glass :deep(.el-button--primary:active) {
+  background: rgba(255, 255, 255, 0.25);
+}
+.theme-dark.glass .done-card {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+.theme-dark.glass .done-card * {
+  color: inherit;
+  background-color: transparent;
+}
 .theme-dark.glass .category-title,
 .theme-dark.glass .category-count,
 .theme-dark.glass .category-name {
