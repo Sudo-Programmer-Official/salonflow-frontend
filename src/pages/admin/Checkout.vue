@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, computed, watch, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router';
-import { ElButton, ElCard, ElSkeleton, ElMessage, ElInput, ElMessageBox, ElIcon } from 'element-plus';
+import { ElButton, ElCard, ElSkeleton, ElMessage, ElInput, ElMessageBox, ElIcon, ElDialog } from 'element-plus';
 import { Money, CreditCard, Present } from '@element-plus/icons-vue';
 import { fetchQueue, checkoutCheckIn, type QueueItem } from '@/api/queue';
 import { humanizeTime } from '@/utils/dates';
@@ -169,11 +169,22 @@ const filteredServices = computed(() => {
 });
 const popularServiceIds = computed(() => filteredServices.value.slice(0, 3).map((s) => s.id));
 
+type CustomAddIn = {
+  id: string;
+  name: string;
+  priceCents: number;
+  durationMinutes: number | null;
+  icon?: string | null;
+  isCustom: true;
+};
+const customAddIns = ref<CustomAddIn[]>([]);
+
 const selectedServiceObjects = computed(() => {
   const map = new Map(services.value.map((s) => [s.id, s]));
-  return selectedServiceIds.value
+  const base = selectedServiceIds.value
     .map((id) => map.get(id))
     .filter((s): s is ServiceItem => Boolean(s));
+  return [...base, ...customAddIns.value];
 });
 
 const servicesSubtotal = computed(() =>
@@ -378,6 +389,14 @@ watch(
 );
 
 const toggleService = (id: string) => {
+  const svc = services.value.find((s) => s.id === id);
+  if (svc && (svc as any).isAddIn) {
+    pendingAddInService.value = svc;
+    addInTitle.value = '';
+    addInAmount.value = null;
+    showAddInModal.value = true;
+    return;
+  }
   const current = new Set(selectedServiceIds.value);
   if (current.has(id)) {
     current.delete(id);
@@ -405,6 +424,45 @@ const togglePaymentOption = (key: 'cash' | 'card' | 'gift', checked: boolean) =>
       paymentAmounts.value = { ...paymentAmounts.value, [key]: '' };
     }
   }
+};
+
+// Add-in modal state and helpers
+const showAddInModal = ref(false);
+const pendingAddInService = ref<ServiceItem | null>(null);
+const addInTitle = ref('');
+const addInAmount = ref<string>('');
+const presetAddInAmounts = [5, 10, 15, 20];
+
+const confirmAddIn = () => {
+  const amount = Number(addInAmount.value);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    ElMessage.warning('Enter a valid amount for the add-in.');
+    return;
+  }
+  const id = `addin-${Date.now()}`;
+  const name =
+    addInTitle.value.trim() ||
+    pendingAddInService.value?.name ||
+    'Custom Add-in';
+  customAddIns.value = [
+    ...customAddIns.value,
+    {
+      id,
+      name,
+      priceCents: Math.round(amount * 100),
+      durationMinutes: null,
+      icon: '➕',
+      isCustom: true,
+    },
+  ];
+  showAddInModal.value = false;
+  addInAmount.value = '';
+  addInTitle.value = '';
+  pendingAddInService.value = null;
+};
+
+const removeCustomAddIn = (id: string) => {
+  customAddIns.value = customAddIns.value.filter((c) => c.id !== id);
 };
 
 const seedCustomTotal = () => {
@@ -771,6 +829,38 @@ onBeforeUnmount(() => {
         </ElCard>
       </section>
 
+      <!-- Add-in modal -->
+      <ElDialog v-model="showAddInModal" width="360px" class="addin-dialog" :close-on-click-modal="false">
+        <template #title>Add custom charge</template>
+        <div class="addin-body">
+          <ElInput v-model="addInTitle" placeholder="Title (optional)" class="mb-3" />
+          <ElInput
+            v-model="addInAmount"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="Amount (e.g., 10.00)"
+          />
+          <div class="addin-presets">
+            <span class="preset-label">Quick amounts:</span>
+            <button
+              v-for="val in presetAddInAmounts"
+              :key="val"
+              type="button"
+              class="preset-btn"
+              @click="addInAmount = val.toFixed(2)"
+            >
+              ${{ val }}
+            </button>
+          </div>
+        </div>
+        <template #footer>
+          <div class="addin-footer">
+            <ElButton @click="showAddInModal = false">Cancel</ElButton>
+            <ElButton type="primary" @click="confirmAddIn">Add to bill</ElButton>
+          </div>
+        </template>
+      </ElDialog>
       <!-- Column 2: Services -->
       <section class="checkout-panel services" v-if="checkoutStep === 'services'">
         <ElCard v-if="loading" class="glass-card" shadow="never">
@@ -795,7 +885,7 @@ onBeforeUnmount(() => {
                 :key="svc.id"
                 type="button"
                 class="service-tile"
-                :class="{ active: isSelected(svc.id) }"
+                :class="{ active: isSelected(svc.id), addin: (svc as any).isAddIn }"
                 :style="serviceStyle(svc)"
                 @click="toggleService(svc.id)"
               >
@@ -804,22 +894,27 @@ onBeforeUnmount(() => {
                   <span v-if="isSelected(svc.id)" class="svc-check">✓</span>
                   <span v-else-if="popularServiceIds.includes(svc.id)" class="svc-popular">Popular</span>
                 </div>
-                <div class="svc-name">{{ svc.name }}</div>
-                <div
-                  v-if="svc.priceCents !== undefined && svc.priceCents !== null"
-                  class="svc-price"
-                >
-                  {{
-                    Intl.NumberFormat('en-US', {
-                      style: 'currency',
-                      currency: svc.currency || 'USD',
-                      minimumFractionDigits: 2,
-                    }).format((svc.priceCents ?? 0) / 100)
-                  }}
-                </div>
-                <div v-if="svc.durationMinutes" class="svc-duration">
-                  {{ svc.durationMinutes }} min
-                </div>
+                <div class="svc-name">{{ (svc as any).isAddIn ? 'Add custom charge' : svc.name }}</div>
+                <template v-if="!(svc as any).isAddIn">
+                  <div
+                    v-if="svc.priceCents !== undefined && svc.priceCents !== null"
+                    class="svc-price"
+                  >
+                    {{
+                      Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency: svc.currency || 'USD',
+                        minimumFractionDigits: 2,
+                      }).format((svc.priceCents ?? 0) / 100)
+                    }}
+                  </div>
+                  <div v-if="svc.durationMinutes" class="svc-duration">
+                    {{ svc.durationMinutes }} min
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="svc-addin-hint">Tap to enter amount</div>
+                </template>
               </button>
             </div>
           </div>
@@ -886,7 +981,13 @@ onBeforeUnmount(() => {
                   }}
                 </span>
               </div>
-              <button class="remove-btn" type="button" @click="toggleService(svc.id)">✕</button>
+              <button
+                class="remove-btn"
+                type="button"
+                @click="(svc as any).isCustom ? removeCustomAddIn(svc.id) : toggleService(svc.id)"
+              >
+                ✕
+              </button>
             </div>
           </div>
           <div v-if="customTotalValid" class="custom-total-summary">
@@ -1411,6 +1512,9 @@ onBeforeUnmount(() => {
   position: relative;
   min-height: 160px;
 }
+.service-tile.addin {
+  border-style: dashed;
+}
 .service-tile:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
@@ -1461,6 +1565,11 @@ onBeforeUnmount(() => {
   line-height: 1;
   margin-top: 8px;
 }
+.svc-addin-hint {
+  font-size: 14px;
+  color: #475569;
+  margin-top: 6px;
+}
 .svc-duration {
   font-size: 16px;
   color: #555;
@@ -1498,6 +1607,42 @@ onBeforeUnmount(() => {
   color: #ef4444;
   cursor: pointer;
   font-weight: 700;
+}
+.addin-dialog :deep(.el-dialog__body) {
+  padding-top: 6px;
+}
+.addin-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.addin-presets {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+.preset-label {
+  font-size: 12px;
+  color: #475569;
+}
+.preset-btn {
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+.preset-btn:hover {
+  border-color: #3b82f6;
+  color: #0f172a;
+}
+.addin-footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
 }
 .bill-summary {
   margin-top: 10px;
