@@ -270,6 +270,7 @@ const canCompleteCheckout = computed(
   () => hasBillItems.value && enteredPayments.value.length > 0 && Math.abs(remainingBalance.value) < 0.01,
 );
 const completing = ref(false);
+const checkoutCompleted = ref(false);
 
 const loadCheckin = async () => {
   loading.value = true;
@@ -701,6 +702,7 @@ const submitCheckout = async () => {
             .filter((g) => g.number && Number.isFinite(g.amount) && g.amount > 0)
         : [];
 
+    checkoutCompleted.value = true;
     await checkoutCheckIn(checkinId.value, {
       amountPaid: enteredTotal.value,
       reviewSmsConsent: true,
@@ -741,7 +743,7 @@ watch(
 );
 
 onBeforeRouteLeave(async (_to, _from, next) => {
-  if (!hasDirtyCheckout.value) return next();
+  if (!hasDirtyCheckout.value || checkoutCompleted.value) return next();
   const ok = await confirmDiscard();
   return ok ? next() : next(false);
 });
