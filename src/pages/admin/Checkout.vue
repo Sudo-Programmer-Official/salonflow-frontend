@@ -389,10 +389,16 @@ watch(
   },
 );
 
+const isAddInService = (svc?: ServiceItem | CustomAddIn | null) => {
+  if (!svc) return false;
+  if ((svc as any).isAddIn) return true;
+  return (svc.name || '').trim().toLowerCase() === 'add in';
+};
+
 const toggleService = (id: string) => {
   const svc = services.value.find((s) => s.id === id);
-  if (svc && (svc as any).isAddIn) {
-    pendingAddInService.value = svc;
+  if (isAddInService(svc)) {
+    pendingAddInService.value = svc ?? null;
     addInTitle.value = '';
     addInAmount.value = '';
     showAddInModal.value = true;
@@ -887,17 +893,19 @@ onBeforeUnmount(() => {
                 :key="svc.id"
                 type="button"
                 class="service-tile"
-                :class="{ active: isSelected(svc.id), addin: (svc as any).isAddIn }"
+                :class="{ active: isSelected(svc.id) && !isAddInService(svc), addin: isAddInService(svc) }"
                 :style="serviceStyle(svc)"
                 @click="toggleService(svc.id)"
               >
                 <div class="svc-top">
                   <span class="svc-icon">{{ svc.icon || '💅' }}</span>
-                  <span v-if="isSelected(svc.id)" class="svc-check">✓</span>
-                  <span v-else-if="popularServiceIds.includes(svc.id)" class="svc-popular">Popular</span>
+                  <span v-if="isSelected(svc.id) && !isAddInService(svc)" class="svc-check">✓</span>
+                  <span v-else-if="popularServiceIds.includes(svc.id) && !isAddInService(svc)" class="svc-popular"
+                    >Popular</span
+                  >
                 </div>
-                <div class="svc-name">{{ (svc as any).isAddIn ? 'Add custom charge' : svc.name }}</div>
-                <template v-if="!(svc as any).isAddIn">
+                <div class="svc-name">{{ isAddInService(svc) ? 'Add custom charge' : svc.name }}</div>
+                <template v-if="!isAddInService(svc)">
                   <div
                     v-if="svc.priceCents !== undefined && svc.priceCents !== null"
                     class="svc-price"
