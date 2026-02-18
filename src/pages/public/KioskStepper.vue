@@ -2245,13 +2245,15 @@ watch(useClassicWelcome, (isClassic) => {
     inset 0 1px 0 rgba(255, 255, 255, 0.15);
   color: #fff;
 }
-.theme-dark.glass .services-wrapper .service-button {
+.theme-dark.glass .services-wrapper .service-button,
+.theme-dark.glass .service-button {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: #fff;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
 }
-.theme-dark.glass .services-wrapper .service-button.selected {
+.theme-dark.glass .services-wrapper .service-button.selected,
+.theme-dark.glass .service-button.selected {
   border-color: rgba(99, 102, 241, 0.9);
   background: rgba(99, 102, 241, 0.14);
   box-shadow: 0 16px 48px rgba(99, 102, 241, 0.35);
@@ -2266,6 +2268,19 @@ watch(useClassicWelcome, (isClassic) => {
 }
 .theme-dark.glass .service-duration {
   color: rgba(255, 255, 255, 0.7);
+}
+.theme-dark.glass .category-title,
+.theme-dark.glass .category-count,
+.theme-dark.glass .category-name {
+  color: #fff;
+}
+.theme-dark.glass .services-layout,
+.theme-dark.glass .services-wrapper,
+.theme-dark.glass .category-services {
+  background: transparent;
+}
+.theme-dark.glass .service-column {
+  background: transparent;
 }
 .theme-dark.glass .keypad-key {
   background: rgba(255, 255, 255, 0.05);
