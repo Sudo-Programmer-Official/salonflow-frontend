@@ -2229,15 +2229,25 @@ watch(useClassicWelcome, (isClassic) => {
  * Glass / Dark mode overrides (scoped to avoid touching light theme)
  * ------------------------------------------------------------------ */
 .theme-dark.glass {
-  background: #000;
+  background: #0f0f12;
   color: #fff;
+  --bg-deep: #0f0f12;
+  --glass-bg: rgba(30, 25, 20, 0.55);
+  --glass-border: rgba(255, 215, 160, 0.15);
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.65);
+  --accent-gold: #d6b36a;
+}
+.theme-dark.glass body,
+.theme-dark.glass .kiosk-shell {
+  background: radial-gradient(circle at top, #1a1512 0%, #0f0f12 60%);
 }
 .theme-dark.glass .kiosk-shell,
 .theme-dark.glass .kiosk-pane,
 .theme-dark.glass .kiosk-step-panel,
 .theme-dark.glass .glass-card {
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
   backdrop-filter: blur(26px);
   -webkit-backdrop-filter: blur(26px);
   box-shadow:
@@ -2248,26 +2258,28 @@ watch(useClassicWelcome, (isClassic) => {
 .theme-dark.glass .services-wrapper .service-button,
 .theme-dark.glass .service-button {
   background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--glass-border);
   color: #fff;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
 }
 .theme-dark.glass .services-wrapper .service-button.selected,
 .theme-dark.glass .service-button.selected {
-  border-color: rgba(99, 102, 241, 0.9);
-  background: rgba(99, 102, 241, 0.14);
-  box-shadow: 0 16px 48px rgba(99, 102, 241, 0.35);
+  background: rgba(40, 32, 24, 0.65);
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 25px rgba(214, 179, 106, 0.25);
 }
 .theme-dark.glass .service-name {
   color: #fff;
 }
 .theme-dark.glass .service-price {
-  color: #fff;
-  font-size: 34px;
+  color: var(--accent-gold);
+  font-size: 38px;
   font-weight: 800;
+  letter-spacing: 0.5px;
 }
 .theme-dark.glass .service-duration {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--text-secondary);
+  font-size: 15px;
 }
 .theme-dark.glass .service-actions {
   background: rgba(255, 255, 255, 0.05);
