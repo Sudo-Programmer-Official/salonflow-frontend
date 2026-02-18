@@ -1,4 +1,25 @@
-<script setup lang="ts">
+const confirmAddIn = () => {
+  const amount = Number(addInAmount.value);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    ElMessage.warning('Enter a valid amount for the add-in.');
+    return;
+  }
+  const id = ;
+  const name = addInTitle.value.trim() || pendingAddInService.value?.name || 'Custom Add-in';
+  customAddIns.value = [{
+    id,
+    name,
+    priceCents: Math.round(amount * 100),
+    durationMinutes: null,
+    currency: pendingAddInService.value?.currency || 'USD',
+    icon: '➕',
+    isCustom: true,
+  }];
+  showAddInModal.value = false;
+  addInAmount.value = '';
+  addInTitle.value = '';
+  pendingAddInService.value = null;
+};<script setup lang="ts">
 import { onMounted, ref, computed, watch, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router';
 import { ElButton, ElCard, ElSkeleton, ElMessage, ElInput, ElMessageBox, ElIcon, ElDialog } from 'element-plus';
@@ -400,8 +421,14 @@ const toggleService = (id: string) => {
   const svc = services.value.find((s) => s.id === id);
   if (isAddInService(svc)) {
     pendingAddInService.value = svc ?? null;
-    addInTitle.value = '';
-    addInAmount.value = '';
+    if (customAddIns.value.length) {
+      const existing = customAddIns.value[0];
+      addInTitle.value = existing.name === 'Custom Add-in' ? '' : existing.name;
+      addInAmount.value = (existing.priceCents / 100).toFixed(2);
+    } else {
+      addInTitle.value = '';
+      addInAmount.value = '';
+    }
     showAddInModal.value = true;
     return;
   }
@@ -448,22 +475,16 @@ const confirmAddIn = () => {
     return;
   }
   const id = `addin-${Date.now()}`;
-  const name =
-    addInTitle.value.trim() ||
-    pendingAddInService.value?.name ||
-    'Custom Add-in';
-  customAddIns.value = [
-    ...customAddIns.value,
-    {
-      id,
-      name,
-      priceCents: Math.round(amount * 100),
-      durationMinutes: null,
-      currency: pendingAddInService.value?.currency || 'USD',
-      icon: '➕',
-      isCustom: true,
-    },
-  ];
+  const name = addInTitle.value.trim() || pendingAddInService.value?.name || 'Custom Add-in';
+  customAddIns.value = [{
+    id,
+    name,
+    priceCents: Math.round(amount * 100),
+    durationMinutes: null,
+    currency: pendingAddInService.value?.currency || 'USD',
+    icon: '➕',
+    isCustom: true,
+  }];
   showAddInModal.value = false;
   addInAmount.value = '';
   addInTitle.value = '';
