@@ -1644,8 +1644,8 @@ watch(useClassicWelcome, (isClassic) => {
 }
 .keypad-key {
   /* Kiosk keypad keys: size/shape/feel */
-  width: 116px;
-  height: 116px;
+  width: 124px;
+  height: 124px;
   border-radius: 50%;
   background:
     radial-gradient(
@@ -1655,7 +1655,7 @@ watch(useClassicWelcome, (isClassic) => {
     ),
     var(--kiosk-primary);
   color: var(--kiosk-key-text, var(--kiosk-text-primary));
-  font-size: 26px;
+  font-size: 30px;
   font-weight: 800;
   border: none;
   cursor: pointer;
@@ -1672,8 +1672,8 @@ watch(useClassicWelcome, (isClassic) => {
 }
 .keypad-key--spacer {
   visibility: hidden;
-  width: 116px;
-  height: 116px;
+  width: 124px;
+  height: 124px;
 }
 .keypad-key.action {
   background: rgba(255, 255, 255, 0.14);
@@ -1700,9 +1700,9 @@ watch(useClassicWelcome, (isClassic) => {
   }
   .keypad-key,
   .keypad-key--spacer {
-    width: 124px;
-    height: 124px;
-    font-size: 28px;
+    width: 134px;
+    height: 134px;
+    font-size: 32px;
   }
 }
 .keypad-actions {
@@ -2593,9 +2593,9 @@ watch(useClassicWelcome, (isClassic) => {
     column-gap: 6px;
   }
   .keypad-key {
-    width: 78px;
-    height: 78px;
-    font-size: 22px;
+    width: 86px;
+    height: 86px;
+    font-size: 24px;
   }
   .kiosk-opt-in {
     font-size: 11px;
