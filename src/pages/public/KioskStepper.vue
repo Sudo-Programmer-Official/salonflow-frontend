@@ -196,10 +196,8 @@ const pointsDisplay = computed(() => {
   if (Number.isFinite(anim)) return Math.max(0, anim);
   return currentPointsBalance.value ?? 0;
 });
-const allowServiceSkip = computed(
-  () =>
-    !requireService.value && settings.value?.kioskAllowSkipService !== false,
-);
+// Services are optional in kiosk: always allow skip when not required.
+const allowServiceSkip = computed(() => !requireService.value);
 const autoResetSeconds = computed(() => {
   const raw = settings.value?.kioskAutoResetSeconds;
   if (raw === null || raw === undefined) return 10;
@@ -486,8 +484,6 @@ const hasPhoneDigits = computed(() => phone.value.replace(/\D/g, "").length > 0)
 
 const canAdvanceFromServices = computed(() => {
   if (requireService.value) return selectedServiceIds.value.length > 0;
-  if (!allowServiceSkip.value && selectedServiceIds.value.length === 0)
-    return false;
   return true;
 });
 
@@ -551,14 +547,6 @@ const skipServiceSelection = () => {
 const goNextFromServices = async () => {
   if (requireService.value && selectedServiceIds.value.length === 0) {
     errorMessage.value = "Please select at least one service.";
-    return;
-  }
-  if (
-    !requireService.value &&
-    !allowServiceSkip.value &&
-    selectedServiceIds.value.length === 0
-  ) {
-    errorMessage.value = "Select a service or enable skips in Settings.";
     return;
   }
   errorMessage.value = "";
@@ -1195,7 +1183,6 @@ watch(useClassicWelcome, (isClassic) => {
                     <ElButton
                       type="primary"
                       size="large"
-                      :disabled="!canAdvanceFromServices"
                       class="kiosk-next-btn kiosk-primary"
                       @click="goNextFromServices"
                     >
