@@ -894,7 +894,11 @@ watch(useClassicWelcome, (isClassic) => {
                 <div class="phone-hero grid gap-4 lg:grid-cols-[1fr,1.15fr]">
                   <div class="left-stack kiosk-left-panel">
                     <div class="identity-box glass-card">
-                      <div class="identity-name">MTV NAIL SPA CORPUS CHRISTI</div>
+                      <div class="identity-name salon-title">
+                        <span class="salon-main">MTV NAIL SPA</span>
+                        <span class="salon-sub">CORPUS CHRISTI</span>
+                      </div>
+                      <div class="salon-divider"></div>
                       <div class="identity-phone" aria-label="Phone">
                         <span class="identity-phone-icon" aria-hidden="true">📞</span>
                         <span class="identity-phone-text">(361) 986-1555</span>
@@ -1776,6 +1780,26 @@ watch(useClassicWelcome, (isClassic) => {
   text-transform: uppercase;
   line-height: 1.1;
   color: var(--kiosk-text-primary);
+}
+.salon-title {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+  letter-spacing: 1px;
+}
+.salon-main {
+  font-size: 42px;
+  font-weight: 800;
+}
+.salon-sub {
+  font-size: 36px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+.salon-divider {
+  height: 1px;
+  margin: 16px 0 14px;
+  background: rgba(255, 255, 255, 0.15);
 }
 .identity-phone {
   display: inline-flex;
