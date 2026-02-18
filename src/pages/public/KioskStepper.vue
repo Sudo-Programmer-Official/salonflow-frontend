@@ -208,6 +208,15 @@ const autoResetSeconds = computed(() => {
   return Math.min(Math.max(Math.round(n), 5), 120);
 });
 const kioskShowPrice = computed(() => settings.value?.kioskShowPrice !== false);
+const kioskThemeClass = computed(() => {
+  const theme = settings.value?.kioskThemeMode ?? defaultSettings.kioskThemeMode;
+  const glassEnabled = settings.value?.uiGlassEnabled !== false;
+  const isBlackGlass = theme === "black-glass";
+  return {
+    "theme-dark": isBlackGlass,
+    glass: isBlackGlass && glassEnabled,
+  };
+});
 
 const selectedServiceDetails = computed<ServiceGroup["services"][number][]>(
   () => {
@@ -789,7 +798,7 @@ watch(useClassicWelcome, (isClassic) => {
 </script>
 
 <template>
-  <div class="kiosk-shell">
+  <div class="kiosk-shell" :class="kioskThemeClass">
     <div class="kiosk-inner">
       
       <ElAlert
