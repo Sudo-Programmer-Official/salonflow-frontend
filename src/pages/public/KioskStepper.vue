@@ -1788,13 +1788,13 @@ watch(useClassicWelcome, (isClassic) => {
   letter-spacing: 1px;
 }
 .salon-main {
-  font-size: 32px;
+  font-size: 48px;
   font-weight: 800;
   letter-spacing: 0.5px;
   line-height: 1.1;
 }
 .salon-sub {
-  font-size: 28px;
+  font-size: 36px;
   font-weight: 700;
   letter-spacing: 0.5px;
   margin-top: 4px;
