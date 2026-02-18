@@ -452,7 +452,7 @@ const confirmAddIn = () => {
       name,
       priceCents: Math.round(amount * 100),
       durationMinutes: null,
-      currency: svc?.currency || 'USD',
+      currency: pendingAddInService.value?.currency || 'USD',
       icon: '➕',
       isCustom: true,
     },
