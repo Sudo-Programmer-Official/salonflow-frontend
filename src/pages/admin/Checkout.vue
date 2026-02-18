@@ -174,6 +174,7 @@ type CustomAddIn = {
   name: string;
   priceCents: number;
   durationMinutes: number | null;
+  currency: string;
   icon?: string | null;
   isCustom: true;
 };
@@ -393,7 +394,7 @@ const toggleService = (id: string) => {
   if (svc && (svc as any).isAddIn) {
     pendingAddInService.value = svc;
     addInTitle.value = '';
-    addInAmount.value = null;
+    addInAmount.value = '';
     showAddInModal.value = true;
     return;
   }
@@ -451,6 +452,7 @@ const confirmAddIn = () => {
       name,
       priceCents: Math.round(amount * 100),
       durationMinutes: null,
+      currency: svc?.currency || 'USD',
       icon: '➕',
       isCustom: true,
     },
@@ -975,7 +977,7 @@ onBeforeUnmount(() => {
                   {{
                     Intl.NumberFormat('en-US', {
                       style: 'currency',
-                      currency: svc.currency || 'USD',
+                      currency: (svc as any).currency || 'USD',
                       minimumFractionDigits: 2,
                     }).format((svc.priceCents ?? 0) / 100)
                   }}

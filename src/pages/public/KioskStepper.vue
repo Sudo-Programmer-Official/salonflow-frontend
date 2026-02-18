@@ -482,11 +482,6 @@ const hasKnownIdentity = computed(
 const canAdvanceFromName = computed(() => !!name.value.trim());
 const hasPhoneDigits = computed(() => phone.value.replace(/\D/g, "").length > 0);
 
-const canAdvanceFromServices = computed(() => {
-  if (requireService.value) return selectedServiceIds.value.length > 0;
-  return true;
-});
-
 const goToPhone = () => {
   errorMessage.value = "";
   step.value = "phone";
