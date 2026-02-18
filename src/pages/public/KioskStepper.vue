@@ -1799,7 +1799,14 @@ watch(useClassicWelcome, (isClassic) => {
 .salon-divider {
   height: 1px;
   margin: 16px 0 14px;
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--divider-light, rgba(15, 23, 42, 0.08));
+}
+.light .salon-divider {
+  background: var(--divider-light, rgba(15, 23, 42, 0.08));
+}
+.theme-dark.glass .salon-divider,
+.dark .salon-divider {
+  background: var(--divider-dark, rgba(255, 255, 255, 0.12));
 }
 .identity-phone {
   display: inline-flex;
