@@ -2292,17 +2292,31 @@ watch(useClassicWelcome, (isClassic) => {
   color: #fff;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
 }
+.theme-dark.glass .kiosk-skip {
+  background: linear-gradient(135deg, #d4af37, #b8932c);
+  border: 1px solid rgba(255, 215, 160, 0.55);
+  color: #111;
+  font-weight: 600;
+  box-shadow: 0 8px 20px rgba(212, 175, 55, 0.3);
+}
+.theme-dark.glass .kiosk-skip:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(212, 175, 55, 0.4);
+}
+.theme-dark.glass .kiosk-skip:active {
+  background: linear-gradient(135deg, #b8932c, #9f7b20);
+}
 .theme-dark.glass :deep(.el-button--primary) {
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  color: #fff;
+  background: linear-gradient(135deg, #2bb673, #1e8f58);
+  border: 1px solid rgba(43, 182, 115, 0.6);
+  color: #ffffff;
   backdrop-filter: blur(18px);
   box-shadow:
-    0 10px 40px rgba(0, 0, 0, 0.6),
+    0 10px 24px rgba(43, 182, 115, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 .theme-dark.glass :deep(.el-button--primary:active) {
-  background: rgba(255, 255, 255, 0.25);
+  background: linear-gradient(135deg, #1e8f58, #187445);
 }
 .theme-dark.glass .done-card {
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
