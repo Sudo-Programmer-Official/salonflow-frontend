@@ -421,8 +421,8 @@ const toggleService = (id: string) => {
   const svc = services.value.find((s) => s.id === id);
   if (isAddInService(svc)) {
     pendingAddInService.value = svc ?? null;
-    if (customAddIns.value.length) {
-      const existing = customAddIns.value[0];
+    const existing = customAddIns.value[0];
+    if (existing) {
       addInTitle.value = existing.name === 'Custom Add-in' ? '' : existing.name;
       addInAmount.value = (existing.priceCents / 100).toFixed(2);
     } else {
