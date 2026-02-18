@@ -1788,21 +1788,24 @@ watch(useClassicWelcome, (isClassic) => {
   letter-spacing: 1px;
 }
 .salon-main {
-  font-size: 42px;
+  font-size: 32px;
   font-weight: 800;
+  letter-spacing: 0.5px;
+  line-height: 1.1;
 }
 .salon-sub {
-  font-size: 36px;
+  font-size: 28px;
   font-weight: 700;
+  letter-spacing: 0.5px;
   margin-top: 4px;
 }
 .salon-divider {
   height: 1px;
-  margin: 16px 0 14px;
+  margin: 20px 0 18px;
   background: var(--divider-light, rgba(15, 23, 42, 0.08));
 }
 .light .salon-divider {
-  background: var(--divider-light, rgba(15, 23, 42, 0.08));
+  background: var(--divider-light, rgba(15, 23, 42, 0.14));
 }
 .theme-dark.glass .salon-divider,
 .dark .salon-divider {
