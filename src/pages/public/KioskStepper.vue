@@ -1411,7 +1411,7 @@ watch(useClassicWelcome, (isClassic) => {
                     size="large"
                     @click="resetFlow"
                   >
-                    Restart now
+                    Completed
                   </ElButton>
                 </div>
               </div>
