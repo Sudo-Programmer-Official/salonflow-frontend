@@ -167,7 +167,10 @@ const publicEnabled = computed(
 );
 const showPoints = computed(() => true);
 const showStepperHeader = computed(
-  () => settings.value?.kiosk?.showStepperHeader ?? true,
+  () =>
+    settings.value?.kiosk?.showStepperHeader ??
+    settings.value?.kioskShowStepperHeader ??
+    true,
 );
 const showStaffStep = computed(
   () => settings.value?.allowStaffSelection === true,

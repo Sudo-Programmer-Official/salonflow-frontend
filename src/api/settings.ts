@@ -87,6 +87,7 @@ export type BusinessSettings = {
   kioskKeypadStyle?: 'solid' | 'glass';
   kioskBusinessName?: string | null;
   kioskBusinessPhone?: string | null;
+  kioskShowStepperHeader?: boolean;
   kiosk?: {
     showStepperHeader?: boolean;
   };
@@ -132,6 +133,7 @@ export type SettingsPatch = Partial<
     | 'kioskKeypadStyle'
     | 'kioskBusinessName'
     | 'kioskBusinessPhone'
+    | 'kioskShowStepperHeader'
     | 'kiosk'
     | 'businessPhone'
     | 'businessHours'

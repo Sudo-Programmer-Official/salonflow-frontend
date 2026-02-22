@@ -63,7 +63,10 @@ const showPointsValue = computed(
 const themeTokens = computed<ThemeTokens>(() => settings.value?.themeTokens ?? DEFAULT_WEBSITE_THEME);
 const businessHours = computed<BusinessHours | null>(() => settings.value?.businessHours ?? null);
 const kioskShowStepperHeader = computed(
-  () => settings.value?.kiosk?.showStepperHeader ?? true,
+  () =>
+    settings.value?.kiosk?.showStepperHeader ??
+    settings.value?.kioskShowStepperHeader ??
+    true,
 );
 const kioskBusinessPhoneValue = computed({
   get: () => settings.value?.kioskBusinessPhone || '',
