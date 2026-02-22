@@ -62,6 +62,9 @@ const showPointsValue = computed(
 );
 const themeTokens = computed<ThemeTokens>(() => settings.value?.themeTokens ?? DEFAULT_WEBSITE_THEME);
 const businessHours = computed<BusinessHours | null>(() => settings.value?.businessHours ?? null);
+const kioskShowStepperHeader = computed(
+  () => settings.value?.kiosk?.showStepperHeader ?? true,
+);
 const kioskBusinessPhoneValue = computed({
   get: () => settings.value?.kioskBusinessPhone || '',
   set: (val: string) => scheduleSave({ kioskBusinessPhone: val?.trim() || null }),
@@ -244,6 +247,10 @@ const mergeThemeTokens = (
 const mergeSettings = (current: BusinessSettings, patch: SettingsPatch): BusinessSettings => ({
   ...current,
   ...patch,
+  kiosk:
+    patch.kiosk !== undefined
+      ? { ...(current.kiosk ?? {}), ...(patch.kiosk ?? {}) }
+      : current.kiosk,
   defaultBookingRules: patch.defaultBookingRules
     ? mergeRules(current.defaultBookingRules, patch.defaultBookingRules)
     : current.defaultBookingRules,
@@ -271,6 +278,12 @@ const mergePending = (current: SettingsPatch, patch: SettingsPatch): SettingsPat
         DEFAULT_WEBSITE_THEME,
       patch.themeTokens,
     );
+  }
+  if (patch.kiosk) {
+    next.kiosk = {
+      ...(current.kiosk ?? settings.value?.kiosk ?? {}),
+      ...patch.kiosk,
+    };
   }
   return next;
 };
@@ -311,6 +324,14 @@ const scheduleSave = (patch: SettingsPatch) => {
 
 const handleToggle = (key: keyof SettingsPatch, value: boolean | string | number) => {
   scheduleSave({ [key]: Boolean(value) } as SettingsPatch);
+};
+
+const handleKioskToggle = (
+  key: keyof NonNullable<BusinessSettings['kiosk']>,
+  value: boolean,
+) => {
+  const currentKiosk = settings.value?.kiosk ?? {};
+  scheduleSave({ kiosk: { ...currentKiosk, [key]: Boolean(value) } });
 };
 
 const handlePointsToggle = (value: boolean) => {
@@ -831,6 +852,18 @@ onMounted(loadSettings);
                 <ElSwitch
                   :model-value="showPointsValue"
                   @change="(val) => handlePointsToggle(val as boolean)"
+                />
+              </div>
+              <div class="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-3 py-2">
+                <div>
+                  <div class="text-sm font-semibold text-slate-900">Show step header</div>
+                  <div class="text-xs text-slate-600">
+                    Shows the Phone / Name / Services / Done bar at the top of kiosk.
+                  </div>
+                </div>
+                <ElSwitch
+                  :model-value="kioskShowStepperHeader"
+                  @change="(val) => handleKioskToggle('showStepperHeader', val as boolean)"
                 />
               </div>
             </div>

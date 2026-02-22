@@ -90,6 +90,9 @@ const defaultSettings: BusinessSettings = {
   kioskWelcomeStyle: "classic",
   kioskShowRewardsCard: true,
   kioskShowPrice: true,
+  kiosk: {
+    showStepperHeader: true,
+  },
   kioskAllowSkipService: true,
   kioskAllowSkipStaff: true,
   kioskAutoResetSeconds: null,
@@ -163,6 +166,9 @@ const publicEnabled = computed(
   () => settings.value?.publicCheckInEnabled !== false,
 );
 const showPoints = computed(() => true);
+const showStepperHeader = computed(
+  () => settings.value?.kiosk?.showStepperHeader ?? true,
+);
 const showStaffStep = computed(
   () => settings.value?.allowStaffSelection === true,
 );
@@ -781,7 +787,10 @@ watch(useClassicWelcome, (isClassic) => {
 </script>
 
 <template>
-  <div class="kiosk-shell" :class="kioskThemeClass">
+  <div
+    class="kiosk-shell"
+    :class="[kioskThemeClass, { 'no-stepper-header': !showStepperHeader }]"
+  >
     <div class="kiosk-inner">
       
       <ElAlert
@@ -808,7 +817,11 @@ watch(useClassicWelcome, (isClassic) => {
       </div>
 
       <template v-else>
-        <div class="stepper glass-card" aria-hidden="true">
+        <div
+          v-if="showStepperHeader"
+          class="stepper glass-card"
+          aria-hidden="true"
+        >
           <div
             v-for="(item, index) in stepItems"
             :key="item.key"
@@ -1437,6 +1450,12 @@ watch(useClassicWelcome, (isClassic) => {
   --kiosk-blur: var(--kiosk-glass-blur, var(--glass-blur));
   color: var(--kiosk-text-primary);
   background-color: var(--bg-app);
+}
+.no-stepper-header .kiosk-inner {
+  gap: 12px;
+}
+.no-stepper-header .kiosk-card {
+  margin-top: 4px;
 }
 :root[data-glass="off"] .kiosk-shell {
   --kiosk-surface: rgba(17, 24, 39, 0.92);

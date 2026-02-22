@@ -72,6 +72,9 @@ const defaultSettings: BusinessSettings = {
   requireStaffSelection: false,
   kioskWelcomeStyle: 'classic',
   kioskShowRewardsCard: true,
+  kiosk: {
+    showStepperHeader: true,
+  },
   kioskAllowSkipService: true,
   kioskAllowSkipStaff: true,
   kioskAutoResetSeconds: null,
