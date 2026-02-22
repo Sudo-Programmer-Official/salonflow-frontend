@@ -1451,6 +1451,7 @@ watch(useClassicWelcome, (isClassic) => {
   --kiosk-surface: var(--kiosk-glass-bg, var(--glass-bg));
   --kiosk-border: var(--kiosk-glass-border, var(--glass-border));
   --kiosk-blur: var(--kiosk-glass-blur, var(--glass-blur));
+  --kiosk-actions-h: 96px;
   color: var(--kiosk-text-primary);
   background-color: var(--bg-app);
 }
@@ -2017,7 +2018,7 @@ watch(useClassicWelcome, (isClassic) => {
   min-height: 0;
   overflow-y: auto;
   padding-right: 6px;
-  padding-bottom: 120px;
+  padding-bottom: calc(var(--kiosk-actions-h) + env(safe-area-inset-bottom, 0px));
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
 }
@@ -2128,7 +2129,10 @@ watch(useClassicWelcome, (isClassic) => {
   bottom: 0;
   border-top: 1px solid #e5e7eb;
   box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.05);
-  z-index: 5;
+  z-index: 50;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-transform: translateZ(0);
 }
 .service-actions::before {
   content: '';
@@ -2138,6 +2142,7 @@ watch(useClassicWelcome, (isClassic) => {
   right: 0;
   height: 20px;
   background: linear-gradient(to top, #ffffff, rgba(255, 255, 255, 0));
+  pointer-events: none;
 }
 .service-actions :deep(.el-button) {
   height: 56px;
@@ -2178,7 +2183,7 @@ watch(useClassicWelcome, (isClassic) => {
 .service-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 16px;
   padding: 20px 24px;
   flex-wrap: wrap;
   background: #ffffff;
@@ -2186,7 +2191,10 @@ watch(useClassicWelcome, (isClassic) => {
   bottom: 0;
   border-top: 1px solid #e5e7eb;
   box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.05);
-  z-index: 5;
+  z-index: 50;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-transform: translateZ(0);
 }
 .service-actions::before {
   content: "";
@@ -2196,6 +2204,7 @@ watch(useClassicWelcome, (isClassic) => {
   right: 0;
   height: 20px;
   background: linear-gradient(to top, #ffffff, rgba(255, 255, 255, 0));
+  pointer-events: none;
 }
 .services-grid {
   display: grid;
