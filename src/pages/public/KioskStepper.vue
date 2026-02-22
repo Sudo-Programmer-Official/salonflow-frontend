@@ -1427,7 +1427,8 @@ watch(useClassicWelcome, (isClassic) => {
                     size="large"
                     @click="resetFlow"
                   >
-                    Completed
+                    <span aria-hidden="true">✔</span>
+                    <span class="ml-2">Completed</span>
                   </ElButton>
                 </div>
               </div>
