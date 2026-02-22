@@ -2132,7 +2132,6 @@ watch(useClassicWelcome, (isClassic) => {
   z-index: 50;
   pointer-events: auto;
   touch-action: manipulation;
-  -webkit-transform: translateZ(0);
 }
 .service-actions::before {
   content: '';
@@ -2191,10 +2190,9 @@ watch(useClassicWelcome, (isClassic) => {
   bottom: 0;
   border-top: 1px solid #e5e7eb;
   box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.05);
-  z-index: 50;
+  z-index: 20;
   pointer-events: auto;
   touch-action: manipulation;
-  -webkit-transform: translateZ(0);
 }
 .service-actions::before {
   content: "";

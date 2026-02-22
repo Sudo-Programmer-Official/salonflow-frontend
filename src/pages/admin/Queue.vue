@@ -1041,10 +1041,7 @@ watch(completedPage, async (val) => {
               :class="{ 'queue-card--focused': focusCheckinId === item.id }"
               :data-queue-card-id="item.id"
             >
-              <div class="flex items-start gap-3">
-            <div class="queue-avatar">
-              {{ (item.customerName || '?').charAt(0).toUpperCase() }}
-            </div>
+            <div class="flex items-start gap-3">
             <div class="flex-1 space-y-1.5">
               <div class="flex items-start justify-between gap-2">
                 <div class="text-base font-semibold text-slate-900 customer-name">
@@ -1631,18 +1628,6 @@ watch(completedPage, async (val) => {
   .queue-grid {
     grid-auto-rows: minmax(min-content, max-content);
   }
-}
-.queue-card .queue-avatar {
-  height: 42px;
-  width: 42px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(15, 23, 42, 0.08);
-  color: #0f172a;
-  font-weight: 700;
-  box-shadow: none;
 }
 .queue-card :deep(.el-card__body) {
   padding: 16px;
