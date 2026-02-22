@@ -1072,8 +1072,8 @@ watch(completedPage, async (val) => {
                 </div>
               </div>
               <div class="flex flex-wrap items-center gap-3 text-sm text-slate-700">
-                <div class="flex items-center gap-1 service-row">
-                  ✂️
+                <div class="flex items-center service-row">
+                  <span class="service-icon" aria-hidden="true">✂️</span>
                   <div class="service-lines">
                     <span class="queue-service-name" :title="allServicesTitle(item)">
                       {{ primaryServiceName(item) }}
@@ -1086,14 +1086,14 @@ watch(completedPage, async (val) => {
                     </span>
                   </div>
                 </div>
-                <div v-if="item.servedByName" class="flex items-center gap-1 service-row">
-                  👤
+                <div v-if="item.servedByName" class="flex items-center service-row">
+                  <span class="service-icon" aria-hidden="true">👤</span>
                   <span>{{ item.servedByName }}</span>
                 </div>
               </div>
               <div class="queue-phone">
-                <span class="flex items-center gap-2">
-                  <span>📞</span>
+                <span class="flex items-center phone-row">
+                  <span class="service-icon" aria-hidden="true">📞</span>
                   <span>{{ formatPhone(item.customerPhone) }}</span>
                 </span>
               </div>
@@ -1652,6 +1652,7 @@ watch(completedPage, async (val) => {
   font-weight: 650;
   color: #0f172a;
   letter-spacing: 0.01em;
+  padding-left: 0;
 }
 .checkout-modal :deep(.el-dialog) {
   max-width: 960px;
@@ -1725,7 +1726,7 @@ watch(completedPage, async (val) => {
   margin-top: 8px;
   margin-bottom: 8px;
   opacity: 0.9;
-  gap: 6px;
+  gap: 10px;
 }
 .queue-card .service-lines {
   display: flex;
@@ -1744,8 +1745,18 @@ watch(completedPage, async (val) => {
   font-size: 12px;
   color: #6b7280;
 }
-.queue-card .service-row svg {
-  margin-right: 6px;
+.queue-card .service-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  font-size: 16px;
+  line-height: 1;
+}
+.queue-card .phone-row {
+  gap: 10px;
+  align-items: center;
 }
 .queue-card .sf-btn {
   min-height: 40px;
