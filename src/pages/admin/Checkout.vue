@@ -220,7 +220,13 @@ const subtotal = computed(() => {
   if (customTotalValid.value) return Number(Number(customTotalValue.value).toFixed(2));
   return servicesSubtotal.value;
 });
-const availablePoints = computed(() => item.value?.pointsBalance ?? 0);
+const availablePoints = computed(() => {
+  const raw = item.value?.pointsBalance;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return 0;
+  // Floor to avoid floating comparisons (e.g., 299.9999).
+  return Math.max(0, Math.floor(parsed));
+});
 const canRedeemPoints = computed(() => availablePoints.value >= 300);
 const redeemValue = computed(() => (redeemPoints.value && canRedeemPoints.value ? 5 : 0));
 const totalDue = computed(() => Math.max(0, Number((subtotal.value - redeemValue.value).toFixed(2))));

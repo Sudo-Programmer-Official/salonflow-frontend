@@ -74,7 +74,13 @@ const currentCustomerSummary = computed(() => {
     points: item.pointsBalance ?? 0,
   };
 });
-const canRedeem = computed(() => (currentCheckoutItem.value?.pointsBalance ?? 0) >= 300);
+const checkoutPoints = computed(() => {
+  const raw = currentCheckoutItem.value?.pointsBalance;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.max(0, Math.floor(parsed));
+});
+const canRedeem = computed(() => checkoutPoints.value >= 300);
 const checkoutServiceSummary = computed(() => {
   const names: string[] = [];
   if (checkoutServices.value.length) {
@@ -1184,7 +1190,7 @@ watch(completedPage, async (val) => {
               <div class="checkout-customer-name">{{ currentCustomerSummary?.name || 'Customer' }}</div>
               <div class="checkout-customer-phone">{{ currentCustomerSummary?.phone || '—' }}</div>
               <div class="checkout-customer-meta-sub">
-                <span>Points: {{ currentCustomerSummary?.points ?? 0 }}</span>
+                <span>Points: {{ checkoutPoints }}</span>
                 <span v-if="checkoutServiceSummary">• {{ checkoutServiceSummary }}</span>
               </div>
             </div>
@@ -1194,7 +1200,7 @@ watch(completedPage, async (val) => {
         <div class="checkout-grid">
           <div class="checkout-col space-y-3">
             <div class="rounded-md border border-slate-200 bg-slate-50 p-2 text-xs text-slate-700">
-              Points available: {{ currentCheckoutItem?.pointsBalance ?? 0 }}
+              Points available: {{ checkoutPoints }}
             </div>
             <div class="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800 space-y-2">
               <div class="text-xs font-semibold text-slate-700">Services (from check-in)</div>
@@ -1375,7 +1381,7 @@ watch(completedPage, async (val) => {
                 </div>
               </div>
               <div v-else class="text-xs text-slate-500">
-                Earn {{ Math.max(0, 300 - (currentCheckoutItem?.pointsBalance ?? 0)) }} more points to redeem.
+                Earn {{ Math.max(0, 300 - checkoutPoints) }} more points to redeem.
               </div>
             </div>
           </div>
