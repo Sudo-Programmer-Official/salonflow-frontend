@@ -24,5 +24,10 @@ export default defineConfig(({ mode }) => {
           },
         }
       : undefined,
+    test: {
+      environment: 'node',
+      globals: true,
+      exclude: ['tests/**', 'dist/**', 'node_modules/**'],
+    },
   };
 });

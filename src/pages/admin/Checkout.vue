@@ -1,26 +1,5 @@
-const confirmAddIn = () => {
-  const amount = Number(addInAmount.value);
-  if (!Number.isFinite(amount) || amount <= 0) {
-    ElMessage.warning('Enter a valid amount for the add-in.');
-    return;
-  }
-  const id = ;
-  const name = addInTitle.value.trim() || pendingAddInService.value?.name || 'Custom Add-in';
-  customAddIns.value = [{
-    id,
-    name,
-    priceCents: Math.round(amount * 100),
-    durationMinutes: null,
-    currency: pendingAddInService.value?.currency || 'USD',
-    icon: '➕',
-    isCustom: true,
-  }];
-  showAddInModal.value = false;
-  addInAmount.value = '';
-  addInTitle.value = '';
-  pendingAddInService.value = null;
-};<script setup lang="ts">
-import { onMounted, ref, computed, watch, onBeforeUnmount } from 'vue';
+<script setup lang="ts">
+import { onMounted, ref, computed, watch, watchEffect, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router';
 import { ElButton, ElCard, ElSkeleton, ElMessage, ElInput, ElMessageBox, ElIcon, ElDialog } from 'element-plus';
 import { Money, CreditCard, Present } from '@element-plus/icons-vue';
@@ -29,6 +8,7 @@ import { humanizeTime } from '@/utils/dates';
 import { fetchServices, type ServiceItem } from '@/api/services';
 import { fetchCategories, type ServiceCategory } from '@/api/serviceCategories';
 import { fetchGiftCard, addLegacyGiftCard, type GiftCard } from '@/api/giftCards';
+import { computeRedeemStatus, type RedeemStatus } from '@/utils/redeemStatus';
 
 const route = useRoute();
 const router = useRouter();
@@ -57,8 +37,11 @@ const nextGiftCardId = ref(2);
 const giftCardInfo = ref<Record<number, { loading: boolean; error: string; card: GiftCard | null }>>({});
 const fetchedNumbers = ref<Record<number, string>>({});
 const checkoutStep = ref<'services' | 'payment'>('services');
+const REDEEM_REQUIRED_POINTS = 300;
+const REDEEM_DOLLAR_VALUE = 5;
 
-const goToPaymentStep = () => {
+const goToPaymentStep = async () => {
+  await loadCheckin({ silent: true });
   checkoutStep.value = 'payment';
 };
 
@@ -220,15 +203,22 @@ const subtotal = computed(() => {
   if (customTotalValid.value) return Number(Number(customTotalValue.value).toFixed(2));
   return servicesSubtotal.value;
 });
-const availablePoints = computed(() => {
-  const raw = item.value?.pointsBalance;
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed)) return 0;
-  // Floor to avoid floating comparisons (e.g., 299.9999).
-  return Math.max(0, Math.floor(parsed));
-});
-const canRedeemPoints = computed(() => availablePoints.value >= 300);
-const redeemValue = computed(() => (redeemPoints.value && canRedeemPoints.value ? 5 : 0));
+const loyaltyReady = computed(() => !loading.value && item.value !== null);
+
+const redeemStatus = computed<RedeemStatus>(() =>
+  computeRedeemStatus({
+    points: item.value?.pointsBalance,
+    required: REDEEM_REQUIRED_POINTS,
+    isLoaded: loyaltyReady.value,
+  }),
+);
+
+const availablePoints = computed(() => redeemStatus.value.points);
+const canRedeemPoints = computed(() => redeemStatus.value.eligible);
+const redeemValue = computed(() =>
+  redeemPoints.value && redeemStatus.value.eligible ? REDEEM_DOLLAR_VALUE : 0,
+);
+const redeemShortfall = computed(() => Math.max(0, redeemStatus.value.required - redeemStatus.value.points));
 const totalDue = computed(() => Math.max(0, Number((subtotal.value - redeemValue.value).toFixed(2))));
 const hasBillItems = computed(() => customTotalValid.value || selectedServiceObjects.value.length > 0);
 const hasDirtyCheckout = computed(() => {
@@ -299,8 +289,8 @@ const canCompleteCheckout = computed(
 const completing = ref(false);
 const checkoutCompleted = ref(false);
 
-const loadCheckin = async () => {
-  loading.value = true;
+const loadCheckin = async (opts?: { silent?: boolean }) => {
+  if (!opts?.silent) loading.value = true;
   try {
     // Pull current in-service items and locate the target check-in
     const res = await fetchQueue({ status: 'IN_SERVICE', limit: 100 });
@@ -316,7 +306,7 @@ const loadCheckin = async () => {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to load checkout');
     router.replace({ name: 'admin-queue' });
   } finally {
-    loading.value = false;
+    if (!opts?.silent) loading.value = false;
   }
 };
 
@@ -364,6 +354,13 @@ onMounted(() => {
     });
 });
 
+watchEffect(() => {
+  if (loyaltyReady.value) {
+    // Touch the computed so it re-evaluates as soon as loyalty data is ready.
+    void redeemStatus.value;
+  }
+});
+
 watch(
   () => draftSelections.value,
   () => persistDrafts(),
@@ -382,10 +379,11 @@ watch(
 );
 
 watch(
-  () => canRedeemPoints.value,
+  () => redeemStatus.value.eligible,
   (can) => {
     if (!can) redeemPoints.value = false;
   },
+  { immediate: true },
 );
 
 watch(
@@ -707,6 +705,7 @@ const validateGiftCards = () => {
 
 const submitCheckout = async () => {
   if (!item.value) return;
+  await loadCheckin({ silent: true });
   if (!canCompleteCheckout.value) {
     ElMessage.warning('Add a total (services or custom) and payments before checkout.');
     return;
@@ -742,7 +741,7 @@ const submitCheckout = async () => {
       amountPaid: enteredTotal.value,
       reviewSmsConsent: true,
       servedByName: null,
-      redeemPoints: redeemPoints.value && canRedeemPoints.value,
+      redeemPoints: redeemPoints.value && redeemStatus.value.eligible,
       payments: enteredPayments.value,
       giftCardNumber,
       giftCardAmount,
@@ -1073,13 +1072,26 @@ onBeforeUnmount(() => {
                 Remaining {{ Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(remainingBalance) }}
               </div>
             </div>
-            <div class="redeem-row" v-if="canRedeemPoints">
+            <div class="redeem-row">
               <label class="redeem-toggle">
-                <input type="checkbox" v-model="redeemPoints" :disabled="!canRedeemPoints" />
+                <input
+                  type="checkbox"
+                  v-model="redeemPoints"
+                  :disabled="!redeemStatus.eligible || completing"
+                />
                 <span>
-                  Redeem 300 points (Available: {{ availablePoints }} pts)
+                  Redeem {{ redeemStatus.required }} points (Available: {{ availablePoints }} pts)
                 </span>
               </label>
+              <div v-if="redeemStatus.reason === 'insufficient-points'" class="redeem-hint">
+                Need {{ redeemShortfall }} more points to redeem.
+              </div>
+              <div v-else-if="redeemStatus.reason === 'loading'" class="redeem-hint">
+                Checking points balance…
+              </div>
+              <div v-else-if="redeemStatus.reason === 'invalid-values'" class="redeem-hint">
+                Points unavailable right now.
+              </div>
             </div>
             <div class="payments-section">
               <div class="payments-section-title">Select payment method</div>
