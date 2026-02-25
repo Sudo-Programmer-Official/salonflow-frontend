@@ -214,7 +214,6 @@ const redeemStatus = computed<RedeemStatus>(() =>
 );
 
 const availablePoints = computed(() => redeemStatus.value.points);
-const canRedeemPoints = computed(() => redeemStatus.value.eligible);
 const redeemValue = computed(() =>
   redeemPoints.value && redeemStatus.value.eligible ? REDEEM_DOLLAR_VALUE : 0,
 );
