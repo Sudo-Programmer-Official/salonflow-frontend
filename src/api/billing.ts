@@ -48,8 +48,15 @@ export async function fetchBillingStatus(): Promise<{
     billingMode: string;
     isDemo: boolean;
     canSubscribe?: boolean;
+    canStartCheckout?: boolean;
+    checkoutInProgress?: boolean;
+    checkoutBlockReason?: string | null;
+    checkoutSessionUrl?: string | null;
+    openInvoiceUrl?: string | null;
     subscriptionId?: string | null;
     customerId?: string | null;
+    graceUntil?: string | null;
+    inGrace?: boolean;
   };
   smsCredits?: SmsCredits;
   smsUsage?: SmsUsage;

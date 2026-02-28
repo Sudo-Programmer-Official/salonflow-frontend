@@ -97,6 +97,10 @@ onMounted(() => {
 const handleCheckout = async (plan: 'monthly' | 'annual') => {
   actionLoading.value = plan;
   try {
+    if (checkoutResumeUrl.value) {
+      window.location.href = checkoutResumeUrl.value;
+      return;
+    }
     const { url } = await createCheckoutSession(plan);
     if (url) {
       window.location.href = url;
@@ -176,7 +180,43 @@ const renewalText = computed(() => {
   return `${days > 0 ? `Renews in ${days} day${days === 1 ? '' : 's'}` : 'Renewal today'} (${dateLabel})`;
 });
 
-const canSubscribe = computed(() => billing.value?.canSubscribe !== false);
+const checkoutResumeUrl = computed(
+  () => billing.value?.checkoutSessionUrl || billing.value?.openInvoiceUrl || null,
+);
+
+const checkoutBlockReason = computed(() => billing.value?.checkoutBlockReason || null);
+
+const canSubscribe = computed(() => {
+  const b = billing.value;
+  if (!b) return false;
+  if (['ACTIVE', 'TRIAL', 'PAUSED'].includes(b.checkoutBlockReason || '')) return false;
+  if (checkoutResumeUrl.value) return true;
+  if (b.canStartCheckout !== undefined) return b.canStartCheckout;
+  return b.canSubscribe !== false;
+});
+
+const checkoutBlockMessage = computed(() => {
+  switch (checkoutBlockReason.value) {
+    case 'CHECKOUT_IN_PROGRESS':
+      return 'A checkout session is already open. Please complete it or try again in a moment.';
+    case 'OPEN_INVOICE':
+      return 'Payment is required to restore service. Complete the open invoice to continue.';
+    case 'ACTIVE':
+      return 'Subscription is active. Manage changes in the billing portal.';
+    case 'TRIAL':
+      return 'You are in a trial. Use the portal to make changes.';
+    case 'PAUSED':
+      return 'Billing is paused. Resume or update payment in the billing portal.';
+    default:
+      return null;
+  }
+});
+
+const checkoutBlockType = computed(() => {
+  if (checkoutBlockReason.value === 'OPEN_INVOICE') return 'warning';
+  if (checkoutBlockReason.value === 'CHECKOUT_IN_PROGRESS') return 'info';
+  return 'info';
+});
 
 const statusBadgeClass = computed(() => {
   const base = 'rounded-md px-3 py-1 text-sm font-semibold';
@@ -224,6 +264,14 @@ const updateQty = (packSize: number, val: number | undefined) => {
         <h2 class="text-lg font-semibold text-slate-900">Plans</h2>
         <span v-if="!canSubscribe" class="text-xs text-slate-600">Subscription active — manage below.</span>
       </div>
+      <ElAlert
+        v-if="checkoutBlockMessage"
+        :title="checkoutBlockMessage"
+        :type="checkoutBlockType"
+        show-icon
+        class="w-full"
+        :closable="false"
+      />
       <div class="grid gap-4 md:grid-cols-2">
         <div class="flex min-h-[260px] flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-5 shadow-[0_1px_6px_rgba(0,0,0,0.08)] transition hover:-translate-y-0.5">
           <div class="text-base font-semibold text-slate-900">Monthly</div>
