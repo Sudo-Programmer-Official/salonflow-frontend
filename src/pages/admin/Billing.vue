@@ -461,14 +461,13 @@ const updateQty = (packSize: number, val: number | undefined) => {
                 Total: ${{ packTotal(pack).toFixed(2) }}
               </div>
               <ElButton
-                type="default"
-                plain
+                type="primary"
                 size="small"
                 class="w-full"
                 :loading="actionLoading === `sms-${pack.size}` || smsLoading"
                 @click="handleSmsPack(pack.size as 500 | 1500 | 4000)"
               >
-                Buy {{ (pack.size * Math.max(1, packQuantities[pack.size] || 1)).toLocaleString() }} SMS
+                Buy {{ (pack.size * Math.max(1, packQuantities[pack.size] || 1)).toLocaleString() }} SMS · ${{ packTotal(pack).toFixed(2) }}
               </ElButton>
             </div>
           </div>
