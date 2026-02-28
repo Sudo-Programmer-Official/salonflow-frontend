@@ -441,11 +441,16 @@ const updateQty = (packSize: number, val: number | undefined) => {
             <div
               v-for="pack in normalizedPacks"
               :key="pack.size"
-              class="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-4 shadow-[0_1px_3px_rgba(0,0,0,0.05)]"
+              class="flex flex-col gap-2 rounded-2xl border border-gray-200 bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.05)] transition-all duration-300 hover:border-blue-300 hover:shadow-lg"
             >
-              <div class="text-base font-semibold text-slate-900">{{ pack.size.toLocaleString() }} SMS</div>
-              <div class="text-xl font-bold text-slate-900">${{ pack.price.toFixed(2) }} each</div>
-              <div class="text-xs text-slate-600">Pass-through pricing</div>
+              <div class="text-base font-semibold text-slate-900 tracking-tight">
+                {{ pack.size.toLocaleString() }} SMS
+              </div>
+              <div class="flex items-baseline gap-1 text-slate-900">
+                <span class="text-2xl font-semibold tracking-tight">${{ pack.price.toFixed(2) }}</span>
+                <span class="text-sm text-gray-500">per pack</span>
+              </div>
+              <span class="text-xs text-gray-400 mt-1 block">Carrier pass-through pricing</span>
               <div class="flex items-center gap-2">
                 <span class="text-sm text-slate-700">Qty</span>
                 <ElInputNumber
@@ -460,15 +465,21 @@ const updateQty = (packSize: number, val: number | undefined) => {
               <div class="text-sm font-semibold text-slate-900">
                 Total: ${{ packTotal(pack).toFixed(2) }}
               </div>
-              <ElButton
-                type="primary"
-                size="small"
-                class="w-full"
-                :loading="actionLoading === `sms-${pack.size}` || smsLoading"
+              <button
+                class="group w-full mt-1 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 px-6 py-3 text-white font-medium tracking-tight transition-all duration-200 shadow-sm hover:shadow-md hover:from-sky-600 hover:to-blue-700 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+                :disabled="actionLoading === `sms-${pack.size}` || smsLoading"
                 @click="handleSmsPack(pack.size as 500 | 1500 | 4000)"
               >
-                Buy {{ (pack.size * Math.max(1, packQuantities[pack.size] || 1)).toLocaleString() }} SMS · ${{ packTotal(pack).toFixed(2) }}
-              </ElButton>
+                <div class="flex items-center justify-between">
+                  <span class="tracking-tight">
+                    Buy {{ (pack.size * Math.max(1, packQuantities[pack.size] || 1)).toLocaleString() }} SMS
+                  </span>
+                  <span class="text-sm opacity-80 group-hover:opacity-100 transition">
+                    <template v-if="actionLoading === `sms-${pack.size}` || smsLoading">Processing…</template>
+                    <template v-else>${{ packTotal(pack).toFixed(2) }}</template>
+                  </span>
+                </div>
+              </button>
             </div>
           </div>
           <ElDivider class="my-2" />
