@@ -464,7 +464,7 @@ const updateQty = (packSize: number, val: number | undefined) => {
                 Total: ${{ packTotal(pack).toFixed(2) }}
               </div>
               <button
-                class="group w-full mt-1 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 px-6 py-3 text-white font-medium tracking-tight transition-all duration-200 shadow-sm hover:shadow-md hover:from-sky-600 hover:to-blue-700 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+                class="group w-full mt-1 rounded-xl bg-blue-600 px-6 py-2.5 text-white font-medium tracking-tight transition-all duration-200 shadow-sm hover:shadow-md hover:bg-blue-700 active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed"
                 :disabled="actionLoading === `sms-${pack.size}` || smsLoading"
                 @click="handleSmsPack(pack.size as 500 | 1500 | 4000)"
               >
