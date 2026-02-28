@@ -62,6 +62,14 @@ export async function fetchBillingStatus(): Promise<{
   smsUsage?: SmsUsage;
   smsPricing?: SmsPricing;
   smsPacks?: SmsPackInfo[];
+  smsLedger?: Array<{
+    createdAt: string;
+    delta: number;
+    reason: string;
+    amountUsd: number | null;
+    referenceType?: string | null;
+    referenceId?: string | null;
+  }>;
 }> {
   const res = await fetch(`${apiBase}/status`, {
     headers: buildHeaders({ auth: true, tenant: true, json: true }),

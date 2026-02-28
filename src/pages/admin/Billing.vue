@@ -41,6 +41,16 @@ const smsCredits = ref<SmsCredits | null>(null);
 const smsUsage = ref<SmsUsage | null>(null);
 const smsPricing = ref<SmsPricing | null>(null);
 const smsPacks = ref<SmsPackInfo[]>([]);
+const smsLedger = ref<
+  Array<{
+    createdAt: string;
+    delta: number;
+    reason: string;
+    amountUsd: number | null;
+    referenceType?: string | null;
+    referenceId?: string | null;
+  }>
+>([]);
 const packQuantities = ref<Record<number, number>>({
   500: 1,
   1500: 1,
@@ -72,6 +82,7 @@ const loadStatus = async () => {
     smsUsage.value = data.smsUsage ?? null;
     smsPricing.value = data.smsPricing ?? null;
     smsPacks.value = Array.isArray(data.smsPacks) ? data.smsPacks : [];
+    smsLedger.value = Array.isArray(data.smsLedger) ? data.smsLedger : [];
     setTrialEndsAt(data.trialEndsAt);
     if (data.subscriptionStatus === 'active') {
       resetTrialState();
@@ -484,6 +495,50 @@ const updateQty = (packSize: number, val: number | undefined) => {
           <div class="text-sm text-slate-600">
             Billing is utility-style: usage × unit price. Credits are optional and never expire.
           </div>
+        </div>
+      </ElCard>
+    </section>
+
+    <section class="space-y-3">
+      <h2 class="text-lg font-semibold text-slate-900">SMS Credit History</h2>
+      <ElCard class="bg-white">
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-left text-sm">
+            <thead>
+              <tr class="text-slate-500">
+                <th class="px-3 py-2">Date</th>
+                <th class="px-3 py-2">Change</th>
+                <th class="px-3 py-2">Reason</th>
+                <th class="px-3 py-2">Amount (USD)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="smsLedger.length === 0">
+                <td colspan="4" class="px-3 py-3 text-slate-500">No SMS credit activity yet.</td>
+              </tr>
+              <tr
+                v-for="entry in smsLedger"
+                :key="`${entry.createdAt}-${entry.referenceId || entry.reason}`"
+                class="border-t border-slate-100"
+              >
+                <td class="px-3 py-2 text-slate-800">
+                  {{ formatInBusinessTz(entry.createdAt, 'MMM D, YYYY · h:mm a') }}
+                </td>
+                <td class="px-3 py-2 font-semibold" :class="entry.delta >= 0 ? 'text-emerald-600' : 'text-rose-600'">
+                  {{ entry.delta > 0 ? `+${entry.delta}` : entry.delta }} SMS
+                </td>
+                <td class="px-3 py-2 text-slate-700">
+                  {{ entry.reason.replace(/_/g, ' ') }}
+                  <span v-if="entry.referenceType && entry.referenceId" class="text-xs text-slate-500">
+                    ({{ entry.referenceType }} · {{ entry.referenceId }})
+                  </span>
+                </td>
+                <td class="px-3 py-2 text-slate-700">
+                  {{ entry.amountUsd === null ? '—' : `$${entry.amountUsd.toFixed(2)}` }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </ElCard>
     </section>
