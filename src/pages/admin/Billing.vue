@@ -287,15 +287,14 @@ const updateQty = (packSize: number, val: number | undefined) => {
             <li>✓ SMS reminders (metered)</li>
           </ul>
           <div class="mt-auto">
-            <ElButton
-              type="primary"
-              class="w-full"
-              :loading="actionLoading === 'monthly'"
-              :disabled="!canSubscribe"
+            <button
+              class="group w-full rounded-xl bg-blue-600 text-white font-medium tracking-tight px-6 py-2.5 transition-all duration-200 shadow-sm hover:shadow-md hover:bg-blue-700 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
+              :disabled="!canSubscribe || actionLoading === 'monthly'"
               @click="handleCheckout('monthly')"
             >
-              Subscribe Monthly
-            </ElButton>
+              <span v-if="actionLoading === 'monthly'" class="opacity-80">Processing…</span>
+              <span v-else class="group-hover:opacity-100">Subscribe Monthly</span>
+            </button>
           </div>
         </div>
 
@@ -311,15 +310,14 @@ const updateQty = (packSize: number, val: number | undefined) => {
             <li>✓ 2 months free</li>
           </ul>
           <div class="mt-auto">
-            <ElButton
-              type="primary"
-              class="w-full"
-              :loading="actionLoading === 'annual'"
-              :disabled="!canSubscribe"
+            <button
+              class="group w-full rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium tracking-tight px-6 py-2.5 transition-all duration-200 shadow-sm hover:shadow-md hover:opacity-100 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
+              :disabled="!canSubscribe || actionLoading === 'annual'"
               @click="handleCheckout('annual')"
             >
-              Subscribe Annual
-            </ElButton>
+              <span v-if="actionLoading === 'annual'" class="opacity-80">Processing…</span>
+              <span v-else class="group-hover:opacity-100">Subscribe Annual</span>
+            </button>
           </div>
         </div>
       </div>
