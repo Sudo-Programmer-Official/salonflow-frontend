@@ -375,14 +375,23 @@ const updateQty = (packSize: number, val: number | undefined) => {
             </div>
           </div>
           <div class="flex flex-wrap gap-2">
-            <ElButton
-              :loading="actionLoading === 'portal'"
-              type="primary"
-              plain
+            <button
+              class="group inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-slate-800 font-medium tracking-tight transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-[1px] active:translate-y-0 active:shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+              :disabled="actionLoading === 'portal'"
               @click="handlePortal"
             >
-              Manage Billing
-            </ElButton>
+              <span class="text-sm">Manage Billing</span>
+              <svg
+                class="h-4 w-4 text-slate-500 group-hover:text-slate-700 transition"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+              <span v-if="actionLoading === 'portal'" class="text-xs text-slate-500">Loading…</span>
+            </button>
           </div>
         </div>
       </ElCard>
