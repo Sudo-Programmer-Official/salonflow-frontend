@@ -166,6 +166,16 @@ const servicePrice = computed(() => {
 });
 const staffLabel = computed(() => selectedStaff.value?.nickname || selectedStaff.value?.name || 'Any available');
 
+watch(
+  () => successDialog.value,
+  async (open) => {
+    if (open) {
+      await nextTick();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  },
+);
+
 const disablePastDates = (date: Date) => {
   const today = dayjs().tz(timezone.value).startOf('day');
   return dayjs(date).tz(timezone.value).isBefore(today, 'day');
@@ -539,6 +549,8 @@ const onSubmit = async () => {
     <ElDialog
       v-model="successDialog"
       title="Appointment Request Sent 🎉"
+      align-center
+      append-to-body
       width="420px"
     >
       <div class="space-y-2">
