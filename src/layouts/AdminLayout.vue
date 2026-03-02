@@ -605,7 +605,7 @@ const toggleSidebarCollapse = () => {
                     Mark all read
                   </button>
                 </div>
-                <div class="max-h-96 overflow-y-auto overflow-x-hidden pr-1 space-y-2">
+                <div class="max-h-80 md:max-h-96 overflow-y-auto overflow-x-hidden pr-1 space-y-2">
                   <div v-if="feedLoading" class="py-4 text-sm text-slate-500">Loading…</div>
                   <div v-else-if="!feed.length" class="py-4 text-sm text-slate-500">No notifications yet.</div>
                   <ul v-else class="space-y-2">
