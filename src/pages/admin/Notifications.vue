@@ -19,12 +19,37 @@ import {
   listNotificationTemplates,
   updateNotificationTemplate,
   type NotificationTemplate,
+  getNotificationSettings,
+  updateNotificationSettings,
+  type NotificationSettings,
+  listNotificationFeed,
 } from '../../api/notifications';
 import { generateAiSuggestions } from '../../api/smartReminders';
 
 const loading = ref(false);
 const saving = ref(false);
 const templates = ref<NotificationTemplate[]>([]);
+const feed = ref<
+  Array<{
+    id: string;
+    type: string;
+    message: string;
+    metadata: Record<string, any> | null;
+    read: boolean;
+    created_at: string;
+  }>
+>([]);
+const feedLoading = ref(false);
+const settingsLoading = ref(false);
+const settingsSaving = ref(false);
+const settings = ref<NotificationSettings | null>(null);
+const settingsForm = reactive({
+  notifyViaSms: true,
+  notifyViaEmail: false,
+  notifyInApp: true,
+  smsNumbers: '' as string,
+  emailAddresses: '' as string,
+});
 const editDialog = ref(false);
 const aiDialog = ref(false);
 const aiLoading = ref(false);
@@ -46,18 +71,22 @@ const selected = reactive<SelectedTemplate>({
   event: 'checkin',
 });
 
-const eventLabels: Record<NotificationEvent, string> = {
+const eventLabels: Record<string, string> = {
   checkin: 'Check-in confirmation',
   service_started: 'Service started',
   checkout: 'Checkout complete',
   review_request: 'Review request',
+  appointment_confirmed_sms: 'Appointment confirmed (SMS reply)',
+  appointment_cancelled_sms: 'Appointment cancelled (SMS reply)',
 };
 
-const eventHelpers: Record<NotificationEvent, string[]> = {
+const eventHelpers: Record<string, string[]> = {
   checkin: ['customer_name', 'business_name', 'queue_position', 'service'],
   service_started: ['customer_name', 'business_name', 'service', 'staff_name'],
   checkout: ['customer_name', 'business_name', 'total', 'points_earned', 'points_balance'],
   review_request: ['customer_name', 'business_name', 'review_link'],
+  appointment_confirmed_sms: ['customer_name', 'business_name', 'appointment_time'],
+  appointment_cancelled_sms: ['customer_name', 'business_name', 'appointment_time'],
 };
 
 const load = async () => {
@@ -71,7 +100,39 @@ const load = async () => {
   }
 };
 
-onMounted(load);
+const loadFeed = async () => {
+  feedLoading.value = true;
+  try {
+    const items = await listNotificationFeed({ limit: 20 });
+    feed.value = items;
+  } catch (err: any) {
+    ElMessage.error(err?.message || 'Failed to load notification feed');
+  } finally {
+    feedLoading.value = false;
+  }
+};
+
+const loadSettingsState = async () => {
+  settingsLoading.value = true;
+  try {
+    settings.value = await getNotificationSettings();
+    settingsForm.notifyViaSms = settings.value.notify_via_sms;
+    settingsForm.notifyViaEmail = settings.value.notify_via_email;
+    settingsForm.notifyInApp = settings.value.notify_in_app;
+    settingsForm.smsNumbers = (settings.value.sms_numbers || []).join(', ');
+    settingsForm.emailAddresses = (settings.value.email_addresses || []).join(', ');
+  } catch (err: any) {
+    ElMessage.error(err?.message || 'Failed to load notification settings');
+  } finally {
+    settingsLoading.value = false;
+  }
+};
+
+onMounted(() => {
+  load();
+  loadSettingsState();
+  loadFeed();
+});
 
 const openEdit = (tpl: NotificationTemplate) => {
   Object.assign(selected, tpl);
@@ -142,6 +203,31 @@ const useSuggestion = (s: string) => {
   selected.body = s;
   aiDialog.value = false;
 };
+
+const parseList = (val: string) =>
+  val
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+const saveSettings = async () => {
+  settingsSaving.value = true;
+  try {
+    const updated = await updateNotificationSettings({
+      notifyViaSms: settingsForm.notifyViaSms,
+      notifyViaEmail: settingsForm.notifyViaEmail,
+      notifyInApp: settingsForm.notifyInApp,
+      smsNumbers: parseList(settingsForm.smsNumbers),
+      emailAddresses: parseList(settingsForm.emailAddresses),
+    });
+    settings.value = updated;
+    ElMessage.success('Notification settings saved');
+  } catch (err: any) {
+    ElMessage.error(err?.message || 'Failed to save settings');
+  } finally {
+    settingsSaving.value = false;
+  }
+};
 </script>
 
 <template>
@@ -154,6 +240,53 @@ const useSuggestion = (s: string) => {
         </p>
       </div>
     </div>
+
+    <ElCard class="space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="text-base font-semibold text-slate-900">Notification settings</div>
+          <div class="text-sm text-slate-600">Configure where booking alerts are sent.</div>
+        </div>
+        <ElButton type="primary" :loading="settingsSaving" @click="saveSettings">Save</ElButton>
+      </div>
+      <div class="grid gap-4 md:grid-cols-2">
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="font-semibold text-slate-800">SMS alerts</span>
+            <ElSwitch v-model="settingsForm.notifyViaSms" />
+          </div>
+          <ElFormItem label="Phone numbers (comma separated)" class="mb-0">
+            <ElInput
+              v-model="settingsForm.smsNumbers"
+              type="textarea"
+              :rows="2"
+              placeholder="+1 555 123 4567, +1 512 555 0000"
+            />
+          </ElFormItem>
+        </div>
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="font-semibold text-slate-800">Email alerts</span>
+            <ElSwitch v-model="settingsForm.notifyViaEmail" />
+          </div>
+          <ElFormItem label="Emails (comma separated)" class="mb-0">
+            <ElInput
+              v-model="settingsForm.emailAddresses"
+              type="textarea"
+              :rows="2"
+              placeholder="owner@example.com, desk@example.com"
+            />
+          </ElFormItem>
+        </div>
+      </div>
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="font-semibold text-slate-800">In-app notifications</span>
+          <ElSwitch v-model="settingsForm.notifyInApp" />
+        </div>
+        <div class="text-xs text-slate-500">Badge + feed in admin.</div>
+      </div>
+    </ElCard>
 
     <ElCard>
       <ElTable :data="templates" :loading="loading" style="width: 100%">
@@ -187,6 +320,36 @@ const useSuggestion = (s: string) => {
           </template>
         </ElTableColumn>
       </ElTable>
+    </ElCard>
+
+    <ElCard class="space-y-2">
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="text-base font-semibold text-slate-900">Recent notifications</div>
+          <div class="text-sm text-slate-600">Latest booking alerts (in-app feed).</div>
+        </div>
+        <ElButton size="small" plain :loading="feedLoading" @click="loadFeed">Refresh</ElButton>
+      </div>
+      <div v-if="feed.length === 0 && !feedLoading" class="text-sm text-slate-500">No notifications yet.</div>
+      <div v-else class="space-y-2 max-h-80 overflow-y-auto">
+        <div
+          v-for="item in feed"
+          :key="item.id"
+          class="rounded-lg border border-slate-200 px-3 py-2 flex items-start gap-2"
+          :class="item.read ? 'bg-white' : 'bg-indigo-50/60'"
+        >
+          <div class="text-xs text-slate-500">{{ dayjs(item.created_at).fromNow() }}</div>
+          <div class="flex-1">
+            <div class="text-sm text-slate-900">{{ item.message }}</div>
+            <div v-if="item.metadata?.appointmentId" class="text-2xs text-slate-500">
+              Appointment ID: {{ item.metadata.appointmentId }}
+            </div>
+          </div>
+          <ElTag size="small" effect="plain" type="info">
+            {{ eventLabels[item.type as NotificationEvent] ?? item.type }}
+          </ElTag>
+        </div>
+      </div>
     </ElCard>
 
     <ElDialog v-model="editDialog" title="Edit notification" width="640px">

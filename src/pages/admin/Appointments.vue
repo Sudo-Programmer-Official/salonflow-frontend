@@ -185,6 +185,26 @@ const buildScheduledAt = () => {
 const formatTime = (_: unknown, __: unknown, val: string) =>
   formatInBusinessTz(val, 'MMM D, h:mm A');
 
+const statusBadge = (status: string) => {
+  const base = 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold';
+  switch (status) {
+    case 'PENDING':
+      return { label: 'Awaiting confirmation', cls: `${base} bg-amber-100 text-amber-800` };
+    case 'CONFIRMED':
+      return { label: 'Confirmed', cls: `${base} bg-emerald-100 text-emerald-800` };
+    case 'CHECKED_IN':
+      return { label: 'Checked in', cls: `${base} bg-sky-100 text-sky-800` };
+    case 'COMPLETED':
+      return { label: 'Completed', cls: `${base} bg-indigo-100 text-indigo-800` };
+    case 'CANCELED':
+      return { label: 'Cancelled', cls: `${base} bg-rose-100 text-rose-800` };
+    case 'NO_SHOW':
+      return { label: 'No show', cls: `${base} bg-gray-200 text-gray-700` };
+    default:
+      return { label: status, cls: `${base} bg-slate-100 text-slate-700` };
+  }
+};
+
 const saveAppointment = async () => {
   if (!form.customerName || !form.phoneE164 || !form.serviceId || !form.date || !form.time) {
     ElMessage.warning('Name, phone, service, date, and time are required');
@@ -324,7 +344,11 @@ const goToPage = (target: number) => {
               min-width="110"
               :formatter="formatTime"
             />
-            <ElTableColumn prop="status" label="Status" width="110" />
+            <ElTableColumn prop="status" label="Status" width="150">
+              <template #default="{ row }">
+                <span :class="statusBadge(row.status).cls">{{ statusBadge(row.status).label }}</span>
+              </template>
+            </ElTableColumn>
             <ElTableColumn label="Actions" min-width="300">
               <template #default="{ row }">
                 <div class="flex flex-wrap gap-2">
@@ -348,7 +372,7 @@ const goToPage = (target: number) => {
                     Cancel
                   </ElButton>
                   <ElButton
-                    v-if="row.status === 'BOOKED'"
+                    v-if="row.status === 'PENDING'"
                     size="small"
                     type="success"
                     class="sf-btn sf-btn--table"
@@ -358,7 +382,7 @@ const goToPage = (target: number) => {
                     Confirm
                   </ElButton>
                   <ElButton
-                    v-if="row.status === 'CHECKED_IN'"
+                    v-if="row.status === 'CONFIRMED' || row.status === 'CHECKED_IN'"
                     size="small"
                     type="success"
                     class="sf-btn sf-btn--table"

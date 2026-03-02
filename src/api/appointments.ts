@@ -1,6 +1,13 @@
 import { apiUrl, buildHeaders } from '@/api/client';
 
-export type AppointmentStatus = 'BOOKED' | 'CHECKED_IN' | 'CANCELED' | 'COMPLETED';
+export type AppointmentStatus =
+  | 'PENDING'
+  | 'CONFIRMED'
+  | 'BOOKED' // legacy
+  | 'CHECKED_IN'
+  | 'CANCELED'
+  | 'COMPLETED'
+  | 'NO_SHOW';
 
 export type Appointment = {
   id: string;
@@ -68,7 +75,7 @@ export async function fetchTodayAppointments(): Promise<TodayAppointmentsRespons
 export async function createAppointment(payload: {
   customerName: string;
   phoneE164: string;
-  serviceId: string;
+  serviceId?: string | null;
   staffId?: string | null;
   scheduledAt: string;
   notes?: string;
@@ -91,7 +98,7 @@ export async function updateAppointment(
   payload: {
     customerName: string;
     phoneE164: string;
-    serviceId: string;
+    serviceId?: string | null;
     staffId?: string | null;
     scheduledAt: string;
     notes?: string;
@@ -150,7 +157,7 @@ export async function createPublicAppointment(payload: {
   name: string;
   phoneE164: string;
   email?: string | null;
-  serviceId: string;
+  serviceId?: string | null;
   staffId?: string | null;
   scheduledAt: string;
   notes?: string;

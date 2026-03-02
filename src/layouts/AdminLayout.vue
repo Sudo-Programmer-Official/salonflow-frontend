@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
 import { useRoute, useRouter } from 'vue-router';
 import OnboardingProgress from '../components/OnboardingProgress.vue';
 import { trialExpired, trialEndedAt, trialDaysRemaining, resetTrialState } from '../api/trialBanner';
@@ -8,6 +10,10 @@ import { fetchSettings, fetchPublicSettings } from '../api/settings';
 import { applyThemeFromSettings } from '../utils/theme';
 import { useInboxNotifications } from '../utils/inboxNotifications';
 import { maintenanceActive, maintenanceMessage, clearMaintenanceBanner } from '../api/maintenance';
+import { getUnreadCount, listNotificationFeed, type NotificationFeedItem } from '../api/notifications';
+import { playInboxChime } from '../utils/sound';
+
+dayjs.extend(relativeTime);
 
 const role = computed(() => localStorage.getItem('role') || '');
 const isOwner = computed(() => role.value === 'OWNER');
@@ -81,11 +87,49 @@ const {
   ensureAudioPrimed,
 } = useInboxNotifications();
 
+const unreadCount = ref(0);
+const feed = ref<NotificationFeedItem[]>([]);
+const feedLoading = ref(false);
+const bellOpen = ref(false);
+let unreadInterval: number | null = null;
+const bellMenu = ref<HTMLElement | null>(null);
+const bellButton = ref<HTMLElement | null>(null);
+
 const primeAudioOnInteraction = () => {
   ensureAudioPrimed();
   window.removeEventListener('click', primeAudioOnInteraction);
   window.removeEventListener('keydown', primeAudioOnInteraction);
 };
+
+const loadFeed = async () => {
+  feedLoading.value = true;
+  try {
+    feed.value = await listNotificationFeed({ limit: 8 });
+  } catch {
+    // ignore
+  } finally {
+    feedLoading.value = false;
+  }
+};
+
+const pollUnread = async () => {
+  try {
+    const previous = unreadCount.value;
+    const count = await getUnreadCount();
+    if (count > previous) {
+      await playInboxChime();
+    }
+    unreadCount.value = count;
+  } catch {
+    /* ignore */
+  }
+};
+
+watch(bellOpen, (open) => {
+  if (open) {
+    loadFeed();
+  }
+});
 
 const loadOnboarding = async () => {
   if (!isOwner.value) return;
@@ -119,16 +163,58 @@ const loadSettingsFlags = async () => {
   }
 };
 
+const startUnreadPolling = () => {
+  if (unreadInterval) return;
+  unreadInterval = window.setInterval(pollUnread, 10000);
+};
+
+const stopUnreadPolling = () => {
+  if (unreadInterval) {
+    window.clearInterval(unreadInterval);
+    unreadInterval = null;
+  }
+};
+
+const handleVisibilityChange = () => {
+  if (document.hidden) {
+    stopUnreadPolling();
+  } else {
+    pollUnread();
+    startUnreadPolling();
+  }
+};
+
+const handleGlobalClick = (event: MouseEvent) => {
+  const target = event.target as Node | null;
+  if (!target) return;
+  if (
+    bellOpen.value &&
+    bellMenu.value &&
+    !bellMenu.value.contains(target) &&
+    bellButton.value &&
+    !bellButton.value.contains(target)
+  ) {
+    bellOpen.value = false;
+  }
+};
+
 onMounted(() => {
   loadOnboarding();
   loadSettingsFlags();
   startInboxPolling(currentRouteName);
+  pollUnread();
+  startUnreadPolling();
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  document.addEventListener('click', handleGlobalClick);
   window.addEventListener('click', primeAudioOnInteraction, { once: true });
   window.addEventListener('keydown', primeAudioOnInteraction, { once: true });
   window.addEventListener('touchstart', primeAudioOnInteraction, { once: true });
 });
 
 onUnmounted(() => {
+  stopUnreadPolling();
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
+  document.removeEventListener('click', handleGlobalClick);
   window.removeEventListener('click', primeAudioOnInteraction);
   window.removeEventListener('keydown', primeAudioOnInteraction);
   window.removeEventListener('touchstart', primeAudioOnInteraction);
@@ -337,6 +423,7 @@ const currentRouteName = computed(() => (route.name ? String(route.name) : null)
 watch(currentRouteName, (val) => {
   openGroupForRoute(val);
   sidebarOpen.value = false;
+  bellOpen.value = false;
 });
 
 const closeSidebar = () => {
@@ -404,6 +491,13 @@ const toggleSidebarCollapse = () => {
                   >
                     {{ inboxState.unreadCount > 99 ? '99+' : inboxState.unreadCount }}
                   </span>
+                  <span
+                    v-else-if="item.name === 'admin-notifications' && unreadCount > 0"
+                    class="nav-link__pill"
+                    :title="`You have ${unreadCount} unread notifications`"
+                  >
+                    {{ unreadCount > 99 ? '99+' : unreadCount }}
+                  </span>
                   <span v-if="route.name === item.name" class="nav-link__badge">Current</span>
                   <span
                     v-else-if="item.name === 'admin-onboarding' && showOnboardingBanner"
@@ -427,7 +521,62 @@ const toggleSidebarCollapse = () => {
             {{ route.meta?.title || 'SalonFlow' }}
           </div>
         </div>
-        <div class="flex items-center gap-3"></div>
+        <div class="flex items-center gap-3">
+          <div class="relative">
+            <button
+              type="button"
+              class="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+              @click="bellOpen = !bellOpen"
+              ref="bellButton"
+              aria-label="Notifications"
+            >
+              <span>🔔</span>
+              <span v-if="unreadCount > 0" class="inline-flex min-w-[22px] justify-center rounded-full bg-rose-500 px-1.5 text-xs font-bold text-white">
+                {{ unreadCount > 99 ? '99+' : unreadCount }}
+              </span>
+            </button>
+            <div
+              v-if="bellOpen"
+              class="absolute right-0 z-30 mt-2 w-80 rounded-lg border border-slate-200 bg-white shadow-xl"
+              ref="bellMenu"
+            >
+              <div class="flex items-center justify-between border-b border-slate-100 px-3 py-2">
+                <div class="text-sm font-semibold text-slate-800">Notifications</div>
+                <button
+                  type="button"
+                  class="text-xs font-semibold text-slate-500 transition hover:text-slate-700"
+                  @click="loadFeed"
+                >
+                  Refresh
+                </button>
+              </div>
+              <div class="max-h-96 overflow-y-auto px-3 py-2">
+                <div v-if="feedLoading" class="py-4 text-sm text-slate-500">Loading…</div>
+                <div v-else-if="!feed.length" class="py-4 text-sm text-slate-500">No notifications yet.</div>
+                <ul v-else class="space-y-2">
+                  <li
+                    v-for="item in feed"
+                    :key="item.id"
+                    class="rounded-md border border-slate-100 px-3 py-2"
+                  >
+                    <div class="text-sm text-slate-800">{{ item.message }}</div>
+                    <div class="text-xs text-slate-500">
+                      {{ dayjs(item.created_at).fromNow() }}
+                    </div>
+                  </li>
+                </ul>
+              </div>
+              <div class="border-t border-slate-100 px-3 py-2 text-right text-xs">
+                <RouterLink
+                  :to="{ name: 'admin-notifications' }"
+                  class="font-semibold text-sky-600 transition hover:text-sky-700"
+                >
+                  View all
+                </RouterLink>
+              </div>
+            </div>
+          </div>
+        </div>
       </header>
 
       <main class="admin-content" :class="{ 'admin-content--kiosk': isCheckoutRoute }">

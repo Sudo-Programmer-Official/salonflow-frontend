@@ -19,7 +19,7 @@ import { createPublicAppointment } from '../../api/appointments';
 import { fetchPublicSettings, type BusinessSettings } from '../../api/settings';
 import { applyThemeFromSettings } from '../../utils/theme';
 import { isPlatformHost } from '../../api/client';
-import { dayjs, getBusinessTimezone, setBusinessTimezone } from '../../utils/dates';
+import { dayjs, formatInBusinessTz, getBusinessTimezone, setBusinessTimezone } from '../../utils/dates';
 import { maintenanceActive } from '../../api/maintenance';
 import { useWebsite } from '../../composables/useWebsite';
 import PublicWebsiteLayout from '../../layouts/PublicWebsiteLayout.vue';
@@ -130,10 +130,11 @@ const staffError = ref('');
 const submitting = ref(false);
 const success = ref(false);
 const successDetail = ref('');
+const successDialog = ref(false);
 const errorMessage = ref('');
 const successTitle = computed(() => {
   const detail = successDetail.value ? ` ${successDetail.value}` : '';
-  return `Booking received.${detail ? ' ' + detail : ''}`;
+  return `Appointment request sent.${detail ? ' ' + detail : ''}`;
 });
 const successDescription = 'We’ll confirm your appointment by text or email once the salon approves it.';
 const timezone = computed(() => settings.value?.timezone || getBusinessTimezone());
@@ -152,6 +153,16 @@ const serviceMap = computed(() => {
 });
 
 const selectedService = computed(() => serviceMap.value.get(form.serviceId) || null);
+const serviceLabel = computed(() => selectedService.value?.name || 'Service to be decided in salon');
+const serviceDuration = computed(() =>
+  selectedService.value?.durationMinutes ? `${selectedService.value.durationMinutes} min` : '30 min (default)',
+);
+const servicePrice = computed(() => {
+  if (selectedService.value?.priceCents !== undefined) {
+    return formatMoney(selectedService.value.priceCents, selectedService.value.currency || 'USD');
+  }
+  return 'TBD';
+});
 
 const disablePastDates = (date: Date) => {
   const today = dayjs().tz(timezone.value).startOf('day');
@@ -307,10 +318,6 @@ const onSubmit = async () => {
     errorMessage.value = 'Phone number is required.';
     return;
   }
-  if (!form.serviceId) {
-    errorMessage.value = 'Please select a service.';
-    return;
-  }
   if (requireStaffSelection.value && !form.staffId) {
     errorMessage.value = 'Please choose a staff member.';
     return;
@@ -340,14 +347,19 @@ const onSubmit = async () => {
       name: form.name.trim(),
       phoneE164,
       email: form.email.trim() || null,
-      serviceId: form.serviceId,
+      serviceId: form.serviceId || null,
       staffId: allowStaffSelection.value ? form.staffId || null : null,
       scheduledAt,
       notes: form.notes.trim() || undefined,
     });
-    const whenLocal = dayjs(scheduledAt).tz(timezone.value).format('ddd, MMM D · h:mm A');
+    const whenLocal = formatInBusinessTz(
+      scheduledAt,
+      'ddd, MMM D · h:mm A',
+      timezone.value,
+    );
     successDetail.value = `${whenLocal} ${timezone.value}`;
     success.value = true;
+    successDialog.value = true;
     resetForm();
     await nextTick();
   } catch (err) {
@@ -381,7 +393,7 @@ const onSubmit = async () => {
     />
 
     <div class="grid gap-6 lg:grid-cols-[1.45fr,0.95fr]">
-      <div class="glass rounded-2xl bg-surface p-6 shadow-sm">
+      <div class="glass rounded-2xl bg-surface p-6 shadow-[0_8px_24px_rgba(0,0,0,0.06)]">
         <ElForm label-position="top" class="space-y-4" @submit.prevent="onSubmit">
           <ElFormItem label="Name" required>
             <ElInput v-model="form.name" placeholder="Your name" size="large" autocomplete="name" />
@@ -408,14 +420,15 @@ const onSubmit = async () => {
             </ElFormItem>
           </div>
 
-          <ElFormItem label="Service" required>
+          <ElFormItem label="Service (optional)">
             <ElSelect
               v-model="form.serviceId"
-              placeholder="Select a service"
+              placeholder="Select a service (optional)"
               size="large"
               clearable
               filterable
               :loading="loadingServices"
+              class="w-full"
             >
               <template v-for="group in groupedServices" :key="group.categoryId || 'uncategorized'">
                 <ElOptionGroup :label="`${group.categoryIcon || '📋'} ${group.categoryName}`">
@@ -454,6 +467,7 @@ const onSubmit = async () => {
               clearable
               filterable
               :loading="staffLoading"
+              class="w-full"
             >
               <ElOption
                 v-for="member in staffList"
@@ -474,6 +488,7 @@ const onSubmit = async () => {
                 format="YYYY-MM-DD"
                 value-format="YYYY-MM-DD"
                 :disabled-date="disablePastDates"
+                class="w-full"
               />
             </ElFormItem>
 
@@ -484,6 +499,7 @@ const onSubmit = async () => {
                 step="00:15"
                 end="20:00"
                 placeholder="Select time"
+                class="w-full"
               />
             </ElFormItem>
           </div>
@@ -501,13 +517,12 @@ const onSubmit = async () => {
             <ElButton
               type="primary"
               size="large"
-              class="w-full"
+              class="w-full h-12 font-semibold"
               :loading="submitting"
               :disabled="
                 submitting ||
                 !form.name ||
                 !form.phone ||
-                !form.serviceId ||
                 !form.date ||
                 !form.time ||
                 (requireStaffSelection && !form.staffId) ||
@@ -518,14 +533,21 @@ const onSubmit = async () => {
               Book appointment
             </ElButton>
 
-            <ElAlert
-              v-if="success"
-              type="success"
-              :closable="false"
-              class="w-full"
-              :title="successTitle"
-              :description="successDescription"
-            />
+    <ElDialog
+      v-model="successDialog"
+      title="Appointment Request Sent 🎉"
+      width="420px"
+    >
+      <div class="space-y-2">
+        <p class="text-base font-semibold">{{ successTitle }}</p>
+        <p class="text-sm text-muted">{{ successDescription }}</p>
+      </div>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <ElButton @click="successDialog = false">OK</ElButton>
+        </div>
+      </template>
+    </ElDialog>
             <ElAlert
               v-if="errorMessage"
               type="error"
@@ -547,23 +569,19 @@ const onSubmit = async () => {
             <div class="flex items-center justify-between">
               <span>Service</span>
               <span class="font-semibold text-text">
-                {{ selectedService?.name || 'Pick a service' }}
+                {{ serviceLabel }}
               </span>
             </div>
             <div class="flex items-center justify-between">
               <span>Duration</span>
               <span class="text-muted">
-                {{ selectedService?.durationMinutes ? `${selectedService.durationMinutes} min` : '—' }}
+                {{ serviceDuration }}
               </span>
             </div>
             <div class="flex items-center justify-between">
               <span>Price</span>
               <span class="text-muted">
-                {{
-                  selectedService?.priceCents !== undefined
-                    ? formatMoney(selectedService.priceCents, selectedService.currency || 'USD')
-                    : '—'
-                }}
+                {{ servicePrice }}
               </span>
             </div>
             <div class="flex items-center justify-between">

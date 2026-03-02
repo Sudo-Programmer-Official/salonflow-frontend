@@ -43,6 +43,24 @@ const markComplete = async (id: string) => {
 
 const formatTime = (_: unknown, __: unknown, val: string) =>
   formatInBusinessTz(val, 'MMM D, h:mm A');
+
+const statusBadge = (status: string) => {
+  const base = 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold';
+  switch (status) {
+    case 'PENDING':
+      return { label: 'Pending', cls: `${base} bg-amber-100 text-amber-800` };
+    case 'CONFIRMED':
+      return { label: 'Confirmed', cls: `${base} bg-emerald-100 text-emerald-800` };
+    case 'CHECKED_IN':
+      return { label: 'Checked in', cls: `${base} bg-sky-100 text-sky-800` };
+    case 'COMPLETED':
+      return { label: 'Completed', cls: `${base} bg-indigo-100 text-indigo-800` };
+    case 'CANCELED':
+      return { label: 'Cancelled', cls: `${base} bg-rose-100 text-rose-800` };
+    default:
+      return { label: status, cls: `${base} bg-slate-100 text-slate-700` };
+  }
+};
 </script>
 
 <template>
@@ -67,11 +85,15 @@ const formatTime = (_: unknown, __: unknown, val: string) =>
           min-width="100"
           :formatter="formatTime"
         />
-        <ElTableColumn prop="status" label="Status" width="110" />
+        <ElTableColumn prop="status" label="Status" width="140">
+          <template #default="{ row }">
+            <span :class="statusBadge(row.status).cls">{{ statusBadge(row.status).label }}</span>
+          </template>
+        </ElTableColumn>
         <ElTableColumn label="Actions" width="140">
           <template #default="{ row }">
             <ElButton
-              v-if="row.status === 'BOOKED'"
+              v-if="row.status === 'CONFIRMED' || row.status === 'CHECKED_IN'"
               size="small"
               type="primary"
               :loading="actionLoading === row.id"
