@@ -147,3 +147,15 @@ export async function updateTenantBilling(
   }
   return body;
 }
+
+export async function reconcileTenantBilling(businessId: string): Promise<any> {
+  const res = await fetch(apiUrl(`/superadmin/tenants/${businessId}/reconcile-billing`), {
+    method: 'POST',
+    headers: buildHeaders({ auth: true, json: true }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(body.error || 'Failed to reconcile billing');
+  }
+  return body;
+}

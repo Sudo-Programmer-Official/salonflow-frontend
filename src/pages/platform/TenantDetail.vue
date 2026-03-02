@@ -22,6 +22,7 @@ import {
   fetchTenantDetail,
   impersonateTenant,
   updateTenantBilling,
+  reconcileTenantBilling,
   type TenantOverview,
   type TenantMetrics,
 } from '../../api/superadmin';
@@ -52,6 +53,7 @@ const limitsLoading = ref(false);
 const limitsDialog = ref(false);
 const savingLimits = ref(false);
 const savingBilling = ref(false);
+const reconciling = ref(false);
 
 const controls = ref<TenantControl | null>(null);
 const controlDraft = ref<Partial<TenantControl>>({});
@@ -403,6 +405,26 @@ const saveBilling = async () => {
     savingBilling.value = false;
   }
 };
+
+const reconcileBilling = async () => {
+  if (!businessId.value) return;
+  reconciling.value = true;
+  try {
+    const result = await reconcileTenantBilling(businessId.value);
+    // Refresh metrics after reconcile
+    const res = await fetchTenantDetail(businessId.value);
+    tenant.value = res.tenant;
+    metrics.value = res.metrics;
+    syncBillingDraft();
+    ElMessage.success('Billing reconciled from Stripe');
+    return result;
+  } catch (err: any) {
+    ElMessage.error(err?.message || 'Failed to reconcile billing');
+    return null;
+  } finally {
+    reconciling.value = false;
+  }
+};
 </script>
 
 <template>
@@ -448,6 +470,14 @@ const saveBilling = async () => {
         <ElButton class="ml-2" plain @click="openKiosk">
           Open kiosk
         </ElButton>
+        <ElTooltip
+          content="Force-sync subscription/billing from Stripe (super admin only). Rate-limit in API."
+          placement="top"
+        >
+          <ElButton class="ml-2" type="warning" plain :loading="reconciling" @click="reconcileBilling">
+            Reconcile billing
+          </ElButton>
+        </ElTooltip>
       </div>
     </ElCard>
 
