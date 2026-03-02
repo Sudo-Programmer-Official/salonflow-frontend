@@ -10,7 +10,12 @@ import { fetchSettings, fetchPublicSettings } from '../api/settings';
 import { applyThemeFromSettings } from '../utils/theme';
 import { useInboxNotifications } from '../utils/inboxNotifications';
 import { maintenanceActive, maintenanceMessage, clearMaintenanceBanner } from '../api/maintenance';
-import { getUnreadCount, listNotificationFeed, type NotificationFeedItem } from '../api/notifications';
+import {
+  getUnreadCount,
+  listNotificationFeed,
+  markNotificationRead,
+  type NotificationFeedItem,
+} from '../api/notifications';
 import { getAttentionCount } from '../api/appointments';
 import { playInboxChime } from '../utils/sound';
 
@@ -559,7 +564,7 @@ const toggleSidebarCollapse = () => {
             </button>
             <div
               v-if="bellOpen"
-              class="absolute right-0 z-30 mt-2 w-80 rounded-lg border border-slate-200 bg-white shadow-xl"
+              class="absolute right-0 z-50 mt-2 w-80 rounded-lg border border-slate-200 bg-white shadow-xl"
               ref="bellMenu"
             >
               <div class="flex items-center justify-between border-b border-slate-100 px-3 py-2">
@@ -572,21 +577,35 @@ const toggleSidebarCollapse = () => {
                   Refresh
                 </button>
               </div>
-              <div class="max-h-96 overflow-y-auto px-3 py-2">
-                <div v-if="feedLoading" class="py-4 text-sm text-slate-500">Loading…</div>
-                <div v-else-if="!feed.length" class="py-4 text-sm text-slate-500">No notifications yet.</div>
-                <ul v-else class="space-y-2">
-                  <li
-                    v-for="item in feed"
-                    :key="item.id"
-                    class="rounded-md border border-slate-100 px-3 py-2"
+              <div class="px-3 py-2">
+                <div class="mb-2 flex items-center justify-between text-xs text-slate-500">
+                  <span>{{ unreadCount }} unread</span>
+                  <button
+                    type="button"
+                    class="font-semibold text-sky-600 transition hover:text-sky-700"
+                    @click="markAllRead"
                   >
-                    <div class="text-sm text-slate-800">{{ item.message }}</div>
-                    <div class="text-xs text-slate-500">
-                      {{ dayjs(item.created_at).fromNow() }}
-                    </div>
-                  </li>
-                </ul>
+                    Mark all read
+                  </button>
+                </div>
+                <div class="max-h-96 overflow-y-auto overflow-x-hidden pr-1 space-y-2">
+                  <div v-if="feedLoading" class="py-4 text-sm text-slate-500">Loading…</div>
+                  <div v-else-if="!feed.length" class="py-4 text-sm text-slate-500">No notifications yet.</div>
+                  <ul v-else class="space-y-2">
+                    <li
+                      v-for="item in feed"
+                      :key="item.id"
+                      class="rounded-md border border-slate-100 px-3 py-2 cursor-pointer transition hover:border-slate-200"
+                      :class="item.read ? 'bg-white' : 'bg-indigo-50/60'"
+                      @click="markItemRead(item.id)"
+                    >
+                      <div class="text-sm text-slate-800">{{ item.message }}</div>
+                      <div class="text-xs text-slate-500">
+                        {{ dayjs(item.created_at).fromNow() }}
+                      </div>
+                    </li>
+                  </ul>
+                </div>
               </div>
               <div class="border-t border-slate-100 px-3 py-2 text-right text-xs">
                 <RouterLink
@@ -1069,3 +1088,20 @@ const toggleSidebarCollapse = () => {
   }
 }
 </style>
+const markItemRead = async (id: string) => {
+  try {
+    await markNotificationRead(id);
+    feed.value = feed.value.map((n) => (n.id === id ? { ...n, read: true } : n));
+    unreadCount.value = Math.max(0, unreadCount.value - 1);
+  } catch {
+    /* ignore */
+  }
+};
+
+const markAllRead = async () => {
+  const unreadIds = feed.value.filter((n) => !n.read).map((n) => n.id);
+  if (!unreadIds.length) return;
+  await Promise.all(unreadIds.map((id) => markNotificationRead(id).catch(() => undefined)));
+  feed.value = feed.value.map((n) => ({ ...n, read: true }));
+  unreadCount.value = 0;
+};
