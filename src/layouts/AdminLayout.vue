@@ -101,6 +101,23 @@ let unreadInterval: number | null = null;
 const bellMenu = ref<HTMLElement | null>(null);
 const bellButton = ref<HTMLElement | null>(null);
 const appointmentsAttentionCount = ref(0);
+const markItemRead = async (id: string) => {
+  try {
+    await markNotificationRead(id);
+    feed.value = feed.value.map((n) => (n.id === id ? { ...n, read: true } : n));
+    unreadCount.value = Math.max(0, unreadCount.value - 1);
+  } catch {
+    /* ignore */
+  }
+};
+
+const markAllRead = async () => {
+  const unreadIds = feed.value.filter((n) => !n.read).map((n) => n.id);
+  if (!unreadIds.length) return;
+  await Promise.all(unreadIds.map((id) => markNotificationRead(id).catch(() => undefined)));
+  feed.value = feed.value.map((n) => ({ ...n, read: true }));
+  unreadCount.value = 0;
+};
 
 const primeAudioOnInteraction = () => {
   ensureAudioPrimed();
@@ -1088,20 +1105,3 @@ const toggleSidebarCollapse = () => {
   }
 }
 </style>
-const markItemRead = async (id: string) => {
-  try {
-    await markNotificationRead(id);
-    feed.value = feed.value.map((n) => (n.id === id ? { ...n, read: true } : n));
-    unreadCount.value = Math.max(0, unreadCount.value - 1);
-  } catch {
-    /* ignore */
-  }
-};
-
-const markAllRead = async () => {
-  const unreadIds = feed.value.filter((n) => !n.read).map((n) => n.id);
-  if (!unreadIds.length) return;
-  await Promise.all(unreadIds.map((id) => markNotificationRead(id).catch(() => undefined)));
-  feed.value = feed.value.map((n) => ({ ...n, read: true }));
-  unreadCount.value = 0;
-};
