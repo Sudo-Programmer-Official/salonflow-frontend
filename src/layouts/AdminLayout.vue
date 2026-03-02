@@ -115,7 +115,7 @@ const markAllRead = async () => {
   const unreadIds = feed.value.filter((n) => !n.read).map((n) => n.id);
   if (!unreadIds.length) return;
   await Promise.all(unreadIds.map((id) => markNotificationRead(id).catch(() => undefined)));
-  feed.value = feed.value.map((n) => ({ ...n, read: true }));
+  feed.value = [];
   unreadCount.value = 0;
 };
 
@@ -581,7 +581,7 @@ const toggleSidebarCollapse = () => {
             </button>
             <div
               v-if="bellOpen"
-              class="absolute right-0 z-50 mt-2 w-80 rounded-lg border border-slate-200 bg-white shadow-xl"
+              class="absolute right-2 z-[9999] mt-2 w-80 rounded-xl border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.18)] backdrop-blur"
               ref="bellMenu"
             >
               <div class="flex items-center justify-between border-b border-slate-100 px-3 py-2">
@@ -605,7 +605,7 @@ const toggleSidebarCollapse = () => {
                     Mark all read
                   </button>
                 </div>
-                <div class="max-h-80 md:max-h-96 overflow-y-auto overflow-x-hidden pr-1 space-y-2">
+                <div class="max-h-72 sm:max-h-80 md:max-h-96 overflow-y-auto overflow-x-hidden pr-1 space-y-2">
                   <div v-if="feedLoading" class="py-4 text-sm text-slate-500">Loading…</div>
                   <div v-else-if="!feed.length" class="py-4 text-sm text-slate-500">No notifications yet.</div>
                   <ul v-else class="space-y-2">
