@@ -266,6 +266,34 @@ const updateQty = (packSize: number, val: number | undefined) => {
     : 1;
   packQuantities.value = { ...packQuantities.value, [packSize]: next };
 };
+
+const smsCreditBalance = computed<{
+  total: number;
+  purchased: number;
+  included: number;
+  usedThisCycle: number;
+}>(() => {
+  const base = smsCredits.value;
+  if (!base) {
+    return { total: 0, purchased: 0, included: 0, usedThisCycle: 0 };
+  }
+  return {
+    total: base.totalAvailable ?? 0,
+    purchased: base.purchasedRemaining ?? 0,
+    included: base.includedRemaining ?? 0,
+    usedThisCycle: base.monthlyUsage ?? 0,
+  };
+});
+
+const lastCreditPurchase = computed(() => {
+  const entry = smsLedger.value.find((e) => e.delta > 0 && e.reason !== 'SMS_SEND');
+  if (!entry) return null;
+  return {
+    date: entry.createdAt,
+    credits: entry.delta,
+    amountUsd: entry.amountUsd,
+  };
+});
 </script>
 
 <template>
@@ -415,7 +443,19 @@ const updateQty = (packSize: number, val: number | undefined) => {
     <section class="space-y-3">
       <h2 class="text-lg font-semibold text-slate-900">SMS Usage & Pricing</h2>
       <ElCard class="bg-white">
-        <div class="grid gap-4 md:grid-cols-3">
+        <div class="grid gap-4 md:grid-cols-4">
+          <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div class="text-xs uppercase tracking-wide text-slate-600">Credits available</div>
+            <div class="mt-1 text-2xl font-semibold text-slate-900">
+              {{ smsCreditBalance.total.toLocaleString() }} SMS
+            </div>
+            <div class="text-sm text-slate-600">
+              Purchased: {{ smsCreditBalance.purchased.toLocaleString() }} · Included: {{ smsCreditBalance.included.toLocaleString() }}
+            </div>
+            <div v-if="lastCreditPurchase" class="text-2xs text-slate-500 mt-1">
+              Last purchase: {{ lastCreditPurchase.credits.toLocaleString() }} SMS
+            </div>
+          </div>
           <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
             <div class="text-xs uppercase tracking-wide text-slate-600">This cycle</div>
             <div class="mt-1 text-2xl font-semibold text-slate-900">
