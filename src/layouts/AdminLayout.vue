@@ -579,60 +579,62 @@ const toggleSidebarCollapse = () => {
                 {{ unreadCount > 99 ? '99+' : unreadCount }}
               </span>
             </button>
-            <div
-              v-if="bellOpen"
-              class="absolute right-2 z-[9999] mt-2 w-80 rounded-xl border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.18)] backdrop-blur"
-              ref="bellMenu"
-            >
-              <div class="flex items-center justify-between border-b border-slate-100 px-3 py-2">
-                <div class="text-sm font-semibold text-slate-800">Notifications</div>
-                <button
-                  type="button"
-                  class="text-xs font-semibold text-slate-500 transition hover:text-slate-700"
-                  @click="loadFeed"
-                >
-                  Refresh
-                </button>
-              </div>
-              <div class="px-3 py-2">
-                <div class="mb-2 flex items-center justify-between text-xs text-slate-500">
-                  <span>{{ unreadCount }} unread</span>
+            <Teleport to="body">
+              <div
+                v-if="bellOpen"
+                class="notification-dropdown fixed right-4 top-16 z-[99999] w-80 max-h-[70vh] rounded-xl border border-slate-200 bg-white shadow-[0_20px_40px_rgba(15,23,42,0.18)] backdrop-blur"
+                ref="bellMenu"
+              >
+                <div class="flex items-center justify-between border-b border-slate-100 px-3 py-2">
+                  <div class="text-sm font-semibold text-slate-800">Notifications</div>
                   <button
                     type="button"
-                    class="font-semibold text-sky-600 transition hover:text-sky-700"
-                    @click="markAllRead"
+                    class="text-xs font-semibold text-slate-500 transition hover:text-slate-700"
+                    @click="loadFeed"
                   >
-                    Mark all read
+                    Refresh
                   </button>
                 </div>
-                <div class="max-h-72 sm:max-h-80 md:max-h-96 overflow-y-auto overflow-x-hidden pr-1 space-y-2">
-                  <div v-if="feedLoading" class="py-4 text-sm text-slate-500">Loading…</div>
-                  <div v-else-if="!feed.length" class="py-4 text-sm text-slate-500">No notifications yet.</div>
-                  <ul v-else class="space-y-2">
-                    <li
-                      v-for="item in feed"
-                      :key="item.id"
-                      class="rounded-md border border-slate-100 px-3 py-2 cursor-pointer transition hover:border-slate-200"
-                      :class="item.read ? 'bg-white' : 'bg-indigo-50/60'"
-                      @click="markItemRead(item.id)"
+                <div class="px-3 py-2">
+                  <div class="mb-2 flex items-center justify-between text-xs text-slate-500">
+                    <span>{{ unreadCount }} unread</span>
+                    <button
+                      type="button"
+                      class="font-semibold text-sky-600 transition hover:text-sky-700"
+                      @click="markAllRead"
                     >
-                      <div class="text-sm text-slate-800">{{ item.message }}</div>
-                      <div class="text-xs text-slate-500">
-                        {{ dayjs(item.created_at).fromNow() }}
-                      </div>
-                    </li>
-                  </ul>
+                      Mark all read
+                    </button>
+                  </div>
+                  <div class="notification-list max-h-[60vh] overflow-y-auto overflow-x-hidden pr-1 space-y-2">
+                    <div v-if="feedLoading" class="py-4 text-sm text-slate-500">Loading…</div>
+                    <div v-else-if="!feed.length" class="py-4 text-sm text-slate-500">No notifications yet.</div>
+                    <ul v-else class="space-y-2">
+                      <li
+                        v-for="item in feed"
+                        :key="item.id"
+                        class="rounded-md border border-slate-100 px-3 py-2 cursor-pointer transition hover:border-slate-200"
+                        :class="item.read ? 'bg-white' : 'bg-indigo-50/60'"
+                        @click="markItemRead(item.id)"
+                      >
+                        <div class="text-sm text-slate-800">{{ item.message }}</div>
+                        <div class="text-xs text-slate-500">
+                          {{ dayjs(item.created_at).fromNow() }}
+                        </div>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+                <div class="border-t border-slate-100 px-3 py-2 text-right text-xs">
+                  <RouterLink
+                    :to="{ name: 'admin-notifications' }"
+                    class="font-semibold text-sky-600 transition hover:text-sky-700"
+                  >
+                    View all
+                  </RouterLink>
                 </div>
               </div>
-              <div class="border-t border-slate-100 px-3 py-2 text-right text-xs">
-                <RouterLink
-                  :to="{ name: 'admin-notifications' }"
-                  class="font-semibold text-sky-600 transition hover:text-sky-700"
-                >
-                  View all
-                </RouterLink>
-              </div>
-            </div>
+            </Teleport>
           </div>
         </div>
       </header>
@@ -1101,7 +1103,10 @@ const toggleSidebarCollapse = () => {
   }
   .admin-shell,
   .admin-main {
-    width: 100vw;
-  }
+  width: 100vw;
+}
+.notification-dropdown {
+  will-change: transform, opacity;
+}
 }
 </style>
