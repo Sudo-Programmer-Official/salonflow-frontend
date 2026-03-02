@@ -104,7 +104,7 @@ const appointmentsAttentionCount = ref(0);
 const markItemRead = async (id: string) => {
   try {
     await markNotificationRead(id);
-    feed.value = feed.value.map((n) => (n.id === id ? { ...n, read: true } : n));
+    feed.value = feed.value.filter((n) => n.id !== id);
     unreadCount.value = Math.max(0, unreadCount.value - 1);
   } catch {
     /* ignore */
@@ -128,7 +128,7 @@ const primeAudioOnInteraction = () => {
 const loadFeed = async () => {
   feedLoading.value = true;
   try {
-    feed.value = await listNotificationFeed({ limit: 8 });
+    feed.value = await listNotificationFeed({ limit: 20, unread: true });
   } catch {
     // ignore
   } finally {
