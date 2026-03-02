@@ -315,8 +315,20 @@ const sidebarGroups = computed(() => [
     label: 'Operations',
     defaultOpen: true,
     items: [
-      { label: 'Services', name: 'admin-services', icon: '🛠', roles: ['OWNER'] },
-      { label: 'Categories', name: 'admin-categories', icon: '🗂', roles: ['OWNER'] },
+      {
+        label: 'Services',
+        name: 'admin-services',
+        iconSvg:
+          '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 1 0 3 3l-9.4 9.4a2 2 0 0 1-2.8-2.8l9.4-9.4a4 4 0 0 0-.2-3.2z"/></svg>',
+        roles: ['OWNER'],
+      },
+      {
+        label: 'Categories',
+        name: 'admin-categories',
+        iconSvg:
+          '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h5l2 2h11v8a2 2 0 0 1-2 2H3z"/></svg>',
+        roles: ['OWNER'],
+      },
       { label: 'Staff', name: 'admin-staff', icon: '👩‍💼', roles: ['OWNER'] },
       { label: 'Customers', name: 'admin-customers', icon: '👥', roles: ['OWNER'] },
       { label: 'Gift Cards', name: 'admin-gift-cards', icon: '🎁', roles: ['OWNER'] },
@@ -517,7 +529,10 @@ const toggleSidebarCollapse = () => {
                 :class="route.name === item.name ? 'nav-link--active' : 'nav-link--idle'"
               >
                 <div class="nav-link__left">
-                  <span class="nav-link__icon" aria-hidden="true">{{ item.icon }}</span>
+                  <span class="nav-link__icon" aria-hidden="true">
+                    <span v-if="item.iconSvg" v-html="item.iconSvg" />
+                    <span v-else>{{ item.icon }}</span>
+                  </span>
                   <span>{{ item.label }}</span>
                 </div>
                 <div class="nav-link__right">
