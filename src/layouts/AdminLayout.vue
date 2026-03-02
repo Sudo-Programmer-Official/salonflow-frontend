@@ -11,6 +11,7 @@ import { applyThemeFromSettings } from '../utils/theme';
 import { useInboxNotifications } from '../utils/inboxNotifications';
 import { maintenanceActive, maintenanceMessage, clearMaintenanceBanner } from '../api/maintenance';
 import { getUnreadCount, listNotificationFeed, type NotificationFeedItem } from '../api/notifications';
+import { getAttentionCount } from '../api/appointments';
 import { playInboxChime } from '../utils/sound';
 
 dayjs.extend(relativeTime);
@@ -94,6 +95,7 @@ const bellOpen = ref(false);
 let unreadInterval: number | null = null;
 const bellMenu = ref<HTMLElement | null>(null);
 const bellButton = ref<HTMLElement | null>(null);
+const appointmentsAttentionCount = ref(0);
 
 const primeAudioOnInteraction = () => {
   ensureAudioPrimed();
@@ -120,6 +122,14 @@ const pollUnread = async () => {
       await playInboxChime();
     }
     unreadCount.value = count;
+  } catch {
+    /* ignore */
+  }
+};
+
+const pollAttention = async () => {
+  try {
+    appointmentsAttentionCount.value = await getAttentionCount();
   } catch {
     /* ignore */
   }
@@ -165,7 +175,10 @@ const loadSettingsFlags = async () => {
 
 const startUnreadPolling = () => {
   if (unreadInterval) return;
-  unreadInterval = window.setInterval(pollUnread, 10000);
+  unreadInterval = window.setInterval(() => {
+    pollUnread();
+    pollAttention();
+  }, 10000);
 };
 
 const stopUnreadPolling = () => {
@@ -180,6 +193,7 @@ const handleVisibilityChange = () => {
     stopUnreadPolling();
   } else {
     pollUnread();
+    pollAttention();
     startUnreadPolling();
   }
 };
@@ -203,6 +217,7 @@ onMounted(() => {
   loadSettingsFlags();
   startInboxPolling(currentRouteName);
   pollUnread();
+  pollAttention();
   startUnreadPolling();
   document.addEventListener('visibilitychange', handleVisibilityChange);
   document.addEventListener('click', handleGlobalClick);
@@ -490,6 +505,13 @@ const toggleSidebarCollapse = () => {
                     :title="`You have ${inboxState.unreadCount} unread messages`"
                   >
                     {{ inboxState.unreadCount > 99 ? '99+' : inboxState.unreadCount }}
+                  </span>
+                  <span
+                    v-else-if="item.name === 'admin-appointments' && appointmentsAttentionCount > 0"
+                    class="nav-link__pill"
+                    :title="`You have ${appointmentsAttentionCount} upcoming appointments needing attention`"
+                  >
+                    {{ appointmentsAttentionCount > 99 ? '99+' : appointmentsAttentionCount }}
                   </span>
                   <span
                     v-else-if="item.name === 'admin-notifications' && unreadCount > 0"

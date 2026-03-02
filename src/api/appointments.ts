@@ -153,6 +153,17 @@ export async function confirmAppointment(id: string) {
   return res.json();
 }
 
+export async function getAttentionCount(): Promise<number> {
+  const res = await fetch(`${apiBase}/attention-count`, {
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(body.error || 'Failed to load attention count');
+  }
+  return Number(body.count ?? 0);
+}
+
 export async function createPublicAppointment(payload: {
   name: string;
   phoneE164: string;

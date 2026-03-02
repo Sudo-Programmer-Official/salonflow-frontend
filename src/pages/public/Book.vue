@@ -153,6 +153,7 @@ const serviceMap = computed(() => {
 });
 
 const selectedService = computed(() => serviceMap.value.get(form.serviceId) || null);
+const selectedStaff = computed(() => staffList.value.find((s) => s.id === form.staffId) || null);
 const serviceLabel = computed(() => selectedService.value?.name || 'Service to be decided in salon');
 const serviceDuration = computed(() =>
   selectedService.value?.durationMinutes ? `${selectedService.value.durationMinutes} min` : '30 min (default)',
@@ -163,6 +164,7 @@ const servicePrice = computed(() => {
   }
   return 'TBD';
 });
+const staffLabel = computed(() => selectedStaff.value?.nickname || selectedStaff.value?.name || 'Any available');
 
 const disablePastDates = (date: Date) => {
   const today = dayjs().tz(timezone.value).startOf('day');
@@ -457,18 +459,19 @@ const onSubmit = async () => {
 
           <ElFormItem
             v-if="allowStaffSelection"
-            :label="requireStaffSelection ? 'Staff (required)' : 'Staff (optional)'"
+            label="Preferred staff (optional)"
             :required="requireStaffSelection"
           >
             <ElSelect
               v-model="form.staffId"
-              placeholder="Choose staff"
+              placeholder="Any available technician"
               size="large"
               clearable
               filterable
               :loading="staffLoading"
               class="w-full"
             >
+              <ElOption :value="''" label="Any available technician" />
               <ElOption
                 v-for="member in staffList"
                 :key="member.id"
@@ -571,6 +574,10 @@ const onSubmit = async () => {
               <span class="font-semibold text-text">
                 {{ serviceLabel }}
               </span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span>Staff</span>
+              <span class="text-muted">{{ staffLabel }}</span>
             </div>
             <div class="flex items-center justify-between">
               <span>Duration</span>
