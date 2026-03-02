@@ -1071,7 +1071,7 @@ onBeforeUnmount(() => {
                 Remaining {{ Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(remainingBalance) }}
               </div>
             </div>
-            <div class="redeem-row">
+            <div class="redeem-row" v-if="redeemStatus.eligible">
               <label class="redeem-toggle">
                 <input
                   type="checkbox"
@@ -1082,13 +1082,15 @@ onBeforeUnmount(() => {
                   Redeem {{ redeemStatus.required }} points (Available: {{ availablePoints }} pts)
                 </span>
               </label>
+            </div>
+            <div class="redeem-row redeem-row--disabled" v-else>
               <div v-if="redeemStatus.reason === 'insufficient-points'" class="redeem-hint">
                 Need {{ redeemShortfall }} more points to redeem.
               </div>
               <div v-else-if="redeemStatus.reason === 'loading'" class="redeem-hint">
                 Checking points balance…
               </div>
-              <div v-else-if="redeemStatus.reason === 'invalid-values'" class="redeem-hint">
+              <div v-else class="redeem-hint">
                 Points unavailable right now.
               </div>
             </div>
@@ -1786,6 +1788,11 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   font-weight: 700;
+}
+.redeem-row--disabled {
+  background: #f8fafc;
+  border-color: rgba(148, 163, 184, 0.3);
+  color: #475569;
 }
 .redeem-row input[type='checkbox'] {
   width: 18px;
