@@ -163,12 +163,12 @@ body {
   --panel-radius: 16px;
   --card-radius: 16px;
   --glass-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
-  --kiosk-primary: #d6b25e;
-  --kiosk-accent: #f0c674;
-  --kiosk-text-primary: #f7f5ef;
-  --kiosk-text-secondary: color-mix(in srgb, #f7f5ef 72%, transparent);
-  --kiosk-text-muted: color-mix(in srgb, #f7f5ef 52%, transparent);
-  --kiosk-heading: color-mix(in srgb, #f7f5ef 92%, #d6b25e 8%);
+  --kiosk-primary: #ec4899;
+  --kiosk-accent: #f9a8d4;
+  --kiosk-text-primary: #fdf2f8;
+  --kiosk-text-secondary: rgba(253, 242, 248, 0.72);
+  --kiosk-text-muted: rgba(253, 242, 248, 0.58);
+  --kiosk-heading: color-mix(in srgb, #fdf2f8 88%, #ec4899 12%);
   color: var(--kiosk-text-primary);
 }
 
@@ -192,22 +192,23 @@ body {
 }
 /* ===== THEME: PREMIUM BLACK GLASS (dark) ===== */
 .kiosk-app[data-kiosk-theme='black-glass'] {
-  --bg-app: radial-gradient(circle at 15% 20%, rgba(255, 255, 255, 0.04), transparent 32%),
-    radial-gradient(circle at 82% 10%, rgba(255, 255, 255, 0.06), transparent 28%),
-    linear-gradient(180deg, #07090f 0%, #0b0f17 60%, #06080f 100%);
-  --kiosk-surface: rgba(12, 14, 22, 0.9);
-  --kiosk-glass: rgba(22, 24, 32, 0.85);
-  --kiosk-border: rgba(255, 255, 255, 0.12);
-  --kiosk-primary: #d6b25e;
-  --kiosk-accent: #f0c674;
-  --kiosk-glass-bg: rgba(12, 14, 22, 0.9);
-  --kiosk-glass-border: rgba(255, 255, 255, 0.12);
-  --kiosk-glass-blur: 16px;
+  --bg-app: radial-gradient(circle at 18% 20%, rgba(236, 72, 153, 0.08), transparent 30%),
+    radial-gradient(circle at 82% 10%, rgba(192, 132, 252, 0.08), transparent 28%),
+    linear-gradient(180deg, #111018 0%, #15121d 55%, #1b1625 100%);
+  --kiosk-surface: rgba(24, 20, 32, 0.9);
+  --kiosk-glass: rgba(29, 23, 36, 0.85);
+  --kiosk-border: rgba(236, 72, 153, 0.18);
+  --kiosk-primary: #ec4899;
+  --kiosk-primary-strong: #f472b6;
+  --kiosk-accent: #f9a8d4;
+  --kiosk-glass-bg: rgba(18, 15, 24, 0.9);
+  --kiosk-glass-border: rgba(236, 72, 153, 0.16);
+  --kiosk-glass-blur: 18px;
   --kiosk-glass-saturate: 160%;
-  --kiosk-text-primary: #f7f5ef;
-  --kiosk-text-secondary: rgba(247, 245, 239, 0.7);
-  --kiosk-text-muted: rgba(247, 245, 239, 0.52);
-  --kiosk-heading: color-mix(in srgb, #f7f5ef 92%, #d6b25e 8%);
+  --kiosk-text-primary: #fdf2f8;
+  --kiosk-text-secondary: rgba(253, 242, 248, 0.72);
+  --kiosk-text-muted: rgba(253, 242, 248, 0.58);
+  --kiosk-heading: color-mix(in srgb, #fdf2f8 88%, #ec4899 12%);
   background: var(--bg-app);
 }
 

@@ -80,6 +80,11 @@ export async function redeemPoints(customerId: string, ruleId: string) {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
+    if (res.status === 409 && err.pointsBalance !== undefined && err.pointsCost !== undefined) {
+      throw new Error(
+        `Insufficient points: ${err.pointsBalance} available, ${err.pointsCost} required`,
+      );
+    }
     throw new Error(err.error || 'Failed to redeem');
   }
   return res.json();

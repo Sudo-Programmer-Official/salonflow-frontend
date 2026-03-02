@@ -1564,19 +1564,19 @@ watch(useClassicWelcome, (isClassic) => {
   padding: 28px 32px;
   background: linear-gradient(
     135deg,
-    var(--kiosk-primary),
-    #18b46d 45%,
-    var(--kiosk-accent)
+    #ec4899,
+    #f472b6 45%,
+    #f9a8d4
   );
   cursor: pointer;
   transition:
     transform 0.12s ease,
     box-shadow 0.12s ease;
-  box-shadow: 0 20px 60px rgba(34, 197, 94, 0.28);
+  box-shadow: 0 20px 60px rgba(236, 72, 153, 0.28);
 }
 .welcome-card:active {
   transform: scale(0.985);
-  box-shadow: 0 10px 30px rgba(34, 197, 94, 0.2);
+  box-shadow: 0 10px 30px rgba(236, 72, 153, 0.18);
 }
 .welcome-reward {
   max-width: 340px;
@@ -2076,9 +2076,9 @@ watch(useClassicWelcome, (isClassic) => {
   outline-offset: 2px;
 }
 .service-button.selected {
-  border: 2px solid #22c55e;
-  background: #f0fdf4;
-  box-shadow: 0 8px 18px rgba(34, 197, 94, 0.12);
+  border: 2px solid var(--kiosk-primary);
+  background: color-mix(in srgb, var(--kiosk-primary) 10%, #f8fafc 90%);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--kiosk-primary) 30%, rgba(0, 0, 0, 0.1));
 }
 .service-text {
   display: flex;
@@ -2152,13 +2152,13 @@ watch(useClassicWelcome, (isClassic) => {
   flex: 1;
 }
 .service-actions .kiosk-skip {
-  background: #facc15;
-  border: 1px solid #eab308;
-  color: #1f2937;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #374151;
   box-shadow: none;
 }
 .service-actions .kiosk-skip:hover {
-  filter: brightness(1.02);
+  filter: brightness(1.04);
 }
 .service-actions .kiosk-skip:active {
   transform: scale(0.985);
@@ -2170,7 +2170,7 @@ watch(useClassicWelcome, (isClassic) => {
   box-shadow: none;
 }
 .service-actions .kiosk-primary {
-  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.22);
+  box-shadow: 0 6px 18px rgba(236, 72, 153, 0.22);
 }
 .service-empty {
   color: var(--kiosk-text-secondary);
@@ -2275,18 +2275,21 @@ watch(useClassicWelcome, (isClassic) => {
  * Glass / Dark mode overrides (scoped to avoid touching light theme)
  * ------------------------------------------------------------------ */
 .theme-dark.glass {
-  background: #0f0f12;
-  color: #fff;
-  --bg-deep: #0f0f12;
-  --glass-bg: rgba(30, 25, 20, 0.55);
-  --glass-border: rgba(255, 215, 160, 0.15);
-  --text-primary: #ffffff;
-  --text-secondary: rgba(255, 255, 255, 0.65);
-  --accent-gold: #d6b36a;
+  background: #111018;
+  color: #fdf2f8;
+  --bg-deep: #111018;
+  --glass-bg: rgba(27, 22, 37, 0.65);
+  --glass-border: rgba(236, 72, 153, 0.16);
+  --text-primary: #fdf2f8;
+  --text-secondary: rgba(253, 242, 248, 0.72);
+  --accent-soft: #f472b6;
+  --accent-soft-2: #c084fc;
 }
 .theme-dark.glass body,
 .theme-dark.glass .kiosk-shell {
-  background: radial-gradient(circle at top, #1a1512 0%, #0f0f12 60%);
+  background: radial-gradient(circle at 18% 20%, rgba(236, 72, 153, 0.08), transparent 32%),
+    radial-gradient(circle at 82% 10%, rgba(192, 132, 252, 0.08), transparent 28%),
+    linear-gradient(180deg, #111018 0%, #15121d 55%, #1b1625 100%);
 }
 .theme-dark.glass .kiosk-shell,
 .theme-dark.glass .kiosk-pane,
@@ -2294,75 +2297,77 @@ watch(useClassicWelcome, (isClassic) => {
 .theme-dark.glass .glass-card {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
-  backdrop-filter: blur(26px);
-  -webkit-backdrop-filter: blur(26px);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
   box-shadow:
-    0 20px 60px rgba(0, 0, 0, 0.6),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  color: #fff;
+    0 20px 60px rgba(0, 0, 0, 0.55),
+    0 10px 30px rgba(236, 72, 153, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
 }
 .theme-dark.glass .services-wrapper .service-button,
 .theme-dark.glass .service-button {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid var(--glass-border);
-  color: #fff;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0));
+  border: 1px solid rgba(236, 72, 153, 0.16);
+  color: var(--text-primary);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.38), 0 10px 30px rgba(236, 72, 153, 0.12);
+  border-radius: 18px;
 }
 .theme-dark.glass .services-wrapper .service-button.selected,
 .theme-dark.glass .service-button.selected {
-  background: rgba(40, 32, 24, 0.65);
-  border-color: var(--accent-gold);
-  box-shadow: 0 0 25px rgba(214, 179, 106, 0.25);
+  background: linear-gradient(140deg, rgba(236, 72, 153, 0.12), rgba(236, 72, 153, 0.04));
+  border: 2px solid rgba(244, 114, 182, 0.7);
+  box-shadow: 0 12px 32px rgba(236, 72, 153, 0.2);
 }
 .theme-dark.glass .service-name {
-  color: #fff;
+  color: var(--text-primary);
 }
 .theme-dark.glass .service-price {
-  color: var(--accent-gold);
-  font-size: 38px;
+  color: #f9a8d4;
+  font-size: 28px;
   font-weight: 800;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
 }
 .theme-dark.glass .service-duration {
   color: var(--text-secondary);
-  font-size: 15px;
+  font-size: 14px;
 }
 .theme-dark.glass .service-actions {
-  background: rgba(255, 255, 255, 0.05);
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.45);
+  background: rgba(18, 15, 24, 0.92);
+  border-top: 1px solid rgba(236, 72, 153, 0.2);
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.35);
 }
 .theme-dark.glass .service-actions :deep(.el-button--default) {
   background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  color: #fff;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(236, 72, 153, 0.25);
+  color: var(--text-primary);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.25);
 }
 .theme-dark.glass .kiosk-skip {
-  background: linear-gradient(135deg, #d4af37, #b8932c);
-  border: 1px solid rgba(255, 215, 160, 0.55);
-  color: #111;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(236, 72, 153, 0.25);
+  color: #fdf2f8;
   font-weight: 600;
-  box-shadow: 0 8px 20px rgba(212, 175, 55, 0.3);
+  box-shadow: 0 8px 24px rgba(236, 72, 153, 0.18);
 }
 .theme-dark.glass .kiosk-skip:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 24px rgba(212, 175, 55, 0.4);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(236, 72, 153, 0.24);
 }
 .theme-dark.glass .kiosk-skip:active {
-  background: linear-gradient(135deg, #b8932c, #9f7b20);
+  transform: scale(0.985);
 }
 .theme-dark.glass :deep(.el-button--primary) {
-  background: linear-gradient(135deg, #2bb673, #1e8f58);
-  border: 1px solid rgba(43, 182, 115, 0.6);
+  background: linear-gradient(135deg, #ec4899, #f472b6);
+  border: 1px solid rgba(244, 114, 182, 0.6);
   color: #ffffff;
-  backdrop-filter: blur(18px);
+  backdrop-filter: blur(16px);
   box-shadow:
-    0 10px 24px rgba(43, 182, 115, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    0 10px 26px rgba(236, 72, 153, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
 }
 .theme-dark.glass :deep(.el-button--primary:active) {
-  background: linear-gradient(135deg, #1e8f58, #187445);
+  background: linear-gradient(135deg, #db2777, #ec4899);
 }
 .theme-dark.glass .done-card {
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));

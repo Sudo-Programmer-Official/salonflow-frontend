@@ -468,6 +468,14 @@ const isPreview = computed(
     Boolean(localStorage.getItem('token')),
 );
 
+const liveUrl = computed(() => {
+  if (typeof window === 'undefined') return route.path;
+  const url = new URL(window.location.href);
+  url.searchParams.delete('websitePreview');
+  const query = url.searchParams.toString();
+  return `${url.pathname}${query ? `?${query}` : ''}`;
+});
+
 const canonicalUrl = computed(() => {
   const host = typeof window !== 'undefined' ? window.location.host : '';
   const prefix = locale.value === 'es' ? '/es' : '';
@@ -752,11 +760,28 @@ const footerView = computed(() => {
 <template>
   <PublicWebsiteLayout :header="headerView" :footer="footerView" :active-path="route.path">
     <div class="space-y-12">
-      <div
-        v-if="isPreview"
-        class="sf-container inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 border border-amber-200 mt-8"
-      >
-        Preview mode
+      <div v-if="isPreview" class="sf-container mt-8">
+        <div
+          class="flex w-full items-center justify-between gap-3 rounded-2xl border border-amber-200/80 bg-amber-50/80 px-4 py-3 text-amber-900 shadow-sm backdrop-blur"
+        >
+          <div class="flex items-center gap-3">
+            <span
+              class="flex h-10 w-10 items-center justify-center rounded-full border border-amber-100 bg-white/85 text-lg shadow-sm"
+            >
+              👀
+            </span>
+            <div class="leading-tight">
+              <div class="text-sm font-semibold">Preview mode</div>
+              <p class="text-xs text-amber-800/80">Only you can see this preview. Publish to push changes live.</p>
+            </div>
+          </div>
+          <a
+            :href="liveUrl"
+            class="inline-flex items-center gap-1 rounded-full bg-amber-600 px-3 py-2 text-xs font-semibold text-white shadow hover:bg-amber-500 transition"
+          >
+            Exit preview
+          </a>
+        </div>
       </div>
 
       <section

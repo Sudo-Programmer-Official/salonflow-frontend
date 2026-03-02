@@ -29,6 +29,7 @@ const error = ref('');
 const redeemDialog = ref(false);
 const redeemRuleId = ref('');
 const redeeming = ref(false);
+const redeemError = ref('');
 
 const load = async () => {
   loading.value = true;
@@ -55,10 +56,12 @@ const canRedeem = computed(() => {
 
 const startRedeem = () => {
   redeemRuleId.value = '';
+  redeemError.value = '';
   redeemDialog.value = true;
 };
 
 const confirmRedeem = async () => {
+  redeemError.value = '';
   redeeming.value = true;
   try {
     if (!redeemRuleId.value) {
@@ -71,7 +74,9 @@ const confirmRedeem = async () => {
     redeemDialog.value = false;
     await load();
   } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : 'Redeem failed');
+    const msg = err instanceof Error ? err.message : 'Redeem failed';
+    redeemError.value = msg;
+    ElMessage.error(msg);
   } finally {
     redeeming.value = false;
   }
@@ -155,11 +160,18 @@ const confirmRedeem = async () => {
             :disabled="points < rule.pointsCost"
           />
         </ElSelect>
+        <ElAlert
+          v-if="redeemError"
+          type="error"
+          :title="redeemError"
+          :closable="false"
+          show-icon
+        />
       </div>
       <template #footer>
         <div class="flex justify-end gap-2">
           <ElButton @click="redeemDialog = false">Cancel</ElButton>
-          <ElButton type="primary" :disabled="!canRedeem" :loading="redeeming" @click="confirmRedeem">
+          <ElButton type="primary" :disabled="!canRedeem || redeeming" :loading="redeeming" @click="confirmRedeem">
             Redeem
           </ElButton>
         </div>
