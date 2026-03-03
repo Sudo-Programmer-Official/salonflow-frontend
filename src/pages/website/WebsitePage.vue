@@ -912,9 +912,6 @@ const footerView = computed(() => {
           >
             <span class="text-[18px] font-semibold text-[#DB4437]">G</span>
           </a>
-          <div class="bg-white/85 backdrop-blur border border-white/40 rounded-xl px-3 py-2 text-xs font-semibold text-text shadow-lg shadow-black/5">
-            ⭐ {{ heroRatingValue }}
-          </div>
         </div>
         <div class="sf-container relative">
           <div class="grid gap-8 lg:grid-cols-[1.05fr,0.95fr] items-center pl-14 sm:pl-16">
