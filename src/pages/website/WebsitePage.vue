@@ -149,6 +149,12 @@ const socialProof = computed(() => {
     body: raw.body || raw.subheadline || '',
   };
 });
+
+const heroRatingValue = computed(() => {
+  const headline = socialProof.value.headline || '';
+  const match = headline.match(/(\d+(?:\.\d+)?)/);
+  return match ? match[1] : '4.8';
+});
 const promoBanner = computed(() => {
   const raw = (page.value?.content as any)?.promo || (page.value?.content as any)?.promotion;
   if (!raw) return null as null | { text: string; cta?: string | null; url?: string | null };
@@ -508,6 +514,10 @@ const headerConfig = computed(() => {
 });
 
 const footerConfig = computed(() => data.value?.layout?.footer || { enabled: false });
+
+const socialLinks = computed(() => footerConfig.value?.social || { facebook: null, google: null, instagram: null });
+const facebookLink = computed(() => socialLinks.value?.facebook || null);
+const googleLink = computed(() => socialLinks.value?.google || null);
 
 const navItems = computed(() => {
   const raw = Array.isArray(data.value?.nav) ? data.value.nav : [];
@@ -878,17 +888,47 @@ const footerView = computed(() => {
             : undefined
         "
       >
-        <div class="sf-container grid gap-8 lg:grid-cols-[1.05fr,0.95fr] items-center">
-        <div class="space-y-4">
+        <div class="sf-container relative">
+          <div
+            class="hidden md:flex flex-col gap-4 absolute left-3 lg:left-8 top-1/2 -translate-y-1/2 z-20"
+            aria-label="Social proof and follow links"
+          >
+            <a
+              :href="facebookLink || '#'"
+              target="_blank"
+              rel="noopener"
+              class="bg-white/80 backdrop-blur border border-white/40 rounded-full w-12 h-12 flex items-center justify-center shadow-lg shadow-black/5 transition transform hover:scale-110"
+              :class="!facebookLink ? 'pointer-events-none opacity-70' : ''"
+              aria-label="Follow on Facebook"
+            >
+              <span class="text-[18px] font-semibold text-[#1877F2]">F</span>
+            </a>
+            <a
+              :href="googleLink || '#'"
+              target="_blank"
+              rel="noopener"
+              class="bg-white/80 backdrop-blur border border-white/40 rounded-full w-12 h-12 flex items-center justify-center shadow-lg shadow-black/5 transition transform hover:scale-110"
+              :class="!googleLink ? 'pointer-events-none opacity-70' : ''"
+              aria-label="View Google profile"
+            >
+              <span class="text-[18px] font-semibold text-[#DB4437]">G</span>
+            </a>
+            <div class="bg-white/80 backdrop-blur border border-white/40 rounded-xl px-3 py-2 text-xs font-semibold text-text shadow-lg shadow-black/5">
+              ⭐ {{ heroRatingValue }}
+            </div>
+          </div>
+          <div class="grid gap-8 lg:grid-cols-[1.05fr,0.95fr] items-center md:pl-16">
+          <div class="space-y-4">
           <p class="text-xs uppercase tracking-wide text-muted">{{ page?.slug === 'home' ? 'Salon' : page?.slug }}</p>
           <h1 class="text-3xl font-bold text-text lg:text-4xl">{{ hero.headline || 'Beautiful Nails. Exceptional Care.' }}</h1>
           <p class="text-lg text-muted leading-relaxed">{{ hero.subheadline || '' }}</p>
-          <div class="flex flex-wrap gap-3">
+          <div class="flex flex-wrap items-center gap-3">
             <a
-              class="inline-flex items-center gap-2 rounded-full bg-text px-4 py-2 text-white text-sm font-semibold hover:bg-text/90"
+              class="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-8 py-4 text-white text-lg font-semibold shadow-lg shadow-[0_10px_25px_rgba(236,72,153,0.25)] transition-all duration-200 hover:from-pink-600 hover:to-rose-600 hover:scale-105 active:scale-100 focus-visible:ring-2 focus-visible:ring-rose-100 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
               :href="bookingPath"
             >
-              {{ hero.ctaPrimary || 'Book Appointment' }}
+              <span class="text-xl leading-none">📅</span>
+              <span>{{ hero.ctaPrimary || 'Book Appointment' }}</span>
             </a>
             <a
               v-if="showServicesSection"
@@ -898,7 +938,28 @@ const footerView = computed(() => {
               {{ hero.ctaSecondary || 'Our services' }}
             </a>
           </div>
-        </div>
+          <div class="w-full space-y-2 text-sm text-muted md:hidden">
+            <div class="inline-flex items-center gap-2 rounded-full bg-white/80 backdrop-blur border border-white/40 px-3 py-1 font-semibold text-text shadow-sm">
+              <span>⭐</span>
+              <span>{{ heroRatingValue }} on Google</span>
+            </div>
+            <a
+              v-if="facebookLink"
+              :href="facebookLink"
+              target="_blank"
+              rel="noopener"
+              class="inline-flex items-center gap-2 rounded-full bg-white/80 backdrop-blur border border-white/40 px-3 py-1 font-semibold text-text shadow-sm hover:scale-105 transition"
+            >
+              Follow us on Facebook
+            </a>
+            <span
+              v-else
+              class="inline-flex items-center gap-2 rounded-full bg-white/70 backdrop-blur border border-white/40 px-3 py-1 font-semibold text-text shadow-sm"
+            >
+              Follow us on Facebook
+            </span>
+          </div>
+          </div>
         <div v-if="(heroSlides.length && currentHeroSlide) || heroMedia?.src" class="relative">
           <div
             class="hero-frame rounded-3xl overflow-hidden shadow-2xl border border-border hero-tilt"
@@ -943,11 +1004,11 @@ const footerView = computed(() => {
         >
           <div class="text-sm uppercase tracking-wide text-white/70">Hours</div>
           <p class="mt-2 text-lg font-semibold">{{ contact.hours || 'Open daily' }}</p>
-          <div class="mt-6 text-sm uppercase tracking-wide text-white/70">Call</div>
-          <a
-            :href="contact.phone ? `tel:${contact.phone}` : undefined"
-            class="mt-2 inline-block text-2xl font-bold underline-offset-4 hover:underline"
-            @click.prevent="contact.phone ? trackEvent('click_call') : null"
+            <div class="mt-6 text-sm uppercase tracking-wide text-white/70">Call</div>
+            <a
+              :href="contact.phone ? `tel:${contact.phone}` : undefined"
+              class="mt-2 inline-block text-2xl font-bold underline-offset-4 hover:underline"
+              @click.prevent="contact.phone ? trackEvent('click_call') : null"
           >
             {{ contact.phone || '(361) 000-0000' }}
           </a>
