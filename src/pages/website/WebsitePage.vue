@@ -890,7 +890,7 @@ const footerView = computed(() => {
       >
         <div class="sf-container relative">
           <div
-            class="hidden md:flex flex-col gap-4 absolute left-3 lg:left-8 top-1/2 -translate-y-1/2 z-20"
+            class="hidden md:flex flex-col gap-4 absolute left-12 top-[55%] -translate-y-1/2 z-20"
             aria-label="Social proof and follow links"
           >
             <a
@@ -923,8 +923,12 @@ const footerView = computed(() => {
           <h1 class="text-3xl font-bold text-text lg:text-4xl">{{ hero.headline || 'Beautiful Nails. Exceptional Care.' }}</h1>
           <p class="text-lg text-muted leading-relaxed">{{ hero.subheadline || '' }}</p>
           <div class="flex flex-wrap items-center gap-3">
+            <div class="hidden md:inline-flex items-center gap-2 rounded-full bg-white/85 backdrop-blur border border-white/40 px-3 py-1 text-sm font-semibold text-text shadow-sm mr-4">
+              <span>⭐</span>
+              <span>{{ heroRatingValue }}</span>
+            </div>
             <a
-              class="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-8 py-4 text-white text-lg font-semibold shadow-lg shadow-[0_10px_25px_rgba(236,72,153,0.25)] transition-all duration-200 hover:from-pink-600 hover:to-rose-600 hover:scale-105 active:scale-100 focus-visible:ring-2 focus-visible:ring-rose-100 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
+              class="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-pink-500/90 to-rose-500/90 px-8 py-4 text-white text-lg font-semibold shadow-lg shadow-[0_8px_20px_rgba(236,72,153,0.20)] transition-all duration-200 hover:from-pink-600 hover:to-rose-600 hover:scale-105 hover:-translate-y-1 active:scale-100 focus-visible:ring-2 focus-visible:ring-rose-100 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
               :href="bookingPath"
             >
               <span class="text-xl leading-none">📅</span>
