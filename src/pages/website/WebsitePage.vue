@@ -1030,6 +1030,7 @@ const footerView = computed(() => {
           </p>
         </div>
         </div>
+        </div>
       </section>
 
       <section v-if="isAboutPage" class="sf-container sf-section space-y-6">
