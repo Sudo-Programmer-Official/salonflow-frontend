@@ -890,14 +890,14 @@ const footerView = computed(() => {
       >
         <div class="sf-container relative">
           <div
-            class="hidden md:flex flex-col gap-4 absolute left-12 top-[55%] -translate-y-1/2 z-20"
+            class="flex flex-col gap-3 sm:gap-4 absolute left-2 sm:left-4 lg:left-10 top-1/2 -translate-y-1/2 z-20"
             aria-label="Social proof and follow links"
           >
             <a
               :href="facebookLink || '#'"
               target="_blank"
               rel="noopener"
-              class="bg-white/80 backdrop-blur border border-white/40 rounded-full w-12 h-12 flex items-center justify-center shadow-lg shadow-black/5 transition transform hover:scale-110"
+              class="bg-white/85 backdrop-blur border border-white/40 rounded-full w-10 h-10 sm:w-11 sm:h-11 lg:w-12 lg:h-12 flex items-center justify-center shadow-lg shadow-black/5 transition transform hover:scale-110"
               :class="!facebookLink ? 'pointer-events-none opacity-70' : ''"
               aria-label="Follow on Facebook"
             >
@@ -907,26 +907,22 @@ const footerView = computed(() => {
               :href="googleLink || '#'"
               target="_blank"
               rel="noopener"
-              class="bg-white/80 backdrop-blur border border-white/40 rounded-full w-12 h-12 flex items-center justify-center shadow-lg shadow-black/5 transition transform hover:scale-110"
+              class="bg-white/85 backdrop-blur border border-white/40 rounded-full w-10 h-10 sm:w-11 sm:h-11 lg:w-12 lg:h-12 flex items-center justify-center shadow-lg shadow-black/5 transition transform hover:scale-110"
               :class="!googleLink ? 'pointer-events-none opacity-70' : ''"
               aria-label="View Google profile"
             >
               <span class="text-[18px] font-semibold text-[#DB4437]">G</span>
             </a>
-            <div class="bg-white/80 backdrop-blur border border-white/40 rounded-xl px-3 py-2 text-xs font-semibold text-text shadow-lg shadow-black/5">
+            <div class="bg-white/85 backdrop-blur border border-white/40 rounded-xl px-3 py-2 text-xs font-semibold text-text shadow-lg shadow-black/5">
               ⭐ {{ heroRatingValue }}
             </div>
           </div>
-          <div class="grid gap-8 lg:grid-cols-[1.05fr,0.95fr] items-center md:pl-16">
+          <div class="grid gap-8 lg:grid-cols-[1.05fr,0.95fr] items-center pl-14 sm:pl-16">
           <div class="space-y-4">
           <p class="text-xs uppercase tracking-wide text-muted">{{ page?.slug === 'home' ? 'Salon' : page?.slug }}</p>
           <h1 class="text-3xl font-bold text-text lg:text-4xl">{{ hero.headline || 'Beautiful Nails. Exceptional Care.' }}</h1>
           <p class="text-lg text-muted leading-relaxed">{{ hero.subheadline || '' }}</p>
           <div class="flex flex-wrap items-center gap-3">
-            <div class="hidden md:inline-flex items-center gap-2 rounded-full bg-white/85 backdrop-blur border border-white/40 px-3 py-1 text-sm font-semibold text-text shadow-sm mr-4">
-              <span>⭐</span>
-              <span>{{ heroRatingValue }}</span>
-            </div>
             <a
               class="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-pink-500/90 to-rose-500/90 px-8 py-4 text-white text-lg font-semibold shadow-lg shadow-[0_8px_20px_rgba(236,72,153,0.20)] transition-all duration-200 hover:from-pink-600 hover:to-rose-600 hover:scale-105 hover:-translate-y-1 active:scale-100 focus-visible:ring-2 focus-visible:ring-rose-100 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
               :href="bookingPath"
@@ -936,32 +932,11 @@ const footerView = computed(() => {
             </a>
             <a
               v-if="showServicesSection"
-              class="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-semibold text-text hover:border-border"
+              class="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/10 px-6 py-3 text-sm font-semibold text-white hover:bg-white/15 hover:-translate-y-1 transition"
               href="#services"
             >
               {{ hero.ctaSecondary || 'Our services' }}
             </a>
-          </div>
-          <div class="w-full space-y-2 text-sm text-muted md:hidden">
-            <div class="inline-flex items-center gap-2 rounded-full bg-white/80 backdrop-blur border border-white/40 px-3 py-1 font-semibold text-text shadow-sm">
-              <span>⭐</span>
-              <span>{{ heroRatingValue }} on Google</span>
-            </div>
-            <a
-              v-if="facebookLink"
-              :href="facebookLink"
-              target="_blank"
-              rel="noopener"
-              class="inline-flex items-center gap-2 rounded-full bg-white/80 backdrop-blur border border-white/40 px-3 py-1 font-semibold text-text shadow-sm hover:scale-105 transition"
-            >
-              Follow us on Facebook
-            </a>
-            <span
-              v-else
-              class="inline-flex items-center gap-2 rounded-full bg-white/70 backdrop-blur border border-white/40 px-3 py-1 font-semibold text-text shadow-sm"
-            >
-              Follow us on Facebook
-            </span>
           </div>
           </div>
         <div v-if="(heroSlides.length && currentHeroSlide) || heroMedia?.src" class="relative">
