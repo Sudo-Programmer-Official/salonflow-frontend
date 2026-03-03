@@ -150,11 +150,6 @@ const socialProof = computed(() => {
   };
 });
 
-const heroRatingValue = computed(() => {
-  const headline = socialProof.value.headline || '';
-  const match = headline.match(/(\d+(?:\.\d+)?)/);
-  return match ? match[1] : '4.8';
-});
 const promoBanner = computed(() => {
   const raw = (page.value?.content as any)?.promo || (page.value?.content as any)?.promotion;
   if (!raw) return null as null | { text: string; cta?: string | null; url?: string | null };
