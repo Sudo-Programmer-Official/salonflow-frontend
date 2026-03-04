@@ -245,7 +245,7 @@ const toggleMobile = () => {
   transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease, filter 160ms ease;
 }
 .sf-button.solid {
-  background: linear-gradient(120deg, color-mix(in srgb, var(--sf-primary, #ec4899) 96%, #fff 4%), color-mix(in srgb, #db2777 88%, #fff 12%));
+  background: linear-gradient(120deg, color-mix(in srgb, var(--sf-primary, #ec4899) 92%, #fff 8%), color-mix(in srgb, #db2777 90%, #fff 10%));
   color: #fff;
   box-shadow: 0 12px 30px rgba(236, 72, 153, 0.28);
 }

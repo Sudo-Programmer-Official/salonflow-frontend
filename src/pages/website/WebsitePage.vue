@@ -195,7 +195,7 @@ const contactHoursLines = computed(() => {
     .map((line) => line.trim())
     .filter(Boolean);
 });
-const contactEmail = computed(() => contact.value?.email || 'info@mtvnails.com');
+const contactEmail = computed(() => contact.value?.email || 'hautespotofmtvnails2015@gmail.com');
 const mapEmbedSrc = computed(() => {
   const c = contact.value || {};
   const explicit =
