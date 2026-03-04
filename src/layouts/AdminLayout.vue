@@ -428,7 +428,11 @@ const visibleGroups = computed(() =>
 );
 
 const isGroupOpen = (key: string, defaultOpen = false) =>
-  groupState.value[key] !== undefined ? groupState.value[key] : defaultOpen;
+  isSidebarCollapsed.value
+    ? true
+    : groupState.value[key] !== undefined
+      ? groupState.value[key]
+      : defaultOpen;
 
 const persistGroupState = () => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(groupState.value));
