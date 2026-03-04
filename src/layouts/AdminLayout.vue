@@ -496,7 +496,7 @@ const toggleSidebarCollapse = () => {
 </script>
 
 <template>
-  <div class="admin-shell text-slate-900">
+  <div class="admin-shell text-slate-900 admin-theme">
     <aside v-if="showSidebar" :class="['sidebar', { open: sidebarOpen, collapsed: isSidebarCollapsed }]">
       <div class="sidebar__brand">
         <button
@@ -810,13 +810,14 @@ const toggleSidebarCollapse = () => {
   </div>
 </template>
 
+<style scoped src="../themes/admin-theme.css"></style>
 <style scoped>
 .admin-shell {
   display: flex;
   height: 100vh;
   width: 100vw;
   overflow: hidden;
-  background: var(--bg-app);
+  background: #f8fafc;
 }
 .admin-main {
   flex: 1;
@@ -988,15 +989,15 @@ const toggleSidebarCollapse = () => {
   font-size: var(--font-md);
 }
 .nav-link--active {
-  background: #ec4899;
+  background: rgba(15, 23, 42, 0.92);
   color: #fff;
-  box-shadow: 0 12px 30px rgba(236, 72, 153, 0.24);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
 }
 .nav-link--idle {
-  color: #475569;
+  color: #334155;
 }
 .nav-link--idle:hover {
-  background: rgba(15, 23, 42, 0.06);
+  background: rgba(226, 232, 240, 0.7);
   color: #0f172a;
 }
 .nav-link__badge {

@@ -36,6 +36,16 @@ export type SmsPackInfo = {
   price: number;
 };
 
+export type SmsLedgerEntry = {
+  id?: string;
+  createdAt: string;
+  delta: number;
+  reason: string;
+  amountUsd: number | null;
+  referenceType?: string | null;
+  referenceId?: string | null;
+};
+
 export async function fetchBillingStatus(): Promise<{
   subscriptionStatus: SubscriptionStatus;
   subscriptionCurrentPeriodEnd: string | null;
@@ -62,14 +72,7 @@ export async function fetchBillingStatus(): Promise<{
   smsUsage?: SmsUsage;
   smsPricing?: SmsPricing;
   smsPacks?: SmsPackInfo[];
-  smsLedger?: Array<{
-    createdAt: string;
-    delta: number;
-    reason: string;
-    amountUsd: number | null;
-    referenceType?: string | null;
-    referenceId?: string | null;
-  }>;
+  smsLedger?: SmsLedgerEntry[];
 }> {
   const res = await fetch(`${apiBase}/status`, {
     headers: buildHeaders({ auth: true, tenant: true, json: true }),
@@ -77,6 +80,25 @@ export async function fetchBillingStatus(): Promise<{
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || 'Failed to load billing status');
+  }
+  return res.json();
+}
+
+export async function fetchSmsLedgerPage(params: {
+  limit?: number;
+  cursor?: string | null;
+  direction?: 'forward' | 'backward';
+}): Promise<{ items: SmsLedgerEntry[]; nextCursor: string | null; prevCursor: string | null }> {
+  const q = new URLSearchParams();
+  if (params.limit) q.set('limit', String(params.limit));
+  if (params.cursor) q.set('cursor', params.cursor);
+  if (params.direction) q.set('direction', params.direction);
+  const res = await fetch(`${apiBase}/sms-ledger?${q.toString()}`, {
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to load SMS ledger');
   }
   return res.json();
 }

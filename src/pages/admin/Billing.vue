@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, computed, watch } from 'vue';
+import { onMounted, ref, computed } from 'vue';
 import { ElCard, ElAlert, ElMessage, ElDivider, ElInputNumber } from 'element-plus';
 import {
   fetchBillingStatus,
@@ -12,6 +12,8 @@ import {
   type SmsUsage,
   type SmsPricing,
   type SmsPackInfo,
+  type SmsLedgerEntry,
+  fetchSmsLedgerPage,
 } from '../../api/billing';
 import { resetTrialState, setTrialEndsAt } from '../../api/trialBanner';
 import { formatInBusinessTz } from '../../utils/dates';
@@ -41,18 +43,11 @@ const smsCredits = ref<SmsCredits | null>(null);
 const smsUsage = ref<SmsUsage | null>(null);
 const smsPricing = ref<SmsPricing | null>(null);
 const smsPacks = ref<SmsPackInfo[]>([]);
-const smsLedger = ref<
-  Array<{
-    createdAt: string;
-    delta: number;
-    reason: string;
-    amountUsd: number | null;
-    referenceType?: string | null;
-    referenceId?: string | null;
-  }>
->([]);
-const ledgerPage = ref(1);
+const smsLedgerPage = ref<SmsLedgerEntry[]>([]);
+const ledgerNextCursor = ref<string | null>(null);
+const ledgerPrevCursor = ref<string | null>(null);
 const ledgerPageSize = ref(50);
+const ledgerLoading = ref(false);
 const packQuantities = ref<Record<number, number>>({
   500: 1,
   1500: 1,
@@ -84,8 +79,8 @@ const loadStatus = async () => {
     smsUsage.value = data.smsUsage ?? null;
     smsPricing.value = data.smsPricing ?? null;
     smsPacks.value = Array.isArray(data.smsPacks) ? data.smsPacks : [];
-    smsLedger.value = Array.isArray(data.smsLedger) ? data.smsLedger : [];
-    ledgerPage.value = 1;
+    // prime first page from status (if present) to avoid extra round-trip
+    smsLedgerPage.value = Array.isArray(data.smsLedger) ? data.smsLedger.slice(0, ledgerPageSize.value) : [];
     setTrialEndsAt(data.trialEndsAt);
     if (data.subscriptionStatus === 'active') {
       resetTrialState();
@@ -111,26 +106,22 @@ const loadSmsCredits = async () => {
 onMounted(() => {
   loadStatus();
   loadSmsCredits();
+  loadLedger(null, 'forward');
 });
 
-const ledgerTotal = computed(() => smsLedger.value.length);
-const ledgerStart = computed(() => Math.min((ledgerPage.value - 1) * ledgerPageSize.value + 1, ledgerTotal.value || 0));
-const ledgerEnd = computed(() => Math.min(ledgerPage.value * ledgerPageSize.value, ledgerTotal.value));
-const ledgerTotalPages = computed(() => Math.max(1, Math.ceil((ledgerTotal.value || 1) / ledgerPageSize.value)));
-const pagedSmsLedger = computed(() =>
-  smsLedger.value.slice((ledgerPage.value - 1) * ledgerPageSize.value, ledgerPage.value * ledgerPageSize.value),
-);
-
-watch(ledgerPageSize, () => {
-  ledgerPage.value = 1;
-});
-
-watch(
-  () => ledgerTotal.value,
-  () => {
-    ledgerPage.value = Math.min(ledgerPage.value, ledgerTotalPages.value);
-  },
-);
+const loadLedger = async (cursor: string | null, direction: 'forward' | 'backward') => {
+  ledgerLoading.value = true;
+  try {
+    const page = await fetchSmsLedgerPage({ cursor, direction, limit: ledgerPageSize.value });
+    smsLedgerPage.value = page.items;
+    ledgerNextCursor.value = page.nextCursor;
+    ledgerPrevCursor.value = page.prevCursor;
+  } catch (err: any) {
+    ElMessage.error(err?.message || 'Failed to load SMS ledger');
+  } finally {
+    ledgerLoading.value = false;
+  }
+};
 
 const handleCheckout = async (plan: 'monthly' | 'annual') => {
   actionLoading.value = plan;
@@ -308,7 +299,7 @@ const smsCreditBalance = computed<{
 });
 
 const lastCreditPurchase = computed(() => {
-  const entry = smsLedger.value.find((e) => e.delta > 0 && e.reason !== 'SMS_SEND');
+  const entry = smsLedgerPage.value.find((e) => e.delta > 0 && e.reason !== 'SMS_SEND');
   if (!entry) return null;
   return {
     date: entry.createdAt,
@@ -584,12 +575,15 @@ const lastCreditPurchase = computed(() => {
               </tr>
             </thead>
             <tbody>
-              <tr v-if="smsLedger.length === 0">
+              <tr v-if="ledgerLoading">
+                <td colspan="4" class="px-3 py-3 text-slate-500">Loading…</td>
+              </tr>
+              <tr v-else-if="smsLedgerPage.length === 0">
                 <td colspan="4" class="px-3 py-3 text-slate-500">No SMS credit activity yet.</td>
               </tr>
               <tr
-                v-for="entry in pagedSmsLedger"
-                :key="`${entry.createdAt}-${entry.referenceId || entry.reason}`"
+                v-for="entry in smsLedgerPage"
+                :key="entry.id || `${entry.createdAt}-${entry.referenceId || entry.reason}`"
                 class="border-t border-slate-100"
               >
                 <td class="px-3 py-2 text-slate-800">
@@ -612,43 +606,33 @@ const lastCreditPurchase = computed(() => {
           </table>
         </div>
         <div class="flex flex-wrap items-center justify-between gap-3 px-2 py-3 border-t border-slate-100">
-          <div class="text-sm text-slate-600">
-            Showing
-            <span class="font-semibold text-slate-800">{{ ledgerStart || 0 }}</span>
-            –
-            <span class="font-semibold text-slate-800">{{ ledgerEnd || 0 }}</span>
-            of
-            <span class="font-semibold text-slate-800">{{ ledgerTotal }}</span>
-          </div>
           <div class="flex items-center gap-2">
             <label class="text-xs text-slate-500">Page size</label>
             <select
               v-model.number="ledgerPageSize"
               class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-rose-200"
+              @change="loadLedger(null, 'forward')"
             >
               <option :value="25">25</option>
               <option :value="50">50</option>
               <option :value="100">100</option>
             </select>
-            <div class="flex items-center gap-1">
-              <button
-                class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm text-slate-700 disabled:opacity-50"
-                :disabled="ledgerPage <= 1"
-                @click="ledgerPage = Math.max(1, ledgerPage - 1)"
-              >
-                Prev
-              </button>
-              <span class="text-sm text-slate-600 px-2">
-                {{ ledgerPage }} / {{ ledgerTotalPages }}
-              </span>
-              <button
-                class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm text-slate-700 disabled:opacity-50"
-                :disabled="ledgerPage >= ledgerTotalPages"
-                @click="ledgerPage = Math.min(ledgerTotalPages, ledgerPage + 1)"
-              >
-                Next
-              </button>
-            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button
+              class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm text-slate-700 disabled:opacity-50"
+              :disabled="!ledgerPrevCursor || ledgerLoading"
+              @click="loadLedger(ledgerPrevCursor, 'backward')"
+            >
+              Prev
+            </button>
+            <button
+              class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm text-slate-700 disabled:opacity-50"
+              :disabled="!ledgerNextCursor || ledgerLoading"
+              @click="loadLedger(ledgerNextCursor, 'forward')"
+            >
+              Next
+            </button>
           </div>
         </div>
       </ElCard>
