@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue';
+import { onMounted, ref, computed, watch } from 'vue';
 import { ElCard, ElAlert, ElMessage, ElDivider, ElInputNumber } from 'element-plus';
 import {
   fetchBillingStatus,
@@ -51,6 +51,8 @@ const smsLedger = ref<
     referenceId?: string | null;
   }>
 >([]);
+const ledgerPage = ref(1);
+const ledgerPageSize = ref(50);
 const packQuantities = ref<Record<number, number>>({
   500: 1,
   1500: 1,
@@ -83,6 +85,7 @@ const loadStatus = async () => {
     smsPricing.value = data.smsPricing ?? null;
     smsPacks.value = Array.isArray(data.smsPacks) ? data.smsPacks : [];
     smsLedger.value = Array.isArray(data.smsLedger) ? data.smsLedger : [];
+    ledgerPage.value = 1;
     setTrialEndsAt(data.trialEndsAt);
     if (data.subscriptionStatus === 'active') {
       resetTrialState();
@@ -109,6 +112,25 @@ onMounted(() => {
   loadStatus();
   loadSmsCredits();
 });
+
+const ledgerTotal = computed(() => smsLedger.value.length);
+const ledgerStart = computed(() => Math.min((ledgerPage.value - 1) * ledgerPageSize.value + 1, ledgerTotal.value || 0));
+const ledgerEnd = computed(() => Math.min(ledgerPage.value * ledgerPageSize.value, ledgerTotal.value));
+const ledgerTotalPages = computed(() => Math.max(1, Math.ceil((ledgerTotal.value || 1) / ledgerPageSize.value)));
+const pagedSmsLedger = computed(() =>
+  smsLedger.value.slice((ledgerPage.value - 1) * ledgerPageSize.value, ledgerPage.value * ledgerPageSize.value),
+);
+
+watch(ledgerPageSize, () => {
+  ledgerPage.value = 1;
+});
+
+watch(
+  () => ledgerTotal.value,
+  () => {
+    ledgerPage.value = Math.min(ledgerPage.value, ledgerTotalPages.value);
+  },
+);
 
 const handleCheckout = async (plan: 'monthly' | 'annual') => {
   actionLoading.value = plan;
@@ -566,7 +588,7 @@ const lastCreditPurchase = computed(() => {
                 <td colspan="4" class="px-3 py-3 text-slate-500">No SMS credit activity yet.</td>
               </tr>
               <tr
-                v-for="entry in smsLedger"
+                v-for="entry in pagedSmsLedger"
                 :key="`${entry.createdAt}-${entry.referenceId || entry.reason}`"
                 class="border-t border-slate-100"
               >
@@ -588,6 +610,46 @@ const lastCreditPurchase = computed(() => {
               </tr>
             </tbody>
           </table>
+        </div>
+        <div class="flex flex-wrap items-center justify-between gap-3 px-2 py-3 border-t border-slate-100">
+          <div class="text-sm text-slate-600">
+            Showing
+            <span class="font-semibold text-slate-800">{{ ledgerStart || 0 }}</span>
+            –
+            <span class="font-semibold text-slate-800">{{ ledgerEnd || 0 }}</span>
+            of
+            <span class="font-semibold text-slate-800">{{ ledgerTotal }}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="text-xs text-slate-500">Page size</label>
+            <select
+              v-model.number="ledgerPageSize"
+              class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-rose-200"
+            >
+              <option :value="25">25</option>
+              <option :value="50">50</option>
+              <option :value="100">100</option>
+            </select>
+            <div class="flex items-center gap-1">
+              <button
+                class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm text-slate-700 disabled:opacity-50"
+                :disabled="ledgerPage <= 1"
+                @click="ledgerPage = Math.max(1, ledgerPage - 1)"
+              >
+                Prev
+              </button>
+              <span class="text-sm text-slate-600 px-2">
+                {{ ledgerPage }} / {{ ledgerTotalPages }}
+              </span>
+              <button
+                class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm text-slate-700 disabled:opacity-50"
+                :disabled="ledgerPage >= ledgerTotalPages"
+                @click="ledgerPage = Math.min(ledgerTotalPages, ledgerPage + 1)"
+              >
+                Next
+              </button>
+            </div>
+          </div>
         </div>
       </ElCard>
     </section>
