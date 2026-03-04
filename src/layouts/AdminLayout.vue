@@ -865,8 +865,10 @@ const toggleSidebarCollapse = () => {
 .sidebar.collapsed .sidebar__brand-text,
 .sidebar.collapsed .sidebar__section-header,
 .sidebar.collapsed .nav-link__right,
-.sidebar.collapsed .sidebar__section-caret,
-.sidebar.collapsed .sidebar__section-body .nav-link span:not(.nav-link__icon) {
+.sidebar.collapsed .sidebar__section-caret {
+  display: none;
+}
+.sidebar.collapsed .nav-link__left > span:not(.nav-link__icon) {
   display: none;
 }
 .sidebar.collapsed .sidebar__section {
@@ -1031,6 +1033,10 @@ const toggleSidebarCollapse = () => {
 }
 .nav-link--active .nav-link__icon {
   color: #fff;
+}
+.nav-link__icon svg {
+  color: currentColor;
+  stroke: currentColor;
 }
 .nav-link__right {
   display: inline-flex;
