@@ -1015,11 +1015,16 @@ const toggleSidebarCollapse = () => {
   width: 20px;
   min-width: 20px;
   text-align: center;
-  font-size: 14px;
+  font-size: 15px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: #475569;
+  line-height: 1;
+}
+.sidebar.collapsed .nav-link__icon {
+  opacity: 1;
+  color: #0f172a;
 }
 .nav-link--idle:hover .nav-link__icon {
   color: #0f172a;
