@@ -1746,6 +1746,11 @@ watch(completedPage, async (val) => {
 .queue-card .sf-btn {
   min-height: 40px;
 }
+.queue-card .sf-btn.queue-action-btn.primary {
+  background: var(--sf-primary, #0ea5e9);
+  color: #ffffff;
+  border: 1px solid color-mix(in srgb, var(--sf-primary, #0ea5e9) 60%, #fff);
+}
 .queue-card .meta {
   font-size: 0.85rem;
   opacity: 0.75;
