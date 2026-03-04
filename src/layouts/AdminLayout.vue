@@ -810,7 +810,7 @@ const toggleSidebarCollapse = () => {
   </div>
 </template>
 
-<style scoped src="../themes/admin-theme.css"></style>
+<style src="../themes/admin-theme.css"></style>
 <style scoped>
 .admin-shell {
   display: flex;
