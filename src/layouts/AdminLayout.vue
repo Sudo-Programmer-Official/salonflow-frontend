@@ -880,10 +880,13 @@ const toggleSidebarCollapse = () => {
 }
 .sidebar.collapsed .nav-link {
   justify-content: center;
-  padding: 10px 8px;
+  padding: 12px;
 }
 .sidebar.collapsed .nav-link__icon {
   font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .collapse-toggle {
   border: 1px solid rgba(148, 163, 184, 0.35);
@@ -1010,8 +1013,12 @@ const toggleSidebarCollapse = () => {
 }
 .nav-link__icon {
   width: 20px;
+  min-width: 20px;
   text-align: center;
   font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: #475569;
 }
 .nav-link--idle:hover .nav-link__icon {
