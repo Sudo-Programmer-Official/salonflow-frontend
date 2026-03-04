@@ -183,12 +183,19 @@ const contactPolicies = computed(() => {
 });
 const contactHoursLines = computed(() => {
   const h = contact.value?.hours;
-  if (!h) return [] as string[];
+  if (!h) {
+    return [
+      'Mon – Thu 10:00 AM – 8:00 PM',
+      'Fri – Sat 10:00 AM – 9:00 PM',
+      'Sun 10:00 AM – 6:00 PM',
+    ];
+  }
   return String(h)
     .split(/\n+/)
     .map((line) => line.trim())
     .filter(Boolean);
 });
+const contactEmail = computed(() => contact.value?.email || 'info@mtvnails.com');
 const mapEmbedSrc = computed(() => {
   const c = contact.value || {};
   const explicit =
@@ -1284,7 +1291,7 @@ const footerView = computed(() => {
               </div>
               <div class="rounded-xl border border-border bg-surface p-4 shadow-sm">
                 <div class="text-sm uppercase tracking-wide text-muted">Email</div>
-                <div class="text-base text-text">{{ contact.email || 'your@email.com' }}</div>
+                <div class="text-base text-text">{{ contactEmail }}</div>
               </div>
               <div class="rounded-xl border border-border bg-surface p-4 shadow-sm">
                 <div class="text-sm uppercase tracking-wide text-muted">Hours</div>

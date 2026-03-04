@@ -165,13 +165,13 @@ const toggleMobile = () => {
   width: 40px;
   height: 40px;
   border-radius: var(--sf-radius, 14px);
-  background: linear-gradient(140deg, color-mix(in srgb, var(--sf-primary, #ec4899) 85%, #fff 15%), color-mix(in srgb, var(--sf-accent, #f472b6) 75%, #fff 25%));
+  background: linear-gradient(135deg, #f472b6 0%, #ec4899 60%, #db2777 100%);
   color: #fff;
   font-weight: 700;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: var(--sf-shadow, 0 12px 30px rgba(15, 23, 42, 0.14));
+  box-shadow: 0 10px 26px rgba(236, 72, 153, 0.3);
 }
 .sf-header__brand-text {
   line-height: 1.1;

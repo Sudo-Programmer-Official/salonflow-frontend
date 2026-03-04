@@ -266,7 +266,7 @@ function formatRange(days: string[]) {
             :href="social.facebook"
             target="_blank"
             rel="noopener"
-            class="inline-flex w-fit items-center gap-2 rounded-lg bg-[#1877F2] px-4 py-2 text-white text-sm font-semibold tracking-[0.02em] uppercase shadow-lg shadow-blue-500/30 hover:bg-[#0f6ae8] hover:-translate-y-0.5 hover:shadow-xl transition"
+            class="sf-footer__facebook-btn inline-flex w-fit items-center gap-2 rounded-lg bg-[#1877F2] px-4 py-2 text-white text-sm font-semibold tracking-[0.02em] uppercase shadow-lg shadow-blue-500/30 hover:bg-[#0f6ae8] hover:-translate-y-0.5 hover:shadow-xl transition"
             aria-label="Follow us on Facebook"
           >
             <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
@@ -410,6 +410,9 @@ function formatRange(days: string[]) {
 }
 .sf-footer__social a:hover {
   color: color-mix(in srgb, var(--sf-primary, #ec4899) 60%, #0f172a 40%);
+}
+.sf-footer__facebook-btn {
+  color: #fff !important;
 }
 .sf-footer__pill {
   display: inline-flex;
