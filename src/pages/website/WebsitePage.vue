@@ -513,6 +513,32 @@ const footerConfig = computed(() => data.value?.layout?.footer || { enabled: fal
 const socialLinks = computed(() => footerConfig.value?.social || { facebook: null, google: null, instagram: null });
 const facebookLink = computed(() => socialLinks.value?.facebook || null);
 
+const heroAddress = computed(() => {
+  const explicit = hero.value?.address || hero.value?.location;
+  if (explicit) return String(explicit).trim();
+  const contactAddress = contact.value?.address;
+  if (contactAddress) return String(contactAddress).trim();
+  return '5488 South Padre Island Dr, Corpus Christi, TX';
+});
+
+const heroPhone = computed(() => {
+  const explicit = hero.value?.phone;
+  if (explicit) return String(explicit).trim();
+  if (contact.value?.phone) return String(contact.value.phone).trim();
+  return '(361) 986-1555';
+});
+
+const heroPhoneHref = computed(() => {
+  const digits = heroPhone.value?.replace(/[^0-9+]/g, '');
+  return digits ? `tel:${digits.startsWith('+') ? digits : digits}` : null;
+});
+
+const heroAddressMapUrl = computed(() =>
+  heroAddress.value
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(heroAddress.value)}`
+    : null,
+);
+
 const navItems = computed(() => {
   const raw = Array.isArray(data.value?.nav) ? data.value.nav : [];
   const items = raw
@@ -888,6 +914,43 @@ const footerView = computed(() => {
               <p class="text-xs uppercase tracking-wide text-muted">{{ page?.slug === 'home' ? 'Salon' : page?.slug }}</p>
               <h1 class="text-3xl font-bold text-text lg:text-4xl">{{ hero.headline || 'Beautiful Nails. Exceptional Care.' }}</h1>
               <p class="text-lg text-muted leading-relaxed">{{ hero.subheadline || '' }}</p>
+              <div class="space-y-3 text-white">
+                <a
+                  v-if="heroAddressMapUrl"
+                  :href="heroAddressMapUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="inline-flex items-center gap-2 text-base sm:text-lg font-medium text-white/90 hover:text-white transition"
+                >
+                  <svg class="w-5 h-5 text-pink-200" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path
+                      d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11Z"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <circle cx="12" cy="10" r="2.4" stroke="currentColor" stroke-width="1.6" />
+                  </svg>
+                  <span class="leading-tight">{{ heroAddress }}</span>
+                </a>
+                <a
+                  v-if="heroPhoneHref"
+                  :href="heroPhoneHref"
+                  class="inline-flex items-center gap-2 text-base sm:text-lg font-semibold text-white hover:text-pink-200 transition"
+                  @click="trackEvent('click_call')"
+                >
+                  <svg class="w-5 h-5 text-pink-200" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path
+                      d="M8.5 3.5 6 6c.5 4 3.5 7 7.5 7.5l2.5-2.5 3 3-1.8 1.8c-.4.4-1 .6-1.6.6-6 0-11-5-11-11 0-.6.2-1.2.6-1.6Z"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                  <span class="leading-tight">{{ heroPhone }}</span>
+                </a>
+              </div>
               <div class="flex flex-col gap-4">
                 <div class="flex flex-wrap items-center gap-3">
                   <a

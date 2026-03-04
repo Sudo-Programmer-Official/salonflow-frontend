@@ -292,7 +292,13 @@ const sidebarGroups = computed(() => [
     label: 'Core',
     defaultOpen: true,
     items: [
-      { label: 'Dashboard', name: 'admin-dashboard', icon: '📊', roles: ['OWNER'] },
+      {
+        label: 'Dashboard',
+        name: 'admin-dashboard',
+        iconSvg:
+          '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>',
+        roles: ['OWNER'],
+      },
       { label: 'Queue', name: 'admin-queue', icon: '⏳', roles: ['OWNER', 'STAFF'] },
     ],
   },
@@ -527,6 +533,7 @@ const toggleSidebarCollapse = () => {
                 :to="{ name: item.name }"
                 class="nav-link"
                 :class="route.name === item.name ? 'nav-link--active' : 'nav-link--idle'"
+                :title="isSidebarCollapsed ? item.label : undefined"
               >
                 <div class="nav-link__left">
                   <span class="nav-link__icon" aria-hidden="true">
@@ -972,15 +979,16 @@ const toggleSidebarCollapse = () => {
   font-size: var(--font-md);
 }
 .nav-link--active {
-  background: rgba(15, 23, 42, 0.92);
+  background: #ec4899;
   color: #fff;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+  box-shadow: 0 12px 30px rgba(236, 72, 153, 0.24);
 }
 .nav-link--idle {
-  color: #334155;
+  color: #475569;
 }
 .nav-link--idle:hover {
-  background: rgba(226, 232, 240, 0.7);
+  background: rgba(15, 23, 42, 0.06);
+  color: #0f172a;
 }
 .nav-link__badge {
   font-size: 10px;
@@ -1000,6 +1008,13 @@ const toggleSidebarCollapse = () => {
   width: 20px;
   text-align: center;
   font-size: 14px;
+  color: #475569;
+}
+.nav-link--idle:hover .nav-link__icon {
+  color: #0f172a;
+}
+.nav-link--active .nav-link__icon {
+  color: #fff;
 }
 .nav-link__right {
   display: inline-flex;

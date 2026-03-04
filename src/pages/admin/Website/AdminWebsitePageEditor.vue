@@ -26,6 +26,7 @@ const page = ref<WebsitePage | null>(null);
 const form = ref({
   heroHeadline: '',
   heroSubheadline: '',
+  heroPhone: '',
   ctaText: '',
   heroImage: [] as string[],
   services: [{ title: '', description: '', image: [] as string[] }],
@@ -60,6 +61,7 @@ const load = async () => {
       const c = match.content || {};
       form.value.heroHeadline = c.hero?.headline || '';
       form.value.heroSubheadline = c.hero?.subheadline || '';
+      form.value.heroPhone = c.hero?.phone || '';
       form.value.ctaText = c.hero?.ctaPrimary || '';
       form.value.heroImage = c.hero?.image ? [c.hero.image] : [];
       form.value.services =
@@ -139,6 +141,7 @@ const save = async (publish: boolean) => {
       hero: {
         headline: form.value.heroHeadline,
         subheadline: form.value.heroSubheadline,
+        phone: form.value.heroPhone,
         ctaPrimary: form.value.ctaText,
         image: form.value.heroImage[0] || null,
       },
@@ -246,6 +249,9 @@ const goBack = () =>
         </ElFormItem>
         <ElFormItem label="Hero subheadline" class="md:col-span-2">
           <ElInput v-model="form.heroSubheadline" />
+        </ElFormItem>
+        <ElFormItem label="Hero phone (optional, overrides contact phone)">
+          <ElInput v-model="form.heroPhone" placeholder="e.g. (361) 986-1555" />
         </ElFormItem>
         <ElFormItem label="CTA text">
           <ElInput v-model="form.ctaText" />
