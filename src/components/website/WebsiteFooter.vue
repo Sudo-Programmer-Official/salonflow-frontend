@@ -266,7 +266,7 @@ function formatRange(days: string[]) {
             :href="social.facebook"
             target="_blank"
             rel="noopener"
-            class="inline-flex items-center gap-2 rounded-lg bg-[#1877F2] px-4 py-2 text-white text-sm font-semibold shadow-lg shadow-blue-500/30 hover:bg-[#0f6ae8] transition"
+            class="inline-flex w-fit items-center gap-2 rounded-lg bg-[#1877F2] px-4 py-2 text-white text-sm font-semibold tracking-[0.02em] uppercase shadow-lg shadow-blue-500/30 hover:bg-[#0f6ae8] hover:-translate-y-0.5 hover:shadow-xl transition"
             aria-label="Follow us on Facebook"
           >
             <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
@@ -274,7 +274,7 @@ function formatRange(days: string[]) {
                 d="M14.5 5.5H16V2.7c-.8-.1-1.7-.2-2.5-.2-2.5 0-4.2 1.6-4.2 4.4V9H7v3h2.3v7h3.1V12h2.6l.4-3H12V7c0-.9.3-1.5 1.5-1.5Z"
               />
             </svg>
-            <span class="tracking-[0.02em] uppercase">Follow us on Facebook</span>
+            <span>Follow us on Facebook</span>
           </a>
         </div>
       </div>

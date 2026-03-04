@@ -888,7 +888,7 @@ const footerView = computed(() => {
               <p class="text-xs uppercase tracking-wide text-muted">{{ page?.slug === 'home' ? 'Salon' : page?.slug }}</p>
               <h1 class="text-3xl font-bold text-text lg:text-4xl">{{ hero.headline || 'Beautiful Nails. Exceptional Care.' }}</h1>
               <p class="text-lg text-muted leading-relaxed">{{ hero.subheadline || '' }}</p>
-              <div class="flex flex-col gap-3">
+              <div class="flex flex-col gap-4">
                 <div class="flex flex-wrap items-center gap-3">
                   <a
                     class="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-rose-500 to-pink-600 px-9 py-4 text-white text-lg font-semibold shadow-[0_14px_30px_rgba(236,72,153,0.28)] transition-all duration-200 hover:from-rose-600 hover:to-pink-600 hover:shadow-[0_18px_38px_rgba(236,72,153,0.32)] hover:scale-105 hover:-translate-y-1 active:scale-100 focus-visible:ring-2 focus-visible:ring-rose-100 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
@@ -910,7 +910,7 @@ const footerView = computed(() => {
                   :href="facebookLink"
                   target="_blank"
                   rel="noopener"
-                  class="inline-flex w-fit items-center gap-2 rounded-lg bg-[#1877F2] px-4 py-2 text-white text-sm font-semibold shadow-lg shadow-blue-500/30 hover:bg-[#0f6ae8] hover:-translate-y-0.5 hover:shadow-xl transition"
+                  class="inline-flex w-fit items-center gap-2 rounded-lg bg-[#1877F2] px-4 py-2 text-white text-sm font-semibold shadow-lg shadow-blue-500/30 hover:bg-[#0f6ae8] hover:-translate-y-0.5 hover:shadow-xl transition mt-1"
                   aria-label="Follow us on Facebook"
                 >
                   <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
