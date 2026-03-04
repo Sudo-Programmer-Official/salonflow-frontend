@@ -882,46 +882,43 @@ const footerView = computed(() => {
             : undefined
         "
       >
-        <div
-          class="pointer-events-auto flex flex-col gap-3 sm:gap-4 absolute left-3 sm:left-5 lg:left-10 xl:left-14 top-1/2 -translate-y-1/2 z-20"
-          aria-label="Social proof and follow links"
-        >
-          <a
-            :href="facebookLink || '#'"
-            target="_blank"
-            rel="noopener"
-            class="inline-flex items-center gap-2 rounded-lg bg-[#1877F2] px-4 py-2 text-white text-sm font-semibold shadow-lg shadow-blue-500/30 hover:bg-[#0f6ae8] hover:-translate-y-0.5 hover:shadow-xl transition"
-            :class="!facebookLink ? 'pointer-events-none opacity-70' : ''"
-            aria-label="Follow us on Facebook"
-          >
-            <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
-              <path
-                d="M14.5 5.5H16V2.7c-.8-.1-1.7-.2-2.5-.2-2.5 0-4.2 1.6-4.2 4.4V9H7v3h2.3v7h3.1V12h2.6l.4-3H12V7c0-.9.3-1.5 1.5-1.5Z"
-              />
-            </svg>
-            <span class="tracking-[0.02em] uppercase">Follow us on Facebook</span>
-          </a>
-        </div>
         <div class="sf-container relative">
           <div class="grid gap-8 lg:grid-cols-[1.05fr,0.95fr] items-center pl-14 sm:pl-16">
             <div class="space-y-4">
               <p class="text-xs uppercase tracking-wide text-muted">{{ page?.slug === 'home' ? 'Salon' : page?.slug }}</p>
               <h1 class="text-3xl font-bold text-text lg:text-4xl">{{ hero.headline || 'Beautiful Nails. Exceptional Care.' }}</h1>
               <p class="text-lg text-muted leading-relaxed">{{ hero.subheadline || '' }}</p>
-              <div class="flex flex-wrap items-center gap-3">
+              <div class="flex flex-col gap-3">
+                <div class="flex flex-wrap items-center gap-3">
+                  <a
+                    class="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-rose-500 to-pink-600 px-9 py-4 text-white text-lg font-semibold shadow-[0_14px_30px_rgba(236,72,153,0.28)] transition-all duration-200 hover:from-rose-600 hover:to-pink-600 hover:shadow-[0_18px_38px_rgba(236,72,153,0.32)] hover:scale-105 hover:-translate-y-1 active:scale-100 focus-visible:ring-2 focus-visible:ring-rose-100 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
+                    :href="bookingPath"
+                  >
+                    <span class="text-xl leading-none">📅</span>
+                    <span>{{ hero.ctaPrimary || 'Book Appointment' }}</span>
+                  </a>
+                  <a
+                    v-if="showServicesSection"
+                    class="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/10 px-7 py-3.5 text-base font-semibold text-white hover:bg-white/15 hover:-translate-y-1 hover:shadow-lg transition"
+                    href="#services"
+                  >
+                    {{ hero.ctaSecondary || 'Our services' }}
+                  </a>
+                </div>
                 <a
-                  class="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-rose-500 to-pink-600 px-9 py-4 text-white text-lg font-semibold shadow-[0_14px_30px_rgba(236,72,153,0.28)] transition-all duration-200 hover:from-rose-600 hover:to-pink-600 hover:shadow-[0_18px_38px_rgba(236,72,153,0.32)] hover:scale-105 hover:-translate-y-1 active:scale-100 focus-visible:ring-2 focus-visible:ring-rose-100 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
-                  :href="bookingPath"
+                  v-if="facebookLink"
+                  :href="facebookLink"
+                  target="_blank"
+                  rel="noopener"
+                  class="inline-flex w-fit items-center gap-2 rounded-lg bg-[#1877F2] px-4 py-2 text-white text-sm font-semibold shadow-lg shadow-blue-500/30 hover:bg-[#0f6ae8] hover:-translate-y-0.5 hover:shadow-xl transition"
+                  aria-label="Follow us on Facebook"
                 >
-                  <span class="text-xl leading-none">📅</span>
-                  <span>{{ hero.ctaPrimary || 'Book Appointment' }}</span>
-                </a>
-                <a
-                  v-if="showServicesSection"
-                  class="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/10 px-7 py-3.5 text-base font-semibold text-white hover:bg-white/15 hover:-translate-y-1 hover:shadow-lg transition"
-                  href="#services"
-                >
-                  {{ hero.ctaSecondary || 'Our services' }}
+                  <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+                    <path
+                      d="M14.5 5.5H16V2.7c-.8-.1-1.7-.2-2.5-.2-2.5 0-4.2 1.6-4.2 4.4V9H7v3h2.3v7h3.1V12h2.6l.4-3H12V7c0-.9.3-1.5 1.5-1.5Z"
+                    />
+                  </svg>
+                  <span class="tracking-[0.02em] uppercase">Follow us on Facebook</span>
                 </a>
               </div>
             </div>
