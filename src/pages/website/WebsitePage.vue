@@ -512,7 +512,6 @@ const footerConfig = computed(() => data.value?.layout?.footer || { enabled: fal
 
 const socialLinks = computed(() => footerConfig.value?.social || { facebook: null, google: null, instagram: null });
 const facebookLink = computed(() => socialLinks.value?.facebook || null);
-const googleLink = computed(() => socialLinks.value?.google || null);
 
 const navItems = computed(() => {
   const raw = Array.isArray(data.value?.nav) ? data.value.nav : [];
@@ -891,42 +890,16 @@ const footerView = computed(() => {
             :href="facebookLink || '#'"
             target="_blank"
             rel="noopener"
-            class="bg-white/80 backdrop-blur-md border border-white/50 rounded-full w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center shadow-xl shadow-rose-200/60 transition transform hover:-translate-y-1 hover:scale-105"
+            class="inline-flex items-center gap-2 rounded-lg bg-[#1877F2] px-4 py-2 text-white text-sm font-semibold shadow-lg shadow-blue-500/30 hover:bg-[#0f6ae8] hover:-translate-y-0.5 hover:shadow-xl transition"
             :class="!facebookLink ? 'pointer-events-none opacity-70' : ''"
-            aria-label="Follow on Facebook"
+            aria-label="Follow us on Facebook"
           >
-            <svg class="w-5 h-5 text-[#1877F2]" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+            <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
               <path
                 d="M14.5 5.5H16V2.7c-.8-.1-1.7-.2-2.5-.2-2.5 0-4.2 1.6-4.2 4.4V9H7v3h2.3v7h3.1V12h2.6l.4-3H12V7c0-.9.3-1.5 1.5-1.5Z"
               />
             </svg>
-          </a>
-          <a
-            :href="googleLink || '#'"
-            target="_blank"
-            rel="noopener"
-            class="bg-white/80 backdrop-blur-md border border-white/50 rounded-full w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center shadow-xl shadow-rose-200/60 transition transform hover:-translate-y-1 hover:scale-105"
-            :class="!googleLink ? 'pointer-events-none opacity-70' : ''"
-            aria-label="View Google profile"
-          >
-            <svg class="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                fill="#EA4335"
-                d="M12 5.4c1.26 0 2.39.43 3.28 1.14l2.45-2.45C16.38 2.65 14.3 2 12 2 7.7 2 4.06 4.7 2.68 8.41l2.98 2.31C6.36 7.99 8.94 5.4 12 5.4Z"
-              />
-              <path
-                fill="#4285F4"
-                d="M21.8 12.23c0-.82-.07-1.6-.21-2.36H12v4.47h5.55c-.24 1.17-.95 2.16-2.03 2.82l3.15 2.45c1.85-1.71 2.93-4.23 2.93-7.38Z"
-              />
-              <path
-                fill="#FBBC04"
-                d="M5.66 13.14a4.55 4.55 0 0 1-.23-1.41c0-.49.08-.96.21-1.41L2.66 8.01A9.94 9.94 0 0 0 2 11.73c0 1.63.39 3.17 1.08 4.52l2.58-2.11Z"
-              />
-              <path
-                fill="#34A853"
-                d="M12 22c2.7 0 4.97-.89 6.63-2.42l-3.15-2.45c-.88.6-2.02.95-3.48.95-2.67 0-4.93-1.8-5.74-4.24l-2.98 2.3C4.72 19.3 7.97 22 12 22Z"
-              />
-            </svg>
+            <span class="tracking-[0.02em] uppercase">Follow us on Facebook</span>
           </a>
         </div>
         <div class="sf-container relative">

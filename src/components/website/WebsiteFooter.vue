@@ -36,19 +36,30 @@ const props = withDefaults(
 
 const dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+const fallbackLocation = [
+  'MTV NAILS SPA – LA PALMERA MALL',
+  '5488 South Padre Island Dr',
+  'Corpus Christi, TX',
+];
+
 const locationLines = computed(() => {
   const loc = props.footer?.location;
-  if (!loc) return [];
+  if (!loc) return fallbackLocation;
   const parts = [
     loc.addressLine1,
     [loc.city, loc.state, loc.zip].filter(Boolean).join(', ').trim(),
   ]
     .map((p) => (p || '').trim())
     .filter(Boolean);
-  return parts;
+  return parts.length ? parts : fallbackLocation;
 });
 
-const contact = computed(() => props.footer?.contact || null);
+const contact = computed(() => {
+  const fallback = { phone: '361-986-1555', email: null as string | null };
+  return props.footer?.contact
+    ? { ...fallback, ...props.footer.contact }
+    : fallback;
+});
 
 const hours = computed<GroupedHour[]>(() => {
   const manual: HoursRow[] = props.footer?.hours?.manual ?? [];
@@ -82,10 +93,12 @@ const hours = computed<GroupedHour[]>(() => {
     }
     return groups;
   }
-  if (props.fallbackHoursText) {
-    return [{ label: 'Hours', open: String(props.fallbackHoursText || ''), close: '', days: [] }];
-  }
-  return [];
+
+  return [
+    { label: 'Mon – Thu', open: '10:00 AM', close: '8:00 PM', days: ['Mon', 'Tue', 'Wed', 'Thu'] },
+    { label: 'Fri – Sat', open: '10:00 AM', close: '9:00 PM', days: ['Fri', 'Sat'] },
+    { label: 'Sun', open: '10:00 AM', close: '6:00 PM', days: ['Sun'] },
+  ];
 });
 
 const social = computed(() => props.footer?.social || {});
@@ -94,9 +107,7 @@ const legal = computed(() => props.footer?.legal || {});
 const hasLocation = computed(() => locationLines.value.length > 0);
 const hasContact = computed(() => contact.value?.phone || contact.value?.email);
 const hasHours = computed(() => hours.value.length > 0);
-const hasSocial = computed(
-  () => !!(social.value?.instagram || social.value?.facebook || social.value?.google),
-);
+const hasSocial = computed(() => !!(social.value?.instagram || social.value?.facebook));
 const hasLegal = computed(
   () =>
     legal.value?.showPrivacy !== false ||
@@ -138,7 +149,15 @@ function formatRange(days: string[]) {
           </svg>
           <span>Location</span>
         </div>
-        <p class="sf-footer__text" v-for="line in locationLines" :key="line">{{ line }}</p>
+        <p
+          class="sf-footer__text"
+          v-for="(line, idx) in locationLines"
+          :key="line"
+          :class="idx === 0 ? 'font-semibold text-text' : ''"
+        >
+          {{ line }}
+        </p>
+        <p class="sf-footer__text">Phone: {{ contact?.phone || '361-986-1555' }}</p>
       </div>
 
       <div v-if="hasHours" class="sf-footer__card">
@@ -242,55 +261,20 @@ function formatRange(days: string[]) {
             </span>
             Instagram
           </a>
-          <a v-if="social.facebook" :href="social.facebook" target="_blank" rel="noopener" aria-label="Facebook">
-            <span class="sf-footer__pill">
-              <svg class="w-4 h-4 text-[#1877F2]" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
-                <path
-                  d="M14.5 5.5H16V2.7c-.8-.1-1.7-.2-2.5-.2-2.5 0-4.2 1.6-4.2 4.4V9H7v3h2.3v7h3.1V12h2.6l.4-3H12V7c0-.9.3-1.5 1.5-1.5Z"
-                />
-              </svg>
-            </span>
-            Facebook
-          </a>
-          <a v-if="social.google" :href="social.google" target="_blank" rel="noopener" aria-label="Google">
-            <span class="sf-footer__pill">
-              <svg class="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  fill="#EA4335"
-                  d="M12 5.4c1.26 0 2.39.43 3.28 1.14l2.45-2.45C16.38 2.65 14.3 2 12 2 7.7 2 4.06 4.7 2.68 8.41l2.98 2.31C6.36 7.99 8.94 5.4 12 5.4Z"
-                />
-                <path
-                  fill="#4285F4"
-                  d="M21.8 12.23c0-.82-.07-1.6-.21-2.36H12v4.47h5.55c-.24 1.17-.95 2.16-2.03 2.82l3.15 2.45c1.85-1.71 2.93-4.23 2.93-7.38Z"
-                />
-                <path
-                  fill="#FBBC04"
-                  d="M5.66 13.14a4.55 4.55 0 0 1-.23-1.41c0-.49.08-.96.21-1.41L2.66 8.01A9.94 9.94 0 0 0 2 11.73c0 1.63.39 3.17 1.08 4.52l2.58-2.11Z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 22c2.7 0 4.97-.89 6.63-2.42l-3.15-2.45c-.88.6-2.02.95-3.48.95-2.67 0-4.93-1.8-5.74-4.24l-2.98 2.3C4.72 19.3 7.97 22 12 22Z"
-                />
-              </svg>
-            </span>
-            Google
-          </a>
           <a
-            v-if="social.google"
-            :href="social.google"
+            v-if="social.facebook"
+            :href="social.facebook"
             target="_blank"
             rel="noopener"
-            class="sf-footer__review"
+            class="inline-flex items-center gap-2 rounded-lg bg-[#1877F2] px-4 py-2 text-white text-sm font-semibold shadow-lg shadow-blue-500/30 hover:bg-[#0f6ae8] transition"
+            aria-label="Follow us on Facebook"
           >
-            <svg class="sf-icon-inline text-amber-500" viewBox="0 0 24 24" aria-hidden="true">
+            <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
               <path
-                d="m12 4.5 2.1 4.26 4.7.68-3.4 3.3.8 4.64L12 15.9 7.8 17.4l.8-4.64-3.4-3.3 4.7-.68Z"
-                fill="currentColor"
-                stroke="currentColor"
-                stroke-width="0.6"
+                d="M14.5 5.5H16V2.7c-.8-.1-1.7-.2-2.5-.2-2.5 0-4.2 1.6-4.2 4.4V9H7v3h2.3v7h3.1V12h2.6l.4-3H12V7c0-.9.3-1.5 1.5-1.5Z"
               />
             </svg>
-            <span>★★★★★ 4.8 on Google</span>
+            <span class="tracking-[0.02em] uppercase">Follow us on Facebook</span>
           </a>
         </div>
       </div>
@@ -322,6 +306,7 @@ function formatRange(days: string[]) {
   display: grid;
   gap: 22px;
   grid-template-columns: 1fr;
+  align-items: stretch;
 }
 .sf-footer__card {
   background: rgba(255, 255, 255, 0.94);
@@ -329,6 +314,9 @@ function formatRange(days: string[]) {
   border-radius: var(--sf-radius, 14px);
   padding: 18px;
   box-shadow: 0 18px 44px rgba(236, 72, 153, 0.08);
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
 }
 .sf-footer__label {
   display: inline-flex;
@@ -370,6 +358,7 @@ function formatRange(days: string[]) {
   padding: 6px 8px;
   border-radius: 10px;
   transition: background 0.2s ease, color 0.2s ease;
+  font-size: 14px;
 }
 .sf-footer__hour .day {
   color: rgba(15, 23, 42, 0.68);
