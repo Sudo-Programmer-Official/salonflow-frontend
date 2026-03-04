@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 
 type HoursRow = { day: string; open: string; close: string };
+type GroupedHour = { label: string; open?: string; close?: string; days: string[] };
 
 const props = withDefaults(
   defineProps<{
@@ -49,19 +50,40 @@ const locationLines = computed(() => {
 
 const contact = computed(() => props.footer?.contact || null);
 
-const hours = computed(() => {
-  const manual = props.footer?.hours?.manual || [];
+const hours = computed<GroupedHour[]>(() => {
+  const manual: HoursRow[] = props.footer?.hours?.manual ?? [];
   if (manual.length) {
-    return manual
-      .map((row) => ({
-        day: row.day,
-        open: row.open,
-        close: row.close,
-      }))
+    const sorted: Array<{ day: string; open: string; close: string }> = manual
+      .map((row) => {
+        const day = row.day || '';
+        const open = String(row.open ?? '');
+        const close = String(row.close ?? '');
+        return { day, open, close };
+      })
       .sort((a, b) => dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day));
+
+    const groups: GroupedHour[] = [];
+    for (const row of sorted) {
+      const open = row.open ?? '';
+      const close = row.close ?? '';
+      const key = `${open}__${close}`;
+      const last = groups[groups.length - 1];
+      if (last && `${last.open}__${last.close}` === key) {
+        last.days.push(row.day);
+        last.label = formatRange(last.days) || '';
+      } else {
+        groups.push({
+          label: formatRange([row.day]) || '',
+          open,
+          close,
+          days: [row.day],
+        } as GroupedHour);
+      }
+    }
+    return groups;
   }
   if (props.fallbackHoursText) {
-    return [{ day: 'Hours', open: props.fallbackHoursText, close: '' }];
+    return [{ label: 'Hours', open: String(props.fallbackHoursText || ''), close: '', days: [] }];
   }
   return [];
 });
@@ -88,7 +110,16 @@ const todayKey = new Intl.DateTimeFormat('en-US', { weekday: 'short' })
   .format(new Date())
   .slice(0, 3);
 
-const isToday = (day: string) => day === todayKey;
+const isToday = (days: string[] | string) => {
+  if (Array.isArray(days)) return days.includes(todayKey);
+  return days === todayKey;
+};
+
+function formatRange(days: string[]) {
+  if (!days.length) return '';
+  if (days.length === 1) return days[0];
+  return `${days[0]} – ${days[days.length - 1]}`;
+}
 </script>
 
 <template>
@@ -121,12 +152,12 @@ const isToday = (day: string) => day === todayKey;
         <div class="sf-footer__hours">
           <div
             v-for="row in hours"
-            :key="row.day"
+            :key="row.label"
             class="sf-footer__hour"
-            :class="{ 'is-today': isToday(row.day) }"
+            :class="{ 'is-today': isToday(row.days) }"
           >
-            <span class="day">{{ row.day }}</span>
-            <span class="time">{{ row.close ? `${row.open} – ${row.close}` : row.open }}</span>
+            <span class="day">{{ row.label }}</span>
+            <span class="time">{{ row.close ? `${row.open || ''} – ${row.close}` : (row.open || '') }}</span>
           </div>
         </div>
         <p v-if="footer?.hours?.source === 'kiosk' && !footer?.hours?.manual?.length" class="sf-footer__note">
