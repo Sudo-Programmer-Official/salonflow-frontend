@@ -145,9 +145,9 @@ const toggleMobile = () => {
   position: sticky;
   top: 0;
   z-index: 40;
-  background: color-mix(in srgb, var(--sf-bg, #f8fafc) 92%, transparent);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  background: linear-gradient(90deg, rgba(255, 247, 251, 0.95), rgba(255, 241, 245, 0.92));
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid color-mix(in srgb, var(--sf-border, #f4d9e7) 65%, transparent);
 }
 .sf-header__bar {
   padding: 14px 0;
@@ -165,7 +165,7 @@ const toggleMobile = () => {
   width: 40px;
   height: 40px;
   border-radius: var(--sf-radius, 14px);
-  background: color-mix(in srgb, var(--sf-primary, #0ea5e9) 10%, #0f172a 90%);
+  background: linear-gradient(140deg, color-mix(in srgb, var(--sf-primary, #ec4899) 85%, #fff 15%), color-mix(in srgb, var(--sf-accent, #f472b6) 75%, #fff 25%));
   color: #fff;
   font-weight: 700;
   display: inline-flex;
@@ -225,8 +225,8 @@ const toggleMobile = () => {
   background: rgba(15, 23, 42, 0.05);
 }
 .sf-header__link.active {
-  color: var(--sf-primary, #0ea5e9);
-  background: rgba(14, 165, 233, 0.12);
+  color: var(--sf-primary, #ec4899);
+  background: color-mix(in srgb, var(--sf-primary, #ec4899) 12%, #fff);
 }
 .sf-header__ctas {
   display: inline-flex;
@@ -242,23 +242,26 @@ const toggleMobile = () => {
   font-weight: 700;
   font-size: 14px;
   text-decoration: none;
-  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease, filter 160ms ease;
 }
 .sf-button.solid {
-  background: var(--sf-primary, #0ea5e9);
+  background: linear-gradient(120deg, color-mix(in srgb, var(--sf-primary, #ec4899) 96%, #fff 4%), color-mix(in srgb, #db2777 88%, #fff 12%));
   color: #fff;
-  box-shadow: var(--sf-shadow, 0 12px 30px rgba(15, 23, 42, 0.12));
+  box-shadow: 0 12px 30px rgba(236, 72, 153, 0.28);
 }
 .sf-button.solid:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 16px 36px rgba(14, 165, 233, 0.25);
+  transform: translateY(-1px) scale(1.01);
+  box-shadow: 0 16px 40px rgba(236, 72, 153, 0.32);
+  filter: saturate(1.02);
 }
 .sf-button.ghost {
-  background: rgba(14, 165, 233, 0.12);
-  color: var(--sf-primary, #0ea5e9);
+  border: 1px solid color-mix(in srgb, var(--sf-primary, #ec4899) 35%, transparent);
+  background: color-mix(in srgb, var(--sf-primary, #ec4899) 10%, #fff);
+  color: var(--sf-primary, #ec4899);
 }
 .sf-button.ghost:hover {
-  transform: translateY(-1px);
+  transform: translateY(-1px) scale(1.01);
+  box-shadow: 0 8px 22px rgba(236, 72, 153, 0.18);
 }
 
 @media (max-width: 860px) {

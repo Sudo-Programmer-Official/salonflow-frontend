@@ -50,24 +50,24 @@ body {
 
 :root {
   /* Theme tokens (overridden by admin theme adapter) */
-  --sf-primary: #0ea5e9;
-  --sf-primary-rgb: 14 165 233;
-  --sf-secondary: #22c55e;
-  --sf-secondary-rgb: 34 197 94;
-  --sf-accent: #f59e0b;
-  --sf-accent-rgb: 245 158 11;
-  --sf-bg: #f8fafc;
+  --sf-primary: #ec4899;
+  --sf-primary-rgb: 236 72 153;
+  --sf-secondary: #111827;
+  --sf-secondary-rgb: 17 24 39;
+  --sf-accent: #f472b6;
+  --sf-accent-rgb: 244 114 182;
+  --sf-bg: #fff7fb;
   --sf-surface: #ffffff;
-  --sf-surface-muted: #f1f5f9;
+  --sf-surface-muted: #fff1f5;
   --sf-text: #0f172a;
   --sf-text-primary: #0f172a;
-  --sf-text-muted: #475569;
-  --sf-border: #e2e8f0;
+  --sf-text-muted: #4b5563;
+  --sf-border: #f4d9e7;
   --sf-text-rgb: 15 23 42;
-  --sf-muted-rgb: 71 85 105;
-  --sf-bg-rgb: 248 250 252;
+  --sf-muted-rgb: 75 85 99;
+  --sf-bg-rgb: 255 247 251;
   --sf-surface-rgb: 255 255 255;
-  --sf-border-rgb: 226 232 240;
+  --sf-border-rgb: 244 217 231;
 
   --sf-font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-scale-base: 1.05;
@@ -95,14 +95,14 @@ body {
   --sf-section-pad-desktop: 80px;
   --sf-section-pad-tablet: 64px;
   --sf-section-pad-mobile: 40px;
-  --sf-hero-gradient: linear-gradient(135deg, rgba(12, 18, 32, 0.85), rgba(12, 18, 32, 0.35));
-  --sf-card-gradient: linear-gradient(180deg, rgba(15, 23, 42, 0.04), rgba(15, 23, 42, 0));
+  --sf-hero-gradient: linear-gradient(135deg, rgba(26, 18, 26, 0.9), rgba(24, 18, 26, 0.55));
+  --sf-card-gradient: linear-gradient(180deg, rgba(236, 72, 153, 0.05), rgba(236, 72, 153, 0));
 
   --text-color: var(--sf-text-primary);
   --muted-text: var(--sf-text-muted);
-  --bg-app: radial-gradient(circle at 12% 18%, rgba(14, 165, 233, 0.12), transparent 28%),
-    radial-gradient(circle at 86% 12%, rgba(56, 189, 248, 0.1), transparent 26%),
-    linear-gradient(180deg, #f8fafc 0%, #eef2ff 50%, #f8fafc 100%);
+  --bg-app: radial-gradient(circle at 12% 18%, rgba(236, 72, 153, 0.12), transparent 30%),
+    radial-gradient(circle at 86% 12%, rgba(244, 114, 182, 0.1), transparent 28%),
+    linear-gradient(180deg, #fff7fb 0%, #ffeef7 45%, #fff7fb 100%);
   --sidebar-bg: rgba(255, 255, 255, 0.7);
   --main-surface: rgba(255, 255, 255, 0.75);
   --header-surface: rgba(255, 255, 255, 0.7);

@@ -233,13 +233,47 @@ function formatRange(days: string[]) {
         </div>
         <div class="sf-footer__social">
           <a v-if="social.instagram" :href="social.instagram" target="_blank" rel="noopener" aria-label="Instagram">
-            <span class="sf-footer__pill">IG</span> Instagram
+            <span class="sf-footer__pill">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+                <path
+                  d="M7.5 4h9A3.5 3.5 0 0 1 20 7.5v9A3.5 3.5 0 0 1 16.5 20h-9A3.5 3.5 0 0 1 4 16.5v-9A3.5 3.5 0 0 1 7.5 4Zm0 1.6A1.9 1.9 0 0 0 5.6 7.5v9a1.9 1.9 0 0 0 1.9 1.9h9a1.9 1.9 0 0 0 1.9-1.9v-9a1.9 1.9 0 0 0-1.9-1.9h-9Zm9.4 1.1a.9.9 0 1 1-1.8 0 .9.9 0 0 1 1.8 0ZM12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8Zm0 1.6A2.4 2.4 0 1 0 12 14a2.4 2.4 0 0 0 0-4.4Z"
+                />
+              </svg>
+            </span>
+            Instagram
           </a>
           <a v-if="social.facebook" :href="social.facebook" target="_blank" rel="noopener" aria-label="Facebook">
-            <span class="sf-footer__pill">f</span> Facebook
+            <span class="sf-footer__pill">
+              <svg class="w-4 h-4 text-[#1877F2]" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+                <path
+                  d="M14.5 5.5H16V2.7c-.8-.1-1.7-.2-2.5-.2-2.5 0-4.2 1.6-4.2 4.4V9H7v3h2.3v7h3.1V12h2.6l.4-3H12V7c0-.9.3-1.5 1.5-1.5Z"
+                />
+              </svg>
+            </span>
+            Facebook
           </a>
           <a v-if="social.google" :href="social.google" target="_blank" rel="noopener" aria-label="Google">
-            <span class="sf-footer__pill">G</span> Google
+            <span class="sf-footer__pill">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  fill="#EA4335"
+                  d="M12 5.4c1.26 0 2.39.43 3.28 1.14l2.45-2.45C16.38 2.65 14.3 2 12 2 7.7 2 4.06 4.7 2.68 8.41l2.98 2.31C6.36 7.99 8.94 5.4 12 5.4Z"
+                />
+                <path
+                  fill="#4285F4"
+                  d="M21.8 12.23c0-.82-.07-1.6-.21-2.36H12v4.47h5.55c-.24 1.17-.95 2.16-2.03 2.82l3.15 2.45c1.85-1.71 2.93-4.23 2.93-7.38Z"
+                />
+                <path
+                  fill="#FBBC04"
+                  d="M5.66 13.14a4.55 4.55 0 0 1-.23-1.41c0-.49.08-.96.21-1.41L2.66 8.01A9.94 9.94 0 0 0 2 11.73c0 1.63.39 3.17 1.08 4.52l2.58-2.11Z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 22c2.7 0 4.97-.89 6.63-2.42l-3.15-2.45c-.88.6-2.02.95-3.48.95-2.67 0-4.93-1.8-5.74-4.24l-2.98 2.3C4.72 19.3 7.97 22 12 22Z"
+                />
+              </svg>
+            </span>
+            Google
           </a>
           <a
             v-if="social.google"
@@ -278,9 +312,9 @@ function formatRange(days: string[]) {
 
 <style scoped>
 .sf-footer {
-  background: color-mix(in srgb, var(--sf-bg, #0f172a) 4%, #0b1220 2%);
+  background: linear-gradient(180deg, #fff7fb 0%, #ffeef7 100%);
   color: var(--sf-text, #0f172a);
-  border-top: 1px solid rgba(15, 23, 42, 0.06);
+  border-top: 1px solid color-mix(in srgb, var(--sf-border, #f4d9e7) 70%, transparent);
   margin-top: 64px;
 }
 .sf-footer__shell {
@@ -290,11 +324,11 @@ function formatRange(days: string[]) {
   grid-template-columns: 1fr;
 }
 .sf-footer__card {
-  background: rgba(255, 255, 255, 0.78);
-  border: 1px solid rgba(15, 23, 42, 0.06);
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid color-mix(in srgb, var(--sf-border, #f4d9e7) 75%, #fff);
   border-radius: var(--sf-radius, 14px);
   padding: 18px;
-  box-shadow: var(--sf-shadow, 0 16px 40px rgba(15, 23, 42, 0.08));
+  box-shadow: 0 18px 44px rgba(236, 72, 153, 0.08);
 }
 .sf-footer__label {
   display: inline-flex;
@@ -304,18 +338,18 @@ function formatRange(days: string[]) {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-weight: 700;
-  color: rgba(15, 23, 42, 0.7);
+  color: color-mix(in srgb, var(--sf-primary, #ec4899) 55%, #0f172a 45%);
   margin-bottom: 10px;
 }
 .sf-icon {
   width: 18px;
   height: 18px;
-  color: #64748b;
+  color: color-mix(in srgb, var(--sf-primary, #ec4899) 55%, #475569 45%);
 }
 .sf-icon-inline {
   width: 16px;
   height: 16px;
-  color: #64748b;
+  color: color-mix(in srgb, var(--sf-primary, #ec4899) 50%, #475569 50%);
   flex-shrink: 0;
 }
 .sf-footer__text {
@@ -338,14 +372,14 @@ function formatRange(days: string[]) {
   transition: background 0.2s ease, color 0.2s ease;
 }
 .sf-footer__hour .day {
-  color: rgba(15, 23, 42, 0.7);
+  color: rgba(15, 23, 42, 0.68);
 }
 .sf-footer__hour .time {
   color: var(--sf-text, #0f172a);
 }
 .sf-footer__hour.is-today {
-  background: rgba(15, 23, 42, 0.05);
-  color: #0f172a;
+  background: rgba(236, 72, 153, 0.08);
+  color: #c02679;
 }
 .sf-footer__note {
   margin-top: 6px;
@@ -386,7 +420,7 @@ function formatRange(days: string[]) {
   gap: 8px;
 }
 .sf-footer__social a:hover {
-  color: #0f172a;
+  color: color-mix(in srgb, var(--sf-primary, #ec4899) 60%, #0f172a 40%);
 }
 .sf-footer__pill {
   display: inline-flex;
@@ -395,14 +429,14 @@ function formatRange(days: string[]) {
   width: 24px;
   height: 24px;
   border-radius: 9999px;
-  background: rgba(59, 130, 246, 0.12);
+  background: color-mix(in srgb, var(--sf-primary, #ec4899) 18%, #fff);
   font-size: 12px;
   margin-right: 6px;
-  color: #2563eb;
+  color: var(--sf-primary, #ec4899);
 }
 .sf-footer__review {
   font-weight: 700;
-  color: #0f172a;
+  color: var(--sf-text, #0f172a);
   gap: 10px;
 }
 .sf-footer__review .sf-icon-inline {
@@ -430,8 +464,8 @@ function formatRange(days: string[]) {
   position: sticky;
   bottom: 0;
   padding: 12px 0 14px;
-  border-top: 1px solid rgba(15, 23, 42, 0.08);
-  background: color-mix(in srgb, var(--sf-bg, #0f172a) 6%, #ffffff 94%);
+  border-top: 1px solid color-mix(in srgb, var(--sf-border, #f4d9e7) 70%, transparent);
+  background: linear-gradient(90deg, rgba(255, 247, 251, 0.92), rgba(255, 241, 245, 0.9));
   backdrop-filter: blur(4px);
 }
 

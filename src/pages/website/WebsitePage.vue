@@ -879,58 +879,79 @@ const footerView = computed(() => {
         :class="{ 'page-hero--bg': !!heroBg }"
         :style="
           heroBg
-            ? { backgroundImage: `linear-gradient(135deg, rgba(7,12,24,0.82), rgba(7,12,24,0.42)), url(${heroBg})` }
+            ? { backgroundImage: `linear-gradient(135deg, rgba(20,10,18,0.82), rgba(20,10,18,0.48)), url(${heroBg})` }
             : undefined
         "
       >
         <div
-          class="pointer-events-auto flex flex-col gap-3 sm:gap-4 absolute left-2 sm:left-4 lg:left-12 top-1/2 -translate-y-1/2 z-20"
+          class="pointer-events-auto flex flex-col gap-3 sm:gap-4 absolute left-3 sm:left-5 lg:left-10 xl:left-14 top-1/2 -translate-y-1/2 z-20"
           aria-label="Social proof and follow links"
         >
           <a
             :href="facebookLink || '#'"
             target="_blank"
             rel="noopener"
-            class="bg-white/85 backdrop-blur border border-white/40 rounded-full w-10 h-10 sm:w-11 sm:h-11 lg:w-12 lg:h-12 flex items-center justify-center shadow-lg shadow-black/5 transition transform hover:scale-110"
+            class="bg-white/80 backdrop-blur-md border border-white/50 rounded-full w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center shadow-xl shadow-rose-200/60 transition transform hover:-translate-y-1 hover:scale-105"
             :class="!facebookLink ? 'pointer-events-none opacity-70' : ''"
             aria-label="Follow on Facebook"
           >
-            <span class="text-[18px] font-semibold text-[#1877F2]">F</span>
+            <svg class="w-5 h-5 text-[#1877F2]" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+              <path
+                d="M14.5 5.5H16V2.7c-.8-.1-1.7-.2-2.5-.2-2.5 0-4.2 1.6-4.2 4.4V9H7v3h2.3v7h3.1V12h2.6l.4-3H12V7c0-.9.3-1.5 1.5-1.5Z"
+              />
+            </svg>
           </a>
           <a
             :href="googleLink || '#'"
             target="_blank"
             rel="noopener"
-            class="bg-white/85 backdrop-blur border border-white/40 rounded-full w-10 h-10 sm:w-11 sm:h-11 lg:w-12 lg:h-12 flex items-center justify-center shadow-lg shadow-black/5 transition transform hover:scale-110"
+            class="bg-white/80 backdrop-blur-md border border-white/50 rounded-full w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center shadow-xl shadow-rose-200/60 transition transform hover:-translate-y-1 hover:scale-105"
             :class="!googleLink ? 'pointer-events-none opacity-70' : ''"
             aria-label="View Google profile"
           >
-            <span class="text-[18px] font-semibold text-[#DB4437]">G</span>
+            <svg class="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="#EA4335"
+                d="M12 5.4c1.26 0 2.39.43 3.28 1.14l2.45-2.45C16.38 2.65 14.3 2 12 2 7.7 2 4.06 4.7 2.68 8.41l2.98 2.31C6.36 7.99 8.94 5.4 12 5.4Z"
+              />
+              <path
+                fill="#4285F4"
+                d="M21.8 12.23c0-.82-.07-1.6-.21-2.36H12v4.47h5.55c-.24 1.17-.95 2.16-2.03 2.82l3.15 2.45c1.85-1.71 2.93-4.23 2.93-7.38Z"
+              />
+              <path
+                fill="#FBBC04"
+                d="M5.66 13.14a4.55 4.55 0 0 1-.23-1.41c0-.49.08-.96.21-1.41L2.66 8.01A9.94 9.94 0 0 0 2 11.73c0 1.63.39 3.17 1.08 4.52l2.58-2.11Z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 22c2.7 0 4.97-.89 6.63-2.42l-3.15-2.45c-.88.6-2.02.95-3.48.95-2.67 0-4.93-1.8-5.74-4.24l-2.98 2.3C4.72 19.3 7.97 22 12 22Z"
+              />
+            </svg>
           </a>
         </div>
         <div class="sf-container relative">
           <div class="grid gap-8 lg:grid-cols-[1.05fr,0.95fr] items-center pl-14 sm:pl-16">
-          <div class="space-y-4">
-          <p class="text-xs uppercase tracking-wide text-muted">{{ page?.slug === 'home' ? 'Salon' : page?.slug }}</p>
-          <h1 class="text-3xl font-bold text-text lg:text-4xl">{{ hero.headline || 'Beautiful Nails. Exceptional Care.' }}</h1>
-          <p class="text-lg text-muted leading-relaxed">{{ hero.subheadline || '' }}</p>
-          <div class="flex flex-wrap items-center gap-3">
-            <a
-              class="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-pink-500/90 to-rose-500/90 px-8 py-4 text-white text-lg font-semibold shadow-lg shadow-[0_8px_20px_rgba(236,72,153,0.20)] transition-all duration-200 hover:from-pink-600 hover:to-rose-600 hover:scale-105 hover:-translate-y-1 active:scale-100 focus-visible:ring-2 focus-visible:ring-rose-100 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
-              :href="bookingPath"
-            >
-              <span class="text-xl leading-none">📅</span>
-              <span>{{ hero.ctaPrimary || 'Book Appointment' }}</span>
-            </a>
-            <a
-              v-if="showServicesSection"
-              class="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/10 px-6 py-3.5 text-sm font-semibold text-white hover:bg-white/15 hover:-translate-y-1 transition"
-              href="#services"
-            >
-              {{ hero.ctaSecondary || 'Our services' }}
-            </a>
-          </div>
-          </div>
+            <div class="space-y-4">
+              <p class="text-xs uppercase tracking-wide text-muted">{{ page?.slug === 'home' ? 'Salon' : page?.slug }}</p>
+              <h1 class="text-3xl font-bold text-text lg:text-4xl">{{ hero.headline || 'Beautiful Nails. Exceptional Care.' }}</h1>
+              <p class="text-lg text-muted leading-relaxed">{{ hero.subheadline || '' }}</p>
+              <div class="flex flex-wrap items-center gap-3">
+                <a
+                  class="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-rose-500 to-pink-600 px-9 py-4 text-white text-lg font-semibold shadow-[0_14px_30px_rgba(236,72,153,0.28)] transition-all duration-200 hover:from-rose-600 hover:to-pink-600 hover:shadow-[0_18px_38px_rgba(236,72,153,0.32)] hover:scale-105 hover:-translate-y-1 active:scale-100 focus-visible:ring-2 focus-visible:ring-rose-100 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
+                  :href="bookingPath"
+                >
+                  <span class="text-xl leading-none">📅</span>
+                  <span>{{ hero.ctaPrimary || 'Book Appointment' }}</span>
+                </a>
+                <a
+                  v-if="showServicesSection"
+                  class="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/10 px-7 py-3.5 text-base font-semibold text-white hover:bg-white/15 hover:-translate-y-1 hover:shadow-lg transition"
+                  href="#services"
+                >
+                  {{ hero.ctaSecondary || 'Our services' }}
+                </a>
+              </div>
+            </div>
         <div v-if="(heroSlides.length && currentHeroSlide) || heroMedia?.src" class="relative">
           <div
             class="hero-frame rounded-3xl overflow-hidden shadow-2xl border border-border hero-tilt"
@@ -1497,7 +1518,7 @@ const footerView = computed(() => {
   padding-top: 72px;
   padding-bottom: 72px;
   color: #fff;
-  background: linear-gradient(135deg, #0b1220, #101826);
+  background: linear-gradient(135deg, #1a0f1c, #120914);
   overflow: hidden;
 }
 .home-hero--bg {
@@ -1508,7 +1529,7 @@ const footerView = computed(() => {
   position: relative;
   padding-top: 72px;
   padding-bottom: 72px;
-  background: linear-gradient(135deg, #0b1220, #101826);
+  background: linear-gradient(135deg, #1c111d, #130a14);
   color: var(--sf-text, #0f172a);
   overflow: hidden;
 }
