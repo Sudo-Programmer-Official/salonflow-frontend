@@ -989,9 +989,9 @@ const toggleSidebarCollapse = () => {
   font-size: var(--font-md);
 }
 .nav-link--active {
-  background: rgba(15, 23, 42, 0.92);
+  background: var(--sf-primary);
   color: #fff;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+  box-shadow: 0 10px 30px rgb(var(--sf-primary-rgb) / 0.24);
 }
 .nav-link--idle {
   color: #334155;
@@ -1005,6 +1005,9 @@ const toggleSidebarCollapse = () => {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: #e2e8f0;
+}
+.nav-link--active .nav-link__badge {
+  color: rgb(255 255 255 / 0.92);
 }
 .nav-link__badge--info {
   color: #0ea5e9;
@@ -1032,7 +1035,8 @@ const toggleSidebarCollapse = () => {
 .nav-link--idle:hover .nav-link__icon {
   color: #0f172a;
 }
-.nav-link--active .nav-link__icon {
+.nav-link--active .nav-link__icon,
+.sidebar.collapsed .nav-link--active .nav-link__icon {
   color: #fff;
 }
 .nav-link__icon svg {
