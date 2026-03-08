@@ -8,7 +8,7 @@ import {
   watch,
 } from "vue";
 import { useRoute } from "vue-router";
-import { ElAlert, ElButton, ElCard, ElInput } from "element-plus";
+import { ElAlert, ElButton, ElCard, ElInput, ElMessage } from "element-plus";
 import { fetchPublicSettings, type BusinessSettings } from "../../api/settings";
 import {
   publicLookup,
@@ -405,6 +405,20 @@ const onKeyClick = (key: string) => {
   handleKeyRelease(key);
 };
 
+const isDuplicateCheckInError = (message: string) =>
+  /already checked in/i.test(message);
+
+const showKioskToast = (message: string) => {
+  ElMessage.closeAll();
+  ElMessage({
+    type: "error",
+    message,
+    duration: 2500,
+    grouping: true,
+    offset: 24,
+  });
+};
+
 const setManifestHref = (href: string) => {
   if (typeof document === "undefined") return;
   const manifestLink = document.querySelector('link[rel="manifest"]');
@@ -773,7 +787,14 @@ const confirmCheckIn = async () => {
     step.value = "done";
     startDoneCountdown();
   } catch (err: any) {
-    errorMessage.value = err?.message || "Failed to check in.";
+    const message = err?.message || "Failed to check in.";
+    if (isDuplicateCheckInError(message)) {
+      errorMessage.value = "";
+      resetFlow();
+      showKioskToast("You're already in the queue");
+      return;
+    }
+    errorMessage.value = message;
   } finally {
     submitting.value = false;
   }
