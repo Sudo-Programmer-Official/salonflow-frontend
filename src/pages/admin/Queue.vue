@@ -267,11 +267,12 @@ const loadCounts = async () => {
 };
 
 const WALK_IN_ICON_SVG = [
-  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">',
-  '<circle cx="14" cy="4.75" r="1.75"/>',
-  '<path d="M12.6 8.25l-1.9 3.7a1.2 1.2 0 0 0 .22 1.38l1.8 1.68-1.94 5.12"/>',
-  '<path d="M13.2 9.1l2.72 2.22 1.86 4.43"/>',
-  '<path d="M10.85 10.35l-3.1 1.82"/>',
+  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">',
+  '<circle cx="12" cy="4.75" r="1.9"/>',
+  '<path d="M12 7.8v5.2"/>',
+  '<path d="M8.85 10.15l3.15-2.25 3.15 2.25"/>',
+  '<path d="M10.2 20.5l1.8-7.5"/>',
+  '<path d="M13.8 20.5L12 13"/>',
   '</svg>',
 ].join('');
 
