@@ -85,11 +85,11 @@ const statusType = (status: QueueItem['status']) => {
             </div>
             <div class="queue-phone">{{ item.customerPhone }}</div>
             <div>
-              <div class="queue-service-name" :title="item.services?.map((s) => s.serviceName).join(', ') || item.serviceName || 'No service selected'">
+              <div class="queue-service-name" :title="item.services?.map((s) => s.serviceName).join(', ') || item.serviceName || 'Walk-in'">
                 {{
                   (item.services && item.services[0]?.serviceName) ||
                   item.serviceName ||
-                  'No service selected'
+                  'Walk-in'
                 }}
               </div>
               <div

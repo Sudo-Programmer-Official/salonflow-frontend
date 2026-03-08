@@ -155,7 +155,9 @@ const openKiosk = () => {
   const subdomain = tenant.value.subdomain ?? '';
   const host = typeof window !== 'undefined' ? window.location.host : '';
   const baseDomain = host.split('.').slice(1).join('.') || 'localhost:5173';
-  const target = subdomain ? `http://${subdomain}.${baseDomain}/check-in/kiosk` : '/check-in/kiosk';
+  const target = subdomain
+    ? `http://${subdomain}.${baseDomain}/kiosk/checkin/${subdomain}`
+    : '/check-in/kiosk';
   window.open(target, '_blank', 'noopener,noreferrer');
 };
 

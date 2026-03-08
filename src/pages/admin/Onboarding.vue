@@ -104,7 +104,11 @@ const buildLiveLink = (path: string) => {
 
 const bookingLink = computed(() => buildLiveLink('book'));
 const checkinLink = computed(() => buildLiveLink('check-in'));
-const kioskLink = computed(() => buildLiveLink('check-in/kiosk'));
+const kioskLink = computed(() =>
+  status.value?.subdomain
+    ? buildLiveLink(`kiosk/checkin/${status.value.subdomain}`)
+    : '',
+);
 
 const copyLink = async (link: string) => {
   if (!link) return;

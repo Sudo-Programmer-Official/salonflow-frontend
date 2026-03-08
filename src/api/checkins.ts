@@ -1,4 +1,5 @@
 import { apiUrl, buildHeaders } from './client';
+import { buildPublicTenantHeaders } from './publicTenant';
 
 export type ServiceOption = {
   id: string;
@@ -32,10 +33,10 @@ export async function publicLookup(phoneE164: string): Promise<
       };
     }
 > {
-  const headers: Record<string, string> = buildHeaders({ json: true });
-  if (typeof window !== 'undefined' && window.location.host) {
-    headers['x-website-host'] = window.location.host;
-  }
+  const headers: Record<string, string> = {
+    ...buildHeaders({ json: true }),
+    ...buildPublicTenantHeaders(),
+  };
   const res = await fetch(apiUrl('/checkins/public/lookup'), {
     method: 'POST',
     headers,
@@ -49,12 +50,8 @@ export async function publicLookup(phoneE164: string): Promise<
 }
 
 export async function fetchServices(): Promise<ServiceOption[]> {
-  const hostHeader =
-    typeof window !== 'undefined' && window.location.host
-      ? { 'x-website-host': window.location.host }
-      : undefined;
   const websiteRes = await fetch(apiUrl('/public/website/services'), {
-    headers: { ...(hostHeader || {}) },
+    headers: buildPublicTenantHeaders(),
   });
   if (websiteRes.ok) {
     const grouped = await websiteRes.json();
@@ -93,13 +90,8 @@ export async function fetchGroupedServices(): Promise<
     }>;
   }>
 > {
-  const hostHeader =
-    typeof window !== 'undefined' && window.location.host
-      ? { 'x-website-host': window.location.host }
-      : undefined;
-
   const websiteRes = await fetch(apiUrl('/public/website/services'), {
-    headers: { ...(hostHeader || {}) },
+    headers: buildPublicTenantHeaders(),
   });
 
   if (websiteRes.ok) {
@@ -107,7 +99,10 @@ export async function fetchGroupedServices(): Promise<
   }
 
   const res = await fetch(apiUrl('/public/services-grouped'), {
-    headers: buildHeaders({ json: true }),
+    headers: {
+      ...buildHeaders({ json: true }),
+      ...buildPublicTenantHeaders(),
+    },
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -117,10 +112,10 @@ export async function fetchGroupedServices(): Promise<
 }
 
 export async function createPublicCheckIn(payload: CreateCheckInPayload) {
-  const headers: Record<string, string> = buildHeaders({ json: true });
-  if (typeof window !== 'undefined' && window.location.host) {
-    headers['x-website-host'] = window.location.host;
-  }
+  const headers: Record<string, string> = {
+    ...buildHeaders({ json: true }),
+    ...buildPublicTenantHeaders(),
+  };
   const res = await fetch(apiUrl('/checkins/public'), {
     method: 'POST',
     headers,

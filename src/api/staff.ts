@@ -1,4 +1,5 @@
 import { apiUrl, buildHeaders } from '@/api/client';
+import { buildPublicTenantHeaders } from './publicTenant';
 
 export type StaffMember = {
   id: string;
@@ -91,10 +92,10 @@ export async function updateStaffStatus(
 export async function fetchPublicAvailableStaff(serviceId?: string): Promise<PublicStaffResponse> {
   const url = new URL(apiUrl('/public/staff-available'), window.location.origin);
   if (serviceId) url.searchParams.set('serviceId', serviceId);
-  const headers: Record<string, string> = buildHeaders({ json: true });
-  if (typeof window !== 'undefined' && window.location.host) {
-    headers['x-website-host'] = window.location.host;
-  }
+  const headers: Record<string, string> = {
+    ...buildHeaders({ json: true }),
+    ...buildPublicTenantHeaders(),
+  };
   const res = await fetch(url.toString(), {
     headers,
   });

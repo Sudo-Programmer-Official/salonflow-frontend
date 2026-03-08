@@ -64,11 +64,16 @@ const generateQr = async (link: string, caption: string) => {
   return { qrDataUrl, posterDataUrl };
 };
 
-const loadCoreLinks = async (origin: string) => {
+const loadCoreLinks = async (origin: string, subdomain: string) => {
   const paths = [
     { key: 'booking' as const, path: 'check-in/book', title: 'Booking', subtitle: 'Guests can pick service + time' },
     { key: 'checkin' as const, path: 'check-in', title: 'Check-In', subtitle: 'Front desk / walk-ins' },
-    { key: 'kiosk' as const, path: 'check-in/kiosk', title: 'Kiosk', subtitle: 'Tablet-locked flow' },
+    {
+      key: 'kiosk' as const,
+      path: `kiosk/checkin/${subdomain}`,
+      title: 'Kiosk',
+      subtitle: 'Tablet-locked flow',
+    },
   ];
   for (const p of paths) {
     const link = `${origin}/${p.path}`;
@@ -172,7 +177,7 @@ onMounted(async () => {
     const status = await fetchOnboardingStatus(true);
     salonName.value = status.businessName || salonName.value;
     baseDomain.value = buildBaseOrigin(status.subdomain);
-    await Promise.all([loadCoreLinks(baseDomain.value), loadReview(), loadFacebook()]);
+    await Promise.all([loadCoreLinks(baseDomain.value, status.subdomain), loadReview(), loadFacebook()]);
   } finally {
     loading.value = false;
   }

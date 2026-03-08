@@ -73,6 +73,8 @@ import { isPlatformHost } from "../api/client";
 const LOGIN_ROUTE: RouteLocationRaw = { name: "login" };
 
 const isBrowser = typeof window !== "undefined";
+const PWA_LAUNCH_MODE_KEY = "sf_pwa_launch_mode";
+const PWA_PUBLIC_PATH_KEY = "sf_pwa_public_path";
 
 const decodeJwtExpiry = (token: string): number | null => {
   try {
@@ -94,6 +96,29 @@ const isTokenExpired = (token: string | null) => {
 };
 
 const getStoredRole = () => (isBrowser ? localStorage.getItem("role") : null);
+
+const rememberKioskLaunch = (path: string) => {
+  if (!isBrowser) return;
+  const safePath = path.startsWith("/kiosk") ? path : "/kiosk/checkin";
+  localStorage.setItem(PWA_LAUNCH_MODE_KEY, "kiosk");
+  localStorage.setItem(PWA_PUBLIC_PATH_KEY, safePath);
+};
+
+const rememberAppLaunch = () => {
+  if (!isBrowser) return;
+  localStorage.setItem(PWA_LAUNCH_MODE_KEY, "app");
+  localStorage.removeItem(PWA_PUBLIC_PATH_KEY);
+};
+
+const preferredPwaRoute = (): RouteLocationRaw | null => {
+  if (!isBrowser) return null;
+  if (localStorage.getItem(PWA_LAUNCH_MODE_KEY) !== "kiosk") return null;
+  const storedPath = localStorage.getItem(PWA_PUBLIC_PATH_KEY);
+  if (!storedPath || !storedPath.startsWith("/kiosk")) {
+    return { path: "/kiosk/checkin" };
+  }
+  return { path: storedPath };
+};
 
 const hasValidSession = () => {
   if (!isBrowser) return false;
@@ -155,7 +180,8 @@ const appRoutes = [
     name: "pwa-entry",
     redirect: () => {
       const role = getStoredRole();
-      return hasValidSession() ? defaultRouteForRole(role) : LOGIN_ROUTE;
+      if (hasValidSession()) return defaultRouteForRole(role);
+      return preferredPwaRoute() ?? LOGIN_ROUTE;
     },
   },
   {
@@ -218,6 +244,27 @@ const appRoutes = [
       {
         path: "",
         name: "check-in-kiosk",
+        component: KioskStepperPage,
+      },
+    ],
+  },
+  {
+    path: "/kiosk",
+    component: KioskLayout,
+    children: [
+      {
+        path: "checkin",
+        name: "kiosk-checkin",
+        component: KioskStepperPage,
+      },
+      {
+        path: ":salonId",
+        name: "kiosk-direct",
+        component: KioskStepperPage,
+      },
+      {
+        path: "checkin/:salonId",
+        name: "kiosk-checkin-direct",
         component: KioskStepperPage,
       },
     ],
@@ -546,14 +593,23 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to, _from, next) => {
+  const authed = hasValidSession();
+  const storedRole = getStoredRole();
+
   // Reserved app routes should always hit the app, even on tenant hosts
   const APP_ROUTE_PREFIXES = ["/login", "/check-in", "/kiosk", "/staff", "/admin", "/platform"];
   if (isWebsiteHost && APP_ROUTE_PREFIXES.some((p) => to.path.startsWith(p))) {
+    if (to.path.startsWith("/kiosk")) {
+      rememberKioskLaunch(to.fullPath || to.path);
+    } else if (to.meta.requiresAuth && authed) {
+      rememberAppLaunch();
+    }
     return next();
   }
 
-  const authed = hasValidSession();
-  const storedRole = getStoredRole();
+  if (to.path.startsWith("/kiosk")) {
+    rememberKioskLaunch(to.fullPath || to.path);
+  }
 
   if (to.name === "login" && authed && storedRole) {
     return next(defaultRouteForRole(storedRole));
@@ -572,6 +628,7 @@ router.beforeEach(async (to, _from, next) => {
 
       // Owners can navigate freely; onboarding is guided via banner/CTA, not hard redirects
     }
+    rememberAppLaunch();
   }
   return next();
 });

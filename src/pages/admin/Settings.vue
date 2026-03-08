@@ -23,6 +23,7 @@ import {
   fetchMessagingSettings,
   type MessagingSettings,
 } from '../../api/settings';
+import { fetchOnboardingStatus } from '../../api/onboarding';
 import type { BusinessHours } from '../../api/settings';
 import { applyThemeFromSettings, defaultUiPreferences, fontFamilyOptions, themeBounds } from '../../utils/theme';
 import { DEFAULT_WEBSITE_THEME } from '../../utils/websiteTheme';
@@ -35,6 +36,7 @@ const settings = ref<BusinessSettings | null>(null);
 const pendingPatch = ref<SettingsPatch>({});
 const saveTimer = ref<number | null>(null);
 const messaging = ref<MessagingSettings | null>(null);
+const kioskSubdomain = ref('');
 
 const defaultRules: DefaultBookingRules = {
   buffer_before: 0,
@@ -71,6 +73,23 @@ const kioskShowStepperHeader = computed(
 const kioskBusinessPhoneValue = computed({
   get: () => settings.value?.kioskBusinessPhone || '',
   set: (val: string) => scheduleSave({ kioskBusinessPhone: val?.trim() || null }),
+});
+const rawLiveDomain =
+  (import.meta.env.VITE_PUBLIC_APP_DOMAIN as string | undefined)?.replace(/^\s+|\s+$/g, '') ||
+  'salonflow.app';
+const liveDomain = rawLiveDomain.replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/+$/, '');
+const kioskLaunchUrl = computed(() => {
+  const subdomain =
+    kioskSubdomain.value ||
+    (typeof window !== 'undefined' ? localStorage.getItem('tenantSubdomain') ?? '' : '');
+  if (!subdomain) return '';
+  if (typeof window === 'undefined') return '';
+  const host = window.location.hostname.toLowerCase();
+  const isLocal = host.includes('localhost') || host.startsWith('127.');
+  if (isLocal) {
+    return `${window.location.origin}/kiosk/checkin/${subdomain}`;
+  }
+  return `https://${subdomain}.${liveDomain}/kiosk/checkin/${subdomain}`;
 });
 const kioskBusinessNameValue = computed({
   get: () => settings.value?.kioskBusinessName || settings.value?.businessName || '',
@@ -350,6 +369,17 @@ const handleKioskResetChange = (value: number | null) => {
   scheduleSave({ kioskAutoResetSeconds: clamped });
 };
 
+const copyKioskUrl = async () => {
+  if (!kioskLaunchUrl.value || !navigator?.clipboard) return;
+  await navigator.clipboard.writeText(kioskLaunchUrl.value);
+  ElMessage.success('Kiosk URL copied');
+};
+
+const openKioskUrl = () => {
+  if (!kioskLaunchUrl.value) return;
+  window.open(kioskLaunchUrl.value, '_blank', 'noopener');
+};
+
 const handleBookingRuleChange = (
   key: keyof DefaultBookingRules,
   value: number | boolean | null | undefined,
@@ -378,7 +408,16 @@ const loadSettings = async () => {
       {},
     );
     applyThemeFromSettings(settings.value);
-    messaging.value = await fetchMessagingSettings();
+    const [messagingData, onboardingStatus] = await Promise.all([
+      fetchMessagingSettings(),
+      fetchOnboardingStatus(true).catch(() => null),
+    ]);
+    messaging.value = messagingData;
+    kioskSubdomain.value =
+      onboardingStatus?.subdomain?.trim() ||
+      (typeof window !== 'undefined'
+        ? localStorage.getItem('tenantSubdomain') ?? ''
+        : '');
   } catch (err: any) {
     error.value = err?.message || 'Failed to load settings';
     if (err?.status === 401 || err?.status === 403) {
@@ -763,6 +802,27 @@ onMounted(loadSettings);
                 @change="(val) => handleToggle('kioskEnabled', val)"
               />
             </div>
+          </div>
+
+          <div class="space-y-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <div class="text-sm font-semibold text-slate-900">Generate kiosk URL</div>
+                <div class="text-xs text-slate-600">
+                  No login required. This route is limited to customer check-in only.
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <ElButton size="small" :disabled="!kioskLaunchUrl" @click="copyKioskUrl">Copy</ElButton>
+                <ElButton size="small" type="primary" plain :disabled="!kioskLaunchUrl" @click="openKioskUrl">
+                  Open
+                </ElButton>
+              </div>
+            </div>
+            <ElInput
+              :model-value="kioskLaunchUrl || 'Kiosk URL will appear after the salon subdomain loads.'"
+              readonly
+            />
           </div>
 
           <div class="space-y-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">

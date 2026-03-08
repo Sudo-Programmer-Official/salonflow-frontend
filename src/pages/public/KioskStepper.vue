@@ -19,7 +19,7 @@ import {
 import { fetchPublicAvailableStaff, type StaffMember } from "../../api/staff";
 import { startKioskIdleWatchdog } from "../../utils/kioskIdleWatchdog";
 import { applyThemeFromSettings } from "../../utils/theme";
-import { formatUSPhone } from "../../utils/format";
+import { formatPhone, formatUSPhone } from "../../utils/format";
 
 type Step = "welcome" | "phone" | "name" | "services" | "staff" | "done";
 
@@ -37,6 +37,7 @@ type ServiceGroup = {
 };
 
 const route = useRoute();
+const defaultManifestHref = ref<string | null>(null);
 const step = ref<Step>("phone");
 const phone = ref("");
 const name = ref("");
@@ -55,6 +56,7 @@ const animatedPoints = ref<number | null>(null);
 const pointsAnimationFrame = ref<number | null>(null);
 const doneCountdown = ref<number | null>(null);
 const doneTimer = ref<number | null>(null);
+const kioskRefreshTimer = ref<number | null>(null);
 const stopWatchdog = ref<(() => void) | null>(null);
 const staffList = ref<StaffMember[]>([]);
 const staffLoading = ref(false);
@@ -116,6 +118,7 @@ const defaultSettings: BusinessSettings = {
 
 const tenant = computed(
   () =>
+    (route.params.salonId as string | undefined) ||
     (route.query.tenant as string | undefined) ||
     (import.meta.env.VITE_TENANT_ID as string | undefined) ||
     (typeof window !== "undefined"
@@ -124,7 +127,7 @@ const tenant = computed(
     (typeof window !== "undefined"
       ? (localStorage.getItem("tenantId") ?? undefined)
       : undefined) ||
-    "demo",
+    undefined,
 );
 
 const stepItems = computed<Array<{ key: Step; label: string }>>(() => {
@@ -247,6 +250,66 @@ const serviceSections = computed(() => {
 });
 
 const displayPhone = computed(() => formatUSPhone(phone.value) || "");
+const kioskDisplayName = computed(
+  () =>
+    settings.value?.kioskBusinessName?.trim() ||
+    settings.value?.businessName?.trim() ||
+    "SALONFLOW",
+);
+const kioskTitleLines = computed(() => {
+  const raw = kioskDisplayName.value;
+  const parts = raw
+    .split(/[-,|]/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length >= 2) {
+    return {
+      main: (parts[0] ?? raw).toUpperCase(),
+      sub: parts.slice(1).join(" ").toUpperCase(),
+    };
+  }
+  return {
+    main: raw.toUpperCase(),
+    sub: "",
+  };
+});
+const kioskDisplayPhone = computed(() => {
+  const raw =
+    settings.value?.kioskBusinessPhone?.trim() ||
+    settings.value?.businessPhone?.trim() ||
+    "";
+  return raw ? formatPhone(raw) : "";
+});
+const kioskHours = computed(() => {
+  const hours = settings.value?.businessHours;
+  if (!hours) return [];
+  const labels: Array<[keyof NonNullable<BusinessSettings["businessHours"]>, string]> = [
+    ["mon", "Mon"],
+    ["tue", "Tue"],
+    ["wed", "Wed"],
+    ["thu", "Thu"],
+    ["fri", "Fri"],
+    ["sat", "Sat"],
+    ["sun", "Sun"],
+  ];
+  return labels
+    .map(([key, label]) => {
+      const slot = hours[key];
+      if (!slot?.open || !slot?.close) return null;
+      return {
+        day: label,
+        time: `${slot.open} - ${slot.close}`,
+      };
+    })
+    .filter(
+      (
+        row,
+      ): row is {
+        day: string;
+        time: string;
+      } => Boolean(row),
+    );
+});
 
 const keypad = [
   ["1", "2", "3"],
@@ -342,6 +405,16 @@ const onKeyClick = (key: string) => {
   handleKeyRelease(key);
 };
 
+const setManifestHref = (href: string) => {
+  if (typeof document === "undefined") return;
+  const manifestLink = document.querySelector('link[rel="manifest"]');
+  if (!(manifestLink instanceof HTMLLinkElement)) return;
+  if (defaultManifestHref.value === null) {
+    defaultManifestHref.value = manifestLink.getAttribute("href");
+  }
+  manifestLink.setAttribute("href", href);
+};
+
 const normalizePhone = (raw: string) => {
   const digits = raw.replace(/\D/g, "");
   if (!digits) return "";
@@ -413,6 +486,7 @@ const preventTouch = (e: Event) => {
 };
 
 onMounted(async () => {
+  setManifestHref("/icons/manifest-kiosk.webmanifest");
   if (tenant.value) {
     localStorage.setItem("tenantSubdomain", tenant.value);
     localStorage.setItem("tenantId", tenant.value);
@@ -431,6 +505,9 @@ onMounted(async () => {
       loadStaff();
     },
   });
+  kioskRefreshTimer.value = window.setInterval(() => {
+    window.location.reload();
+  }, 6 * 60 * 60 * 1000);
 });
 
 onBeforeUnmount(() => {
@@ -441,6 +518,13 @@ onBeforeUnmount(() => {
 
 onUnmounted(() => {
   stopWatchdog.value?.();
+  if (defaultManifestHref.value) {
+    setManifestHref(defaultManifestHref.value);
+  }
+  if (kioskRefreshTimer.value !== null) {
+    clearInterval(kioskRefreshTimer.value);
+    kioskRefreshTimer.value = null;
+  }
   applyThemeFromSettings(settings.value, { mode: "app" });
   delete document.documentElement.dataset.kioskTheme;
   delete document.documentElement.dataset.kioskPrimary;
@@ -911,23 +995,29 @@ watch(useClassicWelcome, (isClassic) => {
                   <div class="left-stack kiosk-left-panel">
                     <div class="identity-box glass-card">
                       <div class="identity-name salon-title">
-                        <span class="salon-main">MTV NAIL SPA</span>
-                        <span class="salon-sub">CORPUS CHRISTI</span>
+                        <span class="salon-main">{{ kioskTitleLines.main }}</span>
+                        <span v-if="kioskTitleLines.sub" class="salon-sub">{{
+                          kioskTitleLines.sub
+                        }}</span>
                       </div>
                       <div class="salon-divider"></div>
-                      <div class="identity-phone" aria-label="Phone">
+                      <div
+                        v-if="kioskDisplayPhone"
+                        class="identity-phone"
+                        aria-label="Phone"
+                      >
                         <span class="identity-phone-icon" aria-hidden="true">📞</span>
-                        <span class="identity-phone-text">(361) 986-1555</span>
+                        <span class="identity-phone-text">{{ kioskDisplayPhone }}</span>
                       </div>
-                      <div class="identity-hours">
+                      <div v-if="kioskHours.length" class="identity-hours">
                         <div class="identity-hours-label">Hours</div>
-                        <div class="identity-hour-row">
-                          <span class="identity-hour-day">Mon–Sat</span>
-                          <span class="identity-hour-time">10:00 AM – 9:00 PM</span>
-                        </div>
-                        <div class="identity-hour-row">
-                          <span class="identity-hour-day">Sun</span>
-                          <span class="identity-hour-time">11:00 AM – 7:00 PM</span>
+                        <div
+                          v-for="row in kioskHours"
+                          :key="`${row.day}-${row.time}`"
+                          class="identity-hour-row"
+                        >
+                          <span class="identity-hour-day">{{ row.day }}</span>
+                          <span class="identity-hour-time">{{ row.time }}</span>
                         </div>
                       </div>
                     </div>

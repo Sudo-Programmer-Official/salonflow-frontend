@@ -269,7 +269,7 @@ const loadCounts = async () => {
 const primaryServiceName = (item: QueueItem) =>
   (item.services && item.services[0]?.serviceName) ||
   item.serviceName ||
-  'No service selected';
+  'Walk-in';
 
 const additionalServiceCount = (item: QueueItem) =>
   Math.max((item.services?.length || 1) - 1, 0);
