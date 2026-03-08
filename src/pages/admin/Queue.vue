@@ -266,18 +266,47 @@ const loadCounts = async () => {
   }
 };
 
+const WALK_IN_ICON_SVG = [
+  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">',
+  '<circle cx="14" cy="4.75" r="1.75"/>',
+  '<path d="M12.6 8.25l-1.9 3.7a1.2 1.2 0 0 0 .22 1.38l1.8 1.68-1.94 5.12"/>',
+  '<path d="M13.2 9.1l2.72 2.22 1.86 4.43"/>',
+  '<path d="M10.85 10.35l-3.1 1.82"/>',
+  '</svg>',
+].join('');
+
+const SERVICE_SELECTED_ICON_SVG = [
+  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">',
+  '<circle cx="6.5" cy="6.5" r="2.5"/>',
+  '<circle cx="6.5" cy="17.5" r="2.5"/>',
+  '<path d="M20 4L8.12 14.05"/>',
+  '<path d="M8.12 9.95L20 20"/>',
+  '</svg>',
+].join('');
+
+const selectedServiceNames = (item: QueueItem) => {
+  const names =
+    item.services
+      ?.map((service) => service.serviceName?.trim())
+      .filter((name): name is string => Boolean(name)) ?? [];
+  if (names.length) return names;
+  const fallback = item.serviceName?.trim();
+  return fallback ? [fallback] : [];
+};
+
+const hasSelectedService = (item: QueueItem) => selectedServiceNames(item).length > 0;
+
+const serviceStateIcon = (item: QueueItem) =>
+  hasSelectedService(item) ? SERVICE_SELECTED_ICON_SVG : WALK_IN_ICON_SVG;
+
 const primaryServiceName = (item: QueueItem) =>
-  (item.services && item.services[0]?.serviceName) ||
-  item.serviceName ||
-  'Walk-in';
+  selectedServiceNames(item)[0] || 'Walk-in';
 
 const additionalServiceCount = (item: QueueItem) =>
-  Math.max((item.services?.length || 1) - 1, 0);
+  Math.max(selectedServiceNames(item).length - 1, 0);
 
 const allServicesTitle = (item: QueueItem) =>
-  item.services?.map((s) => s.serviceName).join(', ') ||
-  item.serviceName ||
-  '';
+  selectedServiceNames(item).join(', ') || 'Walk-in';
 
 onMounted(() => {
   loadQueue();
@@ -1069,8 +1098,11 @@ watch(completedPage, async (val) => {
                 </div>
               </div>
               <div class="flex flex-wrap items-center gap-3 text-sm text-slate-700">
-                <div class="flex items-center service-row">
-                  <span class="service-icon" aria-hidden="true">✂️</span>
+                <div
+                  class="flex items-center service-row"
+                  :class="hasSelectedService(item) ? 'service-row--selected' : 'service-row--walk-in'"
+                >
+                  <span class="service-icon" aria-hidden="true" v-html="serviceStateIcon(item)" />
                   <div class="service-lines">
                     <span class="queue-service-name" :title="allServicesTitle(item)">
                       {{ primaryServiceName(item) }}
@@ -1712,6 +1744,12 @@ watch(completedPage, async (val) => {
   margin-bottom: 8px;
   opacity: 0.9;
   gap: 10px;
+}
+.queue-card .service-row--selected .service-icon {
+  color: var(--sf-primary, #0ea5e9);
+}
+.queue-card .service-row--walk-in .service-icon {
+  color: #64748b;
 }
 .queue-card .service-lines {
   display: flex;
