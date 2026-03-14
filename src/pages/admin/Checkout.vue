@@ -11,6 +11,10 @@ import { fetchCategories, type ServiceCategory } from '@/api/serviceCategories';
 import { fetchGiftCard, addLegacyGiftCard, type GiftCard } from '@/api/giftCards';
 import { type RedeemStatus } from '@/utils/redeemStatus';
 import { resolveCheckoutRedeemState } from '@/utils/checkoutLoyalty';
+import {
+  resolveCheckoutPaymentState,
+  shouldClearRedeemSelection,
+} from '@/utils/checkoutPaymentState';
 
 const route = useRoute();
 const router = useRouter();
@@ -244,13 +248,32 @@ const loyaltyState = computed(() =>
   }),
 );
 const redeemStatus = computed<RedeemStatus>(() => loyaltyState.value.redeemStatus);
-const availablePoints = computed(() => loyaltyState.value.points);
-const redeemValue = computed(() =>
-  redeemPoints.value && redeemStatus.value.eligible ? REDEEM_DOLLAR_VALUE : 0,
-);
-const redeemShortfall = computed(() => Math.max(0, redeemStatus.value.required - redeemStatus.value.points));
-const totalDue = computed(() => Math.max(0, Number((subtotal.value - redeemValue.value).toFixed(2))));
 const hasBillItems = computed(() => customTotalValid.value || selectedServiceObjects.value.length > 0);
+const paymentState = computed(() =>
+  resolveCheckoutPaymentState({
+    subtotal: subtotal.value,
+    hasBillItems: hasBillItems.value,
+    redeemSelected: redeemPoints.value,
+    redeemStatus: redeemStatus.value,
+    preservedRedeemPoints: loyalty.value.pointsBalance,
+    requiredPoints: REDEEM_REQUIRED_POINTS,
+    redeemDollarValue: REDEEM_DOLLAR_VALUE,
+    preserveRedeemWhileLoading:
+      loyalty.value.loading &&
+      loyalty.value.customerId !== null &&
+      loyalty.value.customerId === item.value?.customerId,
+    paymentOptions: paymentOptions.value,
+    paymentAmounts: paymentAmounts.value,
+    giftCardsTotal: giftCardsTotal.value,
+  }),
+);
+const displayRedeemStatus = computed<RedeemStatus>(() => paymentState.value.redeemStatus);
+const availablePoints = computed(() => displayRedeemStatus.value.points);
+const redeemValue = computed(() => paymentState.value.redeemValue);
+const redeemShortfall = computed(
+  () => Math.max(0, displayRedeemStatus.value.required - displayRedeemStatus.value.points),
+);
+const totalDue = computed(() => paymentState.value.totalDue);
 const hasDirtyCheckout = computed(() => {
   const hasServices = selectedServiceIds.value.length > 0;
   const hasPaymentOptions = paymentOptions.value.cash || paymentOptions.value.card || paymentOptions.value.gift;
@@ -289,33 +312,11 @@ const giftCardsTotal = computed(() =>
     return acc + capped;
   }, 0),
 );
-const enteredPayments = computed(() => {
-  const entries: Array<{ method: 'cash' | 'card' | 'gift'; amount: number }> = [];
-  (['cash', 'card'] as const).forEach((key) => {
-    if (!paymentOptions.value[key]) return;
-    const val = Number(paymentAmounts.value[key]);
-    if (Number.isFinite(val) && val >= 0) {
-      entries.push({ method: key, amount: val });
-    }
-  });
-  if (paymentOptions.value.gift && giftCardsTotal.value > 0) {
-    entries.push({ method: 'gift', amount: giftCardsTotal.value });
-  }
-  return entries;
-});
-const enteredTotal = computed(() => enteredPayments.value.reduce((acc, cur) => acc + cur.amount, 0));
-const remainingBalance = computed(() => {
-  const remaining = totalDue.value - enteredTotal.value;
-  return Number.isFinite(remaining) ? Number(remaining.toFixed(2)) : 0;
-});
-const remainingState = computed<'due' | 'paid' | 'over'>(() => {
-  if (remainingBalance.value > 0.009) return 'due';
-  if (remainingBalance.value < -0.009) return 'over';
-  return 'paid';
-});
-const canCompleteCheckout = computed(
-  () => hasBillItems.value && enteredPayments.value.length > 0 && Math.abs(remainingBalance.value) < 0.01,
-);
+const enteredPayments = computed(() => paymentState.value.enteredPayments);
+const enteredTotal = computed(() => paymentState.value.enteredTotal);
+const remainingBalance = computed(() => paymentState.value.remainingBalance);
+const remainingState = computed<'due' | 'paid' | 'over'>(() => paymentState.value.remainingState);
+const canCompleteCheckout = computed(() => paymentState.value.canCompleteCheckout);
 const completing = ref(false);
 const checkoutCompleted = ref(false);
 
@@ -456,9 +457,16 @@ watch(
 );
 
 watch(
-  () => redeemStatus.value.eligible,
-  (can) => {
-    if (!can) redeemPoints.value = false;
+  () => redeemStatus.value.reason,
+  () => {
+    if (
+      shouldClearRedeemSelection({
+        redeemSelected: redeemPoints.value,
+        redeemStatus: redeemStatus.value,
+      })
+    ) {
+      redeemPoints.value = false;
+    }
   },
   { immediate: true },
 );
@@ -1161,15 +1169,15 @@ onBeforeUnmount(() => {
                 Remaining {{ Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(remainingBalance) }}
               </div>
             </div>
-            <div class="redeem-row" v-if="redeemStatus.eligible">
+            <div class="redeem-row" v-if="displayRedeemStatus.eligible">
               <label class="redeem-toggle">
                 <input
                   type="checkbox"
                   v-model="redeemPoints"
-                  :disabled="!redeemStatus.eligible || completing"
+                  :disabled="!displayRedeemStatus.eligible || completing"
                 />
                 <span>
-                  Redeem {{ redeemStatus.required }} points (Available: {{ availablePoints }} pts)
+                  Redeem {{ displayRedeemStatus.required }} points (Available: {{ availablePoints }} pts)
                 </span>
               </label>
             </div>
@@ -1177,7 +1185,7 @@ onBeforeUnmount(() => {
               <div v-if="loyaltyUnavailable" class="redeem-hint">
                 Points unavailable right now.
               </div>
-              <div v-else-if="redeemStatus.reason === 'insufficient-points'" class="redeem-hint">
+              <div v-else-if="displayRedeemStatus.reason === 'insufficient-points'" class="redeem-hint">
                 Need {{ redeemShortfall }} more points to redeem.
               </div>
               <div v-else class="redeem-hint">
