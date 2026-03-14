@@ -2,6 +2,7 @@ import { apiUrl, buildHeaders } from '@/api/client';
 
 export type QueueItem = {
   id: string;
+  customerId?: string | null;
   customerName: string;
   customerPhone: string;
   serviceName: string | null;

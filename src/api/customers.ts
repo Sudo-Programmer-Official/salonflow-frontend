@@ -30,6 +30,11 @@ export type CustomerTimeline = {
   visits: CustomerTimelineVisit[];
 };
 
+export type CustomerLoyaltySnapshot = {
+  pointsBalance: number;
+  vipTier: 'NEW' | 'REGULAR' | 'VIP';
+};
+
 export type CustomersResponse =
   | CustomerSearchResult[]
   | {
@@ -81,6 +86,19 @@ export async function fetchCustomerTimeline(customerId: string): Promise<Custome
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || 'Failed to load timeline');
+  }
+
+  return res.json();
+}
+
+export async function fetchCustomerLoyalty(customerId: string): Promise<CustomerLoyaltySnapshot> {
+  const res = await fetch(apiUrl(`/customers/${customerId}/loyalty`), {
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to load loyalty');
   }
 
   return res.json();

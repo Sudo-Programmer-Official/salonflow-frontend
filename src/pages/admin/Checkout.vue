@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { onMounted, ref, computed, watch, watchEffect, onBeforeUnmount } from 'vue';
+import { onMounted, ref, computed, watch, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router';
 import { ElButton, ElCard, ElSkeleton, ElMessage, ElInput, ElMessageBox, ElIcon, ElDialog } from 'element-plus';
 import { Money, CreditCard, Present } from '@element-plus/icons-vue';
 import { fetchQueue, checkoutCheckIn, type QueueItem } from '@/api/queue';
+import { fetchCustomerLoyalty } from '@/api/customers';
 import { humanizeTime } from '@/utils/dates';
 import { fetchServices, type ServiceItem } from '@/api/services';
 import { fetchCategories, type ServiceCategory } from '@/api/serviceCategories';
 import { fetchGiftCard, addLegacyGiftCard, type GiftCard } from '@/api/giftCards';
-import { computeRedeemStatus, type RedeemStatus } from '@/utils/redeemStatus';
+import { type RedeemStatus } from '@/utils/redeemStatus';
+import { resolveCheckoutRedeemState } from '@/utils/checkoutLoyalty';
 
 const route = useRoute();
 const router = useRouter();
@@ -16,6 +18,19 @@ const checkinId = computed(() => route.params.checkinId as string);
 
 const loading = ref(true);
 const item = ref<QueueItem | null>(null);
+const loyalty = ref<{
+  customerId: string | null;
+  pointsBalance: number | null;
+  loading: boolean;
+  loaded: boolean;
+  error: string;
+}>({
+  customerId: null,
+  pointsBalance: null,
+  loading: false,
+  loaded: false,
+  error: '',
+});
 const categories = ref<ServiceCategory[]>([]);
 const services = ref<ServiceItem[]>([]);
 const selectedCategory = ref<string>('all');
@@ -39,6 +54,7 @@ const fetchedNumbers = ref<Record<number, string>>({});
 const checkoutStep = ref<'services' | 'payment'>('services');
 const REDEEM_REQUIRED_POINTS = 300;
 const REDEEM_DOLLAR_VALUE = 5;
+let loyaltyRequestId = 0;
 
 const goToPaymentStep = async () => {
   await loadCheckin({ silent: true });
@@ -203,17 +219,32 @@ const subtotal = computed(() => {
   if (customTotalValid.value) return Number(Number(customTotalValue.value).toFixed(2));
   return servicesSubtotal.value;
 });
-const loyaltyReady = computed(() => !loading.value && item.value !== null);
-
-const redeemStatus = computed<RedeemStatus>(() =>
-  computeRedeemStatus({
-    points: item.value?.pointsBalance,
+const loyaltyReady = computed(
+  () =>
+    !loading.value &&
+    item.value !== null &&
+    Boolean(item.value.customerId) &&
+    loyalty.value.customerId === item.value.customerId &&
+    loyalty.value.loaded &&
+    !loyalty.value.loading,
+);
+const loyaltyUnavailable = computed(
+  () =>
+    !loyalty.value.loading &&
+    item.value !== null &&
+    (!item.value.customerId || Boolean(loyalty.value.error)),
+);
+const loyaltyState = computed(() =>
+  resolveCheckoutRedeemState({
+    fallbackPoints: item.value?.pointsBalance,
+    authoritativePoints: loyalty.value.pointsBalance,
     required: REDEEM_REQUIRED_POINTS,
-    isLoaded: loyaltyReady.value,
+    isAuthoritativeLoaded: loyaltyReady.value,
+    isAuthoritativeLoading: loyalty.value.loading,
   }),
 );
-
-const availablePoints = computed(() => redeemStatus.value.points);
+const redeemStatus = computed<RedeemStatus>(() => loyaltyState.value.redeemStatus);
+const availablePoints = computed(() => loyaltyState.value.points);
 const redeemValue = computed(() =>
   redeemPoints.value && redeemStatus.value.eligible ? REDEEM_DOLLAR_VALUE : 0,
 );
@@ -288,6 +319,51 @@ const canCompleteCheckout = computed(
 const completing = ref(false);
 const checkoutCompleted = ref(false);
 
+const loadCustomerLoyalty = async (customerId: string | null | undefined) => {
+  loyaltyRequestId += 1;
+  const requestId = loyaltyRequestId;
+
+  if (!customerId) {
+    loyalty.value = {
+      customerId: null,
+      pointsBalance: null,
+      loading: false,
+      loaded: false,
+      error: 'Customer not found',
+    };
+    return;
+  }
+
+  loyalty.value = {
+    customerId,
+    pointsBalance: loyalty.value.customerId === customerId ? loyalty.value.pointsBalance : null,
+    loading: true,
+    loaded: false,
+    error: '',
+  };
+
+  try {
+    const snapshot = await fetchCustomerLoyalty(customerId);
+    if (requestId !== loyaltyRequestId) return;
+    loyalty.value = {
+      customerId,
+      pointsBalance: snapshot.pointsBalance ?? 0,
+      loading: false,
+      loaded: true,
+      error: '',
+    };
+  } catch (err) {
+    if (requestId !== loyaltyRequestId) return;
+    loyalty.value = {
+      customerId,
+      pointsBalance: null,
+      loading: false,
+      loaded: false,
+      error: err instanceof Error ? err.message : 'Failed to load loyalty',
+    };
+  }
+};
+
 const loadCheckin = async (opts?: { silent?: boolean }) => {
   if (!opts?.silent) loading.value = true;
   try {
@@ -301,6 +377,7 @@ const loadCheckin = async (opts?: { silent?: boolean }) => {
       return;
     }
     item.value = match;
+    await loadCustomerLoyalty(match.customerId ?? null);
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to load checkout');
     router.replace({ name: 'admin-queue' });
@@ -353,12 +430,13 @@ onMounted(() => {
     });
 });
 
-watchEffect(() => {
-  if (loyaltyReady.value) {
-    // Touch the computed so it re-evaluates as soon as loyalty data is ready.
-    void redeemStatus.value;
-  }
-});
+watch(
+  () => checkinId.value,
+  () => {
+    loadDrafts();
+    loadCheckin();
+  },
+);
 
 watch(
   () => draftSelections.value,
@@ -707,6 +785,18 @@ const submitCheckout = async () => {
   await loadCheckin({ silent: true });
   if (!canCompleteCheckout.value) {
     ElMessage.warning('Add a total (services or custom) and payments before checkout.');
+    return;
+  }
+  if (redeemPoints.value && loyalty.value.loading) {
+    ElMessage.warning('Wait for loyalty points to finish loading before redeeming.');
+    return;
+  }
+  if (redeemPoints.value && !redeemStatus.value.eligible) {
+    ElMessage.warning(
+      redeemStatus.value.reason === 'insufficient-points'
+        ? 'Not enough points to redeem.'
+        : 'Loyalty points are unavailable right now.',
+    );
     return;
   }
   if (!validateGiftCards()) return;
@@ -1084,14 +1174,14 @@ onBeforeUnmount(() => {
               </label>
             </div>
             <div class="redeem-row redeem-row--disabled" v-else>
-              <div v-if="redeemStatus.reason === 'insufficient-points'" class="redeem-hint">
+              <div v-if="loyaltyUnavailable" class="redeem-hint">
+                Points unavailable right now.
+              </div>
+              <div v-else-if="redeemStatus.reason === 'insufficient-points'" class="redeem-hint">
                 Need {{ redeemShortfall }} more points to redeem.
               </div>
-              <div v-else-if="redeemStatus.reason === 'loading'" class="redeem-hint">
-                Checking points balance…
-              </div>
               <div v-else class="redeem-hint">
-                Points unavailable right now.
+                Checking points balance…
               </div>
             </div>
             <div class="payments-section">
