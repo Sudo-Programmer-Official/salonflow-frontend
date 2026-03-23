@@ -176,12 +176,12 @@ const setupSteps = [
               </div>
             </div>
 
-            <div class="hero-plan-card ml-4 mt-5 max-w-[280px] rounded-[28px] border border-white/12 bg-slate-950/88 p-5 text-white shadow-[0_24px_70px_rgba(15,23,42,0.22)] backdrop-blur-xl">
+            <div class="hero-plan-card ml-4 mt-5 max-w-[280px] rounded-[28px] p-5 text-white">
               <div class="text-[11px] font-semibold uppercase tracking-[0.3em] text-emerald-300">Founding plan</div>
-              <div class="mt-3 sf-display text-4xl font-semibold text-white">
-                $65<span class="ml-1 text-lg text-white/78">/mo</span>
+              <div class="hero-plan-card__price mt-3 sf-display text-4xl font-semibold">
+                $65<span class="hero-plan-card__unit ml-1 text-lg">/mo</span>
               </div>
-              <p class="mt-3 text-sm leading-6 text-white/88">
+              <p class="hero-plan-card__copy mt-3 text-sm leading-6">
                 Less than the cost of one extra appointment a week for most salons.
               </p>
             </div>
@@ -372,8 +372,8 @@ const setupSteps = [
 
         <LeadAssistant
           source="marketing-home-assistant"
-          title="Qualify and capture salon owners in one conversation"
-          subtitle="This assistant collects the business context you actually need, saves it, and routes the lead to the platform inbox and email alerts."
+          title="See how SalonFlow fits your salon in one guided conversation"
+          subtitle="Share a few details about your salon and we will tailor the right setup for your team. Your progress saves automatically while we build your demo plan."
           cta-label="Send My Demo Plan"
         />
       </div>
@@ -431,6 +431,26 @@ const setupSteps = [
 .hero-media-card {
   transform: perspective(1600px) rotateY(-5deg) rotateX(1.8deg);
   transform-style: preserve-3d;
+}
+
+.hero-plan-card {
+  background: linear-gradient(180deg, rgba(9, 14, 28, 0.94), rgba(22, 31, 54, 0.92));
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
+  backdrop-filter: blur(18px);
+}
+
+.hero-plan-card__price {
+  color: #ffffff;
+  text-shadow: 0 2px 16px rgba(15, 23, 42, 0.22);
+}
+
+.hero-plan-card__unit {
+  color: rgba(255, 255, 255, 0.84);
+}
+
+.hero-plan-card__copy {
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .floating-card {

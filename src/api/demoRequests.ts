@@ -1,14 +1,17 @@
 export type DemoRequest = {
   id: string;
   name: string;
-  email: string;
+  email: string | null;
   phone: string | null;
   notes: string | null;
   status: string;
   source?: string | null;
   details?: Record<string, any> | null;
+  isDraft?: boolean;
+  progressStep?: number | null;
   converted_business_id?: string | null;
   created_at: string;
+  updated_at?: string;
 };
 
 const apiBase = '/api/admin/demo-requests';

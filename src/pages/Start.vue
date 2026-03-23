@@ -54,8 +54,9 @@ const launchPoints = [
         <LeadAssistant
           source="marketing-start-assistant"
           title="Build my SalonFlow demo plan"
-          subtitle="Answer the prompts below and SalonFlow will capture the lead, store the details, and notify the platform owner for follow-up."
+          subtitle="Answer the prompts below and your progress will save automatically while we build the right SalonFlow plan for your salon."
           cta-label="Request My Demo"
+          :default-fullscreen="true"
         />
       </div>
     </section>

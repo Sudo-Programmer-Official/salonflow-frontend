@@ -3,13 +3,16 @@ import { apiUrl, buildHeaders } from '@/api/client';
 export type DemoRequest = {
   id: string;
   name: string;
-  email: string;
+  email: string | null;
   phone: string | null;
   notes: string | null;
   status: string;
   source?: string | null;
   details?: Record<string, any> | null;
+  isDraft?: boolean;
+  progressStep?: number | null;
   createdAt: string;
+  updatedAt?: string;
   userAgent?: string | null;
   referer?: string | null;
   convertedBusinessId?: string | null;

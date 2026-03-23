@@ -53,6 +53,9 @@ const statusType = (status: string | undefined) => {
   return 'info';
 };
 
+const statusLabel = (row: DemoRequest) =>
+  row.isDraft ? `DRAFT${row.progressStep ? ` · STEP ${row.progressStep}/7` : ''}` : row.status || 'NEW';
+
 const formatDate = (iso: string) => formatInBusinessTz(iso, 'MMM D, YYYY h:mm A');
 
 const notesText = computed(
@@ -68,10 +71,10 @@ const openDetails = (row: DemoRequest) => {
 };
 
 const canConvert = (row: DemoRequest) =>
-  (row.status || '').toUpperCase() !== 'CONVERTED' && !row.converted_business_id;
+  !row.isDraft && !!row.email && (row.status || '').toUpperCase() !== 'CONVERTED' && !row.converted_business_id;
 
 const canGenerateLink = (row: DemoRequest) =>
-  (row.status || '').toUpperCase() === 'CONVERTED' || !!row.converted_business_id;
+  !row.isDraft && ((row.status || '').toUpperCase() === 'CONVERTED' || !!row.converted_business_id);
 
 const convert = async (row: DemoRequest) => {
   if (!canConvert(row)) return;
@@ -185,7 +188,7 @@ const resendLink = async (row: DemoRequest) => {
         <ElTableColumn label="Status" width="120">
           <template #default="{ row }">
             <ElTag :type="statusType(row.status)" size="small">
-              {{ row.status || 'NEW' }}
+              {{ statusLabel(row) }}
             </ElTag>
           </template>
         </ElTableColumn>
@@ -236,7 +239,7 @@ const resendLink = async (row: DemoRequest) => {
         <div class="text-base font-semibold text-slate-900">{{ selected.name }}</div>
 
         <div class="text-sm text-slate-600">Email</div>
-        <div class="text-base text-slate-900">{{ selected.email }}</div>
+        <div class="text-base text-slate-900">{{ selected.email || '—' }}</div>
 
         <div class="text-sm text-slate-600">Phone</div>
         <div class="text-base text-slate-900">
@@ -245,6 +248,12 @@ const resendLink = async (row: DemoRequest) => {
 
         <div class="text-sm text-slate-600">Source</div>
         <div class="text-base text-slate-900">{{ selected.source || 'website form' }}</div>
+
+        <div class="text-sm text-slate-600">State</div>
+        <div class="text-base text-slate-900">{{ statusLabel(selected) }}</div>
+
+        <div v-if="selected.updated_at" class="text-sm text-slate-600">Last updated</div>
+        <div v-if="selected.updated_at" class="text-base text-slate-900">{{ formatDate(selected.updated_at) }}</div>
 
         <div v-if="selected.details?.businessName" class="text-sm text-slate-600">Salon</div>
         <div v-if="selected.details?.businessName" class="text-base text-slate-900">{{ selected.details.businessName }}</div>
@@ -257,7 +266,7 @@ const resendLink = async (row: DemoRequest) => {
 
         <div class="text-sm text-slate-600">Status</div>
         <ElTag :type="statusType(selected.status)" size="small">
-          {{ selected.status || 'NEW' }}
+          {{ statusLabel(selected) }}
         </ElTag>
 
         <div class="text-sm text-slate-600">Created</div>

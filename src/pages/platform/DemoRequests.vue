@@ -26,6 +26,8 @@ const saving = ref(false);
 const statusOptions = ['NEW', 'CONTACTED', 'CONVERTED', 'DISQUALIFIED', 'CLOSED'];
 const detailSummary = (row: DemoRequest | null) =>
   row?.details?.summary || row?.notes || '—';
+const statusLabel = (row: DemoRequest) =>
+  row.isDraft ? `DRAFT${row.progressStep ? ` · STEP ${row.progressStep}/7` : ''}` : row.status;
 
 const load = async () => {
   loading.value = true;
@@ -82,7 +84,7 @@ onMounted(load);
         </ElTableColumn>
         <ElTableColumn label="Status" width="140">
           <template #default="{ row }">
-            <ElTag effect="light">{{ row.status }}</ElTag>
+            <ElTag effect="light">{{ statusLabel(row) }}</ElTag>
           </template>
         </ElTableColumn>
         <ElTableColumn label="Actions" width="120">
@@ -114,9 +116,17 @@ onMounted(load);
           <div class="text-xs text-slate-500">Submitted</div>
           <div>{{ formatDate(selected.createdAt) }}</div>
         </div>
+        <div v-if="selected.updatedAt">
+          <div class="text-xs text-slate-500">Last updated</div>
+          <div>{{ formatDate(selected.updatedAt) }}</div>
+        </div>
         <div>
           <div class="text-xs text-slate-500">Source</div>
           <div>{{ selected.source || 'website form' }}</div>
+        </div>
+        <div>
+          <div class="text-xs text-slate-500">State</div>
+          <div>{{ statusLabel(selected) }}</div>
         </div>
         <div v-if="selected.details?.businessName">
           <div class="text-xs text-slate-500">Salon</div>
