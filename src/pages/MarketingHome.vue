@@ -15,30 +15,67 @@ const outcomeStats = [
   { value: '0 contract', label: 'Setup included so owners are not stuck DIYing software' },
 ];
 
-const stackItems = [
+const featureSystems = [
   {
-    title: 'Website + booking that actually converts',
-    desc: 'A modern salon website, online booking flow, QR check-in, and a cleaner first impression for new clients.',
+    icon: 'booking',
+    title: 'Booking & Website',
+    desc: 'Turn discovery into a polished first impression and a booking flow that feels easy to trust.',
+    bullets: [
+      'Modern website built around your salon brand',
+      'Online booking and QR check-in in one flow',
+      'Mobile-friendly first impression for new guests',
+    ],
   },
   {
-    title: 'SMS reminders + repeat visit engine',
-    desc: 'Cut no-shows, request reviews, and bring guests back with reminders, loyalty, and targeted follow-up.',
+    icon: 'reminders',
+    title: 'Customer Reminders',
+    desc: 'Keep appointments moving and reduce no-shows with timely follow-up that feels organized.',
+    bullets: [
+      'Automated reminders before appointments',
+      'Cleaner follow-up after missed or completed visits',
+      'Less manual chasing from the front desk',
+    ],
   },
   {
-    title: 'Social media scheduling + content posting',
-    desc: 'Connect your social presence, schedule posts, and keep promotions moving so the salon stays visible and growing.',
+    icon: 'customers',
+    title: 'Customer Management',
+    desc: 'Keep client context, history, and communication inside one operating system instead of scattered tools.',
+    bullets: [
+      'Client details and visit context in one place',
+      'Better owner visibility across staff and guests',
+      'Cleaner follow-up and retention workflow',
+    ],
   },
   {
-    title: 'Front desk + POS rollout visibility',
-    desc: 'Queue, appointments, customer context, and the next phase of SalonFlow POS without stitching together multiple vendors.',
+    icon: 'pos',
+    title: 'POS & Billing',
+    desc: 'Bring checkout, billing visibility, and front-desk structure into the same business workflow.',
+    bullets: [
+      'Billing and checkout flow built for salon operations',
+      'Front-desk visibility without extra vendor sprawl',
+      'Stronger control when the salon is ready for more',
+    ],
+    badge: 'Included in Complete plan',
   },
   {
-    title: 'Owner visibility + growth control',
-    desc: 'See what is driving bookings, follow-up, and client retention without bouncing across disconnected tools.',
+    icon: 'social',
+    title: 'Social Media Engine',
+    desc: 'Keep promotions active, schedule content, and stay visible without adding another marketing tool.',
+    bullets: [
+      'Schedule posts and keep content moving',
+      'Support promotions that feed bookings',
+      'A more consistent brand presence online',
+    ],
   },
   {
-    title: 'Done-for-you setup and support',
-    desc: 'We load services, shape the flow, and help launch the system with your real salon workflow in mind.',
+    icon: 'growth',
+    title: 'Reviews & Growth',
+    desc: 'Bring guests back more often with feedback loops, loyalty signals, and smarter growth visibility.',
+    bullets: [
+      'Review requests and repeat-visit support',
+      'Loyalty and retention flow that feels intentional',
+      'More clarity on what drives salon growth',
+    ],
   },
 ];
 
@@ -302,31 +339,142 @@ const pricingPlans = [
       </div>
     </section>
 
-    <section class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-      <div class="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <div class="text-[11px] font-semibold uppercase tracking-[0.32em] text-slate-500">Everything you need</div>
-          <h2 class="sf-display mt-3 max-w-2xl text-3xl font-semibold leading-tight text-slate-950 sm:text-4xl">
-            One system to run the floor and grow the business.
+    <section class="border-b border-black/5 bg-white/72">
+      <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+        <div class="mx-auto max-w-3xl text-center">
+          <div class="text-[11px] font-semibold uppercase tracking-[0.32em] text-slate-500">What you get</div>
+          <h2 class="sf-display mt-3 text-3xl font-semibold leading-tight text-slate-950 sm:text-4xl">
+            Everything working together for your salon
           </h2>
+          <p class="mt-4 text-lg leading-8 text-slate-600">
+            Run and grow your salon in one place
+          </p>
         </div>
-        <p class="max-w-xl text-base leading-7 text-slate-600">
-          This should not feel like another tool. It should feel like the operating layer behind how your salon gets found,
-          books faster, posts consistently, follows up, and stays organized.
-        </p>
-      </div>
 
-      <div class="mt-10 grid gap-5 md:grid-cols-2">
-        <div
-          v-for="item in stackItems"
-          :key="item.title"
-          class="rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur"
-        >
-          <div class="inline-flex rounded-full bg-slate-950 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-white">
-            Included
-          </div>
-          <h3 class="sf-display mt-4 text-2xl font-semibold text-slate-950">{{ item.title }}</h3>
-          <p class="mt-3 text-sm leading-7 text-slate-600">{{ item.desc }}</p>
+        <div class="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          <article
+            v-for="item in featureSystems"
+            :key="item.title"
+            class="feature-system-card rounded-[30px] border border-white/80 bg-white/92 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur"
+          >
+            <div class="flex items-start justify-between gap-4">
+              <div class="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-900 shadow-sm">
+                <svg
+                  v-if="item.icon === 'booking'"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="h-5 w-5"
+                  aria-hidden="true"
+                >
+                  <path d="M8 3v4" />
+                  <path d="M16 3v4" />
+                  <rect x="3" y="5" width="18" height="16" rx="3" />
+                  <path d="M3 10h18" />
+                </svg>
+                <svg
+                  v-else-if="item.icon === 'reminders'"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="h-5 w-5"
+                  aria-hidden="true"
+                >
+                  <path d="M12 6v6l4 2" />
+                  <circle cx="12" cy="12" r="8" />
+                </svg>
+                <svg
+                  v-else-if="item.icon === 'customers'"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="h-5 w-5"
+                  aria-hidden="true"
+                >
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
+                  <circle cx="9.5" cy="7" r="3.5" />
+                  <path d="M18 8a3 3 0 0 1 0 6" />
+                  <path d="M21 21v-2a4 4 0 0 0-3-3.87" />
+                </svg>
+                <svg
+                  v-else-if="item.icon === 'pos'"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="h-5 w-5"
+                  aria-hidden="true"
+                >
+                  <rect x="4" y="4" width="16" height="12" rx="2.5" />
+                  <path d="M8 20h8" />
+                  <path d="M10 16v4" />
+                  <path d="M14 16v4" />
+                </svg>
+                <svg
+                  v-else-if="item.icon === 'social'"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="h-5 w-5"
+                  aria-hidden="true"
+                >
+                  <path d="M18 8a3 3 0 0 0-6 0v8a3 3 0 0 1-6 0" />
+                  <path d="M18 8v8" />
+                  <path d="M12 12h6" />
+                </svg>
+                <svg
+                  v-else
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="h-5 w-5"
+                  aria-hidden="true"
+                >
+                  <path d="M12 20V10" />
+                  <path d="M7 15l5-5 5 5" />
+                  <path d="M5 4h14" />
+                </svg>
+              </div>
+
+              <span
+                v-if="item.badge"
+                class="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-amber-800"
+              >
+                {{ item.badge }}
+              </span>
+            </div>
+
+            <h3 class="sf-display mt-5 text-2xl font-semibold text-slate-950">{{ item.title }}</h3>
+            <p class="mt-3 text-sm leading-7 text-slate-600">{{ item.desc }}</p>
+
+            <ul class="mt-5 space-y-3">
+              <li
+                v-for="point in item.bullets"
+                :key="point"
+                class="flex items-start gap-3 text-sm leading-6 text-slate-700"
+              >
+                <span class="mt-2 h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
+                <span>{{ point }}</span>
+              </li>
+            </ul>
+          </article>
         </div>
       </div>
     </section>
@@ -771,6 +919,16 @@ const pricingPlans = [
 
 .hero-plan-card__copy {
   color: rgba(255, 255, 255, 0.9);
+}
+
+.feature-system-card {
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.feature-system-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(203, 213, 225, 0.95);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.1);
 }
 
 .pricing-card {
