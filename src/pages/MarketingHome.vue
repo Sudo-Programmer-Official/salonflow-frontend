@@ -10,7 +10,7 @@ const jumpToAssistant = () => {
 };
 
 const outcomeStats = [
-  { value: '1 system', label: 'Website, booking, reminders, CRM, and POS rollout in one place' },
+  { value: '1 system', label: 'Website, booking, social scheduling, reminders, CRM, and POS rollout in one place' },
   { value: '24 hrs', label: 'Lead follow-up target after a salon owner reaches out' },
   { value: '0 contract', label: 'Setup included so owners are not stuck DIYing software' },
 ];
@@ -25,8 +25,16 @@ const stackItems = [
     desc: 'Cut no-shows, request reviews, and bring guests back with reminders, loyalty, and targeted follow-up.',
   },
   {
+    title: 'Social media scheduling + content posting',
+    desc: 'Connect your social presence, schedule posts, and keep promotions moving so the salon stays visible and growing.',
+  },
+  {
     title: 'Front desk + POS rollout visibility',
     desc: 'Queue, appointments, customer context, and the next phase of SalonFlow POS without stitching together multiple vendors.',
+  },
+  {
+    title: 'Owner visibility + growth control',
+    desc: 'See what is driving bookings, follow-up, and client retention without bouncing across disconnected tools.',
   },
   {
     title: 'Done-for-you setup and support',
@@ -168,6 +176,16 @@ const setupSteps = [
               </div>
             </div>
 
+            <div class="hero-plan-card ml-4 mt-5 max-w-[280px] rounded-[28px] border border-white/12 bg-slate-950/88 p-5 text-white shadow-[0_24px_70px_rgba(15,23,42,0.22)] backdrop-blur-xl">
+              <div class="text-[11px] font-semibold uppercase tracking-[0.3em] text-emerald-300">Founding plan</div>
+              <div class="mt-3 sf-display text-4xl font-semibold text-white">
+                $65<span class="ml-1 text-lg text-white/78">/mo</span>
+              </div>
+              <p class="mt-3 text-sm leading-6 text-white/88">
+                Less than the cost of one extra appointment a week for most salons.
+              </p>
+            </div>
+
             <div class="floating-card floating-card--top-right">
               <img
                 src="/images/landing/marketing-mobile.jpg"
@@ -180,14 +198,6 @@ const setupSteps = [
                 <div class="mt-1 sf-display text-lg font-semibold">Owners and staff can move fast</div>
               </div>
             </div>
-
-            <div class="floating-card floating-card--bottom-left bg-white/92 p-4 text-slate-900 backdrop-blur-xl">
-              <div class="text-[11px] font-semibold uppercase tracking-[0.3em] text-emerald-700">Founding plan</div>
-              <div class="mt-3 sf-display text-3xl font-semibold">$65<span class="text-base text-slate-500">/mo</span></div>
-              <p class="mt-2 text-sm leading-6 text-slate-600">
-                Less than the cost of one extra appointment a week for most salons.
-              </p>
-            </div>
           </div>
         </div>
       </div>
@@ -197,6 +207,7 @@ const setupSteps = [
       <div class="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
         <div class="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm font-medium text-slate-600">
           <span>Website + booking</span>
+          <span>Social media scheduling</span>
           <span>SMS reminders</span>
           <span>Loyalty + reviews</span>
           <span>Owner visibility</span>
@@ -216,7 +227,7 @@ const setupSteps = [
         </div>
         <p class="max-w-xl text-base leading-7 text-slate-600">
           This should not feel like another tool. It should feel like the operating layer behind how your salon gets found,
-          books faster, follows up, and stays organized.
+          books faster, posts consistently, follows up, and stays organized.
         </p>
       </div>
 
@@ -337,22 +348,24 @@ const setupSteps = [
     </section>
 
     <section ref="assistantSection" class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-      <div class="grid gap-8 lg:grid-cols-[0.92fr,1.08fr] lg:items-start">
-        <div class="sticky top-6">
-          <div class="text-[11px] font-semibold uppercase tracking-[0.32em] text-slate-500">Capture more owners</div>
-          <h2 class="sf-display mt-3 text-3xl font-semibold leading-tight text-slate-950 sm:text-4xl">
-            Put a smart assistant in front of every serious lead.
-          </h2>
-          <p class="mt-5 text-base leading-8 text-slate-600">
-            Instead of a cold contact form, SalonFlow can ask the right questions, qualify the owner, save the lead in your database,
-            and notify you immediately so high-intent prospects do not sit untouched.
-          </p>
+      <div class="space-y-10">
+        <div class="grid gap-8 lg:grid-cols-[0.9fr,1.1fr] lg:items-center">
+          <div>
+            <div class="text-[11px] font-semibold uppercase tracking-[0.32em] text-slate-500">Capture more owners</div>
+            <h2 class="sf-display mt-3 max-w-3xl text-3xl font-semibold leading-tight text-slate-950 sm:text-4xl">
+              Put a smart assistant in front of every serious lead.
+            </h2>
+            <p class="mt-5 max-w-3xl text-base leading-8 text-slate-600">
+              Instead of a cold contact form, SalonFlow can ask the right questions, qualify the owner, save the lead in your database,
+              and notify you immediately so high-intent prospects do not sit untouched.
+            </p>
+          </div>
 
-          <div class="mt-8 overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_20px_70px_rgba(15,23,42,0.08)]">
+          <div class="overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_20px_70px_rgba(15,23,42,0.08)]">
             <img
               src="/images/landing/marketing-assistant.jpg"
               alt="SalonFlow lead assistant"
-              class="h-[360px] w-full object-cover"
+              class="h-[360px] w-full object-cover object-center"
             />
           </div>
         </div>
@@ -437,14 +450,6 @@ const setupSteps = [
   border: 1px solid rgba(255, 255, 255, 0.76);
 }
 
-.floating-card--bottom-left {
-  bottom: -20px;
-  left: -20px;
-  max-width: 250px;
-  border: 1px solid rgba(255, 255, 255, 0.74);
-  animation-delay: -2.2s;
-}
-
 @keyframes float-card {
   0%,
   100% {
@@ -467,10 +472,9 @@ const setupSteps = [
     height: 180px;
   }
 
-  .floating-card--bottom-left {
-    left: 12px;
-    bottom: 12px;
-    max-width: 230px;
+  .hero-plan-card {
+    margin-left: 12px;
+    max-width: 248px;
   }
 }
 
@@ -480,8 +484,9 @@ const setupSteps = [
     height: 156px;
   }
 
-  .floating-card--bottom-left {
-    max-width: 188px;
+  .hero-plan-card {
+    margin-left: 0;
+    max-width: none;
   }
 }
 </style>
