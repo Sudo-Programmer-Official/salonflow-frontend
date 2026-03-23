@@ -1,121 +1,63 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { ElAlert } from 'element-plus';
+import { RouterLink } from 'vue-router';
+import LeadAssistant from '../components/marketing/LeadAssistant.vue';
 
-const name = ref('');
-const email = ref('');
-const phone = ref('');
-const message = ref('');
-const success = ref('');
-const error = ref('');
-
-const validateEmail = (value: string) => /\S+@\S+\.\S+/.test(value);
-
-const apiBase =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/+$/, '') ||
-  'http://localhost:3000';
-const tenantId =
-  (import.meta.env.VITE_TENANT_ID as string | undefined) ||
-  (typeof window !== 'undefined' ? localStorage.getItem('tenantId') ?? undefined : undefined);
-
-const submit = async () => {
-  success.value = '';
-  error.value = '';
-  if (!name.value.trim() || !email.value.trim()) {
-    error.value = 'Name and email are required.';
-    return;
-  }
-  if (!validateEmail(email.value.trim())) {
-    error.value = 'Enter a valid email address.';
-    return;
-  }
-  try {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (tenantId) headers['x-tenant-id'] = tenantId;
-
-    const res = await fetch(`${apiBase}/api/demo-requests`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        name: name.value.trim(),
-        email: email.value.trim(),
-        phone: phone.value.trim() || undefined,
-        message: message.value.trim() || undefined,
-      }),
-    });
-    if (!res.ok) {
-      throw new Error('Failed to submit request');
-    }
-    success.value = 'Thanks! We’ll reach out within 24 hours to schedule your demo.';
-    name.value = '';
-    email.value = '';
-    phone.value = '';
-    message.value = '';
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Submission failed.';
-  }
-};
+const launchPoints = [
+  'We set up the website, booking flow, and growth workflow for you.',
+  'Every lead is stored and routed so follow-up does not get missed.',
+  'You get a recommendation based on bookings, retention, and front-desk needs.',
+];
 </script>
 
 <template>
-  <div class="bg-white">
-    <div class="mx-auto max-w-4xl px-4 py-12">
-      <div class="w-full rounded-2xl border border-slate-200 bg-slate-50 p-8 shadow-sm">
-        <h1 class="text-2xl font-semibold text-slate-900">Request a Demo / Get Started</h1>
-        <p class="mt-2 text-slate-600">
-          Tell us a bit about your salon. We’ll reach out to set up a walkthrough and tailor it to your workflow.
-        </p>
+  <div class="min-h-full bg-[linear-gradient(180deg,#f5f2ea_0%,#fffdf9_42%,#eef6f1_100%)]">
+    <section class="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
+      <div class="grid gap-8 lg:grid-cols-[0.82fr,1.18fr] lg:items-start">
+        <div class="lg:sticky lg:top-6">
+          <div class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-600 shadow-sm">
+            Free demo intake
+          </div>
 
-        <div class="mt-6 space-y-4">
-          <div>
-            <label class="text-sm font-medium text-slate-800">Name *</label>
-            <input
-              v-model="name"
-              type="text"
-              class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none"
-              placeholder="Your name"
-            />
-          </div>
-          <div>
-            <label class="text-sm font-medium text-slate-800">Email *</label>
-            <input
-              v-model="email"
-              type="email"
-              class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none"
-              placeholder="you@example.com"
-            />
-          </div>
-          <div>
-            <label class="text-sm font-medium text-slate-800">Phone (optional)</label>
-            <input
-              v-model="phone"
-              type="tel"
-              class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none"
-              placeholder="+1 555 123 4567"
-            />
-          </div>
-          <div>
-            <label class="text-sm font-medium text-slate-800">Notes (optional)</label>
-            <textarea
-              v-model="message"
-              rows="4"
-              class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none"
-              placeholder="Tell us about your salon or what you’d like to see."
-            />
-          </div>
-          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <button
-              class="inline-flex items-center justify-center rounded-lg bg-sky-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700"
-              @click="submit"
+          <h1 class="mt-6 font-['Space_Grotesk'] text-4xl font-semibold leading-[1.05] text-slate-950 sm:text-5xl">
+            Tell us about your salon and we will map the right SalonFlow setup.
+          </h1>
+
+          <p class="mt-5 max-w-xl text-lg leading-8 text-slate-600">
+            This is the faster path than a generic contact form. Share the business context, and we will respond with a demo plan tailored to how your salon actually runs.
+          </p>
+
+          <div class="mt-8 space-y-3">
+            <div
+              v-for="point in launchPoints"
+              :key="point"
+              class="rounded-[24px] border border-white/70 bg-white/80 px-4 py-4 text-sm leading-7 text-slate-700 shadow-sm backdrop-blur"
             >
-              Submit
-            </button>
-            <p class="text-xs text-slate-500">We respond within one business day.</p>
+              {{ point }}
+            </div>
           </div>
-          <ElAlert v-if="success" :title="success" type="success" :closable="false" />
-          <ElAlert v-if="error" :title="error" type="error" :closable="false" />
+
+          <div class="mt-8 rounded-[28px] border border-slate-200 bg-slate-950 p-6 text-white shadow-[0_24px_80px_rgba(15,23,42,0.16)]">
+            <div class="text-[11px] font-semibold uppercase tracking-[0.3em] text-emerald-200/80">Need a quick answer?</div>
+            <div class="mt-3 font-['Space_Grotesk'] text-2xl font-semibold">We usually follow up within one business day.</div>
+            <p class="mt-3 text-sm leading-7 text-white/72">
+              Prefer to browse first? Head back to the product page to see positioning, proof, and the full growth-system breakdown.
+            </p>
+            <RouterLink
+              to="/"
+              class="mt-6 inline-flex items-center justify-center rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:border-white/30 hover:bg-white/6"
+            >
+              Back to product page
+            </RouterLink>
+          </div>
         </div>
+
+        <LeadAssistant
+          source="marketing-start-assistant"
+          title="Build my SalonFlow demo plan"
+          subtitle="Answer the prompts below and SalonFlow will capture the lead, store the details, and notify the platform owner for follow-up."
+          cta-label="Request My Demo"
+        />
       </div>
-    </div>
+    </section>
   </div>
 </template>

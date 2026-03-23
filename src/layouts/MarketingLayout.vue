@@ -1,16 +1,25 @@
 <template>
   <div class="marketing-shell flex flex-col bg-slate-50 text-slate-900">
-    <header class="border-b border-slate-200 bg-white/90 backdrop-blur">
-      <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
+    <header class="border-b border-slate-200/80 bg-white/85 backdrop-blur-xl">
+      <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
         <RouterLink to="/" class="flex items-center gap-1.5">
           <img :src="logo" alt="SalonFlow" class="brand-logo" />
-          <div class="hidden text-lg font-semibold text-slate-900 sm:inline">SalonFlow</div>
+          <div class="hidden font-['Space_Grotesk'] text-lg font-semibold text-slate-900 sm:inline">SalonFlow</div>
         </RouterLink>
-      <nav class="flex items-center gap-4 text-sm font-medium text-slate-700">
-        <RouterLink class="hover:text-slate-900 transition-colors" to="/">Home</RouterLink>
-        <RouterLink class="hover:text-slate-900 transition-colors" to="/start">Get Started</RouterLink>
-        <RouterLink class="hover:text-slate-900 transition-colors" to="/salon-login">Login</RouterLink>
-      </nav>
+        <nav class="flex items-center gap-2 text-sm font-medium text-slate-700 sm:gap-3">
+          <RouterLink class="rounded-full px-3 py-2 transition-colors hover:bg-slate-100 hover:text-slate-900" to="/">
+            Home
+          </RouterLink>
+          <RouterLink class="rounded-full px-3 py-2 transition-colors hover:bg-slate-100 hover:text-slate-900" to="/salon-login">
+            Login
+          </RouterLink>
+          <RouterLink
+            class="inline-flex items-center justify-center rounded-full bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+            to="/start"
+          >
+            Get Demo
+          </RouterLink>
+        </nav>
       </div>
     </header>
     <main class="marketing-content flex-1">

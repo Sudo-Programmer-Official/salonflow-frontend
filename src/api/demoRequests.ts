@@ -5,6 +5,8 @@ export type DemoRequest = {
   phone: string | null;
   notes: string | null;
   status: string;
+  source?: string | null;
+  details?: Record<string, any> | null;
   converted_business_id?: string | null;
   created_at: string;
 };

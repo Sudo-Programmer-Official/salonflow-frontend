@@ -24,6 +24,8 @@ const drawerOpen = ref(false);
 const selected = ref<DemoRequest | null>(null);
 const saving = ref(false);
 const statusOptions = ['NEW', 'CONTACTED', 'CONVERTED', 'DISQUALIFIED', 'CLOSED'];
+const detailSummary = (row: DemoRequest | null) =>
+  row?.details?.summary || row?.notes || '—';
 
 const load = async () => {
   loading.value = true;
@@ -113,8 +115,28 @@ onMounted(load);
           <div>{{ formatDate(selected.createdAt) }}</div>
         </div>
         <div>
-          <div class="text-xs text-slate-500">Notes</div>
-          <div class="whitespace-pre-line">{{ selected.notes || '—' }}</div>
+          <div class="text-xs text-slate-500">Source</div>
+          <div>{{ selected.source || 'website form' }}</div>
+        </div>
+        <div v-if="selected.details?.businessName">
+          <div class="text-xs text-slate-500">Salon</div>
+          <div>{{ selected.details.businessName }}</div>
+        </div>
+        <div v-if="selected.details?.primaryGoal">
+          <div class="text-xs text-slate-500">Primary goal</div>
+          <div>{{ selected.details.primaryGoal }}</div>
+        </div>
+        <div v-if="selected.details?.teamSize">
+          <div class="text-xs text-slate-500">Team size</div>
+          <div>{{ selected.details.teamSize }}</div>
+        </div>
+        <div>
+          <div class="text-xs text-slate-500">Lead summary</div>
+          <div class="whitespace-pre-line">{{ detailSummary(selected) }}</div>
+        </div>
+        <div v-if="selected.details?.biggestPain">
+          <div class="text-xs text-slate-500">Biggest pain</div>
+          <div class="whitespace-pre-line">{{ selected.details.biggestPain }}</div>
         </div>
         <div>
           <div class="text-xs text-slate-500">Status</div>

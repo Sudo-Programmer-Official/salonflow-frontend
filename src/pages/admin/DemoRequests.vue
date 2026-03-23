@@ -55,7 +55,12 @@ const statusType = (status: string | undefined) => {
 
 const formatDate = (iso: string) => formatInBusinessTz(iso, 'MMM D, YYYY h:mm A');
 
-const notesText = computed(() => selected.value?.notes?.trim() || 'No notes provided');
+const notesText = computed(
+  () =>
+    selected.value?.details?.summary?.trim?.() ||
+    selected.value?.notes?.trim() ||
+    'No notes provided',
+);
 
 const openDetails = (row: DemoRequest) => {
   selected.value = row;
@@ -238,6 +243,18 @@ const resendLink = async (row: DemoRequest) => {
           {{ selected.phone || '—' }}
         </div>
 
+        <div class="text-sm text-slate-600">Source</div>
+        <div class="text-base text-slate-900">{{ selected.source || 'website form' }}</div>
+
+        <div v-if="selected.details?.businessName" class="text-sm text-slate-600">Salon</div>
+        <div v-if="selected.details?.businessName" class="text-base text-slate-900">{{ selected.details.businessName }}</div>
+
+        <div v-if="selected.details?.primaryGoal" class="text-sm text-slate-600">Primary goal</div>
+        <div v-if="selected.details?.primaryGoal" class="text-base text-slate-900">{{ selected.details.primaryGoal }}</div>
+
+        <div v-if="selected.details?.teamSize" class="text-sm text-slate-600">Team size</div>
+        <div v-if="selected.details?.teamSize" class="text-base text-slate-900">{{ selected.details.teamSize }}</div>
+
         <div class="text-sm text-slate-600">Status</div>
         <ElTag :type="statusType(selected.status)" size="small">
           {{ selected.status || 'NEW' }}
@@ -251,6 +268,11 @@ const resendLink = async (row: DemoRequest) => {
         <div class="text-sm text-slate-600">Notes</div>
         <div class="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-800">
           {{ notesText }}
+        </div>
+
+        <div v-if="selected.details?.biggestPain" class="text-sm text-slate-600">Biggest pain</div>
+        <div v-if="selected.details?.biggestPain" class="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-800 whitespace-pre-line">
+          {{ selected.details.biggestPain }}
         </div>
       </div>
     </ElDialog>

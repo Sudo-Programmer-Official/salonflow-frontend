@@ -7,6 +7,8 @@ export type DemoRequest = {
   phone: string | null;
   notes: string | null;
   status: string;
+  source?: string | null;
+  details?: Record<string, any> | null;
   createdAt: string;
   userAgent?: string | null;
   referer?: string | null;
