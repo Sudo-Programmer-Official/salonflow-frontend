@@ -131,6 +131,60 @@ const clientProofCards = [
     detail: 'Product direction comes from a working salon, not from generic templates.',
   },
 ];
+
+const pricingPlans = [
+  {
+    title: 'Core',
+    price: '$65',
+    description: 'For salon owners who want a polished website, fast booking, and less front-desk friction.',
+    features: [
+      'Website + online booking',
+      'QR check-in and cleaner first impression',
+      'Basic SMS reminders and follow-up',
+      'Customer capture in one place',
+      'Done-for-you setup included',
+    ],
+    ctaLabel: 'Start Free',
+    badge: null,
+    cardClass: 'pricing-card',
+    buttonClass: 'pricing-button pricing-button--base',
+    priceNote: 'Launch fast without stitching together separate tools.',
+  },
+  {
+    title: 'Growth',
+    price: '$99',
+    description: 'For salons ready to drive repeat visits, stay consistent, and turn more attention into bookings.',
+    features: [
+      'Everything in Core',
+      'Reviews, loyalty, and repeat-visit flow',
+      'Social media scheduling and posting support',
+      'Owner visibility into bookings and follow-up',
+      'Growth-focused setup and launch guidance',
+    ],
+    ctaLabel: 'Start Growing',
+    badge: 'Most Popular',
+    cardClass: 'pricing-card pricing-card--popular',
+    buttonClass: 'pricing-button pricing-button--popular',
+    priceNote: 'The best fit for most salons that want growth, not just software.',
+  },
+  {
+    title: 'Complete',
+    price: '$129',
+    description: 'For salons that want the strongest all-in-one operating layer with more control, visibility, and support.',
+    features: [
+      'Everything in Growth',
+      'POS rollout visibility and front-desk structure',
+      'Deeper owner control across the workflow',
+      'Priority support for launch and optimization',
+      'Best-value path for a fully unified setup',
+    ],
+    ctaLabel: 'Get Everything',
+    badge: 'Best Value',
+    cardClass: 'pricing-card pricing-card--value',
+    buttonClass: 'pricing-button pricing-button--value',
+    priceNote: 'The clearest value if you want the full SalonFlow operating system.',
+  },
+];
 </script>
 
 <template>
@@ -601,45 +655,89 @@ const clientProofCards = [
       </div>
     </section>
 
-    <section class="border-t border-black/5 bg-[#0f172a] text-white">
+    <section class="border-t border-black/5 bg-[linear-gradient(180deg,#fffdf9_0%,#eef6f1_100%)]">
       <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-        <div class="grid gap-8 lg:grid-cols-[1fr,0.72fr] lg:items-center">
-          <div>
-            <div class="text-[11px] font-semibold uppercase tracking-[0.32em] text-white/50">Founding plan</div>
-            <h2 class="sf-display mt-3 text-3xl font-semibold leading-tight sm:text-4xl">
-              Start with the plan that costs less than one extra appointment a week.
-            </h2>
-            <p class="mt-4 max-w-2xl text-base leading-8 text-white/72">
-              One clear monthly plan for salons that want a website, booking, reminders, loyalty, and an owner-facing growth system without a long contract.
-            </p>
+        <div class="mx-auto max-w-3xl text-center">
+          <div class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/85 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.32em] text-slate-600 shadow-sm">
+            Pricing built to feel clear
           </div>
-
-          <div class="rounded-[30px] border border-white/10 bg-white/6 p-8 shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
-            <div class="text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-200/80">SalonFlow founding offer</div>
-            <div class="sf-display mt-4 text-5xl font-semibold">$65<span class="text-xl text-white/55">/month</span></div>
-            <ul class="mt-6 space-y-3 text-sm leading-7 text-white/75">
-              <li>Website + booking + QR check-in</li>
-              <li>Reminders, reviews, loyalty, and promotions</li>
-              <li>Owner dashboard and staff-friendly workflow</li>
-              <li>Setup included. No contract. Cancel anytime.</li>
-            </ul>
-            <div class="mt-8 flex flex-col gap-3 sm:flex-row">
-              <button
-                type="button"
-                class="inline-flex items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
-                @click="jumpToAssistant"
-              >
-                Get Free Demo Plan
-              </button>
-              <RouterLink
-                to="/start"
-                class="inline-flex items-center justify-center rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:border-white/30 hover:bg-white/6"
-              >
-                Request a walkthrough
-              </RouterLink>
-            </div>
-          </div>
+          <h2 class="sf-display mt-5 text-3xl font-semibold leading-tight text-slate-950 sm:text-4xl">
+            Choose the plan that matches where your salon is growing next.
+          </h2>
+          <p class="mt-4 text-base leading-8 text-slate-600">
+            The pricing should feel like an upgrade path, not a puzzle. Start with the level that fits today, then move up as the salon needs more follow-up, visibility, and growth support.
+          </p>
         </div>
+
+        <div class="mt-10 grid gap-6 lg:grid-cols-3 lg:items-stretch">
+          <article
+            v-for="plan in pricingPlans"
+            :key="plan.title"
+            :class="plan.cardClass"
+          >
+            <div class="flex min-h-[32px] items-center justify-between gap-3">
+              <div class="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+                {{ plan.title }}
+              </div>
+              <span
+                v-if="plan.badge"
+                class="pricing-badge"
+              >
+                {{ plan.badge }}
+              </span>
+            </div>
+
+            <div class="mt-5">
+              <div class="sf-display text-5xl font-semibold text-slate-950">
+                {{ plan.price }}<span class="ml-1 text-xl font-medium text-slate-400">/month</span>
+              </div>
+              <p class="mt-4 text-sm leading-7 text-slate-600">{{ plan.description }}</p>
+              <p class="mt-3 text-sm font-medium text-slate-500">{{ plan.priceNote }}</p>
+            </div>
+
+            <div class="mt-7 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
+
+            <ul class="mt-7 space-y-3">
+              <li
+                v-for="feature in plan.features"
+                :key="feature"
+                class="flex items-start gap-3 text-sm leading-7 text-slate-700"
+              >
+                <span class="mt-1.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                  <svg viewBox="0 0 20 20" fill="currentColor" class="h-3.5 w-3.5" aria-hidden="true">
+                    <path
+                      fill-rule="evenodd"
+                      d="M16.704 5.29a1 1 0 0 1 .006 1.414l-7.25 7.312a1 1 0 0 1-1.42.004L3.29 9.27a1 1 0 0 1 1.42-1.408l4.04 4.07 6.54-6.596a1 1 0 0 1 1.414-.006Z"
+                      clip-rule="evenodd"
+                    />
+                  </svg>
+                </span>
+                <span>{{ feature }}</span>
+              </li>
+            </ul>
+
+            <button
+              type="button"
+              :class="plan.buttonClass"
+              @click="jumpToAssistant"
+            >
+              {{ plan.ctaLabel }}
+            </button>
+          </article>
+        </div>
+
+        <div class="mt-8 flex flex-wrap items-center justify-center gap-3 text-sm text-slate-500">
+          <span class="rounded-full border border-slate-200 bg-white/80 px-4 py-2 shadow-sm">Setup included</span>
+          <span class="rounded-full border border-slate-200 bg-white/80 px-4 py-2 shadow-sm">No contract</span>
+          <span class="rounded-full border border-slate-200 bg-white/80 px-4 py-2 shadow-sm">Upgrade anytime</span>
+        </div>
+
+        <p class="mt-6 text-center text-sm font-medium text-slate-500">
+          Start simple. Upgrade anytime as your salon grows.
+        </p>
+        <p class="mt-2 text-center text-sm text-slate-400">
+          Need help choosing? We will recommend the right plan during your demo conversation.
+        </p>
       </div>
     </section>
   </div>
@@ -673,6 +771,94 @@ const clientProofCards = [
 
 .hero-plan-card__copy {
   color: rgba(255, 255, 255, 0.9);
+}
+
+.pricing-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: 32px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  background: rgba(255, 255, 255, 0.92);
+  padding: 28px;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(16px);
+}
+
+.pricing-card--popular {
+  position: relative;
+  border-color: rgba(52, 211, 153, 0.42);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(236, 253, 245, 0.88));
+  box-shadow: 0 28px 80px rgba(16, 185, 129, 0.16);
+}
+
+.pricing-card--value {
+  position: relative;
+  border-color: rgba(251, 191, 36, 0.38);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 251, 235, 0.94));
+  box-shadow: 0 28px 80px rgba(245, 158, 11, 0.14);
+}
+
+.pricing-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 1px solid rgba(16, 185, 129, 0.16);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(236, 253, 245, 0.94));
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #047857;
+  box-shadow: 0 10px 24px rgba(16, 185, 129, 0.12);
+}
+
+.pricing-button {
+  margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  padding: 14px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  transition: transform 160ms ease, background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.pricing-button:hover {
+  transform: translateY(-1px);
+}
+
+.pricing-button--base {
+  border: 1px solid rgba(203, 213, 225, 0.9);
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.pricing-button--base:hover {
+  border-color: rgba(148, 163, 184, 0.9);
+  background: #f8fafc;
+}
+
+.pricing-button--popular {
+  background: #0f172a;
+  color: #ffffff;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.16);
+}
+
+.pricing-button--popular:hover {
+  background: #111f39;
+}
+
+.pricing-button--value {
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  color: #ffffff;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.16);
+}
+
+.pricing-button--value:hover {
+  background: linear-gradient(135deg, #111f39, #253349);
 }
 
 .client-billboard-card {
@@ -729,6 +915,11 @@ const clientProofCards = [
 @media (max-width: 1024px) {
   .hero-media-card {
     transform: none;
+  }
+
+  .pricing-card--popular,
+  .pricing-card--value {
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.1);
   }
 
   .client-billboard-card {
