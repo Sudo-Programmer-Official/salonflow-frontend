@@ -83,21 +83,52 @@ const differenceRows = [
   },
 ];
 
-const setupSteps = [
+const featuredClient = {
+  name: 'MTV Nails',
+  location: 'Corpus Christi, TX',
+  website: 'https://www.mtvnailcorpuschristi.com/',
+  websiteLabel: 'www.mtvnailcorpuschristi.com',
+};
+
+const clientTrustSignals = [
   {
-    step: '01',
-    title: 'We map your salon flow',
-    desc: 'Services, staff, booking rules, reminders, and the parts of your current process slowing growth down.',
+    label: 'Live website',
+    value: 'Public proof',
+    detail: 'Owners can inspect a real SalonFlow client site instead of guessing from screenshots or promises.',
   },
   {
-    step: '02',
-    title: 'We launch the website and workflow',
-    desc: 'Your website, booking path, follow-up settings, and front-desk experience are prepared with you.',
+    label: 'Real salon',
+    value: 'Corpus Christi',
+    detail: 'Built with a working salon in market, not a fake demo brand or generic mock business.',
   },
   {
-    step: '03',
-    title: 'You run the floor with less friction',
-    desc: 'Owners spend less time chasing no-shows or updating tools and more time serving clients and growing repeat visits.',
+    label: 'Product feedback',
+    value: 'Owner-shaped',
+    detail: 'Launch decisions are being shaped with real salon workflow, not abstract SaaS assumptions.',
+  },
+];
+
+const clientBeliefPoints = [
+  'This is a live customer website, not a placeholder concept.',
+  'The presentation is designed to look strong on the screens salon owners and guests actually use.',
+  'One real client in market creates more trust than a wall of invented logos.',
+];
+
+const clientProofCards = [
+  {
+    label: 'Proof point',
+    title: 'Live public site',
+    detail: 'A real business already trusts SalonFlow enough to be visible in market.',
+  },
+  {
+    label: 'Experience',
+    title: 'Desktop + mobile ready',
+    detail: 'The website presentation holds up on larger screens and on the phone guests reach for first.',
+  },
+  {
+    label: 'Signal',
+    title: 'Built with owner feedback',
+    detail: 'Product direction comes from a working salon, not from generic templates.',
   },
 ];
 </script>
@@ -313,35 +344,226 @@ const setupSteps = [
       </div>
     </section>
 
-    <section class="border-y border-black/5 bg-white/70">
-      <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-        <div class="grid gap-8 lg:grid-cols-[0.9fr,1.1fr] lg:items-center">
-          <div class="rounded-[32px] border border-white/70 bg-slate-950 p-8 text-white shadow-[0_28px_90px_rgba(15,23,42,0.2)]">
-            <div class="text-[11px] font-semibold uppercase tracking-[0.32em] text-emerald-200/75">Built with salons</div>
-            <h2 class="sf-display mt-4 text-3xl font-semibold leading-tight">
-              “SalonFlow helped us stay organized without adding more staff.”
+    <section class="relative overflow-hidden border-y border-black/5 bg-[linear-gradient(180deg,#eef6f2_0%,#fffdf9_38%,#f5f1e8_100%)]">
+      <div class="pointer-events-none absolute inset-0">
+        <div class="absolute left-[-5rem] top-12 h-72 w-72 rounded-full bg-emerald-200/35 blur-3xl" />
+        <div class="absolute right-[-4rem] bottom-0 h-80 w-80 rounded-full bg-amber-200/30 blur-3xl" />
+      </div>
+
+      <div class="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+        <div class="grid gap-12 xl:grid-cols-[0.82fr,1.18fr] xl:items-center">
+          <div>
+            <div class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/85 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.32em] text-slate-600 shadow-sm">
+              First customer spotlight
+            </div>
+
+            <div class="mt-6 flex items-center gap-3">
+              <div class="flex items-center gap-1 text-amber-400">
+                <svg
+                  v-for="star in 5"
+                  :key="star"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  class="h-5 w-5"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 0 0 .95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 0 0-.364 1.118l1.07 3.292c.3.922-.755 1.688-1.539 1.118l-2.8-2.034a1 1 0 0 0-1.175 0l-2.8 2.034c-.784.57-1.838-.196-1.539-1.118l1.07-3.292a1 1 0 0 0-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81H7.03a1 1 0 0 0 .95-.69z"
+                  />
+                </svg>
+              </div>
+              <div class="text-sm font-medium text-slate-600">
+                Designed to create five-star trust from the first click.
+              </div>
+            </div>
+
+            <h2 class="sf-display mt-5 text-3xl font-semibold leading-tight text-slate-950 sm:text-4xl">
+              {{ featuredClient.name }} is already live on SalonFlow.
             </h2>
-            <p class="mt-5 text-sm leading-7 text-white/72">
-              Real-world feedback from MTV Nails shaped the way SalonFlow approaches setup, booking, visibility, and owner control.
+
+            <p class="mt-5 max-w-2xl text-base leading-8 text-slate-600">
+              This is stronger than a generic testimonial. Salon owners can inspect a real client website, see that SalonFlow is already in market,
+              and feel the difference between a concept product and software shaped with an actual salon.
             </p>
-            <div class="mt-6 border-t border-white/10 pt-5 text-sm text-white/75">
-              MTV Nails
-              <span class="block text-xs uppercase tracking-[0.24em] text-white/45">Corpus Christi</span>
+
+            <div class="mt-8 grid gap-4 sm:grid-cols-3">
+              <div
+                v-for="signal in clientTrustSignals"
+                :key="signal.label"
+                class="rounded-[26px] border border-white/80 bg-white/88 p-5 shadow-[0_16px_45px_rgba(15,23,42,0.08)] backdrop-blur"
+              >
+                <div class="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+                  {{ signal.label }}
+                </div>
+                <div class="sf-display mt-3 text-2xl font-semibold text-slate-950">{{ signal.value }}</div>
+                <p class="mt-2 text-sm leading-6 text-slate-600">{{ signal.detail }}</p>
+              </div>
+            </div>
+
+            <div class="mt-8 rounded-[30px] border border-slate-900/6 bg-slate-950 p-6 text-white shadow-[0_24px_80px_rgba(15,23,42,0.18)]">
+              <div class="text-[11px] font-semibold uppercase tracking-[0.3em] text-emerald-200/75">Why owners believe it</div>
+              <div class="mt-4 space-y-3">
+                <div
+                  v-for="point in clientBeliefPoints"
+                  :key="point"
+                  class="flex items-start gap-3"
+                >
+                  <span class="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-300" />
+                  <p class="text-sm leading-7 text-white/78">{{ point }}</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-8 flex flex-col gap-3 sm:flex-row">
+              <a
+                :href="featuredClient.website"
+                target="_blank"
+                rel="noreferrer"
+                class="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_16px_40px_rgba(15,23,42,0.2)] transition hover:-translate-y-0.5 hover:bg-slate-800"
+              >
+                Visit MTV Nails Website
+              </a>
+              <button
+                type="button"
+                class="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white/75 px-6 py-3.5 text-sm font-semibold text-slate-800 transition hover:-translate-y-0.5 hover:border-slate-400 hover:bg-white"
+                @click="jumpToAssistant"
+              >
+                Get My SalonFlow Plan
+              </button>
             </div>
           </div>
 
-          <div class="grid gap-5 md:grid-cols-3">
-            <article
-              v-for="step in setupSteps"
-              :key="step.step"
-              class="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_16px_45px_rgba(15,23,42,0.07)]"
-            >
-              <div class="text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-700">
-                Step {{ step.step }}
+          <div class="relative min-h-[680px] lg:min-h-[760px]">
+            <div class="client-billboard-card rounded-[38px] border border-white/80 bg-white/70 p-3 shadow-[0_30px_90px_rgba(15,23,42,0.16)] backdrop-blur">
+              <div class="overflow-hidden rounded-[34px] border border-slate-200/80 bg-[#0c1528] shadow-[0_24px_80px_rgba(15,23,42,0.26)]">
+                <div class="flex items-center gap-3 border-b border-white/10 bg-slate-950/92 px-4 py-3 text-white sm:px-5">
+                  <div class="flex items-center gap-2">
+                    <span class="h-3 w-3 rounded-full bg-rose-400" />
+                    <span class="h-3 w-3 rounded-full bg-amber-300" />
+                    <span class="h-3 w-3 rounded-full bg-emerald-300" />
+                  </div>
+                  <div class="hidden flex-1 items-center justify-center sm:flex">
+                    <div class="rounded-full border border-white/10 bg-white/6 px-4 py-2 text-[11px] font-medium tracking-[0.08em] text-white/70">
+                      {{ featuredClient.websiteLabel }}
+                    </div>
+                  </div>
+                  <a
+                    :href="featuredClient.website"
+                    target="_blank"
+                    rel="noreferrer"
+                    class="inline-flex items-center justify-center rounded-full border border-white/12 bg-white/6 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-white/10"
+                  >
+                    Live site
+                  </a>
+                </div>
+
+                <div class="grid lg:grid-cols-[1.02fr,0.98fr]">
+                  <div class="relative min-h-[440px] overflow-hidden">
+                    <img
+                      src="/images/landing/marketing-proof.jpg"
+                      :alt="`${featuredClient.name} client spotlight`"
+                      class="h-full w-full object-cover"
+                    />
+                    <div class="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,21,40,0.12),rgba(12,21,40,0.74))]" />
+
+                    <div class="absolute left-5 top-5 rounded-[22px] border border-white/35 bg-white/90 px-4 py-3 text-slate-900 shadow-lg backdrop-blur sm:left-6 sm:top-6">
+                      <div class="flex items-center gap-1 text-amber-400">
+                        <svg
+                          v-for="star in 5"
+                          :key="`proof-star-${star}`"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                          class="h-4 w-4"
+                          aria-hidden="true"
+                        >
+                          <path
+                            d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 0 0 .95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 0 0-.364 1.118l1.07 3.292c.3.922-.755 1.688-1.539 1.118l-2.8-2.034a1 1 0 0 0-1.175 0l-2.8 2.034c-.784.57-1.838-.196-1.539-1.118l1.07-3.292a1 1 0 0 0-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81H7.03a1 1 0 0 0 .95-.69z"
+                          />
+                        </svg>
+                      </div>
+                      <div class="mt-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                        Five-star first impression
+                      </div>
+                    </div>
+
+                    <div class="absolute inset-x-5 bottom-5 rounded-[28px] border border-white/15 bg-slate-950/72 p-5 text-white shadow-[0_18px_50px_rgba(15,23,42,0.28)] backdrop-blur-md sm:inset-x-6 sm:bottom-6 sm:p-6">
+                      <div class="text-[11px] font-semibold uppercase tracking-[0.3em] text-emerald-200/80">
+                        First customer spotlight
+                      </div>
+                      <div class="sf-display mt-3 text-3xl font-semibold leading-tight">
+                        {{ featuredClient.name }}
+                      </div>
+                      <p class="mt-2 text-sm leading-6 text-white/76">
+                        A live client website in {{ featuredClient.location }} that gives SalonFlow real market proof instead of placeholder branding.
+                      </p>
+                      <div class="mt-4 flex flex-wrap gap-2">
+                        <span class="rounded-full border border-white/14 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/78">
+                          Live website
+                        </span>
+                        <span class="rounded-full border border-white/14 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/78">
+                          Real salon
+                        </span>
+                        <span class="rounded-full border border-white/14 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/78">
+                          In-market proof
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] p-5 sm:p-6">
+                    <div class="rounded-[26px] border border-slate-200 bg-white/95 p-5 shadow-sm">
+                      <div class="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">What this proves</div>
+                      <div class="mt-4 space-y-4">
+                        <div
+                          v-for="card in clientProofCards"
+                          :key="card.title"
+                          class="rounded-[22px] border border-slate-200 bg-slate-50/80 px-4 py-4"
+                        >
+                          <div class="text-[10px] font-semibold uppercase tracking-[0.26em] text-slate-400">{{ card.label }}</div>
+                          <div class="mt-2 font-['Space_Grotesk'] text-xl font-semibold text-slate-950">{{ card.title }}</div>
+                          <p class="mt-2 text-sm leading-6 text-slate-600">{{ card.detail }}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="mt-5 rounded-[26px] border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+                      <div class="text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-700">Billboard value</div>
+                      <div class="mt-3 font-['Space_Grotesk'] text-2xl font-semibold text-slate-950">
+                        Owners trust what they can verify.
+                      </div>
+                      <p class="mt-3 text-sm leading-7 text-slate-700">
+                        A public client website reduces doubt fast. It shows SalonFlow is already being used by a real salon and that the brand experience can feel premium from day one.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <h3 class="sf-display mt-4 text-2xl font-semibold text-slate-950">{{ step.title }}</h3>
-              <p class="mt-3 text-sm leading-7 text-slate-600">{{ step.desc }}</p>
-            </article>
+            </div>
+
+            <div class="client-phone-card">
+              <div class="rounded-[34px] border border-slate-200/90 bg-white/92 p-3 shadow-[0_24px_70px_rgba(15,23,42,0.18)] backdrop-blur">
+                <div class="mx-auto mt-1 h-6 w-24 rounded-full bg-slate-950" />
+                <div class="relative mt-3 overflow-hidden rounded-[28px] border border-slate-200 bg-slate-950">
+                  <img
+                    src="/images/landing/marketing-mobile.jpg"
+                    alt="MTV Nails mobile preview"
+                    class="h-[420px] w-full object-cover"
+                  />
+                  <div class="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,21,40,0.08),rgba(12,21,40,0.58))]" />
+                  <div class="absolute inset-x-4 bottom-4 rounded-[24px] border border-white/12 bg-slate-950/78 p-4 text-white backdrop-blur-md">
+                    <div class="text-[10px] font-semibold uppercase tracking-[0.26em] text-emerald-200/80">
+                      Mobile preview
+                    </div>
+                    <div class="mt-2 font-['Space_Grotesk'] text-xl font-semibold leading-tight">
+                      Looks polished on the device guests actually use first.
+                    </div>
+                    <p class="mt-2 text-xs leading-6 text-white/74">
+                      Mobile trust matters because most salon discovery starts on a phone.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -453,6 +675,20 @@ const setupSteps = [
   color: rgba(255, 255, 255, 0.9);
 }
 
+.client-billboard-card {
+  transform: perspective(1800px) rotateY(-3.5deg) rotateX(1.4deg);
+  transform-style: preserve-3d;
+}
+
+.client-phone-card {
+  position: absolute;
+  right: -10px;
+  bottom: 34px;
+  width: min(290px, 38%);
+  z-index: 20;
+  animation: float-client-device 7.2s ease-in-out infinite;
+}
+
 .floating-card {
   position: absolute;
   overflow: hidden;
@@ -480,9 +716,31 @@ const setupSteps = [
   }
 }
 
+@keyframes float-client-device {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
 @media (max-width: 1024px) {
   .hero-media-card {
     transform: none;
+  }
+
+  .client-billboard-card {
+    transform: none;
+  }
+
+  .client-phone-card {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    width: min(320px, 82%);
+    margin: -44px auto 0;
   }
 
   .floating-card--top-right {
@@ -499,6 +757,11 @@ const setupSteps = [
 }
 
 @media (max-width: 640px) {
+  .client-phone-card {
+    width: min(280px, 88%);
+    margin-top: 18px;
+  }
+
   .floating-card--top-right {
     width: 128px;
     height: 156px;
