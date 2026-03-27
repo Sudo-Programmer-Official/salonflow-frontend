@@ -3,8 +3,9 @@ import { onMounted, ref, computed } from 'vue';
 import { ElCard, ElButton, ElTag, ElAlert, ElSkeleton } from 'element-plus';
 import { fetchQueue, fetchQueueSummary, type QueueItem, type QueueResponse } from '../../api/queue';
 import {
+  fetchAppointments,
   fetchTodayAppointments,
-  type TodayAppointment,
+  type Appointment,
   type TodayAppointmentsResponse,
 } from '../../api/appointments';
 import { fetchOnboardingStatus } from '../../api/onboarding';
@@ -17,7 +18,7 @@ const router = useRouter();
 // State variables
 const queue = ref<QueueItem[]>([]);
 const queueLocked = ref(false);
-const appointments = ref<TodayAppointment[]>([]);
+const appointments = ref<Appointment[]>([]);
 const appointmentsLocked = ref(false);
 const onboardingIncomplete = ref(false);
 const reviewSmsEnabled = ref(true);
@@ -55,7 +56,9 @@ const load = async () => {
     queueLocked.value = (queueRes as QueueResponse).locked === true;
     appointmentsLocked.value = (apptRes as TodayAppointmentsResponse).locked === true;
     queue.value = queueLocked.value ? [] : (queueRes as any).items ?? [];
-    appointments.value = appointmentsLocked.value ? [] : (apptRes as any).items ?? [];
+    appointments.value = appointmentsLocked.value
+      ? []
+      : await fetchAppointments({ date: start.format('YYYY-MM-DD') });
     queueSummary.value = {
       waiting: Number((summaryRes as any)?.waiting ?? 0),
       inService: Number((summaryRes as any)?.inService ?? 0),
@@ -84,12 +87,22 @@ const completedCount = computed(() =>
   queueLocked.value ? 0 : queueSummary.value.completed,
 );
 const appointmentsToday = computed(() => (appointmentsLocked.value ? 0 : appointments.value.length));
+const terminalAppointmentStatuses = new Set(['COMPLETED', 'NO_SHOW', 'CANCELED']);
 
 const upcomingAppointments = computed(() => {
   const now = nowInBusinessTz(businessTimezone.value);
   return appointments.value.filter((a) => {
     const time = dayjs(a.scheduledAt).tz(businessTimezone.value);
-    return time.isAfter(now) && time.diff(now, 'minute') <= 30;
+    return !terminalAppointmentStatuses.has(a.status) && time.isAfter(now);
+  });
+});
+
+const nextAppointment = computed(() => upcomingAppointments.value[0] ?? null);
+const appointmentsSoon = computed(() => {
+  const now = nowInBusinessTz(businessTimezone.value);
+  return upcomingAppointments.value.filter((appointment) => {
+    const time = dayjs(appointment.scheduledAt).tz(businessTimezone.value);
+    return time.diff(now, 'minute') <= 30;
   });
 });
 
@@ -107,9 +120,9 @@ const needsAttention = computed(() => {
       type: 'danger',
     });
   }
-  if (!appointmentsLocked.value && upcomingAppointments.value.length > 0) {
+  if (!appointmentsLocked.value && appointmentsSoon.value.length > 0) {
     items.push({
-      title: `${upcomingAppointments.value.length} appointment${upcomingAppointments.value.length === 1 ? '' : 's'} in next 30 minutes`,
+      title: `${appointmentsSoon.value.length} appointment${appointmentsSoon.value.length === 1 ? '' : 's'} in next 30 minutes`,
       description: 'Prep and check in quickly.',
       action: () => navigate('admin-appointments'),
       type: 'warning',
@@ -191,6 +204,25 @@ const navigate = (name: string) => {
           <div class="mt-2 text-3xl font-semibold text-slate-900">{{ completedCount }}</div>
         </ElCard>
       </div>
+
+      <ElCard v-if="nextAppointment" class="bg-white">
+        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div class="space-y-1">
+            <div class="text-xs font-semibold uppercase tracking-[0.16em] text-orange-700">
+              Next Appointment
+            </div>
+            <div class="text-2xl font-semibold text-slate-900">{{ nextAppointment.customerName }}</div>
+            <div class="text-sm text-slate-600">
+              {{ dayjs(nextAppointment.scheduledAt).tz(businessTimezone).format('MMM D, YYYY h:mm A') }}
+              <span class="mx-2 text-slate-300">•</span>
+              {{ nextAppointment.serviceName }}
+            </div>
+          </div>
+          <ElButton class="sf-btn" type="primary" @click="navigate('admin-appointments')">
+            View appointments
+          </ElButton>
+        </div>
+      </ElCard>
 
       <div class="space-y-3">
         <div class="text-base font-semibold text-slate-900">Needs attention</div>
