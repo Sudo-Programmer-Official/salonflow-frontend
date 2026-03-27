@@ -95,9 +95,7 @@ const initialTargetDate = resolveRouteTargetDate(
   businessTimezone.value,
 );
 
-const selectedDate = ref(
-  initialTargetDate || dayjs().tz(businessTimezone.value).format('YYYY-MM-DD'),
-);
+const selectedDate = ref(initialTargetDate || '');
 
 const dialogVisible = ref(false);
 const dialogMode = ref<AppointmentDialogMode>('create');
@@ -125,6 +123,8 @@ const form = reactive({
 
 let consumingRouteTarget = false;
 let clockId: number | null = null;
+
+const defaultFormDate = computed(() => dayjs().tz(businessTimezone.value).format('YYYY-MM-DD'));
 
 const currentTime = computed(() => {
   nowTick.value;
@@ -249,7 +249,7 @@ const appointmentGroups = computed<AppointmentGroup[]>(() => {
       key: 'upcoming',
       title: 'Upcoming',
       description: 'Appointments still ahead of the current time.',
-      emptyMessage: 'No upcoming appointments for this date.',
+      emptyMessage: 'No upcoming appointments found.',
       items: upcoming,
     },
     {
@@ -263,7 +263,7 @@ const appointmentGroups = computed<AppointmentGroup[]>(() => {
       key: 'completed_past',
       title: 'Completed / Past',
       description: 'Completed, no-show, and cancelled appointments remain visible for reference.',
-      emptyMessage: 'No completed or past appointments for this date.',
+      emptyMessage: 'No completed or past appointments found.',
       items: completedPast,
     },
   ];
@@ -271,6 +271,13 @@ const appointmentGroups = computed<AppointmentGroup[]>(() => {
 
 const nextAppointment = computed(() => appointmentGroups.value[0]?.items[0] ?? null);
 const appointmentsVisible = computed(() => appointments.value.length > 0);
+const emptyStateMessage = computed(() => {
+  if (selectedDate.value) {
+    return isStaff.value ? 'No appointments assigned for this date.' : 'No appointments for this date.';
+  }
+
+  return isStaff.value ? 'No appointments assigned yet.' : 'No appointments found.';
+});
 
 const resetForm = () => {
   form.customerName = '';
@@ -278,7 +285,7 @@ const resetForm = () => {
   form.serviceId = '';
   form.staffId = '';
   form.preferredTech = '';
-  form.date = formatDate(selectedDate.value);
+  form.date = formatDate(selectedDate.value) || defaultFormDate.value;
   form.time = '';
   form.notes = '';
   editingId.value = null;
@@ -436,9 +443,9 @@ onMounted(async () => {
   if (routeTargetDate) {
     selectedDate.value = routeTargetDate;
   } else {
-    selectedDate.value = dayjs().tz(businessTimezone.value).format('YYYY-MM-DD');
+    selectedDate.value = '';
   }
-  form.date = selectedDate.value;
+  form.date = selectedDate.value || defaultFormDate.value;
   clockId = window.setInterval(() => {
     nowTick.value = Date.now();
   }, 60000);
@@ -453,7 +460,9 @@ onUnmounted(() => {
 });
 
 watch(selectedDate, () => {
-  form.date = selectedDate.value;
+  if (!dialogVisible.value || dialogMode.value === 'create') {
+    form.date = selectedDate.value || defaultFormDate.value;
+  }
   highlightedAppointmentId.value = null;
   void loadAppointments();
 });
@@ -588,7 +597,7 @@ const appointmentRowClassName = ({ row }: { row: Appointment }) =>
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-5">
     <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <h1 class="text-2xl font-semibold text-slate-900">Appointments</h1>
@@ -635,39 +644,41 @@ const appointmentRowClassName = ({ row }: { row: Appointment }) =>
       </div>
     </ElCard>
 
-    <ElCard class="bg-white">
-      <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div class="space-y-2">
-          <div class="text-base font-semibold text-slate-900">Selected Date</div>
-          <ElDatePicker
-            v-model="selectedDate"
-            type="date"
-            placeholder="Select date"
-            format="YYYY-MM-DD"
-            value-format="YYYY-MM-DD"
-          />
-        </div>
-        <div class="appointment-summary-grid">
-          <div
-            v-for="group in appointmentGroups"
-            :key="group.key"
-            class="appointment-summary-tile"
-          >
-            <div class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-              {{ group.title }}
-            </div>
-            <div class="mt-2 text-2xl font-semibold text-slate-900">{{ group.items.length }}</div>
+    <ElCard class="appointment-filter-card bg-white">
+      <div class="appointment-filter-grid">
+        <div class="appointment-date-tile">
+          <div class="appointment-date-tile__row">
+            <span class="appointment-date-tile__label">Selected Date</span>
+            <ElDatePicker
+              v-model="selectedDate"
+              type="date"
+              placeholder="All dates"
+              format="YYYY-MM-DD"
+              value-format="YYYY-MM-DD"
+              size="small"
+              class="appointment-date-picker"
+            />
           </div>
+        </div>
+        <div
+          v-for="group in appointmentGroups"
+          :key="group.key"
+          class="appointment-summary-tile"
+        >
+          <div class="appointment-summary-tile__label">
+            {{ group.title }}
+          </div>
+          <div class="appointment-summary-tile__value">{{ group.items.length }}</div>
         </div>
       </div>
     </ElCard>
 
     <div v-if="!loading && !appointmentsVisible" class="appointment-empty-state">
-      {{ isStaff ? 'No appointments assigned for this date.' : 'No appointments for this date.' }}
+      {{ emptyStateMessage }}
     </div>
 
     <div v-if="loading || appointmentsVisible">
-      <div v-for="group in appointmentGroups" :key="group.key" class="space-y-3">
+      <div v-for="group in appointmentGroups" :key="group.key" class="space-y-2">
       <ElCard class="bg-white">
         <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -903,18 +914,70 @@ const appointmentRowClassName = ({ row }: { row: Appointment }) =>
   color: #c2410c;
 }
 
-.appointment-summary-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
-  width: min(100%, 28rem);
+.appointment-filter-card :deep(.el-card__body) {
+  padding: 1rem 1.1rem;
 }
 
+.appointment-filter-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.appointment-date-tile,
 .appointment-summary-tile {
   border-radius: 16px;
   border: 1px solid #e2e8f0;
   background: #f8fafc;
-  padding: 0.9rem 1rem;
+  min-height: 4.5rem;
+}
+
+.appointment-date-tile {
+  padding: 0.75rem 1rem;
+}
+
+.appointment-date-tile__row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.appointment-date-tile__label,
+.appointment-summary-tile__label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.appointment-summary-tile {
+  padding: 0.75rem 0.9rem;
+  text-align: center;
+}
+
+.appointment-summary-tile__value {
+  margin-top: 0.35rem;
+  font-size: 1.8rem;
+  line-height: 1;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.appointment-date-picker {
+  width: 100%;
+}
+
+.appointment-date-picker :deep(.el-input__wrapper) {
+  min-height: 2.2rem;
+  border-radius: 9999px;
+}
+
+.appointment-date-picker :deep(.el-input__inner) {
+  font-size: 0.95rem;
+}
+
+.appointment-date-picker :deep(.el-input__prefix) {
+  color: #94a3b8;
 }
 
 .appointment-empty-state {
@@ -931,15 +994,31 @@ const appointmentRowClassName = ({ row }: { row: Appointment }) =>
   background: rgba(249, 115, 22, 0.12) !important;
 }
 
-@media (max-width: 960px) {
-  .appointment-summary-grid {
-    width: 100%;
+@media (min-width: 768px) {
+  .appointment-filter-grid {
+    grid-template-columns: minmax(16rem, 1.75fr) repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+  }
+
+  .appointment-date-tile__row {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .appointment-date-picker {
+    min-width: 11rem;
   }
 }
 
 @media (max-width: 640px) {
-  .appointment-summary-grid {
-    grid-template-columns: 1fr;
+  .appointment-filter-card :deep(.el-card__body) {
+    padding: 0.9rem;
+  }
+
+  .appointment-date-tile,
+  .appointment-summary-tile {
+    min-height: auto;
   }
 }
 </style>

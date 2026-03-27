@@ -121,19 +121,6 @@ const showProgress = computed(
       </div>
     </div>
 
-    <div
-      v-else-if="status && (status.completed || status.onboardingBannerDismissed)"
-      class="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm"
-    >
-      <div class="flex items-center justify-between">
-        <div class="font-semibold text-slate-900">Admin alerts</div>
-        <span class="text-xs text-slate-500">Coming soon</span>
-      </div>
-      <div class="mt-1 text-xs text-slate-600">
-        Appointment reminders and important notices will appear here. You can dismiss onboarding anytime in Settings.
-      </div>
-    </div>
-
     <div v-if="loading" class="text-xs text-slate-500">Loading onboarding...</div>
   </div>
 </template>
