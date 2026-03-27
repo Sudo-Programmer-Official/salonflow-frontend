@@ -40,6 +40,16 @@ export function nowInBusinessTz(tz?: string) {
   return zone ? dayjsLib().tz(zone) : dayjsLib();
 }
 
+export function toBusinessDayKey(
+  iso: string | null | undefined,
+  tz?: string,
+): string {
+  if (!iso) return '';
+  const zone = tz?.trim() || getBusinessTimezone();
+  const d = zone ? dayjsLib(iso).tz(zone) : dayjsLib(iso);
+  return d.isValid() ? d.format('YYYY-MM-DD') : '';
+}
+
 export function isWithinTcpaWindow(
   instant?: string | number | Date,
   tz?: string,

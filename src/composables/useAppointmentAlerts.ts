@@ -2,7 +2,7 @@ import { computed, reactive } from 'vue';
 import type { Router } from 'vue-router';
 
 import { fetchAppointments, type Appointment } from '../api/appointments';
-import { dayjs, getBusinessTimezone } from '../utils/dates';
+import { getBusinessTimezone, toBusinessDayKey } from '../utils/dates';
 import { enableAudio, isAudioEnabled, playAppointmentAlertTone } from '../utils/sound';
 
 type PersistedAlertState = {
@@ -621,9 +621,7 @@ const viewCurrentAlert = async (router: Router) => {
   state.actionError = null;
 
   try {
-    const appointmentDate = dayjs(appointment.scheduledAt)
-      .tz(getBusinessTimezone())
-      .format('YYYY-MM-DD');
+    const appointmentDate = toBusinessDayKey(appointment.scheduledAt, getBusinessTimezone());
 
     await router.push({
       name: 'admin-appointments',
