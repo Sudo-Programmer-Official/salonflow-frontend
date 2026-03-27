@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   ElButton,
@@ -49,12 +49,21 @@ type AppointmentGroup = {
   items: Appointment[];
 };
 
+type DisplayAppointmentGroup = AppointmentGroup & {
+  visibleItems: Appointment[];
+  visibleCount: number;
+  totalCount: number;
+  hasMore: boolean;
+  remainingCount: number;
+};
+
 const route = useRoute();
 const router = useRouter();
 
 const role = computed(() => localStorage.getItem('role') || '');
 const isStaff = computed(() => role.value === 'STAFF');
 const canManageAppointments = computed(() => role.value === 'OWNER');
+const COMPLETED_PAST_INCREMENT = 10;
 
 const terminalStatuses = new Set(['COMPLETED', 'NO_SHOW', 'CANCELED']);
 const readRouteAppointmentDate = (value: unknown) =>
@@ -107,6 +116,7 @@ const dialogTitle = computed(() => {
 const isViewMode = computed(() => dialogMode.value === 'view');
 const saving = ref(false);
 const editingId = ref<string | null>(null);
+const completedPastVisibleCount = ref(COMPLETED_PAST_INCREMENT);
 
 const { resolveAlertByAppointmentId } = useAppointmentAlerts();
 
@@ -269,6 +279,24 @@ const appointmentGroups = computed<AppointmentGroup[]>(() => {
   ];
 });
 
+const displayedAppointmentGroups = computed<DisplayAppointmentGroup[]>(() =>
+  appointmentGroups.value.map((group) => {
+    const visibleItems =
+      group.key === 'completed_past'
+        ? group.items.slice(0, completedPastVisibleCount.value)
+        : group.items;
+
+    return {
+      ...group,
+      visibleItems,
+      visibleCount: visibleItems.length,
+      totalCount: group.items.length,
+      hasMore: visibleItems.length < group.items.length,
+      remainingCount: Math.max(0, group.items.length - visibleItems.length),
+    };
+  }),
+);
+
 const nextAppointment = computed(() => appointmentGroups.value[0]?.items[0] ?? null);
 const appointmentsVisible = computed(() => appointments.value.length > 0);
 const emptyStateMessage = computed(() => {
@@ -278,6 +306,15 @@ const emptyStateMessage = computed(() => {
 
   return isStaff.value ? 'No appointments assigned yet.' : 'No appointments found.';
 });
+
+const loadMoreCompletedPast = async () => {
+  const currentScrollY = typeof window !== 'undefined' ? window.scrollY : 0;
+  completedPastVisibleCount.value += COMPLETED_PAST_INCREMENT;
+  await nextTick();
+  if (typeof window !== 'undefined') {
+    window.scrollTo({ top: currentScrollY });
+  }
+};
 
 const resetForm = () => {
   form.customerName = '';
@@ -460,6 +497,7 @@ onUnmounted(() => {
 });
 
 watch(selectedDate, () => {
+  completedPastVisibleCount.value = COMPLETED_PAST_INCREMENT;
   if (!dialogVisible.value || dialogMode.value === 'create') {
     form.date = selectedDate.value || defaultFormDate.value;
   }
@@ -678,7 +716,7 @@ const appointmentRowClassName = ({ row }: { row: Appointment }) =>
     </div>
 
     <div v-if="loading || appointmentsVisible">
-      <div v-for="group in appointmentGroups" :key="group.key" class="space-y-2">
+      <div v-for="group in displayedAppointmentGroups" :key="group.key" class="space-y-2">
       <ElCard class="bg-white">
         <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -686,13 +724,13 @@ const appointmentRowClassName = ({ row }: { row: Appointment }) =>
             <div class="text-sm text-slate-600">{{ group.description }}</div>
           </div>
           <div class="text-sm font-medium text-slate-500">
-            {{ group.items.length }} appointment{{ group.items.length === 1 ? '' : 's' }}
+            {{ group.totalCount }} appointment{{ group.totalCount === 1 ? '' : 's' }}
           </div>
         </div>
 
         <ElTable
-          v-if="loading || group.items.length > 0"
-          :data="group.items"
+          v-if="loading || group.visibleItems.length > 0"
+          :data="group.visibleItems"
           :loading="loading"
           :row-class-name="appointmentRowClassName"
           stripe
@@ -780,6 +818,22 @@ const appointmentRowClassName = ({ row }: { row: Appointment }) =>
           class="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500"
         >
           {{ group.emptyMessage }}
+        </div>
+
+        <div
+          v-if="!loading && group.key === 'completed_past' && group.hasMore"
+          class="mt-4 flex flex-col gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div class="text-sm text-slate-500">
+            Showing {{ group.visibleCount }} of {{ group.totalCount }} appointments
+          </div>
+          <ElButton
+            size="small"
+            class="sf-btn"
+            @click="loadMoreCompletedPast"
+          >
+            Load {{ Math.min(COMPLETED_PAST_INCREMENT, group.remainingCount) }} more
+          </ElButton>
         </div>
       </ElCard>
       </div>
