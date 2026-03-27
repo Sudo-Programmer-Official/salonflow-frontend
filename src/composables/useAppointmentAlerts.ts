@@ -629,6 +629,7 @@ const viewCurrentAlert = async (router: Router) => {
       name: 'admin-appointments',
       query: {
         appointmentId: appointment.id,
+        appointmentAt: appointment.scheduledAt,
         appointmentDate,
         alert: '1',
       },

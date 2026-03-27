@@ -57,8 +57,27 @@ const isStaff = computed(() => role.value === 'STAFF');
 const canManageAppointments = computed(() => role.value === 'OWNER');
 
 const terminalStatuses = new Set(['COMPLETED', 'NO_SHOW', 'CANCELED']);
-const initialTargetDate =
-  typeof route.query.appointmentDate === 'string' ? route.query.appointmentDate : null;
+const readRouteAppointmentDate = (value: unknown) =>
+  typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+
+const readRouteAppointmentAt = (value: unknown) =>
+  typeof value === 'string' && value.trim() ? value : null;
+
+const resolveRouteTargetDate = (
+  appointmentDate: unknown,
+  appointmentAt: unknown,
+  timezone: string,
+) => {
+  const targetAt = readRouteAppointmentAt(appointmentAt);
+  if (targetAt) {
+    const parsed = dayjs(targetAt).tz(timezone);
+    if (parsed.isValid()) {
+      return parsed.format('YYYY-MM-DD');
+    }
+  }
+
+  return readRouteAppointmentDate(appointmentDate);
+};
 
 const appointments = ref<Appointment[]>([]);
 const services = ref<ServiceItem[]>([]);
@@ -70,6 +89,11 @@ const actionLoading = ref<Record<string, boolean>>({});
 const highlightedAppointmentId = ref<string | null>(null);
 const nowTick = ref(Date.now());
 const businessTimezone = ref(getBusinessTimezone() || DEFAULT_TIMEZONE);
+const initialTargetDate = resolveRouteTargetDate(
+  route.query.appointmentDate,
+  route.query.appointmentAt,
+  businessTimezone.value,
+);
 
 const selectedDate = ref(
   initialTargetDate || dayjs().tz(businessTimezone.value).format('YYYY-MM-DD'),
@@ -275,6 +299,7 @@ const applyAppointmentToForm = (appointment: Appointment) => {
 const clearAppointmentRouteQuery = async () => {
   const nextQuery = { ...route.query };
   delete nextQuery.appointmentId;
+  delete nextQuery.appointmentAt;
   delete nextQuery.appointmentDate;
   delete nextQuery.alert;
   await router.replace({ query: nextQuery });
@@ -309,8 +334,11 @@ const openView = (appointment: Appointment) => {
 const consumeRouteAppointmentTarget = async (sourceAppointments = appointments.value) => {
   const appointmentId =
     typeof route.query.appointmentId === 'string' ? route.query.appointmentId : null;
-  const appointmentDate =
-    typeof route.query.appointmentDate === 'string' ? route.query.appointmentDate : null;
+  const appointmentDate = resolveRouteTargetDate(
+    route.query.appointmentDate,
+    route.query.appointmentAt,
+    businessTimezone.value,
+  );
   const shouldOpenFromAlert = route.query.alert === '1';
 
   if (!appointmentId || consumingRouteTarget) {
@@ -400,7 +428,14 @@ const loadStaff = async () => {
 
 onMounted(async () => {
   await syncBusinessTimezone();
-  if (!initialTargetDate) {
+  const routeTargetDate = resolveRouteTargetDate(
+    route.query.appointmentDate,
+    route.query.appointmentAt,
+    businessTimezone.value,
+  );
+  if (routeTargetDate) {
+    selectedDate.value = routeTargetDate;
+  } else {
     selectedDate.value = dayjs().tz(businessTimezone.value).format('YYYY-MM-DD');
   }
   form.date = selectedDate.value;
@@ -424,9 +459,14 @@ watch(selectedDate, () => {
 });
 
 watch(
-  () => [route.query.appointmentId, route.query.appointmentDate, route.query.alert],
-  ([, nextAppointmentDate]) => {
-    if (typeof nextAppointmentDate === 'string' && nextAppointmentDate !== selectedDate.value) {
+  () => [route.query.appointmentId, route.query.appointmentAt, route.query.appointmentDate, route.query.alert],
+  () => {
+    const nextAppointmentDate = resolveRouteTargetDate(
+      route.query.appointmentDate,
+      route.query.appointmentAt,
+      businessTimezone.value,
+    );
+    if (nextAppointmentDate && nextAppointmentDate !== selectedDate.value) {
       selectedDate.value = nextAppointmentDate;
       return;
     }
