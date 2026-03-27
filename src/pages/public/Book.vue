@@ -143,6 +143,7 @@ const requireStaffSelection = computed(
   () => allowStaffSelection.value && settings.value?.requireStaffSelection === true,
 );
 const minNoticeMinutes = computed(() => settings.value?.defaultBookingRules?.min_notice_minutes ?? 0);
+const phoneExample = '(555) 123-4567';
 
 const serviceMap = computed(() => {
   const map = new Map<string, ServiceGroup['services'][number]>();
@@ -190,22 +191,58 @@ const formatMoney = (cents?: number | null, currency = 'USD') => {
   }).format(cents / 100);
 };
 
-const normalizePhone = (raw: string) => {
-  const digits = raw.replace(/\D/g, '');
-  const core = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
-  if (core.length !== 10) {
-    throw new Error('Enter a valid 10-digit phone number');
+const phoneDigits = (raw: string) => raw.replace(/\D/g, '');
+
+const phoneCore = (raw: string) => {
+  const digits = phoneDigits(raw);
+  return digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
+};
+
+const validatePhoneInput = (raw: string) => {
+  const digits = phoneDigits(raw);
+  if (!digits) return '';
+  if (digits.length < 10) {
+    return 'Enter all 10 digits so the salon can confirm your booking.';
   }
-  return `+1${core}`;
+  if (digits.length > 11 || (digits.length === 11 && !digits.startsWith('1'))) {
+    return `Use a valid 10-digit US mobile number, like ${phoneExample}.`;
+  }
+  const core = phoneCore(raw);
+  if (core.length !== 10 || !/^[2-9]\d{2}[2-9]\d{6}$/.test(core)) {
+    return `That number looks invalid. Use a real mobile number, like ${phoneExample}.`;
+  }
+  return '';
+};
+
+const normalizePhone = (raw: string) => {
+  const validation = validatePhoneInput(raw);
+  if (validation) {
+    throw new Error(validation);
+  }
+  return `+1${phoneCore(raw)}`;
 };
 
 const formatDisplayPhone = (raw: string | undefined | null): string => {
-  const digits = (raw || '').replace(/\D/g, '').slice(0, 10);
-  if (!digits) return '';
-  if (digits.length <= 3) return digits;
-  if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
-  return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+  const digits = phoneDigits(raw || '');
+  const core = digits.startsWith('1') && digits.length > 10 ? digits.slice(1, 11) : digits.slice(0, 10);
+  if (!core) return '';
+  if (core.length <= 3) return core;
+  if (core.length <= 6) return `(${core.slice(0, 3)}) ${core.slice(3)}`;
+  return `(${core.slice(0, 3)}) ${core.slice(3, 6)}-${core.slice(6)}`;
 };
+
+const phoneValidationMessage = computed(() => validatePhoneInput(form.phone));
+const phoneLooksValid = computed(() => Boolean(form.phone.trim()) && !phoneValidationMessage.value);
+const phoneConfirmationText = computed(() =>
+  phoneLooksValid.value
+    ? `We’ll text the salon confirmation to ${formatDisplayPhone(form.phone)}.`
+    : 'Use a mobile number that can receive the salon confirmation text.',
+);
+const contactSummary = computed(() => {
+  if (!form.phone.trim()) return 'Phone required to confirm';
+  if (phoneValidationMessage.value) return 'Check phone number';
+  return formatDisplayPhone(form.phone);
+});
 
 const composeScheduledAt = () => {
   if (!form.date || !form.time) return null;
@@ -298,6 +335,16 @@ watch(
     loadStaff(val || undefined);
     if (allowStaffSelection.value && !val) {
       form.staffId = '';
+    }
+  },
+);
+
+watch(
+  () => form.phone,
+  (value) => {
+    const formatted = formatDisplayPhone(value);
+    if (value !== formatted) {
+      form.phone = formatted;
     }
   },
 );
@@ -412,15 +459,26 @@ const onSubmit = async () => {
           </ElFormItem>
 
           <div class="grid gap-4 md:grid-cols-2">
-            <ElFormItem label="Phone number" required>
+            <ElFormItem
+              label="Mobile number"
+              required
+              :error="phoneValidationMessage || undefined"
+            >
               <ElInput
                 v-model="form.phone"
-                placeholder="555 123 4567"
+                placeholder="(361) 444-2937"
                 size="large"
-                autocomplete="tel"
-                inputmode="tel"
-                @input="(val: any) => (form.phone = formatDisplayPhone(val))"
+                autocomplete="tel-national"
+                inputmode="numeric"
+                maxlength="14"
+                clearable
               />
+              <div
+                class="mt-1 text-xs"
+                :class="phoneLooksValid ? 'text-emerald-700' : 'text-muted'"
+              >
+                {{ phoneConfirmationText }}
+              </div>
             </ElFormItem>
             <ElFormItem label="Email (optional)">
               <ElInput
@@ -536,6 +594,7 @@ const onSubmit = async () => {
                 submitting ||
                 !form.name ||
                 !form.phone ||
+                !!phoneValidationMessage ||
                 !form.date ||
                 !form.time ||
                 (requireStaffSelection && !form.staffId) ||
@@ -614,8 +673,8 @@ const onSubmit = async () => {
             </div>
             <div class="flex items-center justify-between">
               <span>Contact</span>
-              <span class="text-muted">
-                {{ form.phone || 'Phone required to confirm' }}
+              <span :class="phoneValidationMessage ? 'text-rose-600' : 'text-muted'">
+                {{ contactSummary }}
               </span>
             </div>
           </div>

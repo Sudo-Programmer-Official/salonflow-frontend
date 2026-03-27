@@ -25,14 +25,17 @@ import {
   type Appointment,
   updateAppointment,
 } from '../../api/appointments';
+import { fetchPublicSettings } from '../../api/settings';
 import { fetchServices, type ServiceItem } from '../../api/services';
 import { fetchStaff, type StaffMember } from '../../api/staff';
 import { useAppointmentAlerts } from '../../composables/useAppointmentAlerts';
 import {
+  DEFAULT_TIMEZONE,
   dayjs,
   formatInBusinessTz,
   getBusinessTimezone,
   nowInBusinessTz,
+  setBusinessTimezone,
 } from '../../utils/dates';
 import { formatPhone } from '../../utils/format';
 
@@ -66,9 +69,10 @@ const loadingStaff = ref(false);
 const actionLoading = ref<Record<string, boolean>>({});
 const highlightedAppointmentId = ref<string | null>(null);
 const nowTick = ref(Date.now());
+const businessTimezone = ref(getBusinessTimezone() || DEFAULT_TIMEZONE);
 
 const selectedDate = ref(
-  initialTargetDate || dayjs().tz(getBusinessTimezone()).format('YYYY-MM-DD'),
+  initialTargetDate || dayjs().tz(businessTimezone.value).format('YYYY-MM-DD'),
 );
 
 const dialogVisible = ref(false);
@@ -100,7 +104,7 @@ let clockId: number | null = null;
 
 const currentTime = computed(() => {
   nowTick.value;
-  return nowInBusinessTz(getBusinessTimezone());
+  return nowInBusinessTz(businessTimezone.value);
 });
 
 const timeSlots = computed(() => {
@@ -122,14 +126,16 @@ const timeSlots = computed(() => {
 });
 
 const formatDate = (value: Date | string) => {
-  const zone = getBusinessTimezone();
+  const zone = businessTimezone.value;
 
   if (value instanceof Date) {
     return dayjs(value).tz(zone).format('YYYY-MM-DD');
   }
 
   if (typeof value === 'string' && value.length >= 10) {
-    const parsed = dayjs.tz(value, zone);
+    const parsed = /^\d{4}-\d{2}-\d{2}$/.test(value)
+      ? dayjs.tz(value, zone)
+      : dayjs(value).tz(zone);
     return parsed.isValid() ? parsed.format('YYYY-MM-DD') : '';
   }
 
@@ -137,19 +143,19 @@ const formatDate = (value: Date | string) => {
 };
 
 const toDate = (iso: string) => {
-  const zone = getBusinessTimezone();
-  const parsed = dayjs.tz(iso, zone);
+  const zone = businessTimezone.value;
+  const parsed = dayjs(iso).tz(zone);
   return parsed.isValid() ? parsed.format('YYYY-MM-DD') : '';
 };
 
 const toTime = (iso: string) => {
-  const zone = getBusinessTimezone();
-  const parsed = dayjs.tz(iso, zone);
+  const zone = businessTimezone.value;
+  const parsed = dayjs(iso).tz(zone);
   return parsed.isValid() ? parsed.format('HH:mm') : '';
 };
 
 const appointmentAtBusinessTime = (appointment: Appointment) =>
-  dayjs(appointment.scheduledAt).tz(getBusinessTimezone());
+  dayjs(appointment.scheduledAt).tz(businessTimezone.value);
 
 const isPastResolvedAppointment = (appointment: Appointment) =>
   terminalStatuses.has(appointment.status);
@@ -355,6 +361,18 @@ const loadAppointments = async () => {
   }
 };
 
+const syncBusinessTimezone = async () => {
+  try {
+    const settings = await fetchPublicSettings();
+    const nextTimezone = settings.timezone?.trim() || getBusinessTimezone() || DEFAULT_TIMEZONE;
+    if (!nextTimezone) return;
+    businessTimezone.value = nextTimezone;
+    setBusinessTimezone(nextTimezone);
+  } catch {
+    businessTimezone.value = getBusinessTimezone() || DEFAULT_TIMEZONE;
+  }
+};
+
 const loadServices = async () => {
   loadingServices.value = true;
 
@@ -380,14 +398,16 @@ const loadStaff = async () => {
   }
 };
 
-onMounted(() => {
+onMounted(async () => {
+  await syncBusinessTimezone();
+  if (!initialTargetDate) {
+    selectedDate.value = dayjs().tz(businessTimezone.value).format('YYYY-MM-DD');
+  }
   form.date = selectedDate.value;
   clockId = window.setInterval(() => {
     nowTick.value = Date.now();
   }, 60000);
-  void loadAppointments();
-  void loadServices();
-  void loadStaff();
+  void Promise.all([loadAppointments(), loadServices(), loadStaff()]);
 });
 
 onUnmounted(() => {
@@ -420,13 +440,13 @@ const buildScheduledAt = () => {
     return '';
   }
 
-  const zone = getBusinessTimezone();
+  const zone = businessTimezone.value;
   const composed = dayjs.tz(`${form.date}T${form.time}:00`, zone);
   return composed.isValid() ? composed.utc().toISOString() : '';
 };
 
 const formatTime = (_: unknown, __: unknown, value: string) =>
-  formatInBusinessTz(value, 'MMM D, h:mm A');
+  formatInBusinessTz(value, 'MMM D, h:mm A', businessTimezone.value);
 
 const saveAppointment = async () => {
   if (isViewMode.value) {
@@ -556,7 +576,7 @@ const appointmentRowClassName = ({ row }: { row: Appointment }) =>
           <div class="appointment-next-card__eyebrow">Next Appointment</div>
           <div class="text-2xl font-semibold text-slate-900">{{ nextAppointment.customerName }}</div>
           <div class="text-sm text-slate-600">
-            {{ formatInBusinessTz(nextAppointment.scheduledAt, 'MMM D, YYYY h:mm A') }}
+            {{ formatInBusinessTz(nextAppointment.scheduledAt, 'MMM D, YYYY h:mm A', businessTimezone) }}
             <span class="mx-2 text-slate-300">•</span>
             {{ nextAppointment.serviceName }}
           </div>

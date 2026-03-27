@@ -20,6 +20,7 @@ import {
 } from '../api/notifications';
 import { getAttentionCount } from '../api/appointments';
 import { playInboxChime } from '../utils/sound';
+import { DEFAULT_TIMEZONE, setBusinessTimezone } from '../utils/dates';
 
 dayjs.extend(relativeTime);
 
@@ -198,6 +199,7 @@ const loadSettingsFlags = async () => {
   try {
     const data = await fetchSettings();
     kioskEnabled.value = data.kioskEnabled;
+    setBusinessTimezone(data.timezone?.trim() || DEFAULT_TIMEZONE);
     applyThemeFromSettings({
       ...data,
       kioskThemeMode: data.kioskThemeMode,
@@ -206,6 +208,7 @@ const loadSettingsFlags = async () => {
     kioskEnabled.value = false;
     try {
       const publicData = await fetchPublicSettings();
+      setBusinessTimezone(publicData.timezone?.trim() || DEFAULT_TIMEZONE);
       applyThemeFromSettings({
         ...publicData,
         kioskThemeMode: publicData.kioskThemeMode,
