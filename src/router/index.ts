@@ -523,7 +523,7 @@ const appRoutes = [
         path: "appointments",
         name: "admin-appointments",
         component: AdminAppointmentsPage,
-        meta: { requiresAuth: true, roles: ["OWNER"] },
+        meta: { requiresAuth: true, roles: ["OWNER", "STAFF"] },
       },
       {
         path: "billing",

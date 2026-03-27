@@ -22,6 +22,8 @@ export type Appointment = {
   serviceId?: string;
   staffId?: string | null;
   videoUrl?: string | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
 const apiBase = apiUrl('/appointments');

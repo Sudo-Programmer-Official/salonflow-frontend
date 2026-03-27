@@ -1,34 +1,50 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref, watch, computed } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import {
-  ElCard,
-  ElTable,
-  ElTableColumn,
   ElButton,
+  ElCard,
+  ElDatePicker,
+  ElDialog,
   ElForm,
   ElFormItem,
   ElInput,
-  ElDatePicker,
-  ElDialog,
-  ElSelect,
-  ElOption,
   ElMessage,
+  ElOption,
+  ElSelect,
+  ElTable,
+  ElTableColumn,
 } from 'element-plus';
+
 import {
-  fetchAppointments,
-  createAppointment,
-  updateAppointment,
   cancelAppointment,
   completeAppointment,
   confirmAppointment,
+  createAppointment,
+  fetchAppointments,
   type Appointment,
+  updateAppointment,
 } from '../../api/appointments';
 import { fetchServices, type ServiceItem } from '../../api/services';
 import { fetchStaff, type StaffMember } from '../../api/staff';
-import { formatInBusinessTz, dayjs, getBusinessTimezone } from '../../utils/dates';
+import { useAppointmentAlerts } from '../../composables/useAppointmentAlerts';
+import { dayjs, formatInBusinessTz, getBusinessTimezone } from '../../utils/dates';
 import { formatPhone } from '../../utils/format';
 
+type AppointmentDialogMode = 'create' | 'edit' | 'view';
+
 const PAGE_SIZE = 10;
+
+const route = useRoute();
+const router = useRouter();
+
+const role = computed(() => localStorage.getItem('role') || '');
+const isStaff = computed(() => role.value === 'STAFF');
+const canManageAppointments = computed(() => role.value === 'OWNER');
+
+const initialTargetDate =
+  typeof route.query.appointmentDate === 'string' ? route.query.appointmentDate : null;
+
 const appointments = ref<Appointment[]>([]);
 const services = ref<ServiceItem[]>([]);
 const staff = ref<StaffMember[]>([]);
@@ -38,13 +54,24 @@ const loadingStaff = ref(false);
 const actionLoading = ref<Record<string, boolean>>({});
 const page = ref(1);
 const totalPages = ref(1);
+const highlightedAppointmentId = ref<string | null>(null);
 
-const selectedDate = ref(dayjs().tz(getBusinessTimezone()).format('YYYY-MM-DD'));
+const selectedDate = ref(
+  initialTargetDate || dayjs().tz(getBusinessTimezone()).format('YYYY-MM-DD'),
+);
 
 const dialogVisible = ref(false);
-const dialogMode = ref<'create' | 'edit'>('create');
+const dialogMode = ref<AppointmentDialogMode>('create');
+const dialogTitle = computed(() => {
+  if (dialogMode.value === 'create') return 'New Appointment';
+  if (dialogMode.value === 'edit') return 'Edit Appointment';
+  return 'Appointment Details';
+});
+const isViewMode = computed(() => dialogMode.value === 'view');
 const saving = ref(false);
 const editingId = ref<string | null>(null);
+
+const { resolveAlertByAppointmentId } = useAppointmentAlerts();
 
 const form = reactive({
   customerName: '',
@@ -57,20 +84,52 @@ const form = reactive({
   notes: '',
 });
 
+let consumingRouteTarget = false;
+
 const timeSlots = computed(() => {
   const slots: { label: string; value: string }[] = [];
   const startHour = 8;
   const endHour = 20;
-  for (let h = startHour; h <= endHour; h += 1) {
-    for (const m of [0, 15, 30, 45]) {
-      if (h === endHour && m > 0) break; // cap at end hour
-      const value = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+
+  for (let hour = startHour; hour <= endHour; hour += 1) {
+    for (const minute of [0, 15, 30, 45]) {
+      if (hour === endHour && minute > 0) break;
+
+      const value = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
       const label = dayjs(`2000-01-01T${value}`).format('h:mm A');
       slots.push({ label, value });
     }
   }
+
   return slots;
 });
+
+const formatDate = (value: Date | string) => {
+  const zone = getBusinessTimezone();
+
+  if (value instanceof Date) {
+    return dayjs(value).tz(zone).format('YYYY-MM-DD');
+  }
+
+  if (typeof value === 'string' && value.length >= 10) {
+    const parsed = dayjs.tz(value, zone);
+    return parsed.isValid() ? parsed.format('YYYY-MM-DD') : '';
+  }
+
+  return '';
+};
+
+const toDate = (iso: string) => {
+  const zone = getBusinessTimezone();
+  const parsed = dayjs.tz(iso, zone);
+  return parsed.isValid() ? parsed.format('YYYY-MM-DD') : '';
+};
+
+const toTime = (iso: string) => {
+  const zone = getBusinessTimezone();
+  const parsed = dayjs.tz(iso, zone);
+  return parsed.isValid() ? parsed.format('HH:mm') : '';
+};
 
 const resetForm = () => {
   form.customerName = '';
@@ -84,36 +143,115 @@ const resetForm = () => {
   editingId.value = null;
 };
 
-const formatDate = (d: Date | string) => {
-  const zone = getBusinessTimezone();
-  if (d instanceof Date) return dayjs(d).tz(zone).format('YYYY-MM-DD');
-  if (typeof d === 'string' && d.length >= 10) {
-    const parsed = dayjs.tz(d, zone);
-    return parsed.isValid() ? parsed.format('YYYY-MM-DD') : '';
+const applyAppointmentToForm = (appointment: Appointment) => {
+  editingId.value = appointment.id;
+  form.customerName = appointment.customerName;
+  form.phoneE164 = appointment.phoneE164;
+  form.serviceId = appointment.serviceId || '';
+  form.staffId = appointment.staffId || '';
+  form.preferredTech = appointment.preferredTech || '';
+  form.date = toDate(appointment.scheduledAt);
+  form.time = toTime(appointment.scheduledAt);
+  form.notes = appointment.notes || '';
+};
+
+const clearAppointmentRouteQuery = async () => {
+  const nextQuery = { ...route.query };
+  delete nextQuery.appointmentId;
+  delete nextQuery.appointmentDate;
+  delete nextQuery.alert;
+  await router.replace({ query: nextQuery });
+};
+
+const openCreate = () => {
+  if (!canManageAppointments.value) {
+    return;
   }
-  return '';
+
+  dialogMode.value = 'create';
+  resetForm();
+  dialogVisible.value = true;
 };
-const toDate = (iso: string) => {
-  const zone = getBusinessTimezone();
-  const parsed = dayjs.tz(iso, zone);
-  return parsed.isValid() ? parsed.format('YYYY-MM-DD') : '';
+
+const openEdit = (appointment: Appointment) => {
+  if (!canManageAppointments.value) {
+    return;
+  }
+
+  dialogMode.value = 'edit';
+  applyAppointmentToForm(appointment);
+  dialogVisible.value = true;
 };
-const toTime = (iso: string) => {
-  const zone = getBusinessTimezone();
-  const parsed = dayjs.tz(iso, zone);
-  return parsed.isValid() ? parsed.format('HH:mm') : '';
+
+const openView = (appointment: Appointment) => {
+  dialogMode.value = 'view';
+  applyAppointmentToForm(appointment);
+  dialogVisible.value = true;
+};
+
+const consumeRouteAppointmentTarget = async (sourceAppointments = appointments.value) => {
+  const appointmentId =
+    typeof route.query.appointmentId === 'string' ? route.query.appointmentId : null;
+  const appointmentDate =
+    typeof route.query.appointmentDate === 'string' ? route.query.appointmentDate : null;
+  const shouldOpenFromAlert = route.query.alert === '1';
+
+  if (!appointmentId || consumingRouteTarget) {
+    return;
+  }
+
+  if (appointmentDate && appointmentDate !== selectedDate.value) {
+    return;
+  }
+
+  const appointmentIndex = sourceAppointments.findIndex(
+    (appointment) => appointment.id === appointmentId,
+  );
+
+  if (appointmentIndex === -1) {
+    return;
+  }
+
+  consumingRouteTarget = true;
+
+  try {
+    const appointment = sourceAppointments[appointmentIndex];
+    if (!appointment) {
+      return;
+    }
+
+    highlightedAppointmentId.value = appointmentId;
+    page.value = Math.floor(appointmentIndex / PAGE_SIZE) + 1;
+
+    if (shouldOpenFromAlert) {
+      openView(appointment);
+      resolveAlertByAppointmentId(appointmentId);
+    }
+
+    await clearAppointmentRouteQuery();
+  } finally {
+    consumingRouteTarget = false;
+  }
 };
 
 const loadAppointments = async () => {
   loading.value = true;
+
   try {
-    appointments.value = await fetchAppointments({
+    const nextAppointments = await fetchAppointments({
       date: selectedDate.value,
+      ...(isStaff.value ? { mine: true } : {}),
     });
+
+    appointments.value = nextAppointments;
     totalPages.value = Math.max(1, Math.ceil(appointments.value.length / PAGE_SIZE));
-    if (page.value > totalPages.value) page.value = totalPages.value;
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : 'Failed to load appointments');
+    if (page.value > totalPages.value) {
+      page.value = totalPages.value;
+    }
+
+    await consumeRouteAppointmentTarget(nextAppointments);
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'Failed to load appointments');
   } finally {
     loading.value = false;
   }
@@ -121,6 +259,7 @@ const loadAppointments = async () => {
 
 const loadServices = async () => {
   loadingServices.value = true;
+
   try {
     services.value = await fetchServices();
   } catch {
@@ -132,9 +271,10 @@ const loadServices = async () => {
 
 const loadStaff = async () => {
   loadingStaff.value = true;
+
   try {
-    const res = await fetchStaff();
-    staff.value = res.items;
+    const response = await fetchStaff();
+    staff.value = response.items;
   } catch {
     staff.value = [];
   } finally {
@@ -144,49 +284,46 @@ const loadStaff = async () => {
 
 onMounted(() => {
   form.date = selectedDate.value;
-  loadAppointments();
-  loadServices();
-  loadStaff();
+  void loadAppointments();
+  void loadServices();
+  void loadStaff();
 });
 
 watch(selectedDate, () => {
   form.date = selectedDate.value;
   page.value = 1;
-  loadAppointments();
+  highlightedAppointmentId.value = null;
+  void loadAppointments();
 });
 
-const openCreate = () => {
-  dialogMode.value = 'create';
-  resetForm();
-  dialogVisible.value = true;
-};
+watch(
+  () => [route.query.appointmentId, route.query.appointmentDate, route.query.alert],
+  ([, nextAppointmentDate]) => {
+    if (typeof nextAppointmentDate === 'string' && nextAppointmentDate !== selectedDate.value) {
+      selectedDate.value = nextAppointmentDate;
+      return;
+    }
 
-const openEdit = (appt: Appointment) => {
-  dialogMode.value = 'edit';
-  editingId.value = appt.id;
-  form.customerName = appt.customerName;
-  form.phoneE164 = appt.phoneE164;
-  form.serviceId = appt.serviceId || '';
-  form.staffId = appt.staffId || '';
-  form.preferredTech = appt.preferredTech || '';
-  form.date = toDate(appt.scheduledAt);
-  form.time = toTime(appt.scheduledAt);
-  form.notes = appt.notes || '';
-  dialogVisible.value = true;
-};
+    void consumeRouteAppointmentTarget();
+  },
+);
 
 const buildScheduledAt = () => {
-  if (!form.date || !form.time) return '';
+  if (!form.date || !form.time) {
+    return '';
+  }
+
   const zone = getBusinessTimezone();
   const composed = dayjs.tz(`${form.date}T${form.time}:00`, zone);
   return composed.isValid() ? composed.utc().toISOString() : '';
 };
 
-const formatTime = (_: unknown, __: unknown, val: string) =>
-  formatInBusinessTz(val, 'MMM D, h:mm A');
+const formatTime = (_: unknown, __: unknown, value: string) =>
+  formatInBusinessTz(value, 'MMM D, h:mm A');
 
 const statusBadge = (status: string) => {
   const base = 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold';
+
   switch (status) {
     case 'PENDING':
       return { label: 'Awaiting confirmation', cls: `${base} bg-amber-100 text-amber-800` };
@@ -206,16 +343,24 @@ const statusBadge = (status: string) => {
 };
 
 const saveAppointment = async () => {
+  if (isViewMode.value) {
+    return;
+  }
+
   if (!form.customerName || !form.phoneE164 || !form.serviceId || !form.date || !form.time) {
     ElMessage.warning('Name, phone, service, date, and time are required');
     return;
   }
+
   const scheduledAt = buildScheduledAt();
+
   if (!scheduledAt) {
     ElMessage.error('Invalid date/time. Please pick a valid slot.');
     return;
   }
+
   saving.value = true;
+
   try {
     if (dialogMode.value === 'create') {
       await createAppointment({
@@ -240,10 +385,11 @@ const saveAppointment = async () => {
       });
       ElMessage.success('Appointment updated');
     }
+
     dialogVisible.value = false;
     await loadAppointments();
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : 'Save failed');
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'Save failed');
   } finally {
     saving.value = false;
   }
@@ -251,12 +397,13 @@ const saveAppointment = async () => {
 
 const handleCancel = async (id: string) => {
   actionLoading.value = { ...actionLoading.value, [id]: true };
+
   try {
     await cancelAppointment(id);
     await loadAppointments();
     ElMessage.success('Appointment canceled');
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : 'Cancel failed');
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'Cancel failed');
   } finally {
     actionLoading.value = { ...actionLoading.value, [id]: false };
   }
@@ -264,12 +411,13 @@ const handleCancel = async (id: string) => {
 
 const handleComplete = async (id: string) => {
   actionLoading.value = { ...actionLoading.value, [id]: true };
+
   try {
     await completeAppointment(id);
     await loadAppointments();
     ElMessage.success('Appointment completed');
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : 'Complete failed');
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'Complete failed');
   } finally {
     actionLoading.value = { ...actionLoading.value, [id]: false };
   }
@@ -277,12 +425,13 @@ const handleComplete = async (id: string) => {
 
 const handleConfirm = async (id: string) => {
   actionLoading.value = { ...actionLoading.value, [id]: true };
+
   try {
     await confirmAppointment(id);
     await loadAppointments();
     ElMessage.success('Appointment confirmed');
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : 'Confirm failed');
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'Confirm failed');
   } finally {
     actionLoading.value = { ...actionLoading.value, [id]: false };
   }
@@ -302,6 +451,8 @@ const goToPage = (target: number) => {
   page.value = Math.min(Math.max(1, target), totalPages.value);
 };
 
+const appointmentRowClassName = ({ row }: { row: Appointment }) =>
+  row.id === highlightedAppointmentId.value ? 'appointment-row--highlighted' : '';
 </script>
 
 <template>
@@ -309,9 +460,22 @@ const goToPage = (target: number) => {
     <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <h1 class="text-2xl font-semibold text-slate-900">Appointments</h1>
-        <p class="text-sm text-slate-600">Create and manage appointments.</p>
+        <p class="text-sm text-slate-600">
+          {{
+            canManageAppointments
+              ? 'Create and manage appointments.'
+              : 'Review and acknowledge appointments relevant to your schedule.'
+          }}
+        </p>
       </div>
-      <ElButton type="primary" class="sf-btn" @click="openCreate">New Appointment</ElButton>
+      <ElButton
+        v-if="canManageAppointments"
+        type="primary"
+        class="sf-btn"
+        @click="openCreate"
+      >
+        New Appointment
+      </ElButton>
     </div>
 
     <ElCard class="bg-white">
@@ -328,7 +492,12 @@ const goToPage = (target: number) => {
 
       <div class="table-shell">
         <div class="table-body">
-          <ElTable :data="displayedAppointments" :loading="loading" stripe>
+          <ElTable
+            :data="displayedAppointments"
+            :loading="loading"
+            :row-class-name="appointmentRowClassName"
+            stripe
+          >
             <ElTableColumn prop="customerName" label="Customer" min-width="140" />
             <ElTableColumn label="Phone" min-width="140">
               <template #default="{ row }">
@@ -349,10 +518,19 @@ const goToPage = (target: number) => {
                 <span :class="statusBadge(row.status).cls">{{ statusBadge(row.status).label }}</span>
               </template>
             </ElTableColumn>
-            <ElTableColumn label="Actions" min-width="300">
+            <ElTableColumn label="Actions" min-width="360">
               <template #default="{ row }">
                 <div class="flex flex-wrap gap-2">
                   <ElButton
+                    size="small"
+                    class="sf-btn sf-btn--table"
+                    @click="openView(row)"
+                    :disabled="actionLoading[row.id]"
+                  >
+                    View
+                  </ElButton>
+                  <ElButton
+                    v-if="canManageAppointments"
                     size="small"
                     type="primary"
                     class="sf-btn sf-btn--table"
@@ -362,7 +540,7 @@ const goToPage = (target: number) => {
                     Edit
                   </ElButton>
                   <ElButton
-                    v-if="row.status !== 'CANCELED' && row.status !== 'COMPLETED'"
+                    v-if="canManageAppointments && row.status !== 'CANCELED' && row.status !== 'COMPLETED'"
                     size="small"
                     type="danger"
                     class="sf-btn sf-btn--table"
@@ -372,7 +550,7 @@ const goToPage = (target: number) => {
                     Cancel
                   </ElButton>
                   <ElButton
-                    v-if="row.status === 'PENDING'"
+                    v-if="canManageAppointments && row.status === 'PENDING'"
                     size="small"
                     type="success"
                     class="sf-btn sf-btn--table"
@@ -382,7 +560,7 @@ const goToPage = (target: number) => {
                     Confirm
                   </ElButton>
                   <ElButton
-                    v-if="row.status === 'CONFIRMED' || row.status === 'CHECKED_IN'"
+                    v-if="canManageAppointments && (row.status === 'CONFIRMED' || row.status === 'CHECKED_IN')"
                     size="small"
                     type="success"
                     class="sf-btn sf-btn--table"
@@ -397,12 +575,28 @@ const goToPage = (target: number) => {
           </ElTable>
 
           <div v-if="!loading && appointments.length === 0" class="py-6 text-center text-sm text-slate-500">
-        No appointments for this date.
-      </div>
+            {{ isStaff ? 'No appointments assigned for this date.' : 'No appointments for this date.' }}
+          </div>
         </div>
         <div class="pagination-footer">
-          <ElButton size="small" plain class="sf-btn sf-btn--table" :disabled="page <= 1" @click="goToPage(1)">«</ElButton>
-          <ElButton size="small" plain class="sf-btn sf-btn--table" :disabled="page <= 1" @click="changePage('prev')">Prev</ElButton>
+          <ElButton
+            size="small"
+            plain
+            class="sf-btn sf-btn--table"
+            :disabled="page <= 1"
+            @click="goToPage(1)"
+          >
+            «
+          </ElButton>
+          <ElButton
+            size="small"
+            plain
+            class="sf-btn sf-btn--table"
+            :disabled="page <= 1"
+            @click="changePage('prev')"
+          >
+            Prev
+          </ElButton>
           <div class="page-indicator">Page {{ page }} of {{ totalPages }}</div>
           <ElButton
             size="small"
@@ -417,23 +611,24 @@ const goToPage = (target: number) => {
       </div>
     </ElCard>
 
-    <ElDialog v-model="dialogVisible" :title="dialogMode === 'create' ? 'New Appointment' : 'Edit Appointment'" width="480px">
+    <ElDialog v-model="dialogVisible" :title="dialogTitle" width="480px">
       <div class="space-y-4">
         <ElForm label-position="top" class="space-y-4">
           <ElFormItem label="Customer name" required>
-            <ElInput v-model="form.customerName" placeholder="Customer name" />
+            <ElInput v-model="form.customerName" placeholder="Customer name" :disabled="isViewMode" />
           </ElFormItem>
           <ElFormItem label="Phone number" required>
-            <ElInput v-model="form.phoneE164" placeholder="+1 555 123 4567" />
+            <ElInput v-model="form.phoneE164" placeholder="+1 555 123 4567" :disabled="isViewMode" />
           </ElFormItem>
           <ElFormItem label="Service" required>
             <ElSelect
               v-model="form.serviceId"
               placeholder="Select service"
               filterable
+              :disabled="isViewMode"
               :loading="loadingServices"
             >
-              <ElOption v-for="svc in services" :key="svc.id" :label="svc.name" :value="svc.id" />
+              <ElOption v-for="service in services" :key="service.id" :label="service.name" :value="service.id" />
             </ElSelect>
           </ElFormItem>
           <ElFormItem label="Staff (optional)">
@@ -442,13 +637,14 @@ const goToPage = (target: number) => {
               placeholder="Select staff"
               clearable
               filterable
+              :disabled="isViewMode"
               :loading="loadingStaff"
             >
               <ElOption v-for="member in staff" :key="member.id" :label="member.name" :value="member.id" />
             </ElSelect>
           </ElFormItem>
           <ElFormItem label="Preferred tech (optional)">
-            <ElInput v-model="form.preferredTech" placeholder="e.g. Alex (nails)" />
+            <ElInput v-model="form.preferredTech" placeholder="e.g. Alex (nails)" :disabled="isViewMode" />
           </ElFormItem>
           <ElFormItem label="Date" required>
             <ElDatePicker
@@ -457,22 +653,42 @@ const goToPage = (target: number) => {
               value-format="YYYY-MM-DD"
               format="YYYY-MM-DD"
               placeholder="YYYY-MM-DD"
+              :disabled="isViewMode"
             />
           </ElFormItem>
           <ElFormItem label="Time" required>
-            <ElSelect v-model="form.time" placeholder="Select time" filterable>
+            <ElSelect
+              v-model="form.time"
+              placeholder="Select time"
+              filterable
+              :disabled="isViewMode"
+            >
               <ElOption v-for="slot in timeSlots" :key="slot.value" :label="slot.label" :value="slot.value" />
             </ElSelect>
           </ElFormItem>
           <ElFormItem label="Notes">
-            <ElInput v-model="form.notes" type="textarea" :rows="3" placeholder="Notes (optional)" />
+            <ElInput
+              v-model="form.notes"
+              type="textarea"
+              :rows="3"
+              placeholder="Notes (optional)"
+              :disabled="isViewMode"
+            />
           </ElFormItem>
         </ElForm>
       </div>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <ElButton class="sf-btn" @click="dialogVisible = false">Cancel</ElButton>
-          <ElButton type="primary" class="sf-btn" :loading="saving" @click="saveAppointment">
+          <ElButton class="sf-btn" @click="dialogVisible = false">
+            {{ isViewMode ? 'Close' : 'Cancel' }}
+          </ElButton>
+          <ElButton
+            v-if="!isViewMode"
+            type="primary"
+            class="sf-btn"
+            :loading="saving"
+            @click="saveAppointment"
+          >
             Save
           </ElButton>
         </div>
@@ -487,11 +703,13 @@ const goToPage = (target: number) => {
   flex-direction: column;
   max-height: 70vh;
 }
+
 .table-body {
   flex: 1 1 auto;
   overflow-y: auto;
   padding-bottom: 12px;
 }
+
 .pagination-footer {
   position: sticky;
   bottom: 0;
@@ -505,11 +723,16 @@ const goToPage = (target: number) => {
   align-items: center;
   gap: 8px;
 }
+
 .page-indicator {
   font-size: 13px;
   color: #475569;
   padding: 6px 10px;
   border-radius: 12px;
   background: #f1f5f9;
+}
+
+:deep(.appointment-row--highlighted td) {
+  background: rgba(249, 115, 22, 0.12) !important;
 }
 </style>

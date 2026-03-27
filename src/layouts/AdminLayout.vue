@@ -3,11 +3,13 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useRoute, useRouter } from 'vue-router';
+import AppointmentAlertOverlay from '../components/admin/AppointmentAlertOverlay.vue';
 import OnboardingProgress from '../components/OnboardingProgress.vue';
 import { trialExpired, trialEndedAt, trialDaysRemaining, resetTrialState } from '../api/trialBanner';
 import { fetchOnboardingStatus, dismissOnboardingBanner } from '../api/onboarding';
 import { fetchSettings, fetchPublicSettings } from '../api/settings';
 import { applyThemeFromSettings } from '../utils/theme';
+import { useAppointmentAlerts } from '../composables/useAppointmentAlerts';
 import { useInboxNotifications } from '../utils/inboxNotifications';
 import { maintenanceActive, maintenanceMessage, clearMaintenanceBanner } from '../api/maintenance';
 import {
@@ -92,6 +94,17 @@ const {
   stopPolling: stopInboxPolling,
   ensureAudioPrimed,
 } = useInboxNotifications();
+const {
+  state: appointmentAlertState,
+  currentAlert,
+  pendingCount: appointmentAlertCount,
+  hasActiveAlert: hasActiveAppointmentAlert,
+  startPolling: startAppointmentAlertPolling,
+  stopPolling: stopAppointmentAlertPolling,
+  confirmCurrentAlert,
+  enableAudioAlerts,
+  viewCurrentAlert,
+} = useAppointmentAlerts();
 
 const unreadCount = ref(0);
 const feed = ref<NotificationFeedItem[]>([]);
@@ -157,6 +170,14 @@ const pollAttention = async () => {
   }
 };
 
+const openAlertAppointment = async () => {
+  await viewCurrentAlert(router);
+};
+
+const enableAppointmentAlertAudio = async () => {
+  await enableAudioAlerts();
+};
+
 watch(bellOpen, (open) => {
   if (open) {
     loadFeed();
@@ -217,6 +238,7 @@ const handleVisibilityChange = () => {
     pollUnread();
     pollAttention();
     startUnreadPolling();
+    startAppointmentAlertPolling();
   }
 };
 
@@ -241,6 +263,7 @@ onMounted(() => {
   pollUnread();
   pollAttention();
   startUnreadPolling();
+  startAppointmentAlertPolling();
   document.addEventListener('visibilitychange', handleVisibilityChange);
   document.addEventListener('click', handleGlobalClick);
   window.addEventListener('click', primeAudioOnInteraction, { once: true });
@@ -250,6 +273,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopUnreadPolling();
+  stopAppointmentAlertPolling();
+  document.body.style.overflow = '';
   document.removeEventListener('visibilitychange', handleVisibilityChange);
   document.removeEventListener('click', handleGlobalClick);
   window.removeEventListener('click', primeAudioOnInteraction);
@@ -257,6 +282,14 @@ onUnmounted(() => {
   window.removeEventListener('touchstart', primeAudioOnInteraction);
   stopInboxPolling();
 });
+
+watch(
+  hasActiveAppointmentAlert,
+  (active) => {
+    document.body.style.overflow = active ? 'hidden' : '';
+  },
+  { immediate: true },
+);
 
 const showOnboardingBanner = computed(
   () =>
@@ -307,7 +340,7 @@ const sidebarGroups = computed(() => [
     label: 'Appointments',
     defaultOpen: true,
     items: [
-      { label: 'Appointments', name: 'admin-appointments', icon: '📅', roles: ['OWNER'] },
+      { label: 'Appointments', name: 'admin-appointments', icon: '📅', roles: ['OWNER', 'STAFF'] },
       {
         label: 'Appointment Reminders',
         name: 'admin-appointment-reminders',
@@ -808,6 +841,17 @@ const toggleSidebarCollapse = () => {
       </main>
     </div>
   </div>
+  <AppointmentAlertOverlay
+    :appointment="currentAlert"
+    :pending-count="appointmentAlertCount"
+    :resolving="appointmentAlertState.resolving"
+    :error="appointmentAlertState.actionError ?? undefined"
+    :audio-enabled="appointmentAlertState.audioEnabled"
+    :audio-blocked="appointmentAlertState.audioBlocked"
+    @confirm="confirmCurrentAlert"
+    @enable-audio="enableAppointmentAlertAudio"
+    @view="openAlertAppointment"
+  />
 </template>
 
 <style src="../themes/admin-theme.css"></style>
