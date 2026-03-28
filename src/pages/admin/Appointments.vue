@@ -839,9 +839,10 @@ const appointmentRowClassName = ({ row }: { row: Appointment }) =>
       </div>
     </div>
 
-    <ElDialog v-model="dialogVisible" :title="dialogTitle" width="480px">
+    <ElDialog v-model="dialogVisible" :title="dialogTitle" width="760px" class="appointment-dialog">
       <div class="space-y-4">
-        <ElForm label-position="top" class="space-y-4">
+        <ElForm label-position="top" class="appointment-dialog-form">
+          <div class="appointment-dialog-grid">
           <ElFormItem label="Customer name" required>
             <ElInput
               v-model="form.customerName"
@@ -921,7 +922,7 @@ const appointmentRowClassName = ({ row }: { row: Appointment }) =>
               />
             </ElSelect>
           </ElFormItem>
-          <ElFormItem label="Notes">
+          <ElFormItem label="Notes" class="appointment-dialog-grid__notes">
             <ElInput
               v-model="form.notes"
               type="textarea"
@@ -930,6 +931,7 @@ const appointmentRowClassName = ({ row }: { row: Appointment }) =>
               :disabled="isViewMode"
             />
           </ElFormItem>
+          </div>
         </ElForm>
       </div>
       <template #footer>
@@ -1046,6 +1048,44 @@ const appointmentRowClassName = ({ row }: { row: Appointment }) =>
 
 :deep(.appointment-row--highlighted td) {
   background: rgba(249, 115, 22, 0.12) !important;
+}
+
+.appointment-dialog :deep(.el-dialog) {
+  max-width: 760px;
+  width: 92%;
+}
+
+.appointment-dialog :deep(.el-dialog__body) {
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+
+.appointment-dialog-form {
+  margin-top: 0;
+}
+
+.appointment-dialog-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.9rem 1rem;
+}
+
+.appointment-dialog-grid :deep(.el-form-item) {
+  margin-bottom: 0;
+}
+
+.appointment-dialog-grid :deep(.el-textarea__inner) {
+  min-height: 7rem;
+}
+
+@media (min-width: 720px) {
+  .appointment-dialog-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .appointment-dialog-grid__notes {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (min-width: 768px) {
