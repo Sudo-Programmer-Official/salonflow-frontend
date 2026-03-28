@@ -47,6 +47,26 @@ const pageToPath = (page: string) => {
       return '/';
   }
 };
+
+const toTitleCase = (value: string) =>
+  value
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ');
+
+const domainToLabel = (value: string | null | undefined) => {
+  if (!value) return '';
+  const withoutProtocol = value.replace(/^https?:\/\//i, '').replace(/^www\./i, '');
+  const hostOnly = withoutProtocol.split('/')[0] ?? '';
+  const cleaned = hostOnly.split(':')[0] ?? '';
+  const withoutTld = cleaned.replace(/\.[a-z]{2,}$/i, '');
+  const withSpaces = withoutTld
+    .replace(/[-_]+/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .trim();
+  return withSpaces ? toTitleCase(withSpaces) : cleaned;
+};
 const websiteNav = computed(() => {
   const raw = Array.isArray(websiteData.value?.nav) ? websiteData.value?.nav : [];
   const items = raw
@@ -79,10 +99,20 @@ const websiteHeader = computed(() => {
   if (!headerCfg) return null;
   return {
     enabled: headerCfg.enabled !== false,
-    brand: websiteData.value?.site?.primary_domain || websiteData.value?.site?.default_domain || 'Book',
+    brand:
+      settings.value?.businessName?.trim() ||
+      domainToLabel(websiteData.value?.site?.primary_domain || websiteData.value?.site?.default_domain) ||
+      'Book',
+    brandSubtitle:
+      [
+        websiteData.value?.layout?.footer?.location?.city,
+        websiteData.value?.layout?.footer?.location?.state,
+      ]
+        .filter(Boolean)
+        .join(', ') || 'Book online',
     nav: websiteNav.value,
     ctas: {
-      call: { enabled: headerCfg.ctas?.call?.enabled !== false, phone: null },
+      call: { enabled: headerCfg.ctas?.call?.enabled !== false, phone: settings.value?.businessPhone || null },
       book: { enabled: headerCfg.ctas?.book?.enabled !== false, url: '/check-in/book' },
     },
   };
@@ -243,6 +273,16 @@ const contactSummary = computed(() => {
   if (phoneValidationMessage.value) return 'Check phone number';
   return formatDisplayPhone(form.phone);
 });
+const compactBusinessName = computed(() => {
+  const configured = settings.value?.businessName?.trim();
+  if (configured) return configured;
+  return domainToLabel(businessName.value) || 'Your salon';
+});
+const serviceLeadCopy = computed(() =>
+  selectedService.value
+    ? 'Review price and timing, then tap Select to add it to your booking.'
+    : 'Choose a service to preview timing and add it to your booking.',
+);
 
 const composeScheduledAt = () => {
   if (!form.date || !form.time) return null;
@@ -299,8 +339,8 @@ const loadStaff = async (serviceId?: string) => {
 
 const loadBusiness = () => {
   const name =
-    websiteData.value?.site?.primary_domain ||
-    websiteData.value?.site?.default_domain ||
+    settings.value?.businessName?.trim() ||
+    domainToLabel(websiteData.value?.site?.primary_domain || websiteData.value?.site?.default_domain) ||
     'Book a visit';
   businessName.value = name;
   if (typeof window !== 'undefined') {
@@ -328,6 +368,18 @@ onMounted(async () => {
   await loadStaff();
   await nextTick();
 });
+
+watch(
+  [
+    () => settings.value?.businessName,
+    () => websiteData.value?.site?.primary_domain,
+    () => websiteData.value?.site?.default_domain,
+  ],
+  () => {
+    loadBusiness();
+  },
+  { immediate: true },
+);
 
 watch(
   () => form.serviceId,
@@ -427,6 +479,10 @@ const onSubmit = async () => {
     submitting.value = false;
   }
 };
+
+const selectService = (serviceId: string) => {
+  form.serviceId = serviceId;
+};
 </script>
 
 <template>
@@ -434,12 +490,16 @@ const onSubmit = async () => {
     :is="useWebsiteShell ? PublicWebsiteLayout : 'div'"
     v-bind="useWebsiteShell ? { header: websiteHeader, footer: websiteFooter, activePath: route.path } : {}"
   >
-    <div class="sf-container sf-section space-y-8">
-    <div class="text-center">
-      <p class="text-xs font-semibold uppercase tracking-[0.2em] text-sky-600">Book online</p>
-      <h1 class="mt-2 text-3xl font-semibold text-text">{{ businessName }}</h1>
-      <p class="mt-2 text-sm text-muted">
-        Choose a service, pick a time, and we’ll confirm with reminders.
+    <div class="booking-page sf-container sf-section space-y-6">
+    <div class="mx-auto max-w-2xl px-4 text-center">
+      <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--sf-primary,#0ea5e9)]">
+        {{ compactBusinessName }}
+      </p>
+      <h1 class="mt-3 text-3xl font-semibold tracking-tight text-text sm:text-4xl">
+        Book your appointment
+      </h1>
+      <p class="mt-2 text-sm text-muted sm:text-base">
+        Choose a service, pick a time, and we’ll confirm instantly.
       </p>
     </div>
 
@@ -451,14 +511,14 @@ const onSubmit = async () => {
       :title="settingsError"
     />
 
-    <div class="grid gap-6 lg:grid-cols-[1.45fr,0.95fr]">
-      <div class="glass rounded-2xl bg-surface p-6 shadow-[0_8px_24px_rgba(0,0,0,0.06)]">
-        <ElForm label-position="top" class="space-y-4" @submit.prevent="onSubmit">
+    <div class="grid gap-5 xl:grid-cols-[minmax(0,1.05fr),minmax(320px,0.95fr)] xl:items-start">
+      <div class="booking-form-panel glass mx-auto w-full max-w-2xl rounded-[28px] bg-surface p-5 shadow-[0_10px_28px_rgba(15,23,42,0.08)] sm:p-6">
+        <ElForm label-position="top" class="booking-form space-y-3.5" @submit.prevent="onSubmit">
           <ElFormItem label="Name" required>
             <ElInput v-model="form.name" placeholder="Your name" size="large" autocomplete="name" />
           </ElFormItem>
 
-          <div class="grid gap-4 md:grid-cols-2">
+          <div class="grid gap-3 sm:grid-cols-2">
             <ElFormItem
               label="Mobile number"
               required
@@ -550,7 +610,7 @@ const onSubmit = async () => {
             <div v-if="staffError" class="text-xs text-amber-700 mt-1">{{ staffError }}</div>
           </ElFormItem>
 
-          <div class="grid gap-4 md:grid-cols-2">
+          <div class="grid gap-3 sm:grid-cols-2">
             <ElFormItem label="Date" required>
               <ElDatePicker
                 v-model="form.date"
@@ -584,11 +644,11 @@ const onSubmit = async () => {
             />
           </ElFormItem>
 
-          <div class="space-y-3">
+          <div class="space-y-2.5 pt-1">
             <ElButton
               type="primary"
               size="large"
-              class="w-full h-12 font-semibold"
+              class="booking-submit w-full h-14 border-0 text-lg font-semibold"
               :loading="submitting"
               :disabled="
                 submitting ||
@@ -633,58 +693,58 @@ const onSubmit = async () => {
         </ElForm>
       </div>
 
-      <div class="space-y-4">
-        <div class="glass-card rounded-2xl bg-surface p-5 shadow-sm">
+      <div class="space-y-3.5">
+        <div class="glass-card rounded-[26px] bg-surface p-5 shadow-sm">
           <div class="flex items-center gap-2 text-sm font-semibold text-text">
             <span>📅</span>
             <span>Your selection</span>
           </div>
-          <div class="mt-3 space-y-2 text-xs text-muted">
-            <div class="flex items-center justify-between">
+          <div class="mt-3 grid gap-2 text-[13px] text-muted">
+            <div class="flex items-start justify-between gap-4">
               <span>Service</span>
-              <span class="font-semibold text-text">
+              <span class="text-right font-semibold text-text">
                 {{ serviceLabel }}
               </span>
             </div>
-            <div class="flex items-center justify-between">
+            <div class="flex items-start justify-between gap-4">
               <span>Staff</span>
-              <span class="text-muted">{{ staffLabel }}</span>
+              <span class="text-right text-muted">{{ staffLabel }}</span>
             </div>
-            <div class="flex items-center justify-between">
+            <div class="flex items-start justify-between gap-4">
               <span>Duration</span>
-              <span class="text-muted">
+              <span class="text-right text-muted">
                 {{ serviceDuration }}
               </span>
             </div>
-            <div class="flex items-center justify-between">
+            <div class="flex items-start justify-between gap-4">
               <span>Price</span>
-              <span class="text-muted">
+              <span class="text-right text-muted">
                 {{ servicePrice }}
               </span>
             </div>
-            <div class="flex items-center justify-between">
+            <div class="flex items-start justify-between gap-4">
               <span>When</span>
-              <span class="text-muted">
+              <span class="text-right text-muted">
                 <template v-if="form.date && form.time">
                   {{ form.date }} · {{ form.time }}
                 </template>
                 <template v-else>Choose date & time</template>
               </span>
             </div>
-            <div class="flex items-center justify-between">
+            <div class="flex items-start justify-between gap-4">
               <span>Contact</span>
-              <span :class="phoneValidationMessage ? 'text-rose-600' : 'text-muted'">
+              <span class="text-right" :class="phoneValidationMessage ? 'text-rose-600' : 'text-muted'">
                 {{ contactSummary }}
               </span>
             </div>
           </div>
         </div>
 
-        <div class="glass-card rounded-2xl bg-surface p-5 shadow-sm">
+        <div class="glass-card rounded-[26px] bg-surface p-5 shadow-sm">
           <div class="flex items-center justify-between">
             <div>
-              <div class="text-sm font-semibold text-muted">Service lineup</div>
-              <div class="text-xs text-muted">Tap a service to see price & time.</div>
+              <div class="text-sm font-semibold text-text">Service lineup</div>
+              <div class="text-xs text-muted">{{ serviceLeadCopy }}</div>
             </div>
             <span class="text-base">💅</span>
           </div>
@@ -692,7 +752,7 @@ const onSubmit = async () => {
             <div
               v-for="group in groupedServices"
               :key="group.categoryId || group.categoryName"
-              class="rounded-xl border border-border bg-surface p-3"
+              class="rounded-2xl border border-border bg-surface p-3"
             >
               <div class="flex items-center justify-between text-sm font-semibold text-text">
                 <span>{{ group.categoryIcon || '📋' }} {{ group.categoryName }}</span>
@@ -701,43 +761,49 @@ const onSubmit = async () => {
                 <div
                   v-for="svc in group.services"
                   :key="svc.id"
-                  class="flex items-start justify-between rounded-lg bg-surface-muted px-3 py-2 text-sm text-muted"
+                  class="service-option flex items-center justify-between gap-3 rounded-xl border border-transparent bg-surface-muted px-3 py-3 text-sm text-muted transition"
+                  :class="{ 'service-option--active': form.serviceId === svc.id }"
                 >
-                  <div>
-                    <div class="font-semibold text-text">{{ svc.name }}</div>
-                    <div class="text-xs text-muted flex items-center gap-1">
+                  <div class="min-w-0">
+                    <div class="font-semibold leading-tight text-text">{{ svc.name }}</div>
+                    <div class="mt-1 flex items-center gap-1 text-xs text-muted">
                       <span v-if="svc.durationMinutes">{{ svc.durationMinutes }} min</span>
                       <span v-if="svc.priceCents !== undefined">
                         • {{ formatMoney(svc.priceCents, svc.currency || 'USD') }}
                       </span>
                     </div>
                   </div>
-                  <div class="text-xs text-muted">Tap to select</div>
+                  <button
+                    type="button"
+                    class="service-option__button"
+                    :class="{ 'service-option__button--active': form.serviceId === svc.id }"
+                    @click="selectService(svc.id)"
+                  >
+                    {{ form.serviceId === svc.id ? 'Selected' : 'Select' }}
+                  </button>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="glass-card rounded-2xl bg-surface p-5 shadow-sm">
+        <div class="glass-card rounded-[26px] bg-surface p-5 shadow-sm">
           <div class="flex items-center gap-2 text-sm font-semibold text-text">
             <span>⏰</span>
             <span>Need a different time?</span>
           </div>
           <p class="mt-2 text-xs text-muted leading-relaxed">
-            Pick your best time; we’ll confirm or propose the nearest available slot. You’ll get a text reminder before the visit.
+            Pick your best time. If it is not available, we’ll suggest the closest slot and text you before the visit.
           </p>
-          <p class="mt-2 text-xs text-muted leading-relaxed">
-            Reminder window respects our notice period ({{ minNoticeMinutes }} min). Same-day is allowed when the window is met.
-          </p>
+          <p class="mt-2 text-xs text-muted leading-relaxed">Same-day booking is allowed when the notice window is met.</p>
         </div>
 
-        <div class="glass-card rounded-2xl bg-surface p-5 shadow-sm">
+        <div class="glass-card rounded-[26px] bg-surface p-5 shadow-sm">
           <div class="flex items-center gap-2 text-sm font-semibold text-text">
             <span>🔔</span>
             <span>What happens next</span>
           </div>
-          <ul class="mt-2 space-y-1 text-xs text-muted">
+          <ul class="mt-2 space-y-1 text-xs leading-relaxed text-muted">
             <li>• You’ll see a confirmation once we lock your slot.</li>
             <li>• SMS reminders use your phone; email is optional for receipts.</li>
             <li>• Change of plans? Reply to the confirmation to adjust.</li>
@@ -748,3 +814,106 @@ const onSubmit = async () => {
   </div>
   </component>
 </template>
+
+<style scoped>
+.booking-form :deep(.el-form-item) {
+  margin-bottom: 0;
+}
+
+.booking-form :deep(.el-form-item__label) {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--sf-text, #0f172a) 72%, #fff 28%);
+  margin-bottom: 0.45rem;
+}
+
+.booking-form :deep(.el-input__wrapper),
+.booking-form :deep(.el-select__wrapper),
+.booking-form :deep(.el-date-editor.el-input__wrapper),
+.booking-form :deep(.el-date-editor .el-input__wrapper),
+.booking-form :deep(.el-date-editor .el-select__wrapper) {
+  border-radius: 1rem;
+  min-height: 3.35rem;
+  border: 1px solid color-mix(in srgb, var(--sf-border, #dbe4ef) 92%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.84);
+  padding-inline: 0.85rem;
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.booking-form :deep(.el-textarea__inner) {
+  min-height: 7.5rem;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--sf-border, #dbe4ef) 92%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.84);
+  padding: 0.9rem 1rem;
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.booking-form :deep(.el-input__wrapper.is-focus),
+.booking-form :deep(.el-select__wrapper.is-focused),
+.booking-form :deep(.el-textarea__inner:focus) {
+  border-color: color-mix(in srgb, var(--sf-primary, #0ea5e9) 72%, white 28%);
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--sf-primary, #0ea5e9) 12%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.84);
+}
+
+.booking-submit {
+  border-radius: 1rem;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--sf-primary, #0ea5e9) 90%, white 10%),
+    color-mix(in srgb, var(--sf-primary, #0284c7) 78%, #0f172a 22%)
+  );
+  box-shadow: 0 18px 40px color-mix(in srgb, var(--sf-primary, #0ea5e9) 22%, transparent);
+}
+
+.booking-submit:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 22px 44px color-mix(in srgb, var(--sf-primary, #0ea5e9) 26%, transparent);
+}
+
+.booking-submit:active {
+  transform: scale(0.985);
+}
+
+.service-option:hover {
+  border-color: color-mix(in srgb, var(--sf-primary, #0ea5e9) 18%, transparent);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.05);
+}
+
+.service-option--active {
+  border-color: color-mix(in srgb, var(--sf-primary, #0ea5e9) 28%, transparent);
+  background: color-mix(in srgb, var(--sf-primary, #0ea5e9) 6%, var(--sf-surface-muted, #f8fafc));
+}
+
+.service-option__button {
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  color: color-mix(in srgb, var(--sf-primary, #0ea5e9) 88%, #0f172a 12%);
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.45rem 0.2rem;
+  transition: color 160ms ease, transform 160ms ease;
+}
+
+.service-option__button:hover {
+  transform: translateY(-1px);
+}
+
+.service-option__button--active {
+  color: var(--sf-text, #0f172a);
+}
+
+@media (max-width: 767px) {
+  .booking-page {
+    padding-inline: 0.25rem;
+  }
+
+  .booking-form-panel {
+    border-radius: 1.75rem;
+  }
+}
+</style>

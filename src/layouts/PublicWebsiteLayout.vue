@@ -6,6 +6,7 @@ defineProps<{
   header?: {
     enabled?: boolean;
     brand?: string;
+    brandSubtitle?: string;
     nav?: Array<{ label: string; path: string }>;
     ctas?: {
       call?: { enabled?: boolean; phone?: string | null };
@@ -22,6 +23,7 @@ defineProps<{
     <WebsiteHeader
       v-if="header?.enabled !== false"
       :brand="header?.brand"
+      :brand-subtitle="header?.brandSubtitle"
       :nav="header?.nav"
       :ctas="header?.ctas"
       :active-path="activePath"

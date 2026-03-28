@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 const props = withDefaults(
   defineProps<{
     brand?: string;
+    brandSubtitle?: string;
     nav?: Array<{ label: string; path: string }>;
     activePath?: string;
     ctas?: {
@@ -23,6 +24,10 @@ const props = withDefaults(
 );
 
 const mobileOpen = ref(false);
+const brandMark = computed(() => {
+  const source = (props.brand || 'SalonFlow').trim();
+  return source.charAt(0).toLowerCase() || 's';
+});
 
 const navItems = computed(() => (Array.isArray(props.nav) ? props.nav : []).filter((n) => n?.label && n?.path));
 const normalizedPhone = computed(() => {
@@ -48,20 +53,48 @@ const closeMobile = () => {
 const toggleMobile = () => {
   mobileOpen.value = !mobileOpen.value;
 };
+
+const onWindowKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'Escape') {
+    closeMobile();
+  }
+};
+
+watch(mobileOpen, (open) => {
+  if (typeof document === 'undefined') return;
+  document.body.style.overflow = open ? 'hidden' : '';
+});
+
+onMounted(() => {
+  window.addEventListener('keydown', onWindowKeydown);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onWindowKeydown);
+  if (typeof document !== 'undefined') {
+    document.body.style.overflow = '';
+  }
+});
 </script>
 
 <template>
   <header class="sf-header">
     <div class="sf-container sf-header__bar">
       <div class="sf-header__brand">
-        <div class="sf-header__brand-mark">{{ brand?.[0] || 'S' }}</div>
+        <div class="sf-header__brand-mark">{{ brandMark }}</div>
         <div class="sf-header__brand-text">
           <div class="sf-header__brand-name">{{ brand || 'SalonFlow' }}</div>
-          <div class="sf-header__brand-tag">Premium salon experience</div>
+          <div class="sf-header__brand-tag">{{ brandSubtitle || 'Premium salon experience' }}</div>
         </div>
       </div>
 
-      <button class="sf-header__menu" @click="toggleMobile" aria-label="Toggle navigation">
+      <button
+        class="sf-header__menu"
+        @click="toggleMobile"
+        aria-label="Toggle navigation"
+        :aria-expanded="mobileOpen ? 'true' : 'false'"
+        aria-controls="site-mobile-menu"
+      >
         <span :class="{ open: mobileOpen }"></span>
         <span :class="{ open: mobileOpen }"></span>
       </button>
@@ -104,7 +137,13 @@ const toggleMobile = () => {
       <div v-if="mobileOpen" class="sf-header__overlay" @click="closeMobile"></div>
     </transition>
     <transition name="menu-slide">
-      <div v-if="mobileOpen" class="sf-header__mobile">
+      <div v-if="mobileOpen" id="site-mobile-menu" class="sf-header__mobile" role="dialog" aria-modal="true">
+        <div class="sf-header__mobile-head">
+          <div class="sf-header__mobile-title">Menu</div>
+          <button class="sf-header__mobile-close" @click="closeMobile" aria-label="Close navigation">
+            ×
+          </button>
+        </div>
         <a
           v-for="item in navItems"
           :key="item.path"
@@ -175,14 +214,24 @@ const toggleMobile = () => {
 }
 .sf-header__brand-text {
   line-height: 1.1;
+  min-width: 0;
 }
 .sf-header__brand-name {
+  display: block;
   font-weight: 700;
   color: var(--sf-text, #0f172a);
+  max-width: min(52vw, 240px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .sf-header__brand-tag {
   font-size: 12px;
   color: rgba(15, 23, 42, 0.6);
+  max-width: min(48vw, 220px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .sf-header__menu {
   display: none;
@@ -270,6 +319,12 @@ const toggleMobile = () => {
     grid-template-rows: auto auto;
     align-items: start;
   }
+  .sf-header__brand-name {
+    max-width: calc(100vw - 152px);
+  }
+  .sf-header__brand-tag {
+    max-width: calc(100vw - 152px);
+  }
   .sf-header__menu {
     display: inline-flex;
     justify-self: end;
@@ -302,6 +357,36 @@ const toggleMobile = () => {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+.sf-header__mobile-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 2px;
+}
+.sf-header__mobile-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--sf-text, #0f172a);
+}
+.sf-header__mobile-close {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--sf-border, #e2e8f0) 90%, transparent);
+  background: #fff;
+  color: var(--sf-text, #0f172a);
+  font-size: 1.75rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 160ms ease, transform 160ms ease;
+}
+.sf-header__mobile-close:hover {
+  background: var(--sf-surface-muted, #f8fafc);
+  transform: translateY(-1px);
 }
 
 .mobile-nav-btn {
