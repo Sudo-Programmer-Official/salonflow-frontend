@@ -984,17 +984,17 @@ const appointmentRowClassName = ({ row }: { row: Appointment }) =>
   border-radius: 16px;
   border: 1px solid #e2e8f0;
   background: #f8fafc;
-  min-height: 4.5rem;
+  min-height: 5rem;
 }
 
 .appointment-date-tile {
-  padding: 0.75rem 1rem;
+  padding: 0.9rem 1rem;
 }
 
 .appointment-date-tile__row {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.7rem;
 }
 
 .appointment-date-tile__label,
@@ -1024,16 +1024,39 @@ const appointmentRowClassName = ({ row }: { row: Appointment }) =>
 }
 
 .appointment-date-picker :deep(.el-input__wrapper) {
-  min-height: 2.2rem;
-  border-radius: 9999px;
+  min-height: 3rem;
+  border-radius: 14px;
+  padding-inline: 0.8rem;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
 }
 
 .appointment-date-picker :deep(.el-input__inner) {
-  font-size: 0.95rem;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #0f172a;
 }
 
 .appointment-date-picker :deep(.el-input__prefix) {
   color: #94a3b8;
+}
+
+.appointment-date-picker :deep(.el-input__prefix-inner) {
+  font-size: 1.05rem;
+}
+
+.appointment-date-picker :deep(.el-input__suffix) {
+  color: #94a3b8;
+}
+
+.appointment-date-picker :deep(.el-input__wrapper:hover) {
+  border-color: #93c5fd;
+}
+
+.appointment-date-picker :deep(.el-input__wrapper.is-focus) {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.12);
 }
 
 .appointment-empty-state {
@@ -1095,13 +1118,11 @@ const appointmentRowClassName = ({ row }: { row: Appointment }) =>
   }
 
   .appointment-date-tile__row {
-    flex-direction: row;
-    align-items: center;
     gap: 0.75rem;
   }
 
   .appointment-date-picker {
-    min-width: 11rem;
+    max-width: 22rem;
   }
 }
 
@@ -1113,6 +1134,14 @@ const appointmentRowClassName = ({ row }: { row: Appointment }) =>
   .appointment-date-tile,
   .appointment-summary-tile {
     min-height: auto;
+  }
+
+  .appointment-date-picker :deep(.el-input__wrapper) {
+    min-height: 2.8rem;
+  }
+
+  .appointment-date-picker :deep(.el-input__inner) {
+    font-size: 1.05rem;
   }
 }
 </style>
