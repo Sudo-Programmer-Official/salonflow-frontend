@@ -37,6 +37,7 @@ type AlertState = {
 
 const storagePrefix = 'sf:new-appointment-alerts';
 const alertPollIntervalMs = 5000;
+const alertStatusFreshnessMs = 1500;
 const handledLimit = 250;
 const alertableStatuses = new Set(['PENDING', 'BOOKED']);
 const alertChannelName = 'sf-alert';
@@ -59,13 +60,15 @@ const state = reactive<AlertState>({
   audioBlocked: false,
 });
 
-let pollInFlight = false;
+let refreshPromise: Promise<void> | null = null;
 let cueLoopToken = 0;
+let cueRunning = false;
 let localClaimedAlertId: string | null = null;
 let localClaimedSessionKey: string | null = null;
 let peerClaimedTabId: string | null = null;
 let mutedByPeer = false;
 let reclaimId: number | null = null;
+let lastAlertRefreshAt: number | null = null;
 
 const alertTabId =
   typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -86,6 +89,9 @@ const dedupeIds = (values: string[]) => {
     return true;
   });
 };
+
+const isAlertableAppointment = (appointment: Appointment | null | undefined) =>
+  Boolean(appointment && alertableStatuses.has(appointment.status));
 
 const trimHandledIds = (values: string[]) => {
   const unique = dedupeIds(values);
@@ -172,6 +178,7 @@ const hydrateSession = (sessionKey: string | null) => {
     state.audioBlocked = false;
     mutedByPeer = false;
     peerClaimedTabId = null;
+    lastAlertRefreshAt = null;
     return;
   }
 
@@ -194,6 +201,7 @@ const hydrateSession = (sessionKey: string | null) => {
   state.audioBlocked = false;
   mutedByPeer = false;
   peerClaimedTabId = null;
+  lastAlertRefreshAt = null;
 };
 
 const currentAlert = computed(() =>
@@ -317,6 +325,30 @@ const clearVibration = () => {
 };
 
 const playCue = async () => {
+  const currentAppointmentId = state.activeAlertId ?? currentAlert.value?.id ?? null;
+  if (!currentAppointmentId) {
+    reconcileCueState();
+    return false;
+  }
+
+  const knownAppointment = state.appointmentsById[currentAppointmentId] ?? null;
+  const needsFreshStatus =
+    !knownAppointment ||
+    !lastAlertRefreshAt ||
+    Date.now() - lastAlertRefreshAt > alertStatusFreshnessMs;
+
+  if (needsFreshStatus) {
+    await refreshAlerts({ syncCueState: false });
+  }
+
+  const latestAppointment = state.appointmentsById[currentAppointmentId] ?? null;
+  const stillCurrentAlert = currentAlert.value?.id === currentAppointmentId;
+
+  if (!stillCurrentAlert || !isAlertableAppointment(latestAppointment)) {
+    reconcileCueState();
+    return false;
+  }
+
   state.audioEnabled = isAudioEnabled();
   if (!state.audioEnabled) {
     state.audioBlocked = false;
@@ -378,11 +410,17 @@ const scheduleNextCue = (token: number) => {
 };
 
 const runCueLoop = async (token: number) => {
-  if (!hasActiveAlert.value || mutedByPeer || token !== cueLoopToken) {
+  if (!hasActiveAlert.value || mutedByPeer || token !== cueLoopToken || cueRunning) {
     return;
   }
 
-  await playCue();
+  cueRunning = true;
+
+  try {
+    await playCue();
+  } finally {
+    cueRunning = false;
+  }
 
   if (!hasActiveAlert.value || mutedByPeer || token !== cueLoopToken) {
     return;
@@ -427,7 +465,7 @@ const syncCueLoop = (options: { restart?: boolean } = {}) => {
     claimActiveAlert(appointmentId);
   }
 
-  if (state.cueId !== null) {
+  if (state.cueId !== null || cueRunning) {
     return;
   }
 
@@ -514,10 +552,13 @@ const sortByCreationTime = (appointments: Appointment[]) =>
 
 const alertableAppointments = (appointments: Appointment[]) =>
   sortByCreationTime(
-    appointments.filter((appointment) => alertableStatuses.has(appointment.status)),
+    appointments.filter((appointment) => isAlertableAppointment(appointment)),
   );
 
-const reconcileAppointments = (appointments: Appointment[]) => {
+const reconcileAppointments = (
+  appointments: Appointment[],
+  options: { syncCueState?: boolean } = {},
+) => {
   const candidates = alertableAppointments(appointments);
   const nextAppointmentsById = Object.fromEntries(candidates.map((appointment) => [appointment.id, appointment]));
   const handledIds = new Set(state.handledIds);
@@ -535,7 +576,9 @@ const reconcileAppointments = (appointments: Appointment[]) => {
   state.appointmentsById = nextAppointmentsById;
   state.queuedIds = dedupeIds(nextQueuedIds);
   persistState();
-  reconcileCueState();
+  if (options.syncCueState !== false) {
+    reconcileCueState();
+  }
 };
 
 const clearPoll = () => {
@@ -561,31 +604,36 @@ const resolveCurrentAlert = () => {
   resolveAlertByAppointmentId(currentAlert.value?.id);
 };
 
-const refreshAlerts = async () => {
-  if (pollInFlight) {
+const refreshAlerts = async (options: { syncCueState?: boolean } = {}) => {
+  if (refreshPromise) {
+    await refreshPromise;
     return;
   }
 
-  pollInFlight = true;
+  refreshPromise = (async () => {
+    try {
+      const sessionKey = buildSessionKey();
+      hydrateSession(sessionKey);
 
-  try {
-    const sessionKey = buildSessionKey();
-    hydrateSession(sessionKey);
+      if (!sessionKey) {
+        clearPoll();
+        lastAlertRefreshAt = null;
+        reconcileCueState();
+        return;
+      }
 
-    if (!sessionKey) {
-      clearPoll();
-      reconcileCueState();
-      return;
+      const appointments = await fetchAppointments(isStaffSession() ? { mine: true } : undefined);
+      reconcileAppointments(appointments, options);
+      lastAlertRefreshAt = Date.now();
+      state.monitorError = null;
+    } catch (error) {
+      state.monitorError = error instanceof Error ? error.message : 'Failed to monitor appointments';
+    } finally {
+      refreshPromise = null;
     }
+  })();
 
-    const appointments = await fetchAppointments(isStaffSession() ? { mine: true } : undefined);
-    reconcileAppointments(appointments);
-    state.monitorError = null;
-  } catch (error) {
-    state.monitorError = error instanceof Error ? error.message : 'Failed to monitor appointments';
-  } finally {
-    pollInFlight = false;
-  }
+  await refreshPromise;
 };
 
 const startPolling = () => {
