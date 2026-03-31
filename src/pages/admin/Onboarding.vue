@@ -3,6 +3,7 @@ import { computed, onMounted, onBeforeUnmount, ref } from 'vue';
 import { ElCard, ElDivider, ElTag, ElButton, ElMessage, ElInput, ElSelect, ElOption } from 'element-plus';
 import { useRouter } from 'vue-router';
 import { fetchOnboardingStatus, markQrPrinted, updateOnboardingLocation } from '../../api/onboarding';
+import { refreshBusinessDayClock } from '../../composables/useBusinessDayClock';
 import { DEFAULT_TIMEZONE, setBusinessTimezone } from '../../utils/dates';
 
 const router = useRouter();
@@ -44,6 +45,7 @@ const load = async () => {
     postalCode.value = status.value.postalCode?.trim() || '';
     timezone.value = status.value.timezone?.trim() || DEFAULT_TIMEZONE;
     setBusinessTimezone(timezone.value);
+    refreshBusinessDayClock();
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to load onboarding');
   } finally {
@@ -205,6 +207,7 @@ const saveLocation = async () => {
     postalCode.value = status.value.postalCode?.trim() || zip;
     timezone.value = status.value.timezone?.trim() || tz;
     setBusinessTimezone(timezone.value);
+    refreshBusinessDayClock();
     ElMessage.success('Location updated');
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to update location');

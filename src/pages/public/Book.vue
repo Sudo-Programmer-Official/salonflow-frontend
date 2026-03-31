@@ -17,6 +17,7 @@ import { fetchGroupedServices, type ServiceOption } from '../../api/checkins';
 import { fetchPublicAvailableStaff, type StaffMember } from '../../api/staff';
 import { createPublicAppointment } from '../../api/appointments';
 import { fetchPublicSettings, type BusinessSettings } from '../../api/settings';
+import { refreshBusinessDayClock } from '../../composables/useBusinessDayClock';
 import { applyThemeFromSettings } from '../../utils/theme';
 import { isPlatformHost } from '../../api/client';
 import { dayjs, formatInBusinessTz, getBusinessTimezone, setBusinessTimezone } from '../../utils/dates';
@@ -301,7 +302,10 @@ const loadSettings = async () => {
   try {
     settings.value = await fetchPublicSettings();
     applyThemeFromSettings(settings.value);
-    if (settings.value.timezone) setBusinessTimezone(settings.value.timezone);
+    if (settings.value.timezone) {
+      setBusinessTimezone(settings.value.timezone);
+      refreshBusinessDayClock();
+    }
   } catch (err: any) {
     settings.value = null;
     settingsError.value = err?.message || 'Unable to load settings.';

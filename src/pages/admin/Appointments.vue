@@ -29,6 +29,7 @@ import { fetchPublicSettings } from '../../api/settings';
 import { fetchServices, type ServiceItem } from '../../api/services';
 import { fetchStaff, type StaffMember } from '../../api/staff';
 import { useAppointmentAlerts } from '../../composables/useAppointmentAlerts';
+import { refreshBusinessDayClock } from '../../composables/useBusinessDayClock';
 import {
   DEFAULT_TIMEZONE,
   dayjs,
@@ -198,8 +199,13 @@ const isUpcomingAppointment = (appointment: Appointment) =>
   !isPastResolvedAppointment(appointment) &&
   appointmentAtBusinessTime(appointment).isAfter(currentTime.value);
 
+const isPastBusinessDayUnresolvedAppointment = (appointment: Appointment) =>
+  !isPastResolvedAppointment(appointment) &&
+  appointmentAtBusinessTime(appointment).isBefore(currentTime.value.startOf('day'));
+
 const isDerivedInProgressAppointment = (appointment: Appointment) =>
   !isPastResolvedAppointment(appointment) &&
+  appointmentAtBusinessTime(appointment).isSame(currentTime.value, 'day') &&
   !appointmentAtBusinessTime(appointment).isAfter(currentTime.value);
 
 const statusBadge = (status: string) => {
@@ -251,6 +257,11 @@ const appointmentGroups = computed<AppointmentGroup[]>(() => {
       continue;
     }
 
+    if (isPastBusinessDayUnresolvedAppointment(appointment)) {
+      completedPast.push(appointment);
+      continue;
+    }
+
     inProgress.push(appointment);
   }
 
@@ -272,7 +283,7 @@ const appointmentGroups = computed<AppointmentGroup[]>(() => {
     {
       key: 'completed_past',
       title: 'Completed / Past',
-      description: 'Completed, no-show, and cancelled appointments remain visible for reference.',
+      description: 'Completed, no-show, cancelled, and stale past appointments remain visible for reference.',
       emptyMessage: 'No completed or past appointments found.',
       items: completedPast,
     },
@@ -440,6 +451,7 @@ const syncBusinessTimezone = async () => {
     if (!nextTimezone) return;
     businessTimezone.value = nextTimezone;
     setBusinessTimezone(nextTimezone);
+    refreshBusinessDayClock();
   } catch {
     businessTimezone.value = getBusinessTimezone() || DEFAULT_TIMEZONE;
   }

@@ -32,7 +32,8 @@ import {
   type TodayAppointmentsResponse,
 } from '../../api/appointments';
 import { fetchServices, type ServiceOption, createPublicCheckIn, publicLookup } from '../../api/checkins';
-import { humanizeTime } from '../../utils/dates';
+import { useBusinessDayClock } from '../../composables/useBusinessDayClock';
+import { dayjs, getBusinessTimezone, humanizeTime } from '../../utils/dates';
 import { formatPhone } from '../../utils/format';
 
 const PAGE_SIZE = 10;
@@ -153,25 +154,28 @@ const formattedCheckinPhone = computed(() =>
 );
 const isOnline = ref(typeof navigator !== 'undefined' ? navigator.onLine : true);
 const activeCheckinAppt = ref<TodayAppointment | null>(null);
+const pollId = ref<number | null>(null);
+const { currentDayKey, refreshDayBoundary } = useBusinessDayClock();
+
+const getBusinessNow = () => dayjs().tz(getBusinessTimezone());
 
 const dateRange = computed(() => {
-  const now = new Date();
-  const end = new Date(now);
-  end.setHours(23, 59, 59, 999);
-  const start = new Date(now);
-  start.setHours(0, 0, 0, 0);
+  const now = getBusinessNow();
+  let start = now.startOf('day');
+  let end = now.endOf('day');
+
   switch (dateFilter.value) {
     case 'yesterday': {
-      start.setDate(start.getDate() - 1);
-      end.setDate(end.getDate() - 1);
+      start = start.subtract(1, 'day');
+      end = end.subtract(1, 'day');
       break;
     }
     case 'last7': {
-      start.setDate(start.getDate() - 6);
+      start = start.subtract(6, 'day');
       break;
     }
     case 'last30': {
-      start.setDate(start.getDate() - 29);
+      start = start.subtract(29, 'day');
       break;
     }
     default:
@@ -266,6 +270,12 @@ const loadCounts = async () => {
   }
 };
 
+const refreshQueueData = (silent = true) => {
+  void loadQueue({ silent });
+  void loadCounts();
+  void loadAppointments();
+};
+
 const WALK_IN_ICON_SVG = [
   '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">',
   '<circle cx="12" cy="4.75" r="1.9"/>',
@@ -310,6 +320,7 @@ const allServicesTitle = (item: QueueItem) =>
   selectedServiceNames(item).join(', ') || 'Walk-in';
 
 onMounted(() => {
+  refreshDayBoundary();
   loadQueue();
   loadCounts();
   loadStaff();
@@ -805,15 +816,11 @@ const goBackToServices = () => {
   checkoutOpen.value = false;
 };
 
-const pollId = ref<number | null>(null);
-
 const startPolling = () => {
   if (pollId.value !== null) return;
   pollId.value = window.setInterval(() => {
     if (document.visibilityState === 'visible') {
-      loadQueue({ silent: true });
-      loadCounts();
-      loadAppointments();
+      refreshQueueData(true);
     }
   }, 30000);
 };
@@ -847,17 +854,23 @@ const consumeNewCheckinQuery = async () => {
 
 const handleVisibility = () => {
   if (document.visibilityState === 'visible') {
-    loadQueue({ silent: true });
-    loadCounts();
-    loadAppointments();
+    const dayChanged = refreshDayBoundary();
+    if (!dayChanged) {
+      refreshQueueData(true);
+    }
   }
 };
 
 const handleFocus = () => {
-  loadQueue({ silent: true });
-  loadCounts();
-  loadAppointments();
+  const dayChanged = refreshDayBoundary();
+  if (!dayChanged) {
+    refreshQueueData(true);
+  }
 };
+
+watch(currentDayKey, () => {
+  refreshQueueData(false);
+});
 
 const focusCard = async (id: string) => {
   focusCheckinId.value = id;

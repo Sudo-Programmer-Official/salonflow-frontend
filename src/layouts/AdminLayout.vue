@@ -10,6 +10,7 @@ import { fetchOnboardingStatus, dismissOnboardingBanner } from '../api/onboardin
 import { fetchSettings, fetchPublicSettings } from '../api/settings';
 import { applyThemeFromSettings } from '../utils/theme';
 import { useAppointmentAlerts } from '../composables/useAppointmentAlerts';
+import { refreshBusinessDayClock } from '../composables/useBusinessDayClock';
 import { useInboxNotifications } from '../utils/inboxNotifications';
 import { maintenanceActive, maintenanceMessage, clearMaintenanceBanner } from '../api/maintenance';
 import {
@@ -200,6 +201,7 @@ const loadSettingsFlags = async () => {
     const data = await fetchSettings();
     kioskEnabled.value = data.kioskEnabled;
     setBusinessTimezone(data.timezone?.trim() || DEFAULT_TIMEZONE);
+    refreshBusinessDayClock();
     applyThemeFromSettings({
       ...data,
       kioskThemeMode: data.kioskThemeMode,
@@ -209,6 +211,7 @@ const loadSettingsFlags = async () => {
     try {
       const publicData = await fetchPublicSettings();
       setBusinessTimezone(publicData.timezone?.trim() || DEFAULT_TIMEZONE);
+      refreshBusinessDayClock();
       applyThemeFromSettings({
         ...publicData,
         kioskThemeMode: publicData.kioskThemeMode,

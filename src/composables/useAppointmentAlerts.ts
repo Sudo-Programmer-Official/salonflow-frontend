@@ -1,8 +1,9 @@
-import { computed, reactive } from 'vue';
+import { computed, reactive, watch } from 'vue';
 import type { Router } from 'vue-router';
 
 import { fetchAppointments, type Appointment } from '../api/appointments';
-import { getBusinessTimezone, toBusinessDayKey } from '../utils/dates';
+import { dayjs, getBusinessTimezone, toBusinessDayKey } from '../utils/dates';
+import { useBusinessDayClock } from './useBusinessDayClock';
 import { enableAudio, isAudioEnabled, playAppointmentAlertTone } from '../utils/sound';
 
 type PersistedAlertState = {
@@ -76,6 +77,7 @@ const alertTabId =
     : `sf-alert-${Math.random().toString(36).slice(2)}-${Date.now()}`;
 
 let alertChannel: BroadcastChannel | null = null;
+const { currentDayKey, refreshDayBoundary } = useBusinessDayClock();
 
 const dedupeIds = (values: string[]) => {
   const seen = new Set<string>();
@@ -90,8 +92,24 @@ const dedupeIds = (values: string[]) => {
   });
 };
 
+const isScheduledForTodayOrLater = (appointment: Appointment) => {
+  const timezone = getBusinessTimezone();
+  const now = dayjs().tz(timezone);
+  const scheduledAt = dayjs(appointment.scheduledAt).tz(timezone);
+
+  if (!scheduledAt.isValid()) {
+    return false;
+  }
+
+  return scheduledAt.valueOf() >= now.startOf('day').valueOf();
+};
+
 const isAlertableAppointment = (appointment: Appointment | null | undefined) =>
-  Boolean(appointment && alertableStatuses.has(appointment.status));
+  Boolean(
+    appointment &&
+    alertableStatuses.has(appointment.status) &&
+    isScheduledForTodayOrLater(appointment),
+  );
 
 const trimHandledIds = (values: string[]) => {
   const unique = dedupeIds(values);
@@ -543,6 +561,22 @@ if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', () => {
     releaseLocalClaim();
   });
+  window.addEventListener('focus', () => {
+    if (!state.polling) {
+      return;
+    }
+
+    refreshDayBoundary();
+    void refreshAlerts();
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (!state.polling || document.visibilityState !== 'visible') {
+      return;
+    }
+
+    refreshDayBoundary();
+    void refreshAlerts();
+  });
 }
 
 const sortByCreationTime = (appointments: Appointment[]) =>
@@ -581,6 +615,16 @@ const reconcileAppointments = (
   }
 };
 
+watch(currentDayKey, () => {
+  if (!state.polling) {
+    return;
+  }
+
+  lastAlertRefreshAt = null;
+  reconcileAppointments(Object.values(state.appointmentsById));
+  void refreshAlerts();
+});
+
 const clearPoll = () => {
   if (state.pollId !== null) {
     window.clearInterval(state.pollId);
@@ -614,6 +658,7 @@ const refreshAlerts = async (options: { syncCueState?: boolean } = {}) => {
     try {
       const sessionKey = buildSessionKey();
       hydrateSession(sessionKey);
+      refreshDayBoundary();
 
       if (!sessionKey) {
         clearPoll();
@@ -642,6 +687,7 @@ const startPolling = () => {
   }
 
   state.polling = true;
+  refreshDayBoundary();
   void refreshAlerts();
   state.pollId = window.setInterval(() => {
     void refreshAlerts();

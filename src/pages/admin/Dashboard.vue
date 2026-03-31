@@ -11,6 +11,7 @@ import {
 import { fetchOnboardingStatus } from '../../api/onboarding';
 import { fetchReviewSmsSettings, type ReviewSettingsResponse } from '../../api/reviewSms';
 import { useRouter } from 'vue-router';
+import { refreshBusinessDayClock } from '../../composables/useBusinessDayClock';
 import { dayjs, nowInBusinessTz, setBusinessTimezone, DEFAULT_TIMEZONE } from '../../utils/dates';
 
 const router = useRouter();
@@ -42,6 +43,7 @@ const load = async () => {
     const tz = onboardingRes?.timezone?.trim() || DEFAULT_TIMEZONE;
     businessTimezone.value = tz;
     setBusinessTimezone(tz);
+    refreshBusinessDayClock();
 
     const start = dayjs().tz(tz).startOf('day');
     const end = start.add(1, 'day');
