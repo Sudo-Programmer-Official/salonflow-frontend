@@ -7,6 +7,7 @@
         © {{ new Date().getFullYear() }} SalonFlow. A product of Sudo Programmer Inc.
       </div>
       <div class="flex flex-wrap items-center justify-center gap-4 text-center sm:justify-end">
+        <RouterLink class="hover:text-slate-900 transition-colors" to="/downloads/pos">POS Download</RouterLink>
         <RouterLink class="hover:text-slate-900 transition-colors" to="/privacy">Privacy Policy</RouterLink>
         <RouterLink class="hover:text-slate-900 transition-colors" to="/terms">Terms of Service</RouterLink>
         <RouterLink class="hover:text-slate-900 transition-colors" to="/data-deletion">Data Deletion</RouterLink>

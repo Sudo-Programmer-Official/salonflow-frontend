@@ -4,7 +4,10 @@ import { useRoute } from 'vue-router';
 import PublicWebsiteLayout from '../../layouts/PublicWebsiteLayout.vue';
 import { useWebsite } from '../../composables/useWebsite';
 import { apiUrl } from '../../api/client';
-import { resolveMedia } from '../../utils/resolveMedia';
+import ServiceDetailModal from '../../components/website/ServiceDetailModal.vue';
+import GalleryLightbox from '../../components/website/GalleryLightbox.vue';
+import { FALLBACK_IMAGE, resolveMedia, type ResolvedMedia } from '../../utils/resolveMedia';
+import { normalizeWebsiteServicesPageConfig } from '../../types/websiteServicesPage';
 import {
   fetchFeaturedServicesV2,
   fetchCategoriesV2,
@@ -14,6 +17,26 @@ import {
 } from '../../api/servicesV2Public';
 
 const BOOKING_PATH = '/check-in/book';
+const GALLERY_PREVIEW_LIMIT = 4;
+
+type WebsiteImage = ResolvedMedia & {
+  id: string;
+  debug?: unknown;
+};
+
+type ServiceModalItem = {
+  id: string;
+  name: string;
+  categoryName?: string | null;
+  description?: string | null;
+  fullDescription?: string | null;
+  durationMinutes?: number;
+  priceCents?: number;
+  currency?: string;
+  image: WebsiteImage;
+  images: WebsiteImage[];
+  bullets?: string[];
+};
 
 const route = useRoute();
 const locale = computed(() => {
@@ -40,6 +63,67 @@ const mediaMap = computed(() => {
   (data.value?.media || []).forEach((m: any) => map.set(m.id, m));
   return map;
 });
+
+const isUuidLike = (value: unknown): value is string =>
+  typeof value === 'string' &&
+  /^[0-9a-fA-F-]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(
+    value,
+  );
+
+const makeImage = (input: any, opts: { id?: string; alt?: string; debug?: unknown } = {}): WebsiteImage => ({
+  id:
+    opts.id ||
+    input?.id ||
+    input?.url ||
+    input?.original_url ||
+    globalThis.crypto?.randomUUID?.() ||
+    Math.random().toString(36),
+  ...resolveMedia(input, opts.alt || ''),
+  debug: opts.debug ?? input ?? null,
+});
+
+const resolveImageRef = (input: any, alt = '', debug?: unknown): WebsiteImage | null => {
+  if (!input) return null;
+  if (isUuidLike(input)) {
+    const media = mediaMap.value.get(input);
+    if (media) {
+      return makeImage(media, { id: input, alt, debug: debug ?? media });
+    }
+    return makeImage(null, {
+      id: input,
+      alt,
+      debug: debug ?? { type: 'missing_media_asset', ref: input },
+    });
+  }
+  if (typeof input === 'string') {
+    return makeImage(
+      {
+        original_url: input,
+      },
+      { id: input, alt, debug: debug ?? input },
+    );
+  }
+  return makeImage(input, { alt, debug });
+};
+
+const buildModalImages = (primary: WebsiteImage | null, fallbackImages: WebsiteImage[]) => {
+  const images = [primary, ...fallbackImages]
+    .filter((image): image is WebsiteImage => Boolean(image))
+    .filter((image, index, list) => list.findIndex((candidate) => candidate.src === image.src) === index)
+    .slice(0, 4);
+
+  return images.length
+    ? images
+    : [
+        {
+          id: 'fallback-image',
+          src: FALLBACK_IMAGE,
+          alt: '',
+          sources: [],
+          debug: { type: 'fallback_image' },
+        },
+      ];
+};
 
 const page = computed(() => {
   const pages = data.value?.pages || [];
@@ -117,6 +201,11 @@ const mergeContactValues = (primary: any, fallback: any) => {
   return merged;
 };
 const contact = computed(() => mergeContactValues(page.value?.content?.contact || {}, contactFallback.value || {}));
+const servicesPageConfig = computed(() =>
+  normalizeWebsiteServicesPageConfig(
+    (page.value?.content as any)?.servicesPageConfig || (page.value?.content as any)?.services_page_config,
+  ),
+);
 const servicesMode = computed(() => {
   const raw = (page.value?.content as any)?.servicesMode || (page.value?.content as any)?.services_mode;
   return raw === 'custom' || raw === 'live' ? raw : 'auto';
@@ -218,31 +307,22 @@ const mapEmbedSrc = computed(() => {
   return null;
 });
 const gallery = computed(() => page.value?.content?.gallery || []);
-const resolvedGallery = computed(() => {
+const resolvedGallery = computed<WebsiteImage[]>(() => {
   const ids = Array.isArray(gallery.value) ? gallery.value : [];
-  return ids.map((item: string) => {
-    const isUuid = /^[0-9a-fA-F-]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(
-      item,
-    );
-    if (isUuid && mediaMap.value.has(item)) {
-      const media = mediaMap.value.get(item);
-      const resolved = resolveMedia(media);
-      return { id: item, ...resolved };
-    }
-    return { id: item, src: item, sources: [], alt: '' };
-  });
+  return ids.map((item: string, index: number) =>
+    resolveImageRef(item, hero.value?.headline || '', { type: 'gallery', index, item }) || {
+      id: `gallery-${index}`,
+      src: FALLBACK_IMAGE,
+      alt: '',
+      sources: [],
+      debug: { type: 'gallery_fallback', item },
+    },
+  );
 });
 
 const heroMedia = computed(() => {
   const img = hero.value?.image || hero.value?.imageId || hero.value?.imageUrl;
-  if (!img) return null;
-  const isUuid = /^[0-9a-fA-F-]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(
-    img,
-  );
-  if (isUuid && mediaMap.value.has(img)) {
-    return { id: img, ...resolveMedia(mediaMap.value.get(img), hero.value?.headline || '') };
-  }
-  return { id: img, ...resolveMedia({ original_url: img }, hero.value?.headline || '') };
+  return resolveImageRef(img, hero.value?.headline || '', { type: 'hero', image: img });
 });
 
 const heroSlides = computed(() => resolvedGallery.value.slice(0, 5));
@@ -283,11 +363,15 @@ let heroInterval: ReturnType<typeof setInterval> | null = null;
 
 const liveServices = ref<
   Array<{
+    id: string;
     name: string;
     description?: string | null;
+    fullDescription?: string | null;
+    whatIncluded?: any[];
     durationMinutes?: number;
     priceCents?: number;
     currency?: string;
+    categoryName?: string | null;
     categorySlug?: string;
     serviceSlug?: string;
   }>
@@ -299,6 +383,9 @@ const categoryServices = ref<Record<string, PublicService[]>>({});
 const categoriesLoading = ref(false);
 const categoriesError = ref<string | null>(null);
 
+const galleryLightboxOpen = ref(false);
+const galleryLightboxIndex = ref(0);
+
 const loadServices = async () => {
   if (servicesLoading.value) return;
   servicesLoading.value = true;
@@ -307,11 +394,15 @@ const loadServices = async () => {
     const featured = await fetchFeaturedServicesV2();
     const items = featured.services || [];
     liveServices.value = items.map((svc: any) => ({
+      id: svc.id,
       name: svc.name,
       description: svc.shortSummary || null,
+      fullDescription: svc.fullDescription || null,
+      whatIncluded: Array.isArray(svc.whatIncluded) ? svc.whatIncluded : [],
       durationMinutes: svc.durationMinutes,
       priceCents: svc.priceCents,
       currency: svc.currency || 'USD',
+      categoryName: featured.categories.find((c: any) => c.id === svc.categoryId)?.name || null,
       categorySlug: featured.categories.find((c: any) => c.id === svc.categoryId)?.slug || '',
       serviceSlug: svc.slug,
     }));
@@ -328,15 +419,17 @@ const loadCategories = async () => {
   categoriesLoading.value = true;
   categoriesError.value = null;
   try {
-    const cats = await fetchCategoriesV2();
+    const cats = (await fetchCategoriesV2()).filter((cat) => Boolean(String(cat.slug || '').trim()));
     categories.value = cats;
     const entries = await Promise.all(
       cats.map(async (cat) => {
+        const categorySlug = String(cat.slug || '').trim();
+        if (!categorySlug) return [cat.id, []] as [string, PublicService[]];
         try {
-          const res = await fetchCategoryV2(cat.slug);
+          const res = await fetchCategoryV2(categorySlug);
           return [cat.id, res.services] as [string, PublicService[]];
         } catch (err) {
-          console.error('Failed to load services for category', cat.slug, err);
+          console.error('Failed to load services for category', categorySlug, err);
           return [cat.id, []] as [string, PublicService[]];
         }
       }),
@@ -380,33 +473,36 @@ const serviceCards = computed(() => {
     .map((svc: any, idx: number) => {
       const title = svc?.title || svc?.name || svc;
       if (!title) return null;
-      let img = null;
+      let img: WebsiteImage | null = null;
       const imageId = svc?.image;
       if (imageId) {
-        const media = mediaMap.value.get(imageId);
-        if (media) img = { id: imageId, ...resolveMedia(media, title) };
+        img = resolveImageRef(imageId, title, { type: 'service_card', title, imageId });
       }
       if (!img && galleryImages.length) {
-        img = galleryImages[idx % galleryImages.length];
+        img = galleryImages[idx % galleryImages.length] || null;
       }
       if (!img && defaultImg) img = defaultImg;
+      const modalImages = buildModalImages(img, galleryImages);
+      const resolvedImage = img || modalImages[0] || makeImage(null, { alt: title });
       return {
+        id: svc?.id || `service-card-${idx}-${String(title).toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
         name: title,
-        description: svc?.description,
+        categoryName: svc?.categoryName || 'Featured service',
+        description: svc?.description || null,
+        fullDescription: svc?.fullDescription || null,
         durationMinutes: svc?.durationMinutes,
         priceCents: svc?.priceCents,
         currency: svc?.currency,
-        img,
+        image: resolvedImage,
+        images: modalImages,
+        bullets: Array.isArray(svc?.whatIncluded)
+          ? svc.whatIncluded
+              .map((item: any) => (typeof item === 'string' ? item.trim() : String(item?.name || item?.title || '').trim()))
+              .filter(Boolean)
+          : [],
       };
     })
-    .filter(Boolean) as Array<{
-      name: string;
-      description?: string;
-      durationMinutes?: number;
-      priceCents?: number;
-      currency?: string;
-      img: any;
-    }>;
+    .filter(Boolean) as ServiceModalItem[];
 });
 
 const servicesPageCategories = computed(() =>
@@ -416,30 +512,132 @@ const servicesPageCategories = computed(() =>
   })),
 );
 
+const visibleServicesPageCategories = computed(() =>
+  servicesPageCategories.value.filter((category) => category.services.length > 0),
+);
+
+const catalogModalItems = computed<ServiceModalItem[]>(() =>
+  visibleServicesPageCategories.value.flatMap((category) =>
+    category.services.map((service) => {
+      const primaryImage =
+        resolveImageRef(category.heroImage, service.name, {
+          type: 'service_category_hero',
+          categoryId: category.id,
+          serviceId: service.id,
+        }) || resolvedGallery.value[0] || null;
+      const images = buildModalImages(primaryImage, resolvedGallery.value);
+      const resolvedImage = primaryImage || images[0] || makeImage(null, { alt: service.name });
+      return {
+        id: service.id,
+        name: service.name,
+        categoryName: category.name,
+        description: service.shortSummary || null,
+        fullDescription: service.fullDescription || null,
+        durationMinutes: service.durationMinutes,
+        priceCents: service.priceCents,
+        currency: service.currency || 'USD',
+        image: resolvedImage,
+        images,
+        bullets: Array.isArray(service.whatIncluded)
+          ? service.whatIncluded
+              .map((item: any) => (typeof item === 'string' ? item.trim() : String(item?.name || item?.title || '').trim()))
+              .filter(Boolean)
+          : [],
+      };
+    }),
+  ),
+);
+
+const galleryPreview = computed(() => resolvedGallery.value.slice(0, GALLERY_PREVIEW_LIMIT));
+const hasMoreGalleryImages = computed(() => resolvedGallery.value.length > GALLERY_PREVIEW_LIMIT);
+const showServiceHighlights = computed(
+  () => !isServicesPage.value || servicesPageConfig.value.showServiceHighlights,
+);
+const showAllServicesSection = computed(
+  () =>
+    !isServicesPage.value ||
+    (servicesPageConfig.value.showAllServicesSection &&
+      (visibleServicesPageCategories.value.length > 0 || categoriesLoading.value || Boolean(categoriesError.value))),
+);
+const showGallerySection = computed(
+  () => resolvedGallery.value.length > 0 && (!isServicesPage.value || servicesPageConfig.value.showGallery),
+);
+const enableServiceModal = computed(() => servicesPageConfig.value.enableServiceModal);
+
 const showServicesSection = computed(() => !isContactPage.value && serviceCards.value.length > 0);
 const showContactSection = computed(() => isHomePage.value || isContactPage.value);
 
 const serviceModal = reactive<{
   open: boolean;
-  category: PublicCategory | null;
-  service: PublicService | null;
+  source: 'cards' | 'catalog' | null;
+  index: number;
 }>({
   open: false,
-  category: null,
-  service: null,
+  source: null,
+  index: -1,
 });
 
-const openServiceModal = (categoryId: string, service: PublicService) => {
-  const cat = categories.value.find((c) => c.id === categoryId) || null;
+const activeModalItems = computed(() => {
+  if (serviceModal.source === 'catalog') return catalogModalItems.value;
+  if (serviceModal.source === 'cards') return serviceCards.value;
+  return [] as ServiceModalItem[];
+});
+
+const activeServiceModalItem = computed(() => activeModalItems.value[serviceModal.index] || null);
+
+const openServiceModal = (source: 'cards' | 'catalog', index: number) => {
+  if (!enableServiceModal.value) return;
+  const items = source === 'catalog' ? catalogModalItems.value : serviceCards.value;
+  if (!items[index]) return;
   serviceModal.open = true;
-  serviceModal.category = cat;
-  serviceModal.service = service;
+  serviceModal.source = source;
+  serviceModal.index = index;
+  trackEvent('service_click', {
+    serviceId: items[index]?.id || null,
+    serviceName: items[index]?.name || null,
+    source,
+  });
 };
 
 const closeServiceModal = () => {
   serviceModal.open = false;
-  serviceModal.category = null;
-  serviceModal.service = null;
+  serviceModal.source = null;
+  serviceModal.index = -1;
+};
+
+const stepServiceModal = (direction: -1 | 1) => {
+  const items = activeModalItems.value;
+  if (!items.length) return;
+  serviceModal.index = (serviceModal.index + direction + items.length) % items.length;
+};
+
+const onImageError = (event: Event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLImageElement)) return;
+  if (target.dataset.fallbackApplied === '1') return;
+  target.dataset.fallbackApplied = '1';
+  console.warn('Image failed:', {
+    src: target.currentSrc || target.src,
+    alt: target.alt,
+  });
+  target.src = FALLBACK_IMAGE;
+};
+
+const resetCategoriesState = () => {
+  categories.value = [];
+  categoryServices.value = {};
+  categoriesError.value = null;
+  categoriesLoading.value = false;
+};
+
+const openGalleryLightbox = (index = 0) => {
+  if (!resolvedGallery.value.length) return;
+  galleryLightboxIndex.value = Math.min(Math.max(index, 0), resolvedGallery.value.length - 1);
+  galleryLightboxOpen.value = true;
+};
+
+const closeGalleryLightbox = () => {
+  galleryLightboxOpen.value = false;
 };
 
 onMounted(() => {
@@ -636,7 +834,10 @@ const injectHead = () => {
   document.head.appendChild(ldScript);
 };
 
-const trackEvent = (eventType: 'page_view' | 'click_call' | 'click_directions' | 'form_submit') => {
+const trackEvent = (
+  eventType: 'page_view' | 'click_call' | 'click_directions' | 'form_submit' | 'service_click',
+  payload: Record<string, unknown> = {},
+) => {
   if (isPreview.value) return;
   fetch(apiUrl('/public/website/events'), {
     method: 'POST',
@@ -649,6 +850,7 @@ const trackEvent = (eventType: 'page_view' | 'click_call' | 'click_directions' |
       path: route.path,
       locale: locale.value,
       source_page: route.path,
+      payload,
     }),
   }).catch(() => undefined);
 };
@@ -721,9 +923,16 @@ const submitLead = async () => {
 
 onMounted(async () => {
   await fetchSite();
-  await loadServices();
-  if (isServicesPage.value) {
+  if (!isContactPage.value && servicesMode.value !== 'custom') {
+    await loadServices();
+  } else {
+    liveServices.value = [];
+    servicesError.value = null;
+  }
+  if (isServicesPage.value && servicesPageConfig.value.showAllServicesSection) {
     await loadCategories();
+  } else {
+    resetCategoriesState();
   }
   injectHead();
   trackEvent('page_view');
@@ -733,9 +942,18 @@ watch(
   () => route.fullPath,
   async () => {
     await fetchSite();
-    await loadServices();
-    if (isServicesPage.value) {
+    closeServiceModal();
+    closeGalleryLightbox();
+    if (!isContactPage.value && servicesMode.value !== 'custom') {
+      await loadServices();
+    } else {
+      liveServices.value = [];
+      servicesError.value = null;
+    }
+    if (isServicesPage.value && servicesPageConfig.value.showAllServicesSection) {
       await loadCategories();
+    } else {
+      resetCategoriesState();
     }
     injectHead();
     trackEvent('page_view');
@@ -839,6 +1057,7 @@ const footerView = computed(() => {
               :alt="hero.headline || 'Services hero image'"
               class="h-full w-full object-cover"
               loading="lazy"
+              @error="onImageError"
             />
           </picture>
         </div>
@@ -884,6 +1103,7 @@ const footerView = computed(() => {
                       :alt="hero.headline || 'Services hero image'"
                       class="w-full h-full object-cover services-hero__img"
                       loading="lazy"
+                      @error="onImageError"
                     />
                   </picture>
                 </div>
@@ -1010,6 +1230,7 @@ const footerView = computed(() => {
                 :alt="hero.headline || 'Salon hero image'"
                 class="w-full h-full object-cover aspect-[5/4] md:min-h-[360px] hero-slide"
                 loading="lazy"
+                @error="onImageError"
               />
             </picture>
           </div>
@@ -1081,6 +1302,7 @@ const footerView = computed(() => {
                 :alt="hero.headline || 'About image'"
                 class="w-full h-full object-cover aspect-[5/4]"
                 loading="lazy"
+                @error="onImageError"
               />
             </picture>
           </div>
@@ -1123,7 +1345,7 @@ const footerView = computed(() => {
           <h2 class="text-2xl font-semibold text-text">Services</h2>
         </div>
 
-        <div class="grid gap-3 lg:grid-cols-[1.3fr,0.7fr] items-start">
+        <div v-if="showServiceHighlights" class="grid gap-3 lg:grid-cols-[1.3fr,0.7fr] items-start">
           <div class="space-y-3">
             <p v-if="servicesIntro" class="text-base text-muted leading-relaxed">
               {{ servicesIntro }}
@@ -1170,24 +1392,31 @@ const footerView = computed(() => {
         <p v-if="servicesError" class="text-sm text-rose-600">{{ servicesError }}</p>
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div
-          v-for="(card, idx) in serviceCards"
-          :key="idx"
-          class="relative overflow-hidden rounded-2xl border border-border bg-white shadow-lg service-tilt"
+            v-for="(card, idx) in serviceCards"
+            :key="card.id"
+            class="relative overflow-hidden rounded-2xl border border-border bg-white shadow-lg service-tilt"
+            :class="enableServiceModal ? 'cursor-pointer' : ''"
+            :role="enableServiceModal ? 'button' : undefined"
+            :tabindex="enableServiceModal ? 0 : undefined"
+            @click="enableServiceModal ? openServiceModal('cards', idx) : undefined"
+            @keydown.enter.prevent="enableServiceModal ? openServiceModal('cards', idx) : undefined"
+            @keydown.space.prevent="enableServiceModal ? openServiceModal('cards', idx) : undefined"
           >
             <div class="absolute inset-0 services-card-glow"></div>
-            <picture v-if="card.img?.src" class="block">
+            <picture v-if="card.image?.src" class="block">
               <source
-                v-for="(src, sIdx) in card.img.sources"
+                v-for="(src, sIdx) in card.image.sources"
                 :key="sIdx"
                 :srcset="src.srcset"
                 :type="src.type"
                 :media="src.media"
               />
               <img
-                :src="card.img.src"
+                :src="card.image.src"
                 :alt="card.name"
                 class="w-full h-36 object-cover"
                 loading="lazy"
+                @error="onImageError"
               />
             </picture>
             <div class="p-4 flex items-center justify-between gap-3">
@@ -1216,7 +1445,7 @@ const footerView = computed(() => {
       </section>
 
       <section
-        v-if="isServicesPage"
+        v-if="isServicesPage && showAllServicesSection"
         id="services-list"
         class="sf-container sf-section space-y-4"
       >
@@ -1227,7 +1456,7 @@ const footerView = computed(() => {
         <p v-if="categoriesError" class="text-sm text-rose-600">{{ categoriesError }}</p>
         <div class="space-y-6">
           <div
-            v-for="cat in servicesPageCategories"
+            v-for="cat in visibleServicesPageCategories"
             :key="cat.id"
             class="rounded-2xl border border-border bg-white shadow-sm overflow-hidden"
           >
@@ -1247,8 +1476,13 @@ const footerView = computed(() => {
               <div
                 v-for="svc in categoryServices[cat.id]"
                 :key="svc.id"
-                class="rounded-xl border border-border bg-surface px-3 py-3 shadow-sm hover:-translate-y-0.5 hover:shadow-lg transition cursor-pointer"
-                @click="openServiceModal(cat.id, svc)"
+                class="rounded-xl border border-border bg-surface px-3 py-3 shadow-sm transition"
+                :class="enableServiceModal ? 'cursor-pointer hover:-translate-y-0.5 hover:shadow-lg' : ''"
+                :role="enableServiceModal ? 'button' : undefined"
+                :tabindex="enableServiceModal ? 0 : undefined"
+                @click="enableServiceModal ? openServiceModal('catalog', catalogModalItems.findIndex((item) => item.id === svc.id)) : undefined"
+                @keydown.enter.prevent="enableServiceModal ? openServiceModal('catalog', catalogModalItems.findIndex((item) => item.id === svc.id)) : undefined"
+                @keydown.space.prevent="enableServiceModal ? openServiceModal('catalog', catalogModalItems.findIndex((item) => item.id === svc.id)) : undefined"
               >
                 <div class="flex items-start justify-between gap-2">
                   <div>
@@ -1269,7 +1503,6 @@ const footerView = computed(() => {
                 </div>
               </div>
             </div>
-            <div v-else class="px-4 py-4 text-sm text-muted">No services in this category yet.</div>
           </div>
         </div>
       </section>
@@ -1367,6 +1600,42 @@ const footerView = computed(() => {
         </div>
       </section>
 
+      <section v-if="showGallerySection" class="sf-container sf-section space-y-4">
+        <h2 class="text-2xl font-semibold text-text">Gallery</h2>
+        <div class="grid gap-3 sm:grid-cols-2">
+          <picture
+            v-for="(img, idx) in galleryPreview"
+            :key="img.id || idx"
+            class="block cursor-pointer"
+            @click="openGalleryLightbox(idx)"
+          >
+            <source
+              v-for="(src, sIdx) in img.sources"
+              :key="sIdx"
+              :srcset="src.srcset"
+              :type="src.type"
+              :media="src.media"
+            />
+            <img
+              :src="img.src"
+              class="w-full rounded-xl border border-border object-cover aspect-[4/3]"
+              loading="lazy"
+              :alt="img.alt || ''"
+              @error="onImageError"
+            />
+          </picture>
+        </div>
+        <div v-if="hasMoreGalleryImages" class="flex justify-center">
+          <button
+            type="button"
+            class="inline-flex items-center gap-2 rounded-full border border-border bg-white px-4 py-2 text-sm font-semibold text-text shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
+            @click="openGalleryLightbox(GALLERY_PREVIEW_LIMIT)"
+          >
+            View More
+          </button>
+        </div>
+      </section>
+
       <section v-if="faqItems.length" class="sf-container sf-section space-y-3">
         <h2 class="text-2xl font-semibold text-text">FAQ</h2>
         <div class="grid gap-3 lg:grid-cols-2">
@@ -1382,91 +1651,26 @@ const footerView = computed(() => {
         </div>
       </section>
 
-      <section v-if="gallery.length" class="sf-container sf-section space-y-3">
-        <h2 class="text-2xl font-semibold text-text">Gallery</h2>
-        <div class="grid gap-3 sm:grid-cols-2">
-          <picture
-            v-for="(img, idx) in resolvedGallery"
-            :key="idx"
-            class="block"
-          >
-            <source
-              v-for="(src, sIdx) in img.sources"
-              :key="sIdx"
-              :srcset="src.srcset"
-              :type="src.type"
-              :media="src.media"
-            />
-            <img
-              :src="img.src"
-              class="w-full rounded-xl border border-border object-cover aspect-[4/3]"
-              loading="lazy"
-              :alt="img.alt || ''"
-            />
-          </picture>
-        </div>
-      </section>
-
       <div v-if="loading" class="sf-container text-sm text-muted">Loading…</div>
       <div v-if="error" class="sf-container text-sm text-rose-600">{{ error }}</div>
     </div>
 
-    <!-- Service detail modal -->
-    <transition name="fade">
-      <div
-        v-if="serviceModal.open && serviceModal.service"
-        class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4"
-        role="dialog"
-        aria-modal="true"
-      >
-        <div class="max-w-2xl w-full bg-white rounded-2xl shadow-2xl border border-border overflow-hidden">
-          <div class="flex items-start justify-between gap-4 px-5 py-4 border-b border-border bg-surface-muted">
-            <div>
-              <div class="text-xs uppercase tracking-wide text-muted">{{ serviceModal.category?.name }}</div>
-              <div class="text-xl font-semibold text-text">{{ serviceModal.service?.name }}</div>
-            </div>
-            <button
-              class="rounded-full border border-border bg-white text-text px-3 py-1 text-sm font-semibold hover:bg-surface"
-              @click="closeServiceModal"
-            >
-              Close
-            </button>
-          </div>
-          <div class="px-5 py-4 space-y-3">
-            <div class="text-sm text-muted">
-              {{ serviceModal.service?.shortSummary || 'Detailed description coming soon.' }}
-            </div>
-            <div class="flex flex-wrap gap-3 text-sm text-text font-semibold">
-              <span v-if="serviceModal.service?.durationMinutes" class="inline-flex items-center gap-1 rounded-full bg-surface px-3 py-1 border border-border">
-                {{ serviceModal.service?.durationMinutes }} min
-              </span>
-              <span v-if="serviceModal.service?.priceCents !== undefined" class="inline-flex items-center gap-1 rounded-full bg-surface px-3 py-1 border border-border">
-                {{ formatMoney(serviceModal.service?.priceCents, serviceModal.service?.currency || 'USD') }}
-              </span>
-            </div>
-            <div v-if="serviceModal.service?.fullDescription" class="text-sm text-text leading-relaxed whitespace-pre-line">
-              {{ serviceModal.service?.fullDescription }}
-            </div>
-            <div v-if="serviceModal.service?.whatIncluded?.length" class="space-y-2">
-              <div class="text-sm font-semibold text-text">What’s included</div>
-              <ul class="list-disc list-inside text-sm text-muted space-y-1">
-                <li v-for="(item, idx) in serviceModal.service?.whatIncluded" :key="idx">
-                  {{ typeof item === 'string' ? item : item?.name || item?.title || '' }}
-                </li>
-              </ul>
-            </div>
-            <div class="pt-2">
-              <a
-                :href="bookingPath"
-                class="inline-flex items-center gap-2 rounded-full bg-text px-4 py-2 text-white text-sm font-semibold hover:bg-text/90"
-              >
-                Book now
-              </a>
-            </div>
-          </div>
-        </div>
-      </div>
-    </transition>
+    <ServiceDetailModal
+      :open="serviceModal.open"
+      :service="activeServiceModalItem"
+      :booking-path="bookingPath"
+      :can-prev="activeModalItems.length > 1"
+      :can-next="activeModalItems.length > 1"
+      @close="closeServiceModal"
+      @prev="stepServiceModal(-1)"
+      @next="stepServiceModal(1)"
+    />
+    <GalleryLightbox
+      :open="galleryLightboxOpen"
+      :images="resolvedGallery"
+      :start-index="galleryLightboxIndex"
+      @close="closeGalleryLightbox"
+    />
   </PublicWebsiteLayout>
 </template>
 

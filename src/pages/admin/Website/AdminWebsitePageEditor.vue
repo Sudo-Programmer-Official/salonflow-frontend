@@ -13,6 +13,10 @@ import {
 import { fetchWebsitePages, upsertWebsitePage, type WebsitePage } from '../../../api/website';
 import { clearWebsiteCache } from '../../../composables/useWebsite';
 import MediaPicker from '../../../components/website/MediaPicker.vue';
+import {
+  DEFAULT_WEBSITE_SERVICES_PAGE_CONFIG,
+  normalizeWebsiteServicesPageConfig,
+} from '../../../types/websiteServicesPage';
 
 const route = useRoute();
 const router = useRouter();
@@ -40,6 +44,7 @@ const form = ref({
   promoCta: '',
   promoUrl: '',
   bookingNote: '',
+  servicesPageConfig: { ...DEFAULT_WEBSITE_SERVICES_PAGE_CONFIG },
   faq: [{ question: '', answer: '' }],
   address: '',
   phone: '',
@@ -81,6 +86,9 @@ const load = async () => {
       form.value.promoCta = c.promo?.cta || c.promo?.ctaText || c.promotion?.cta || '';
       form.value.promoUrl = c.promo?.url || c.promo?.ctaUrl || c.promotion?.url || '';
       form.value.bookingNote = c.bookingNote || c.booking_note || '';
+      form.value.servicesPageConfig = normalizeWebsiteServicesPageConfig(
+        c.servicesPageConfig || c.services_page_config,
+      );
       form.value.faq = Array.isArray(c.faq)
         ? c.faq.map((f: any) => ({
             question: f?.question || f?.q || '',
@@ -161,6 +169,9 @@ const save = async (publish: boolean) => {
           ? { text: form.value.promoText, cta: form.value.promoCta, url: form.value.promoUrl }
           : null,
       bookingNote: form.value.bookingNote || '',
+      servicesPageConfig: {
+        ...normalizeWebsiteServicesPageConfig(form.value.servicesPageConfig),
+      },
       faq: sanitizeFaq(),
       services: sanitizeServices().map((svc: any) => ({
         title: svc.title,
@@ -309,6 +320,47 @@ const goBack = () =>
 
         <ElFormItem label="Booking note" class="md:col-span-2">
           <ElInput v-model="form.bookingNote" type="textarea" :rows="2" placeholder="e.g. Prefer to talk? Call 361‑986‑1555." />
+        </ElFormItem>
+
+        <ElFormItem label="Services page display" class="md:col-span-2">
+          <div class="grid gap-3 md:grid-cols-2">
+            <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <div class="flex items-center justify-between gap-3">
+                <div>
+                  <div class="text-sm font-semibold text-slate-900">Show service highlights</div>
+                  <p class="text-xs text-slate-500">Intro copy, value props, hygiene, social proof, and promo block.</p>
+                </div>
+                <ElSwitch v-model="form.servicesPageConfig.showServiceHighlights" />
+              </div>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <div class="flex items-center justify-between gap-3">
+                <div>
+                  <div class="text-sm font-semibold text-slate-900">Show all services section</div>
+                  <p class="text-xs text-slate-500">Live category/service catalog below the featured cards.</p>
+                </div>
+                <ElSwitch v-model="form.servicesPageConfig.showAllServicesSection" />
+              </div>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <div class="flex items-center justify-between gap-3">
+                <div>
+                  <div class="text-sm font-semibold text-slate-900">Show gallery</div>
+                  <p class="text-xs text-slate-500">Controls the services page gallery grid and lightbox.</p>
+                </div>
+                <ElSwitch v-model="form.servicesPageConfig.showGallery" />
+              </div>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <div class="flex items-center justify-between gap-3">
+                <div>
+                  <div class="text-sm font-semibold text-slate-900">Enable service modal</div>
+                  <p class="text-xs text-slate-500">Open featured cards and service rows in a detail dialog.</p>
+                </div>
+                <ElSwitch v-model="form.servicesPageConfig.enableServiceModal" />
+              </div>
+            </div>
+          </div>
         </ElFormItem>
 
         <ElFormItem label="Services" class="md:col-span-2">

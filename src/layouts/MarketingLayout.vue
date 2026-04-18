@@ -10,6 +10,12 @@
           <RouterLink class="rounded-full px-3 py-2 transition-colors hover:bg-slate-100 hover:text-slate-900" to="/">
             Home
           </RouterLink>
+          <RouterLink
+            class="rounded-full px-3 py-2 transition-colors hover:bg-slate-100 hover:text-slate-900"
+            to="/downloads/pos"
+          >
+            POS Download
+          </RouterLink>
           <RouterLink class="rounded-full px-3 py-2 transition-colors hover:bg-slate-100 hover:text-slate-900" to="/salon-login">
             Login
           </RouterLink>

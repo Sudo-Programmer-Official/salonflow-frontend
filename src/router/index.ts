@@ -59,6 +59,7 @@ import AdminCheckoutPage from "../pages/admin/Checkout.vue";
 import WebsitePage from "../pages/website/WebsitePage.vue";
 import MarketingLayout from "../layouts/MarketingLayout.vue";
 import MarketingHome from "../pages/MarketingHome.vue";
+import PosDownloadPage from "../pages/PosDownload.vue";
 import SalonLoginPage from "../pages/SalonLogin.vue";
 import StartPage from "../pages/Start.vue";
 import LoginPage from "../pages/Login.vue";
@@ -172,6 +173,11 @@ const appRoutes = [
         path: "start",
         name: "start",
         component: StartPage,
+      },
+      {
+        path: "downloads/pos",
+        name: "pos-download",
+        component: PosDownloadPage,
       },
     ],
   },
