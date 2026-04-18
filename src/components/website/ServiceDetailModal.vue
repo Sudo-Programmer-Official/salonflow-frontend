@@ -37,6 +37,11 @@ const emit = defineEmits<{
 }>();
 
 const activeImageIndex = ref(0);
+const zoomLevel = ref(1);
+const isDocumentLike = ref(false);
+const hasManualZoom = ref(false);
+const detailsCollapsed = ref(false);
+const hasManualDetailsToggle = ref(false);
 
 const images = computed(() => {
   if (props.service?.images?.length) return props.service.images;
@@ -44,6 +49,16 @@ const images = computed(() => {
 });
 
 const activeImage = computed(() => images.value[activeImageIndex.value] || images.value[0]);
+const zoomOptions = [1, 1.5, 2, 2.5];
+const showInfoPanel = computed(() => !isDocumentLike.value || !detailsCollapsed.value);
+const imageStyle = computed(() => {
+  const widthPercent = Math.max(100, Math.round(zoomLevel.value * 100));
+  return {
+    width: `${widthPercent}%`,
+    maxWidth: zoomLevel.value <= 1 ? '1120px' : 'none',
+    minWidth: isDocumentLike.value ? '960px' : undefined,
+  };
+});
 
 const formatMoney = (cents?: number | null, currency = 'USD') => {
   if (cents === null || cents === undefined) return null;
@@ -86,10 +101,57 @@ const onImageError = (event: Event) => {
   target.src = FALLBACK_IMAGE;
 };
 
+const onImageLoad = (event: Event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLImageElement)) return;
+  const ratio = target.naturalWidth > 0 ? target.naturalHeight / target.naturalWidth : 1;
+  isDocumentLike.value = ratio > 1.18;
+  if (!hasManualZoom.value) {
+    zoomLevel.value = isDocumentLike.value ? 1.9 : 1;
+  }
+  if (!hasManualDetailsToggle.value) {
+    detailsCollapsed.value = isDocumentLike.value;
+  }
+};
+
+const setZoom = (next: number) => {
+  const bounded = Math.min(2.5, Math.max(1, next));
+  hasManualZoom.value = true;
+  zoomLevel.value = bounded;
+};
+
+const bumpZoom = (direction: -1 | 1) => {
+  const currentIndex = zoomOptions.findIndex((value) => value >= zoomLevel.value);
+  const fallbackIndex = currentIndex === -1 ? 0 : currentIndex;
+  const nextIndex = Math.min(zoomOptions.length - 1, Math.max(0, fallbackIndex + direction));
+  setZoom(zoomOptions[nextIndex] || zoomLevel.value);
+};
+
+const toggleDetails = () => {
+  hasManualDetailsToggle.value = true;
+  detailsCollapsed.value = !detailsCollapsed.value;
+};
+
 watch(
   () => props.service?.id,
   () => {
     activeImageIndex.value = 0;
+    zoomLevel.value = 1;
+    isDocumentLike.value = false;
+    hasManualZoom.value = false;
+    detailsCollapsed.value = false;
+    hasManualDetailsToggle.value = false;
+  },
+);
+
+watch(
+  () => activeImageIndex.value,
+  () => {
+    zoomLevel.value = 1;
+    isDocumentLike.value = false;
+    hasManualZoom.value = false;
+    detailsCollapsed.value = false;
+    hasManualDetailsToggle.value = false;
   },
 );
 
@@ -106,43 +168,133 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
       aria-modal="true"
       @click.self="emit('close')"
     >
-      <div class="service-modal-panel w-full max-w-5xl overflow-hidden rounded-[28px] border border-white/15 bg-white shadow-[0_40px_120px_rgba(15,23,42,0.32)]">
-        <div class="grid max-h-[90vh] gap-0 lg:grid-cols-[1.1fr,0.9fr]">
-          <div class="service-modal-media relative border-b border-slate-200 bg-slate-950 lg:border-b-0 lg:border-r">
-            <div class="absolute left-4 right-4 top-4 z-10 flex items-start justify-between gap-3">
-              <div class="rounded-full bg-black/45 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-white/80">
-                {{ service.categoryName || 'Service details' }}
+      <div class="service-modal-panel h-[96vh] w-full max-w-[96vw] overflow-hidden rounded-[28px] border border-white/15 bg-white shadow-[0_40px_120px_rgba(15,23,42,0.32)]">
+        <div
+          class="grid h-full max-h-[96vh] gap-0"
+          :class="
+            showInfoPanel
+              ? 'lg:grid-cols-[minmax(0,1.5fr)_minmax(360px,0.5fr)]'
+              : 'grid-cols-1'
+          "
+        >
+          <div class="service-modal-media relative flex flex-col border-b border-slate-200 bg-slate-950 lg:border-b-0 lg:border-r">
+            <div class="flex flex-wrap items-start justify-between gap-3 border-b border-white/10 px-4 py-4">
+              <div class="min-w-0 space-y-2">
+                <div class="flex flex-wrap items-center gap-2">
+                  <div class="rounded-full bg-black/45 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-white/80">
+                    {{ service.categoryName || 'Service details' }}
+                  </div>
+                  <div
+                    v-if="isDocumentLike"
+                    class="rounded-full border border-emerald-300/25 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-100"
+                  >
+                    Menu view
+                  </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <h2 class="truncate text-xl font-semibold text-white lg:text-2xl">
+                    {{ service.name }}
+                  </h2>
+                  <button
+                    v-if="isDocumentLike"
+                    type="button"
+                    class="rounded-full border border-white/20 bg-black/30 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-black/45"
+                    @click="toggleDetails"
+                  >
+                    {{ detailsCollapsed ? 'Show details' : 'Hide details' }}
+                  </button>
+                </div>
               </div>
-              <button
-                type="button"
-                class="rounded-full border border-white/15 bg-white/90 px-3 py-1.5 text-sm font-semibold text-slate-900 transition hover:bg-white"
-                @click="emit('close')"
-              >
-                Close
-              </button>
+              <div class="flex flex-wrap items-center justify-end gap-2">
+                <div class="flex flex-wrap items-center gap-2 rounded-full bg-white/5 px-2 py-1">
+                  <button
+                    type="button"
+                    class="rounded-full border border-white/10 bg-white/90 px-3 py-1.5 text-xs font-semibold text-slate-900 transition hover:bg-white"
+                    @click="setZoom(1)"
+                  >
+                    Fit
+                  </button>
+                  <button
+                    type="button"
+                    class="rounded-full border border-white/20 bg-black/30 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-black/45"
+                    @click="bumpZoom(-1)"
+                  >
+                    Zoom -
+                  </button>
+                  <button
+                    type="button"
+                    class="rounded-full border border-white/20 bg-black/30 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-black/45"
+                    @click="bumpZoom(1)"
+                  >
+                    Zoom +
+                  </button>
+                  <a
+                    :href="activeImage?.src || FALLBACK_IMAGE"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="rounded-full border border-white/20 bg-black/30 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-black/45"
+                  >
+                    Open image
+                  </a>
+                </div>
+                <button
+                  v-if="!showInfoPanel && canPrev"
+                  type="button"
+                  class="rounded-full border border-white/20 bg-black/30 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-black/45"
+                  @click="emit('prev')"
+                >
+                  Prev service
+                </button>
+                <button
+                  v-if="!showInfoPanel && canNext"
+                  type="button"
+                  class="rounded-full border border-white/20 bg-black/30 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-black/45"
+                  @click="emit('next')"
+                >
+                  Next service
+                </button>
+                <button
+                  v-if="!showInfoPanel"
+                  type="button"
+                  class="rounded-full border border-white/20 bg-white/90 px-3 py-1.5 text-xs font-semibold text-slate-900 transition hover:bg-white"
+                  @click="toggleDetails"
+                >
+                  Details
+                </button>
+                <button
+                  type="button"
+                  class="rounded-full border border-white/15 bg-white/90 px-3 py-1.5 text-sm font-semibold text-slate-900 transition hover:bg-white"
+                  @click="emit('close')"
+                >
+                  Close
+                </button>
+              </div>
             </div>
 
-            <div class="flex h-full min-h-[320px] items-center justify-center px-5 pb-6 pt-16">
-              <picture class="block w-full">
-                <source
-                  v-for="(src, idx) in activeImage?.sources || []"
-                  :key="`${activeImage?.id || 'service'}-${idx}`"
-                  :srcset="src.srcset"
-                  :type="src.type"
-                  :media="src.media"
-                />
-                <img
-                  :src="activeImage?.src || FALLBACK_IMAGE"
-                  :alt="activeImage?.alt || service.name"
-                  class="mx-auto max-h-[56vh] w-full rounded-[22px] bg-white/80 object-contain"
-                  @error="onImageError"
-                />
-              </picture>
+            <div class="flex-1 overflow-auto px-4 py-4">
+              <div class="flex min-h-full items-start justify-center rounded-[22px] bg-white/5 p-3">
+                <picture class="block shrink-0" :style="imageStyle">
+                  <source
+                    v-for="(src, idx) in activeImage?.sources || []"
+                    :key="`${activeImage?.id || 'service'}-${idx}`"
+                    :srcset="src.srcset"
+                    :type="src.type"
+                    :media="src.media"
+                  />
+                  <img
+                    :src="activeImage?.src || FALLBACK_IMAGE"
+                    :alt="activeImage?.alt || service.name"
+                    class="mx-auto w-full rounded-[22px] bg-white/95 object-contain shadow-[0_28px_60px_rgba(15,23,42,0.25)]"
+                    @error="onImageError"
+                    @load="onImageLoad"
+                  />
+                </picture>
+              </div>
             </div>
 
             <div
               v-if="images.length > 1"
-              class="absolute inset-x-0 bottom-4 z-10 flex items-center justify-center gap-2 px-4"
+              class="flex flex-wrap items-center justify-center gap-2 border-t border-white/10 px-4 py-4"
             >
               <button
                 type="button"
@@ -171,7 +323,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
             </div>
           </div>
 
-          <div class="flex max-h-[90vh] flex-col bg-[linear-gradient(180deg,#fff_0%,#f8fafc_100%)]">
+          <div
+            v-if="showInfoPanel"
+            class="flex max-h-[96vh] flex-col bg-[linear-gradient(180deg,#fff_0%,#f8fafc_100%)]"
+          >
             <div class="flex items-center justify-between gap-3 border-b border-slate-200 px-6 py-4">
               <div class="space-y-1">
                 <p class="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Service</p>
