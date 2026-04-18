@@ -33,6 +33,7 @@ type ServiceModalItem = {
   durationMinutes?: number;
   priceCents?: number;
   currency?: string;
+  documentMode?: boolean;
   image: WebsiteImage;
   images: WebsiteImage[];
   bullets?: string[];
@@ -493,6 +494,7 @@ const serviceCards = computed(() => {
         durationMinutes: svc?.durationMinutes,
         priceCents: svc?.priceCents,
         currency: svc?.currency,
+        documentMode: isServicesPage.value,
         image: resolvedImage,
         images: modalImages,
         bullets: Array.isArray(svc?.whatIncluded)
@@ -536,6 +538,7 @@ const catalogModalItems = computed<ServiceModalItem[]>(() =>
         durationMinutes: service.durationMinutes,
         priceCents: service.priceCents,
         currency: service.currency || 'USD',
+        documentMode: isServicesPage.value,
         image: resolvedImage,
         images,
         bullets: Array.isArray(service.whatIncluded)

@@ -15,6 +15,7 @@ type ServiceDetailItem = {
   durationMinutes?: number | null;
   priceCents?: number | null;
   currency?: string | null;
+  documentMode?: boolean;
   images: DisplayMedia[];
   bullets?: string[];
 };
@@ -105,7 +106,7 @@ const onImageLoad = (event: Event) => {
   const target = event.target;
   if (!(target instanceof HTMLImageElement)) return;
   const ratio = target.naturalWidth > 0 ? target.naturalHeight / target.naturalWidth : 1;
-  isDocumentLike.value = ratio > 1.18;
+  isDocumentLike.value = Boolean(props.service?.documentMode) && ratio > 1.18;
   if (!hasManualZoom.value) {
     zoomLevel.value = isDocumentLike.value ? 1.9 : 1;
   }
