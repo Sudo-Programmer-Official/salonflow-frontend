@@ -83,7 +83,13 @@ export async function createPromotion(payload: {
   return res.json();
 }
 
-export async function sendPromotion(id: string): Promise<{ ok: true }> {
+export async function sendPromotion(id: string): Promise<{
+  ok: true;
+  paused?: boolean;
+  pausedReason?: 'NO_CREDITS' | 'SMS_CAP_REACHED';
+  pendingRemaining?: number;
+  processedCount?: number;
+}> {
   const res = await fetch(apiUrl(`/promotions/${id}/send`), {
     method: 'POST',
     headers: buildHeaders({ auth: true, tenant: true, json: true }),

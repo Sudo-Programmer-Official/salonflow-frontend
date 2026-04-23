@@ -806,8 +806,22 @@ const confirmSend = async () => {
   sendConfirm.value.open = false;
   sending.value = id;
   try {
-    await sendPromotion(id);
-    ElMessage.success('Promotion send started');
+    const result = await sendPromotion(id);
+    if (result.paused && result.pausedReason === 'NO_CREDITS') {
+      ElMessage.warning(
+        result.processedCount
+          ? `Credits ran out. ${result.pendingRemaining ?? 0} customers remain pending.`
+          : `No SMS credits available. ${result.pendingRemaining ?? 0} customers remain pending.`,
+      );
+    } else if (result.paused && result.pausedReason === 'SMS_CAP_REACHED') {
+      ElMessage.warning(
+        result.processedCount
+          ? `Daily SMS cap reached. ${result.pendingRemaining ?? 0} customers remain pending.`
+          : `Daily SMS cap reached. No additional customers were sent.`,
+      );
+    } else {
+      ElMessage.success('Promotion send started');
+    }
     ensurePolling(id);
     await loadPromotions();
   } catch (err: any) {
