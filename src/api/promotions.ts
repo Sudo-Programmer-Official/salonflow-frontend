@@ -173,7 +173,10 @@ export async function fetchPromotionStats(id: string): Promise<{
   pending: number;
   sent: number;
   failed: number;
+  retryable?: number;
   blocked_cap?: number;
+  no_credits?: number;
+  sms_cap_reached?: number;
   canceled?: number;
   simulated: number;
   redeemed: number;

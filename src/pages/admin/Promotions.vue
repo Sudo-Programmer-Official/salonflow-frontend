@@ -763,12 +763,36 @@ const sendDisabledReason = (promo: Promotion) => {
 
 const softCap = 1000;
 
+const sendConfirmIsRetry = computed(() => {
+  const stats = sendConfirm.value.stats;
+  return Boolean(stats && (stats.total ?? 0) > 0);
+});
+
+const sendConfirmTargetCount = computed(() => {
+  const stats = sendConfirm.value.stats;
+  const promo = sendConfirm.value.promo;
+  if (!stats) return promo?.recipientTotal ?? 0;
+  if ((stats.total ?? 0) > 0) {
+    return stats.retryable ?? stats.pending ?? 0;
+  }
+  return stats.customerTotal ?? promo?.recipientTotal ?? stats.total ?? 0;
+});
+
 const handleSend = async (id: string) => {
   try {
     const stats = await fetchPromotionStats(id);
     statsMap.value[id] = stats;
     const promo = promotions.value.find((p) => p.id === id) || null;
     const total = stats.customerTotal ?? promo?.recipientTotal ?? stats.total ?? 0;
+    const targetCount = (stats.total ?? 0) > 0 ? (stats.retryable ?? stats.pending ?? 0) : total;
+    if (targetCount === 0) {
+      ElMessage.warning(
+        (stats.total ?? 0) > 0
+          ? 'No remaining retryable customers for this promotion.'
+          : 'Cannot send: no recipients for this promotion.',
+      );
+      return;
+    }
     if (total === 0) {
       ElMessage.warning('Cannot send: no recipients for this promotion.');
       return;
@@ -1037,11 +1061,11 @@ loadPromotions();
       <div v-if="sendConfirm.promo" class="space-y-3 text-sm text-slate-800">
         <div class="font-semibold">{{ sendConfirm.promo.name }}</div>
         <div class="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
-          You are about to send to
+          {{ sendConfirmIsRetry ? 'This resend will target' : 'You are about to send to' }}
           <span class="font-semibold">
-            {{ sendConfirm.stats?.customerTotal ?? sendConfirm.promo.recipientTotal ?? sendConfirm.stats?.total ?? 0 }}
+            {{ sendConfirmTargetCount }}
           </span>
-          customers.
+          {{ sendConfirmIsRetry ? 'remaining customers.' : 'customers.' }}
         </div>
         <div class="rounded-md bg-slate-50 border border-slate-200 p-3 space-y-1">
           <div>SMS recipients: {{ sendConfirm.stats?.per_channel?.sms?.total ?? 0 }}</div>
@@ -1050,11 +1074,14 @@ loadPromotions();
             Customer total: {{ sendConfirm.stats?.customerTotal ?? sendConfirm.promo.recipientTotal ?? '—' }}
           </div>
           <div class="text-xs text-slate-600">Total message deliveries: {{ sendConfirm.stats?.total ?? 0 }}</div>
+          <div v-if="sendConfirmIsRetry" class="text-xs text-emerald-700">
+            Already sent customers will not receive the message again.
+          </div>
           <div
-            v-if="(sendConfirm.stats?.customerTotal ?? sendConfirm.promo.recipientTotal ?? sendConfirm.stats?.total ?? 0) > softCap"
+            v-if="sendConfirmTargetCount > softCap"
             class="mt-2 rounded-md bg-amber-50 px-3 py-2 text-amber-800 text-xs"
           >
-            Large send: {{ sendConfirm.stats?.customerTotal ?? sendConfirm.promo.recipientTotal ?? sendConfirm.stats?.total ?? 0 }} customers. Proceed?
+            Large send: {{ sendConfirmTargetCount }} customers. Proceed?
           </div>
         </div>
         <p class="text-xs text-slate-600">
