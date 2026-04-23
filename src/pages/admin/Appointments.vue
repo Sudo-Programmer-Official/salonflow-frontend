@@ -16,6 +16,7 @@ import {
   ElTableColumn,
 } from 'element-plus';
 
+import AppointmentActionsMenu from '../../components/admin/AppointmentActionsMenu.vue';
 import {
   cancelAppointment,
   completeAppointment,
@@ -642,6 +643,20 @@ const handleConfirm = async (id: string) => {
   }
 };
 
+const handlePrimaryAction = async ({
+  appointment,
+  action,
+}: {
+  appointment: Appointment;
+  action: 'confirm' | 'complete';
+}) => {
+  if (action === 'confirm') {
+    await handleConfirm(appointment.id);
+    return;
+  }
+  await handleComplete(appointment.id);
+};
+
 const appointmentRowClassName = ({ row }: { row: Appointment }) =>
   row.id === highlightedAppointmentId.value ? 'appointment-row--highlighted' : '';
 </script>
@@ -769,58 +784,18 @@ const appointmentRowClassName = ({ row }: { row: Appointment }) =>
               </span>
             </template>
           </ElTableColumn>
-          <ElTableColumn label="Actions" min-width="360">
+          <ElTableColumn label="Actions" min-width="176" align="right">
             <template #default="{ row }">
-              <div class="flex flex-wrap gap-2">
-                <ElButton
-                  size="small"
-                  class="sf-btn sf-btn--table"
-                  @click="openView(row)"
-                  :disabled="actionLoading[row.id]"
-                >
-                  View
-                </ElButton>
-                <ElButton
-                  v-if="canManageAppointments"
-                  size="small"
-                  type="primary"
-                  class="sf-btn sf-btn--table"
-                  @click="openEdit(row)"
-                  :disabled="actionLoading[row.id]"
-                >
-                  Edit
-                </ElButton>
-                <ElButton
-                  v-if="canManageAppointments && row.status !== 'CANCELED' && row.status !== 'COMPLETED'"
-                  size="small"
-                  type="danger"
-                  class="sf-btn sf-btn--table"
-                  :loading="actionLoading[row.id]"
-                  @click="handleCancel(row.id)"
-                >
-                  Cancel
-                </ElButton>
-                <ElButton
-                  v-if="canManageAppointments && row.status === 'PENDING'"
-                  size="small"
-                  type="success"
-                  class="sf-btn sf-btn--table"
-                  :loading="actionLoading[row.id]"
-                  @click="handleConfirm(row.id)"
-                >
-                  Confirm
-                </ElButton>
-                <ElButton
-                  v-if="canManageAppointments && (row.status === 'CONFIRMED' || row.status === 'CHECKED_IN')"
-                  size="small"
-                  type="success"
-                  class="sf-btn sf-btn--table"
-                  :loading="actionLoading[row.id]"
-                  @click="handleComplete(row.id)"
-                >
-                  Complete
-                </ElButton>
-              </div>
+              <AppointmentActionsMenu
+                :appointment="row"
+                :disabled="Boolean(actionLoading[row.id])"
+                :loading="Boolean(actionLoading[row.id])"
+                :can-manage="canManageAppointments"
+                @view="openView"
+                @edit="openEdit"
+                @cancel="handleCancel($event.id)"
+                @primary="handlePrimaryAction"
+              />
             </template>
           </ElTableColumn>
         </ElTable>

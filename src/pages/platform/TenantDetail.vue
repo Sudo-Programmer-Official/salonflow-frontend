@@ -233,6 +233,21 @@ const isDirty = computed(() => {
   return fields.some((f) => controlDraft.value[f] !== controls.value?.[f]);
 });
 
+const hasDraftChanges = (sectionFields: (keyof TenantControl)[]) => {
+  if (!controls.value) return false;
+  return sectionFields.some((f) => controlDraft.value[f] !== controls.value?.[f]);
+};
+
+const capsFields: (keyof TenantControl)[] = ['sms_daily_cap', 'email_daily_cap', 'frozen'];
+const capsDirty = computed(() => hasDraftChanges(capsFields));
+
+const resetCapsDraft = () => {
+  if (!controls.value) return;
+  controlDraft.value.sms_daily_cap = controls.value.sms_daily_cap;
+  controlDraft.value.email_daily_cap = controls.value.email_daily_cap;
+  controlDraft.value.frozen = controls.value.frozen;
+};
+
 const buildPayload = () => {
   if (!controls.value) return {};
   const payload: Record<string, any> = {};
@@ -576,6 +591,20 @@ const reconcileBilling = async () => {
               <ElSwitch v-model="controlDraft.frozen" :disabled="savingControls" />
             </ElFormItem>
             <p class="text-2xs text-slate-500 mb-2">Freeze halts SMS and email regardless of caps.</p>
+            <div class="mb-3 flex flex-wrap items-center gap-2">
+              <ElButton size="small" @click="resetCapsDraft" :disabled="!capsDirty || savingControls">
+                Reset caps
+              </ElButton>
+              <ElButton
+                type="primary"
+                size="small"
+                :loading="savingControls"
+                :disabled="!capsDirty || savingControls"
+                @click="saveControls"
+              >
+                Save caps
+              </ElButton>
+            </div>
             <ElButton size="small" @click="resetUsage" :disabled="savingControls">Reset usage timestamp</ElButton>
             <div class="mt-4 space-y-2">
               <div class="text-sm font-semibold">Grant SMS credits</div>
