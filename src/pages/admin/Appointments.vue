@@ -769,8 +769,19 @@ const appointmentRowClassName = ({ row }: { row: Appointment }) =>
             </template>
           </ElTableColumn>
           <ElTableColumn prop="serviceName" label="Service" min-width="140" />
-          <ElTableColumn prop="staffName" label="Staff" min-width="120" />
-          <ElTableColumn prop="preferredTech" label="Preferred Tech" min-width="140" />
+          <ElTableColumn label="Staff" min-width="160">
+            <template #default="{ row }">
+              <div class="flex flex-col gap-0.5">
+                <span>{{ row.staffName || '—' }}</span>
+                <span
+                  v-if="row.preferredTech && row.preferredTech !== row.staffName"
+                  class="text-xs text-slate-500"
+                >
+                  Prefers {{ row.preferredTech }}
+                </span>
+              </div>
+            </template>
+          </ElTableColumn>
           <ElTableColumn
             prop="scheduledAt"
             label="Time"

@@ -126,17 +126,20 @@ const handleCommand = (command: MenuAction) => {
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
+  flex-wrap: nowrap;
   gap: 0.5rem;
   width: 100%;
 }
 
 .appointment-actions-menu__primary {
+  flex: 0 0 auto;
   min-height: 2.75rem;
   padding-inline: 1rem;
   border-radius: 999px;
 }
 
 .appointment-actions-menu__trigger {
+  flex: 0 0 auto;
   min-width: 2.75rem;
   min-height: 2.75rem;
   border-radius: 999px;
