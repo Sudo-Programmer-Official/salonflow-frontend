@@ -2,6 +2,18 @@ import { apiUrl, buildHeaders } from './client';
 
 export type PromotionStatus = 'DRAFT' | 'SCHEDULED' | 'SENDING' | 'ACTIVE' | 'EXPIRED' | 'DISABLED';
 
+export type PromotionAudienceFilters = {
+  visitedAfter?: string | null;
+  visitedBefore?: string | null;
+  minVisits?: number | null;
+};
+
+export type PromotionSendWindow = {
+  allowedDays?: number[] | null;
+  sendTimeStart?: string | null;
+  sendTimeEnd?: string | null;
+};
+
 export type Promotion = {
   id: string;
   name: string;
@@ -21,6 +33,9 @@ export type Promotion = {
   redeemedCount: number;
   audienceSnapshotJson?: any;
   recipientTotal?: number | null;
+  scheduledAt?: string | null;
+  audienceFilters?: PromotionAudienceFilters | null;
+  sendWindow?: PromotionSendWindow | null;
 };
 
 export async function fetchPromotions(status?: 'active' | 'expired'): Promise<Promotion[]> {
@@ -48,6 +63,9 @@ export async function createPromotion(payload: {
   startAt: string;
   endAt: string;
   oneTimeUse?: boolean;
+  scheduledAt?: string | null;
+  audienceFilters?: PromotionAudienceFilters | null;
+  sendWindow?: PromotionSendWindow | null;
 }): Promise<Promotion> {
   const res = await fetch(apiUrl('/promotions'), {
     method: 'POST',
@@ -127,12 +145,15 @@ export async function testPromotionEmail(email: string, subject: string, message
 export async function previewPromotion(payload: {
   audience: string[];
   channels: ('sms' | 'email')[];
+  audienceFilters?: PromotionAudienceFilters | null;
 }): Promise<{
+  totalRecipients: number;
   smsCount: number;
   emailCount: number;
   excluded: { sms: { noPhone: number; noConsent: number }; email: { noEmail: number; noConsent: number } };
+  sample: Array<{ name: string; lastVisit: string | null; visitCount: number }>;
 }> {
-  const res = await fetch(apiUrl('/promotions/preview'), {
+  const res = await fetch(apiUrl('/promotions/preview-audience'), {
     method: 'POST',
     headers: buildHeaders({ auth: true, tenant: true, json: true }),
     body: JSON.stringify(payload),
@@ -148,6 +169,7 @@ export async function previewPromotion(payload: {
 
 export async function fetchPromotionStats(id: string): Promise<{
   total: number;
+  customerTotal?: number | null;
   pending: number;
   sent: number;
   failed: number;

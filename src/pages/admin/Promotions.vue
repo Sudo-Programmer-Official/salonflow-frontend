@@ -16,6 +16,8 @@ import {
   ElTooltip,
   ElSelect,
   ElOption,
+  ElSwitch,
+  ElTimeSelect,
 } from 'element-plus';
 import {
   fetchPromotions,
@@ -23,6 +25,7 @@ import {
   testPromotion,
   sendPromotion,
   type Promotion,
+  type PromotionAudienceFilters,
   fetchPromotionStats,
   disablePromotion,
   testPromotionMessage,
@@ -30,8 +33,7 @@ import {
   previewPromotion,
 } from '../../api/promotions';
 import { fetchOnboardingStatus } from '../../api/onboarding';
-import { isWithinTcpaWindow, getBusinessTimezone } from '../../utils/dates';
-import dayjs from 'dayjs';
+import { dayjs, formatInBusinessTz, getBusinessTimezone, isWithinTcpaWindow } from '../../utils/dates';
 import { generateAiSuggestions } from '../../api/smartReminders';
 
 const activeTab = ref<'active' | 'expired'>('active');
@@ -48,8 +50,9 @@ const testing = ref<string | null>(null);
 const testingCreate = ref(false);
 const testingEmail = ref(false);
 const previewing = ref(false);
-const previewCounts = ref<{ sms: number; email: number } | null>(null);
+const previewCounts = ref<{ totalRecipients: number; sms: number; email: number } | null>(null);
 const previewExcluded = ref<any>(null);
+const previewSample = ref<Array<{ name: string; lastVisit: string | null; visitCount: number }>>([]);
 const aiDialog = ref(false);
 const aiLoading = ref(false);
 const aiSuggestions = ref<string[]>([]);
@@ -66,7 +69,7 @@ const disableConfirm = ref<{ open: boolean; id: string | null }>({ open: false, 
 const viewDrawer = ref<{ open: boolean; promo: Promotion | null }>({ open: false, promo: null });
 
 const filteredPromotions = computed(() =>
-  promotions.value.filter((p) => (activeTab.value === 'active' ? p.status === 'ACTIVE' : p.status === 'EXPIRED')),
+  promotions.value.filter((p) => (activeTab.value === 'active' ? p.status !== 'EXPIRED' : p.status === 'EXPIRED')),
 );
 
 const audienceOptions = [
@@ -76,6 +79,16 @@ const audienceOptions = [
   { label: 'New', value: 'new' },
   { label: 'At-risk', value: 'atrisk' },
   { label: 'Booking users', value: 'booking' },
+];
+
+const weekdayOptions = [
+  { label: 'Sun', value: 0 },
+  { label: 'Mon', value: 1 },
+  { label: 'Tue', value: 2 },
+  { label: 'Wed', value: 3 },
+  { label: 'Thu', value: 4 },
+  { label: 'Fri', value: 5 },
+  { label: 'Sat', value: 6 },
 ];
 
 const mapSmsTestError = (code?: string) => {
@@ -114,19 +127,25 @@ const form = reactive({
   startDate: '',
   endDate: '',
   oneTimeUse: false,
+  visitedAfter: '',
+  visitedBefore: '',
+  minVisits: null as number | null,
   businessName: '',
   message: '',
   appendStop: true,
   appendExpiry: true,
   sendWhen: 'now' as 'now' | 'schedule',
   scheduleAt: '',
+  allowedDays: [] as number[],
+  sendTimeStart: '',
+  sendTimeEnd: '',
   testPhone: '',
   testEmail: '',
   channel: 'sms' as 'sms' | 'email' | 'both',
   emailSubject: 'SalonFlow promotion',
 });
 
-const scheduleDate = ref<string | Date | null>(null);
+const scheduleDate = ref<string | null>(null);
 const scheduleHour = ref(10);
 const scheduleMinute = ref(0);
 const scheduleMeridiem = ref<'AM' | 'PM'>('AM');
@@ -134,6 +153,12 @@ const scheduleMeridiem = ref<'AM' | 'PM'>('AM');
 const charCount = computed(() => form.message.length);
 const businessTz = computed(() => getBusinessTimezone());
 const tcpaWarning = ref('');
+
+const clearPreview = () => {
+  previewCounts.value = null;
+  previewExcluded.value = null;
+  previewSample.value = [];
+};
 
 const evaluateTcpa = () => {
   const inWindow = isWithinTcpaWindow(undefined, businessTz.value);
@@ -145,6 +170,66 @@ const evaluateTcpa = () => {
   }
 };
 
+const buildAudienceFilters = (): PromotionAudienceFilters | null => {
+  const visitedAfter = form.visitedAfter ? buildDateBoundaryIso(form.visitedAfter, 'start') : null;
+  const visitedBefore = form.visitedBefore ? buildDateBoundaryIso(form.visitedBefore, 'end') : null;
+  const minVisits =
+    form.minVisits == null || Number.isNaN(Number(form.minVisits))
+      ? null
+      : Number(form.minVisits);
+
+  if (!visitedAfter && !visitedBefore && minVisits == null) {
+    return null;
+  }
+
+  return {
+    visitedAfter,
+    visitedBefore,
+    minVisits,
+  };
+};
+
+const buildSendWindow = () => {
+  const allowedDays = [...form.allowedDays].sort((left, right) => left - right);
+  const sendTimeStart = form.sendTimeStart?.trim() || null;
+  const sendTimeEnd = form.sendTimeEnd?.trim() || null;
+
+  if (!allowedDays.length && !sendTimeStart && !sendTimeEnd) {
+    return null;
+  }
+
+  return {
+    allowedDays: allowedDays.length ? allowedDays : null,
+    sendTimeStart,
+    sendTimeEnd,
+  };
+};
+
+const buildDateBoundaryIso = (dateValue: string, boundary: 'start' | 'end') => {
+  if (!dateValue) return '';
+  const clock = boundary === 'start' ? '00:00:00' : '23:59:59';
+  const local = dayjs.tz(`${dateValue}T${clock}`, businessTz.value);
+  return (boundary === 'end' ? local.millisecond(999) : local).toISOString();
+};
+
+const timeValueToMinutes = (value: string) => {
+  const [hour = 0, minute = 0] = value.split(':').map((part) => Number(part));
+  return hour * 60 + minute;
+};
+
+const selectedWeekdaysLabel = computed(() => {
+  const labels = weekdayOptions
+    .filter((option) => form.allowedDays.includes(option.value))
+    .map((option) => option.label);
+  return labels.length ? labels.join(', ') : 'Any day';
+});
+
+const sendWindowLabel = computed(() => {
+  if (!form.sendTimeStart && !form.sendTimeEnd) return 'Any time';
+  if (!form.sendTimeStart || !form.sendTimeEnd) return 'Incomplete time window';
+  return `${form.sendTimeStart} to ${form.sendTimeEnd}`;
+});
+
 evaluateTcpa();
 
 const resetForm = () => {
@@ -155,20 +240,29 @@ const resetForm = () => {
   form.startDate = '';
   form.endDate = '';
   form.oneTimeUse = false;
+  form.visitedAfter = '';
+  form.visitedBefore = '';
+  form.minVisits = null;
   form.businessName = '';
   form.message = '';
   form.appendStop = true;
   form.appendExpiry = true;
   form.sendWhen = 'now';
   form.scheduleAt = '';
+  form.allowedDays = [];
+  form.sendTimeStart = '';
+  form.sendTimeEnd = '';
   form.testPhone = '';
   form.testEmail = '';
   form.channel = 'sms';
   form.emailSubject = 'SalonFlow promotion';
-  scheduleDate.value = '';
+  scheduleDate.value = null;
   scheduleHour.value = 10;
   scheduleMinute.value = 0;
   scheduleMeridiem.value = 'AM';
+  previewCounts.value = null;
+  previewExcluded.value = null;
+  previewSample.value = [];
   evaluateTcpa();
   wizardStep.value = 1;
   form.businessName = businessNameCached.value || '';
@@ -184,11 +278,13 @@ const openCreate = () => {
 const loadPromotions = async () => {
   loading.value = true;
   try {
-    const status = activeTab.value === 'active' ? 'active' : 'expired';
-    promotions.value = await fetchPromotions(status as any);
+    promotions.value = await fetchPromotions(activeTab.value === 'expired' ? 'expired' : undefined);
+    const visiblePromotions = promotions.value.filter((promo) =>
+      activeTab.value === 'expired' ? promo.status === 'EXPIRED' : promo.status !== 'EXPIRED',
+    );
     // Warm stats map so we have totals for audience counts/summary bars.
     await Promise.all(
-      promotions.value.map(async (p) => {
+      visiblePromotions.map(async (p) => {
         try {
           const stats = await fetchPromotionStats(p.id);
           statsMap.value[p.id] = stats;
@@ -199,7 +295,8 @@ const loadPromotions = async () => {
     );
     promotions.value.forEach((p) => {
       const stat = statsMap.value[p.id];
-      if (p.status === 'SENDING' || (stat && stat.pending > 0)) {
+      const isVisible = activeTab.value === 'expired' ? p.status === 'EXPIRED' : p.status !== 'EXPIRED';
+      if (isVisible && (p.status === 'SENDING' || (stat && stat.pending > 0))) {
         ensurePolling(p.id);
       } else {
         stopPolling(p.id);
@@ -276,6 +373,8 @@ const submit = async () => {
   }
   saving.value = true;
   try {
+    const audienceFilters = buildAudienceFilters();
+    const sendWindow = buildSendWindow();
     const channels: ('sms' | 'email')[] =
       form.channel === 'sms' ? ['sms'] : form.channel === 'email' ? ['email'] : ['sms', 'email'];
     const payload = {
@@ -288,14 +387,27 @@ const submit = async () => {
       emailSubject: form.channel === 'email' || form.channel === 'both' ? form.emailSubject.trim() : null,
       emailBody: form.channel === 'email' || form.channel === 'both' ? form.message.trim() : null,
       emailBodyText: form.channel === 'email' || form.channel === 'both' ? form.message.trim() : null,
-      startAt: form.startDate,
-      endAt: form.endDate,
+      startAt: buildDateBoundaryIso(form.startDate, 'start'),
+      endAt: buildDateBoundaryIso(form.endDate, 'end'),
       oneTimeUse: form.oneTimeUse,
+      scheduledAt: form.sendWhen === 'schedule' ? form.scheduleAt || buildScheduleIso() : null,
+      audienceFilters,
+      sendWindow,
     };
     const created = await createPromotion(payload);
     addOptimistic(created);
     dialogOpen.value = false;
     ElMessage.success('Promotion saved');
+  } catch (err: any) {
+    if (err?.code === 'SEND_WINDOW_INVALID') {
+      ElMessage.error(err?.message || 'Send window is invalid');
+    } else if (err?.code === 'SCHEDULE_IN_PAST') {
+      ElMessage.error('Schedule time must be in the future.');
+    } else if (err?.code === 'WEEKLY_LIMIT_EXCEEDED') {
+      ElMessage.error('Only one promotion per week is allowed.');
+    } else {
+      ElMessage.error(err?.message || 'Failed to save promotion');
+    }
   } finally {
     saving.value = false;
   }
@@ -451,7 +563,10 @@ const buildScheduleIso = () => {
   if (!scheduleDate.value) return '';
   let hour = scheduleHour.value % 12;
   if (scheduleMeridiem.value === 'PM') hour += 12;
-  const base = dayjs(scheduleDate.value).hour(hour).minute(scheduleMinute.value).second(0).millisecond(0);
+  const base = dayjs.tz(
+    `${scheduleDate.value}T${String(hour).padStart(2, '0')}:${String(scheduleMinute.value).padStart(2, '0')}:00`,
+    businessTz.value,
+  );
   return base.toISOString();
 };
 
@@ -471,6 +586,14 @@ const validateStep = (step: number) => {
       ElMessage.warning('Select at least one audience');
       return false;
     }
+    if (form.visitedAfter && form.visitedBefore && dayjs(form.visitedAfter).isAfter(dayjs(form.visitedBefore))) {
+      ElMessage.warning('Visited-after date must be on or before visited-before date');
+      return false;
+    }
+    if (form.minVisits != null && (!Number.isInteger(form.minVisits) || form.minVisits < 1)) {
+      ElMessage.warning('Minimum visits must be at least 1');
+      return false;
+    }
   }
   if (step === 3) {
     if (!form.message.trim()) {
@@ -482,25 +605,53 @@ const validateStep = (step: number) => {
       return false;
     }
   }
-  if (step === 4 && form.sendWhen === 'schedule') {
-    if (!scheduleDate.value) {
-      ElMessage.warning('Pick a schedule date');
+  if (step === 4) {
+    if (!form.startDate || !form.endDate) {
+      ElMessage.warning('Start and end dates are required');
       return false;
     }
-    const iso = buildScheduleIso();
-    if (!iso) return false;
-    const scheduled = dayjs(iso);
-    if (!scheduled.isValid() || scheduled.isBefore(dayjs())) {
-      ElMessage.warning('Schedule time must be in the future');
+    if (dayjs(form.endDate).isBefore(dayjs(form.startDate))) {
+      ElMessage.warning('End date must be on or after the start date');
       return false;
     }
-    form.scheduleAt = iso;
+    if ((form.sendTimeStart && !form.sendTimeEnd) || (!form.sendTimeStart && form.sendTimeEnd)) {
+      ElMessage.warning('Select both a send start time and end time');
+      return false;
+    }
+    if (
+      form.sendTimeStart &&
+      form.sendTimeEnd &&
+      timeValueToMinutes(form.sendTimeEnd) <= timeValueToMinutes(form.sendTimeStart)
+    ) {
+      ElMessage.warning('Send end time must be after the start time');
+      return false;
+    }
+    if (form.sendWhen === 'schedule') {
+      if (!scheduleDate.value) {
+        ElMessage.warning('Pick a schedule date');
+        return false;
+      }
+      const iso = buildScheduleIso();
+      if (!iso) return false;
+      const scheduled = dayjs(iso);
+      if (!scheduled.isValid() || scheduled.isBefore(dayjs())) {
+        ElMessage.warning('Schedule time must be in the future');
+        return false;
+      }
+      form.scheduleAt = iso;
+    } else {
+      form.scheduleAt = '';
+    }
   }
   return true;
 };
 
-const nextStep = () => {
+const nextStep = async () => {
   if (!validateStep(wizardStep.value)) return;
+  if (wizardStep.value === 2) {
+    const previewOk = await handlePreview(true);
+    if (!previewOk) return;
+  }
   if (wizardStep.value < totalSteps) wizardStep.value += 1;
 };
 
@@ -509,6 +660,7 @@ const prevStep = () => {
 };
 
 const onAudienceChange = (vals: any[]) => {
+  clearPreview();
   if (vals.includes('all')) {
     form.audiences = ['all'];
   } else {
@@ -516,42 +668,92 @@ const onAudienceChange = (vals: any[]) => {
   }
 };
 
-const recipientTotal = (promo: Promotion) => {
+const customerRecipientTotal = (promo: Promotion) => {
   const stats = statsMap.value[promo.id];
-  if (stats && typeof stats.total === 'number') return stats.total;
+  if (stats && typeof stats.customerTotal === 'number') return stats.customerTotal;
   const total = (promo as any).recipientTotal;
   return typeof total === 'number' ? total : null;
 };
 
-const recipientSummaryLabel = (promo: Promotion) => {
-  const total = recipientTotal(promo);
-  if (total === 0) return 'Recipients: 0 (none match audience)';
-  if (total) return `Recipients: ${total}`;
-  return 'Recipients: not calculated yet';
+const deliveryTotal = (promo: Promotion) => {
+  const stats = statsMap.value[promo.id];
+  if (stats && typeof stats.total === 'number') return stats.total;
+  return customerRecipientTotal(promo);
 };
 
-const handlePreview = async () => {
+const recipientSummaryLabel = (promo: Promotion) => {
+  const total = customerRecipientTotal(promo);
+  if (total === 0) return 'Customers: 0 (none match audience)';
+  if (total) return `Customers: ${total}`;
+  return 'Customers: not calculated yet';
+};
+
+const promotionStatusLabel = (promo: Promotion) => {
+  switch (promo.status) {
+    case 'ACTIVE':
+      return 'Active';
+    case 'SCHEDULED':
+      return 'Scheduled';
+    case 'SENDING':
+      return 'Sending';
+    case 'DISABLED':
+      return 'Disabled';
+    default:
+      return 'Expired';
+  }
+};
+
+const promotionStatusTagType = (promo: Promotion) => {
+  switch (promo.status) {
+    case 'ACTIVE':
+      return 'success';
+    case 'SCHEDULED':
+      return 'warning';
+    default:
+      return 'info';
+  }
+};
+
+const handlePreview = async (silent = false) => {
   previewing.value = true;
-  previewCounts.value = null;
-  previewExcluded.value = null;
+  clearPreview();
   try {
     const channels: ('sms' | 'email')[] =
       form.channel === 'sms' ? ['sms'] : form.channel === 'email' ? ['email'] : ['sms', 'email'];
     const result = await previewPromotion({
       audience: form.audiences,
       channels,
+      audienceFilters: buildAudienceFilters(),
     });
-    previewCounts.value = { sms: result.smsCount, email: result.emailCount };
+    previewCounts.value = {
+      totalRecipients: result.totalRecipients,
+      sms: result.smsCount,
+      email: result.emailCount,
+    };
     previewExcluded.value = result.excluded;
+    previewSample.value = result.sample;
+    return true;
   } catch (err: any) {
-    ElMessage.error(err?.message || 'Failed to preview audience');
+    if (!silent) {
+      ElMessage.error(err?.message || 'Failed to preview audience');
+    }
+    return false;
   } finally {
     previewing.value = false;
   }
 };
 
+const previewAudience = async () => handlePreview(false);
+
 const sendDisabledReason = (promo: Promotion) => {
-  const total = recipientTotal(promo);
+  if (promo.status === 'DISABLED') return 'Promotion disabled';
+  if (promo.status === 'SCHEDULED' && promo.scheduledAt && dayjs(promo.scheduledAt).isAfter(dayjs())) {
+    return `Scheduled for ${formatInBusinessTz(promo.scheduledAt, 'MMM D, YYYY h:mm A', businessTz.value)}`;
+  }
+  if (promo.status === 'SCHEDULED' && promo.startAt && dayjs(promo.startAt).isAfter(dayjs())) {
+    return `Starts on ${formatInBusinessTz(promo.startAt, 'MMM D, YYYY', businessTz.value)}`;
+  }
+  const total = customerRecipientTotal(promo);
   if (total === 0) return 'No recipients match this audience';
   if ((statsMap.value[promo.id]?.pending ?? 0) > 0 || promo.status === 'SENDING') {
     return 'Send in progress';
@@ -566,7 +768,7 @@ const handleSend = async (id: string) => {
     const stats = await fetchPromotionStats(id);
     statsMap.value[id] = stats;
     const promo = promotions.value.find((p) => p.id === id) || null;
-    const total = stats.total ?? 0;
+    const total = stats.customerTotal ?? promo?.recipientTotal ?? stats.total ?? 0;
     if (total === 0) {
       ElMessage.warning('Cannot send: no recipients for this promotion.');
       return;
@@ -701,19 +903,8 @@ loadPromotions();
               <td class="text-sm text-slate-700">{{ promo.sentCount }}</td>
               <td class="text-sm text-slate-700">{{ promo.redeemedCount }}</td>
               <td>
-                <ElTag
-                  :type="promo.status === 'ACTIVE' ? 'success' : promo.status === 'SCHEDULED' ? 'warning' : 'info'"
-                  effect="light"
-                >
-                  {{
-                    promo.status === 'ACTIVE'
-                      ? 'Active'
-                      : promo.status === 'SCHEDULED'
-                      ? 'Scheduled'
-                      : promo.status === 'DISABLED'
-                      ? 'Disabled'
-                      : 'Expired'
-                  }}
+                <ElTag :type="promotionStatusTagType(promo)" effect="light">
+                  {{ promotionStatusLabel(promo) }}
                 </ElTag>
               </td>
               <td class="text-right">
@@ -726,27 +917,27 @@ loadPromotions();
                       </span>
                     </div>
                     <div
-                      v-if="recipientTotal(promo)"
+                      v-if="deliveryTotal(promo)"
                       class="audience-bar"
                     >
                       <div
                         class="seg seg-sent"
-                        :style="{ width: `${Math.max(0, Math.min(100, Math.round(((statsMap[promo.id]?.sent ?? 0) / (recipientTotal(promo) || 1)) * 100)))}%` }"
+                        :style="{ width: `${Math.max(0, Math.min(100, Math.round(((statsMap[promo.id]?.sent ?? 0) / (deliveryTotal(promo) || 1)) * 100)))}%` }"
                         v-if="statsMap[promo.id]?.sent"
                       />
                       <div
                         class="seg seg-pending"
-                        :style="{ width: `${Math.max(0, Math.min(100, Math.round(((statsMap[promo.id]?.pending ?? 0) / (recipientTotal(promo) || 1)) * 100)))}%` }"
+                        :style="{ width: `${Math.max(0, Math.min(100, Math.round(((statsMap[promo.id]?.pending ?? 0) / (deliveryTotal(promo) || 1)) * 100)))}%` }"
                         v-if="statsMap[promo.id]?.pending"
                       />
                       <div
                         class="seg seg-failed"
-                        :style="{ width: `${Math.max(0, Math.min(100, Math.round(((statsMap[promo.id]?.failed ?? 0) / (recipientTotal(promo) || 1)) * 100)))}%` }"
+                        :style="{ width: `${Math.max(0, Math.min(100, Math.round(((statsMap[promo.id]?.failed ?? 0) / (deliveryTotal(promo) || 1)) * 100)))}%` }"
                         v-if="statsMap[promo.id]?.failed"
                       />
                       <div
                         class="seg seg-blocked"
-                        :style="{ width: `${Math.max(0, Math.min(100, Math.round(((statsMap[promo.id]?.blocked_cap ?? 0) / (recipientTotal(promo) || 1)) * 100)))}%` }"
+                        :style="{ width: `${Math.max(0, Math.min(100, Math.round(((statsMap[promo.id]?.blocked_cap ?? 0) / (deliveryTotal(promo) || 1)) * 100)))}%` }"
                         v-if="statsMap[promo.id]?.blocked_cap"
                       />
                     </div>
@@ -811,7 +1002,7 @@ loadPromotions();
                       size="small"
                       type="primary"
                       class="sf-btn sf-btn--table sf-btn--icon"
-                      :disabled="(statsMap[promo.id]?.pending ?? 0) > 0 || promo.status === 'SENDING' || recipientTotal(promo) === 0"
+                      :disabled="Boolean(sendDisabledReason(promo))"
                       :title="sendDisabledReason(promo) || 'Send promotion'"
                       :loading="sending === promo.id"
                       @click="handleSend(promo.id)"
@@ -845,15 +1036,25 @@ loadPromotions();
     <ElDialog v-model="sendConfirm.open" title="Confirm send" width="420px">
       <div v-if="sendConfirm.promo" class="space-y-3 text-sm text-slate-800">
         <div class="font-semibold">{{ sendConfirm.promo.name }}</div>
+        <div class="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
+          You are about to send to
+          <span class="font-semibold">
+            {{ sendConfirm.stats?.customerTotal ?? sendConfirm.promo.recipientTotal ?? sendConfirm.stats?.total ?? 0 }}
+          </span>
+          customers.
+        </div>
         <div class="rounded-md bg-slate-50 border border-slate-200 p-3 space-y-1">
           <div>SMS recipients: {{ sendConfirm.stats?.per_channel?.sms?.total ?? 0 }}</div>
           <div>Email recipients: {{ sendConfirm.stats?.per_channel?.email?.total ?? 0 }}</div>
-          <div class="text-xs text-slate-600">Total: {{ sendConfirm.stats?.total ?? 0 }}</div>
+          <div class="text-xs text-slate-600">
+            Customer total: {{ sendConfirm.stats?.customerTotal ?? sendConfirm.promo.recipientTotal ?? '—' }}
+          </div>
+          <div class="text-xs text-slate-600">Total message deliveries: {{ sendConfirm.stats?.total ?? 0 }}</div>
           <div
-            v-if="(sendConfirm.stats?.total ?? 0) > softCap"
+            v-if="(sendConfirm.stats?.customerTotal ?? sendConfirm.promo.recipientTotal ?? sendConfirm.stats?.total ?? 0) > softCap"
             class="mt-2 rounded-md bg-amber-50 px-3 py-2 text-amber-800 text-xs"
           >
-            Large send: {{ sendConfirm.stats?.total ?? 0 }} recipients. Proceed?
+            Large send: {{ sendConfirm.stats?.customerTotal ?? sendConfirm.promo.recipientTotal ?? sendConfirm.stats?.total ?? 0 }} customers. Proceed?
           </div>
         </div>
         <p class="text-xs text-slate-600">
@@ -880,6 +1081,7 @@ loadPromotions();
         </div>
         <div v-if="statsMap[viewDrawer.promo.id]" class="rounded-md border border-slate-200 bg-slate-50 p-3 space-y-1">
           <div class="text-xs font-semibold text-slate-600">Live stats</div>
+          <div class="text-xs text-slate-700">Customers: {{ statsMap[viewDrawer.promo.id].customerTotal ?? viewDrawer.promo.recipientTotal ?? '—' }}</div>
           <div class="text-xs text-slate-700">Total: {{ statsMap[viewDrawer.promo.id].total }}</div>
           <div class="text-xs text-slate-700">Pending: {{ statsMap[viewDrawer.promo.id].pending }}</div>
           <div class="text-xs text-slate-700">Sent: {{ statsMap[viewDrawer.promo.id].sent }}</div>
@@ -960,6 +1162,43 @@ loadPromotions();
                     </ElCheckbox>
                   </ElCheckboxGroup>
                 </div>
+                <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
+                  <div>
+                    <label class="text-sm font-medium text-slate-800">Visited after</label>
+                    <ElDatePicker
+                      v-model="form.visitedAfter"
+                      type="date"
+                      value-format="YYYY-MM-DD"
+                      placeholder="2025-01-01"
+                      class="w-full"
+                      @change="clearPreview"
+                    />
+                  </div>
+                  <div>
+                    <label class="text-sm font-medium text-slate-800">Visited before</label>
+                    <ElDatePicker
+                      v-model="form.visitedBefore"
+                      type="date"
+                      value-format="YYYY-MM-DD"
+                      placeholder="Optional"
+                      class="w-full"
+                      @change="clearPreview"
+                    />
+                  </div>
+                  <div>
+                    <label class="text-sm font-medium text-slate-800">Minimum visits</label>
+                    <ElInputNumber
+                      v-model="form.minVisits"
+                      :min="1"
+                      :step="1"
+                      class="w-full"
+                      @change="clearPreview"
+                    />
+                  </div>
+                </div>
+                <div class="rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-600">
+                  Leave filters empty to keep the current audience behavior. Add a visited window or minimum visits to target only recent customers.
+                </div>
                 <ElCheckbox v-model="form.oneTimeUse">One-time use per customer</ElCheckbox>
               </div>
             </ElCard>
@@ -971,13 +1210,15 @@ loadPromotions();
                 <div class="space-y-3">
                 <div class="space-y-1">
                   <label class="text-sm font-medium text-slate-800">Channel</label>
-                  <ElRadioGroup v-model="form.channel" size="default" class="mt-2 channel-group">
+                  <ElRadioGroup v-model="form.channel" size="default" class="mt-2 channel-group" @change="clearPreview">
                     <ElRadioButton label="sms">SMS</ElRadioButton>
                     <ElRadioButton label="email">Email</ElRadioButton>
                     <ElRadioButton label="both">Both</ElRadioButton>
                   </ElRadioGroup>
                     <p class="text-xs text-slate-600">
-                      Preview recipients:
+                      Preview customers:
+                      <span class="font-semibold">Total {{ previewCounts?.totalRecipients ?? '—' }}</span>
+                      ·
                       <span class="font-semibold">SMS {{ previewCounts?.sms ?? '—' }}</span>
                       ·
                       <span class="font-semibold">Email {{ previewCounts?.email ?? '—' }}</span>
@@ -985,7 +1226,7 @@ loadPromotions();
                         size="small"
                         class="ml-2"
                         :loading="previewing"
-                        @click="handlePreview"
+                        @click="previewAudience"
                       >
                         Refresh count
                       </ElButton>
@@ -995,6 +1236,16 @@ loadPromotions();
                       {{ previewExcluded.sms.noConsent }} · Email: no email {{ previewExcluded.email.noEmail }}, no consent
                       {{ previewExcluded.email.noConsent }}
                     </p>
+                    <div v-if="previewSample.length" class="rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-700">
+                      <div class="mb-2 font-semibold text-slate-800">Sample audience</div>
+                      <div v-for="sample in previewSample" :key="`${sample.name}-${sample.lastVisit || 'none'}-${sample.visitCount}`" class="flex items-center justify-between gap-3 py-1">
+                        <span>{{ sample.name }}</span>
+                        <span class="text-slate-500">
+                          {{ sample.lastVisit ? `Last visit ${formatInBusinessTz(sample.lastVisit, 'MMM D, YYYY', businessTz)}` : 'No visit recorded' }}
+                          · {{ sample.visitCount }} visit{{ sample.visitCount === 1 ? '' : 's' }}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                   <div>
                     <label class="text-sm font-medium text-slate-800">
@@ -1073,13 +1324,51 @@ loadPromotions();
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <label class="text-sm font-medium text-slate-800">Start date</label>
-                    <ElDatePicker v-model="form.startDate" type="date" placeholder="Start" class="w-full" />
+                    <ElDatePicker v-model="form.startDate" type="date" value-format="YYYY-MM-DD" placeholder="Start" class="w-full" />
                   </div>
                   <div>
                     <label class="text-sm font-medium text-slate-800">End date</label>
-                    <ElDatePicker v-model="form.endDate" type="date" placeholder="End" class="w-full" />
+                    <ElDatePicker v-model="form.endDate" type="date" value-format="YYYY-MM-DD" placeholder="End" class="w-full" />
                   </div>
                 </div>
+
+                <div class="space-y-2">
+                  <label class="text-sm font-medium text-slate-800">Allowed days</label>
+                  <ElCheckboxGroup v-model="form.allowedDays" class="audience-grid">
+                    <ElCheckbox v-for="option in weekdayOptions" :key="option.value" :label="option.value">
+                      {{ option.label }}
+                    </ElCheckbox>
+                  </ElCheckboxGroup>
+                  <p class="text-xs text-slate-500">Leave empty to allow any day. For Mon–Thu, select Mon, Tue, Wed, Thu.</p>
+                </div>
+
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <label class="text-sm font-medium text-slate-800">Send window start</label>
+                    <ElTimeSelect
+                      v-model="form.sendTimeStart"
+                      start="06:00"
+                      end="22:00"
+                      step="00:30"
+                      placeholder="09:00"
+                      class="w-full"
+                    />
+                  </div>
+                  <div>
+                    <label class="text-sm font-medium text-slate-800">Send window end</label>
+                    <ElTimeSelect
+                      v-model="form.sendTimeEnd"
+                      start="06:00"
+                      end="22:00"
+                      step="00:30"
+                      placeholder="18:00"
+                      class="w-full"
+                    />
+                  </div>
+                </div>
+                <p class="text-xs text-slate-500">
+                  Messages only send while the promotion is in date range, on the selected days, and inside this time window.
+                </p>
 
                 <div class="send-timing-row">
                   <div class="send-timing-label">
@@ -1096,7 +1385,13 @@ loadPromotions();
                   </div>
                 </div>
                 <div v-if="form.sendWhen === 'schedule'" class="mt-3 space-y-2">
-                  <ElDatePicker v-model="scheduleDate" type="date" placeholder="Select date" class="w-full" />
+                  <ElDatePicker
+                    v-model="scheduleDate"
+                    type="date"
+                    value-format="YYYY-MM-DD"
+                    placeholder="Select date"
+                    class="w-full"
+                  />
                   <div class="flex flex-wrap items-center gap-2">
                     <ElSelect v-model="scheduleHour" placeholder="HH" style="width: 90px">
                       <ElOption v-for="h in hourOptions" :key="h" :label="h.toString().padStart(2, '0')" :value="h" />
@@ -1115,7 +1410,22 @@ loadPromotions();
                       <ElOption label="PM" value="PM" />
                     </ElSelect>
                   </div>
-                  <p class="text-xs text-slate-500">12-hour format · seconds hidden · converts to your existing schedule payload.</p>
+                  <p class="text-xs text-slate-500">12-hour format. The first batch will wait until this scheduled time in the business timezone.</p>
+                </div>
+
+                <div class="rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700 space-y-2">
+                  <div class="font-semibold text-slate-900">
+                    You are about to send to {{ previewCounts?.totalRecipients ?? '—' }} customers
+                  </div>
+                  <div>Audience: {{ form.audiences.join(', ') }}</div>
+                  <div>Visit filters: {{ form.visitedAfter || form.visitedBefore || form.minVisits ? `After ${form.visitedAfter || 'any'}, before ${form.visitedBefore || 'any'}, min ${form.minVisits ?? 1} visit(s)` : 'None' }}</div>
+                  <div>Promotion window: {{ form.startDate || '—' }} to {{ form.endDate || '—' }}</div>
+                  <div>Allowed days: {{ selectedWeekdaysLabel }}</div>
+                  <div>Send time window: {{ sendWindowLabel }}</div>
+                  <div v-if="form.sendWhen === 'schedule' && (form.scheduleAt || scheduleDate)">
+                    Scheduled for: {{ formatInBusinessTz(form.scheduleAt || buildScheduleIso(), 'MMM D, YYYY h:mm A', businessTz) }}
+                  </div>
+                  <div v-else>Delivery mode: Send immediately</div>
                 </div>
               </div>
             </ElCard>
