@@ -755,9 +755,6 @@ const sendDisabledReason = (promo: Promotion) => {
   }
   const total = customerRecipientTotal(promo);
   if (total === 0) return 'No recipients match this audience';
-  if ((statsMap.value[promo.id]?.pending ?? 0) > 0 || promo.status === 'SENDING') {
-    return 'Send in progress';
-  }
   return '';
 };
 
