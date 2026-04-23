@@ -688,8 +688,16 @@ const recipientSummaryLabel = (promo: Promotion) => {
   return 'Customers: not calculated yet';
 };
 
+const effectivePromotionStatus = (promo: Promotion) => {
+  const stats = statsMap.value[promo.id];
+  if ((stats?.pending ?? 0) > 0 && promo.status !== 'DISABLED' && promo.status !== 'EXPIRED') {
+    return 'SENDING' as const;
+  }
+  return promo.status;
+};
+
 const promotionStatusLabel = (promo: Promotion) => {
-  switch (promo.status) {
+  switch (effectivePromotionStatus(promo)) {
     case 'ACTIVE':
       return 'Active';
     case 'SCHEDULED':
@@ -704,7 +712,7 @@ const promotionStatusLabel = (promo: Promotion) => {
 };
 
 const promotionStatusTagType = (promo: Promotion) => {
-  switch (promo.status) {
+  switch (effectivePromotionStatus(promo)) {
     case 'ACTIVE':
       return 'success';
     case 'SCHEDULED':
