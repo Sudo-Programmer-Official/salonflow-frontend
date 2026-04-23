@@ -5,6 +5,7 @@ import {
   fetchBillingStatus,
   createCheckoutSession,
   createPortalSession,
+  confirmBilling,
   type SubscriptionStatus,
   fetchSmsCredits,
   createSmsPackCheckout,
@@ -70,12 +71,33 @@ if (query.get('sms_canceled')) {
   error.value = 'SMS pack checkout was canceled.';
 }
 
+const cleanupSessionQuery = () => {
+  if (!query.get('session_id')) return;
+  query.delete('session_id');
+  const next = query.toString();
+  const nextUrl = next ? `${window.location.pathname}?${next}` : window.location.pathname;
+  window.history.replaceState({}, '', nextUrl);
+};
+
+const confirmReturnedCheckout = async () => {
+  const sessionId = query.get('session_id');
+  if (!sessionId) return;
+  try {
+    await confirmBilling(sessionId);
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Failed to confirm checkout';
+  } finally {
+    cleanupSessionQuery();
+  }
+};
+
 const loadStatus = async () => {
   loading.value = true;
   try {
     const data = await fetchBillingStatus();
     billing.value = data.billing ?? null;
     status.value = data.subscriptionStatus;
+    smsCredits.value = data.smsCredits ?? smsCredits.value;
     smsUsage.value = data.smsUsage ?? null;
     smsPricing.value = data.smsPricing ?? null;
     smsPacks.value = Array.isArray(data.smsPacks) ? data.smsPacks : [];
@@ -104,9 +126,14 @@ const loadSmsCredits = async () => {
 };
 
 onMounted(() => {
-  loadStatus();
-  loadSmsCredits();
-  loadLedger(null, 'forward');
+  void (async () => {
+    await confirmReturnedCheckout();
+    await Promise.all([
+      loadStatus(),
+      loadSmsCredits(),
+      loadLedger(null, 'forward'),
+    ]);
+  })();
 });
 
 const loadLedger = async (cursor: string | null, direction: 'forward' | 'backward') => {
