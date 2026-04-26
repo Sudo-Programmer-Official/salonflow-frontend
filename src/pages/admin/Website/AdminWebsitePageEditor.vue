@@ -14,14 +14,12 @@ import { fetchWebsitePages, upsertWebsitePage, type WebsitePage } from '../../..
 import { clearWebsiteCache } from '../../../composables/useWebsite';
 import MediaPicker from '../../../components/website/MediaPicker.vue';
 import {
-  DEFAULT_WEBSITE_SERVICES_PAGE_CONFIG,
-  normalizeWebsiteServicesPageConfig,
-} from '../../../types/websiteServicesPage';
-import {
   DEFAULT_WEBSITE_HOME_SECTION_CONFIG,
+  DEFAULT_WEBSITE_SERVICES_PAGE_CONFIG,
   normalizeWebsiteHomeSectionConfig,
+  normalizeWebsiteServicesPageConfig,
   type WebsiteHomeSectionId,
-} from '../../../types/websiteHomeSections';
+} from '../../../types/websiteServicesPage';
 
 const route = useRoute();
 const router = useRouter();
@@ -246,6 +244,14 @@ const HOME_SECTION_COPY: Record<
 
 const isHomeEditor = computed(() => slug.value === 'home');
 
+const homeSectionOrderRows = computed(() =>
+  form.value.homeSectionConfig.order.map((sectionId) => ({
+    id: sectionId,
+    label: HOME_SECTION_COPY[sectionId].label,
+    description: HOME_SECTION_COPY[sectionId].description,
+  })),
+);
+
 const moveHomeSection = (idx: number, dir: -1 | 1) => {
   const next = idx + dir;
   if (next < 0 || next >= form.value.homeSectionConfig.order.length) return;
@@ -378,21 +384,21 @@ const goBack = () =>
               Turn sections on or off for this tenant and move them up or down to control the home page order.
             </p>
             <div
-              v-for="(sectionId, idx) in form.homeSectionConfig.order"
-              :key="sectionId"
+              v-for="(section, idx) in homeSectionOrderRows"
+              :key="section.id"
               class="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 md:grid-cols-[1fr,auto]"
             >
               <div>
                 <div class="text-sm font-semibold text-slate-900">
-                  {{ idx + 1 }}. {{ HOME_SECTION_COPY[sectionId].label }}
+                  {{ idx + 1 }}. {{ section.label }}
                 </div>
                 <p class="text-xs text-slate-500">
-                  {{ HOME_SECTION_COPY[sectionId].description }}
+                  {{ section.description }}
                 </p>
               </div>
               <div class="flex flex-wrap items-center gap-2">
                 <span class="text-xs font-medium uppercase tracking-wide text-slate-500">Show</span>
-                <ElSwitch v-model="form.homeSectionConfig.visibility[sectionId]" />
+                <ElSwitch v-model="form.homeSectionConfig.visibility[section.id]" />
                 <ElButton size="small" @click="moveHomeSection(idx, -1)" :disabled="idx === 0">↑</ElButton>
                 <ElButton
                   size="small"

@@ -7,12 +7,12 @@ import { apiUrl } from '../../api/client';
 import ServiceDetailModal from '../../components/website/ServiceDetailModal.vue';
 import GalleryLightbox from '../../components/website/GalleryLightbox.vue';
 import { FALLBACK_IMAGE, resolveMedia, type ResolvedMedia } from '../../utils/resolveMedia';
-import { normalizeWebsiteServicesPageConfig } from '../../types/websiteServicesPage';
 import {
   DEFAULT_WEBSITE_HOME_SECTION_CONFIG,
   normalizeWebsiteHomeSectionConfig,
+  normalizeWebsiteServicesPageConfig,
   type WebsiteHomeSectionId,
-} from '../../types/websiteHomeSections';
+} from '../../types/websiteServicesPage';
 import {
   fetchFeaturedServicesV2,
   fetchCategoriesV2,
@@ -614,7 +614,7 @@ const pageSectionsToRender = computed<WebsiteHomeSectionId[]>(() => {
   const order = isHomePage.value
     ? homeSectionOrder.value
     : DEFAULT_WEBSITE_HOME_SECTION_CONFIG.order;
-  return order.filter((section) => canRenderPageSection(section));
+  return order.filter((section: WebsiteHomeSectionId) => canRenderPageSection(section));
 });
 
 const serviceModal = reactive<{
