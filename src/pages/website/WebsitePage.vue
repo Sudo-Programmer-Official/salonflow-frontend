@@ -565,6 +565,10 @@ const catalogModalItems = computed<ServiceModalItem[]>(() =>
 
 const galleryPreview = computed(() => resolvedGallery.value.slice(0, GALLERY_PREVIEW_LIMIT));
 const hasMoreGalleryImages = computed(() => resolvedGallery.value.length > GALLERY_PREVIEW_LIMIT);
+const showGalleryViewMore = computed(() => resolvedGallery.value.length > 0);
+const galleryViewMoreStartIndex = computed(() =>
+  hasMoreGalleryImages.value ? GALLERY_PREVIEW_LIMIT : 0,
+);
 const showServiceHighlights = computed(
   () => !isServicesPage.value || servicesPageConfig.value.showServiceHighlights,
 );
@@ -1687,11 +1691,11 @@ const footerView = computed(() => {
               />
             </picture>
           </div>
-          <div v-if="hasMoreGalleryImages" class="flex justify-center">
+          <div v-if="showGalleryViewMore" class="flex justify-center">
             <button
               type="button"
               class="inline-flex items-center gap-2 rounded-full border border-border bg-white px-4 py-2 text-sm font-semibold text-text shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
-              @click="openGalleryLightbox(GALLERY_PREVIEW_LIMIT)"
+              @click="openGalleryLightbox(galleryViewMoreStartIndex)"
             >
               View More
             </button>
