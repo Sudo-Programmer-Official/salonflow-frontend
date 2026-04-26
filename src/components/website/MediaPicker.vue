@@ -23,6 +23,9 @@ const inflight = ref(0);
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB each
 
 const selectedCount = computed(() => props.modelValue?.length || 0);
+const isAtMaxCount = computed(
+  () => Boolean(props.maxCount && props.maxCount > 0 && selectedCount.value >= props.maxCount),
+);
 const selectionSummary = computed(() => {
   if (props.maxCount && props.maxCount > 0) {
     const base = `${selectedCount.value} / ${props.maxCount}`;
@@ -44,13 +47,26 @@ const load = async () => {
 
 onMounted(load);
 
+const showMaxCountMessage = () => {
+  if (!props.maxCount || props.maxCount <= 0) return;
+  ElMessage.warning(`You can select up to ${props.maxCount} items here.`);
+};
+
 const toggle = (id: string) => {
   const current = props.modelValue || [];
   if (current.includes(id)) {
     emit('update:modelValue', current.filter((m) => m !== id));
-  } else {
-    emit('update:modelValue', [...current, id]);
+    return;
   }
+  if (props.maxCount === 1) {
+    emit('update:modelValue', [id]);
+    return;
+  }
+  if (isAtMaxCount.value) {
+    showMaxCountMessage();
+    return;
+  }
+  emit('update:modelValue', [...current, id]);
 };
 
 const remove = (index: number) => {
@@ -189,7 +205,10 @@ const toUrl = (
           v-for="item in media"
           :key="item.id"
           class="media-card cursor-pointer border transition relative overflow-hidden"
-          :class="isSelected(item.id) ? 'media-card--selected' : 'border-transparent hover:border-slate-200'"
+          :class="[
+            isSelected(item.id) ? 'media-card--selected' : 'border-transparent hover:border-slate-200',
+            !isSelected(item.id) && isAtMaxCount ? 'media-card--disabled' : '',
+          ]"
           @click="toggle(item.id)"
         >
           <button
@@ -236,6 +255,9 @@ const toUrl = (
 .media-card--selected {
   border-color: #0284c7;
   box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.25);
+}
+.media-card--disabled {
+  opacity: 0.7;
 }
 .media-card__check {
   position: absolute;

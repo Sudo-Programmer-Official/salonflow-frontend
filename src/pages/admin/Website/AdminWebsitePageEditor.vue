@@ -29,6 +29,7 @@ const locale = computed(() => (route.query.locale as string) || 'en');
 const loading = ref(false);
 const saving = ref(false);
 const page = ref<WebsitePage | null>(null);
+const PAGE_GALLERY_MAX_COUNT = 18;
 
 const form = ref({
   heroHeadline: '',
@@ -519,6 +520,9 @@ const goBack = () =>
         <ElFormItem label="Gallery" class="md:col-span-2">
           <MediaPicker
             v-model="form.gallery"
+            :max-count="PAGE_GALLERY_MAX_COUNT"
+            count-label="images selected"
+            :rules="[`Up to ${PAGE_GALLERY_MAX_COUNT} images per page.`]"
             :target="{ kind: 'page', page: slug, section: 'gallery' }"
           />
         </ElFormItem>
