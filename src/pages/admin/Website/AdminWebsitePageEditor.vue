@@ -17,6 +17,11 @@ import {
   DEFAULT_WEBSITE_SERVICES_PAGE_CONFIG,
   normalizeWebsiteServicesPageConfig,
 } from '../../../types/websiteServicesPage';
+import {
+  DEFAULT_WEBSITE_HOME_SECTION_CONFIG,
+  normalizeWebsiteHomeSectionConfig,
+  type WebsiteHomeSectionId,
+} from '../../../types/websiteHomeSections';
 
 const route = useRoute();
 const router = useRouter();
@@ -44,6 +49,7 @@ const form = ref({
   promoCta: '',
   promoUrl: '',
   bookingNote: '',
+  homeSectionConfig: normalizeWebsiteHomeSectionConfig(DEFAULT_WEBSITE_HOME_SECTION_CONFIG),
   servicesPageConfig: { ...DEFAULT_WEBSITE_SERVICES_PAGE_CONFIG },
   faq: [{ question: '', answer: '' }],
   address: '',
@@ -72,8 +78,9 @@ const load = async () => {
       form.value.services =
         c.services?.map((s: any) => ({
           title: s?.title || s || '',
+          description: s?.description || '',
           image: s?.image ? [s.image] : [],
-        })) || [{ title: '', image: [] }];
+        })) || [{ title: '', description: '', image: [] }];
       form.value.servicesMode = c.servicesMode || c.services_mode || 'auto';
       form.value.servicesIntro = c.servicesIntro || c.services_intro || '';
       form.value.valueProps = Array.isArray(c.valueProps || c.value_props)
@@ -86,6 +93,9 @@ const load = async () => {
       form.value.promoCta = c.promo?.cta || c.promo?.ctaText || c.promotion?.cta || '';
       form.value.promoUrl = c.promo?.url || c.promo?.ctaUrl || c.promotion?.url || '';
       form.value.bookingNote = c.bookingNote || c.booking_note || '';
+      form.value.homeSectionConfig = normalizeWebsiteHomeSectionConfig(
+        c.homeSectionConfig || c.home_section_config,
+      );
       form.value.servicesPageConfig = normalizeWebsiteServicesPageConfig(
         c.servicesPageConfig || c.services_page_config,
       );
@@ -145,6 +155,9 @@ const sanitizeGallery = () =>
 const save = async (publish: boolean) => {
   saving.value = true;
   try {
+    const normalizedHomeSectionConfig = normalizeWebsiteHomeSectionConfig(
+      form.value.homeSectionConfig,
+    );
     const content = {
       hero: {
         headline: form.value.heroHeadline,
@@ -169,6 +182,11 @@ const save = async (publish: boolean) => {
           ? { text: form.value.promoText, cta: form.value.promoCta, url: form.value.promoUrl }
           : null,
       bookingNote: form.value.bookingNote || '',
+      ...(slug.value === 'home'
+        ? {
+            homeSectionConfig: normalizedHomeSectionConfig,
+          }
+        : {}),
       servicesPageConfig: {
         ...normalizeWebsiteServicesPageConfig(form.value.servicesPageConfig),
       },
@@ -202,6 +220,38 @@ const save = async (publish: boolean) => {
   } finally {
     saving.value = false;
   }
+};
+
+const HOME_SECTION_COPY: Record<
+  WebsiteHomeSectionId,
+  { label: string; description: string }
+> = {
+  services: {
+    label: 'Services',
+    description: 'Featured service cards and the services intro block.',
+  },
+  contact: {
+    label: 'Contact',
+    description: 'Business details, map, and contact form.',
+  },
+  gallery: {
+    label: 'Gallery',
+    description: 'Photo gallery preview and lightbox section.',
+  },
+  faq: {
+    label: 'FAQ',
+    description: 'Common questions and answers.',
+  },
+};
+
+const isHomeEditor = computed(() => slug.value === 'home');
+
+const moveHomeSection = (idx: number, dir: -1 | 1) => {
+  const next = idx + dir;
+  if (next < 0 || next >= form.value.homeSectionConfig.order.length) return;
+  const arr = form.value.homeSectionConfig.order;
+  if (!arr[idx] || !arr[next]) return;
+  [arr[idx], arr[next]] = [arr[next], arr[idx]];
 };
 
 const addService = () => form.value.services.push({ title: '', description: '', image: [] });
@@ -320,6 +370,40 @@ const goBack = () =>
 
         <ElFormItem label="Booking note" class="md:col-span-2">
           <ElInput v-model="form.bookingNote" type="textarea" :rows="2" placeholder="e.g. Prefer to talk? Call 361‑986‑1555." />
+        </ElFormItem>
+
+        <ElFormItem v-if="isHomeEditor" label="Home page sections" class="md:col-span-2">
+          <div class="space-y-3">
+            <p class="text-xs text-slate-500">
+              Turn sections on or off for this tenant and move them up or down to control the home page order.
+            </p>
+            <div
+              v-for="(sectionId, idx) in form.homeSectionConfig.order"
+              :key="sectionId"
+              class="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 md:grid-cols-[1fr,auto]"
+            >
+              <div>
+                <div class="text-sm font-semibold text-slate-900">
+                  {{ idx + 1 }}. {{ HOME_SECTION_COPY[sectionId].label }}
+                </div>
+                <p class="text-xs text-slate-500">
+                  {{ HOME_SECTION_COPY[sectionId].description }}
+                </p>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="text-xs font-medium uppercase tracking-wide text-slate-500">Show</span>
+                <ElSwitch v-model="form.homeSectionConfig.visibility[sectionId]" />
+                <ElButton size="small" @click="moveHomeSection(idx, -1)" :disabled="idx === 0">↑</ElButton>
+                <ElButton
+                  size="small"
+                  @click="moveHomeSection(idx, 1)"
+                  :disabled="idx === form.homeSectionConfig.order.length - 1"
+                >
+                  ↓
+                </ElButton>
+              </div>
+            </div>
+          </div>
         </ElFormItem>
 
         <ElFormItem label="Services page display" class="md:col-span-2">

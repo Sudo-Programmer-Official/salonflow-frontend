@@ -9,6 +9,11 @@ import GalleryLightbox from '../../components/website/GalleryLightbox.vue';
 import { FALLBACK_IMAGE, resolveMedia, type ResolvedMedia } from '../../utils/resolveMedia';
 import { normalizeWebsiteServicesPageConfig } from '../../types/websiteServicesPage';
 import {
+  DEFAULT_WEBSITE_HOME_SECTION_CONFIG,
+  normalizeWebsiteHomeSectionConfig,
+  type WebsiteHomeSectionId,
+} from '../../types/websiteHomeSections';
+import {
   fetchFeaturedServicesV2,
   fetchCategoriesV2,
   fetchCategoryV2,
@@ -202,6 +207,13 @@ const mergeContactValues = (primary: any, fallback: any) => {
   return merged;
 };
 const contact = computed(() => mergeContactValues(page.value?.content?.contact || {}, contactFallback.value || {}));
+const homeSectionConfig = computed(() =>
+  normalizeWebsiteHomeSectionConfig(
+    (page.value?.content as any)?.homeSectionConfig || (page.value?.content as any)?.home_section_config,
+  ),
+);
+const homeSectionVisibility = computed(() => homeSectionConfig.value.visibility);
+const homeSectionOrder = computed(() => homeSectionConfig.value.order);
 const servicesPageConfig = computed(() =>
   normalizeWebsiteServicesPageConfig(
     (page.value?.content as any)?.servicesPageConfig || (page.value?.content as any)?.services_page_config,
@@ -563,12 +575,47 @@ const showAllServicesSection = computed(
       (visibleServicesPageCategories.value.length > 0 || categoriesLoading.value || Boolean(categoriesError.value))),
 );
 const showGallerySection = computed(
-  () => resolvedGallery.value.length > 0 && (!isServicesPage.value || servicesPageConfig.value.showGallery),
+  () =>
+    resolvedGallery.value.length > 0 &&
+    (!isServicesPage.value || servicesPageConfig.value.showGallery) &&
+    (!isHomePage.value || homeSectionVisibility.value.gallery),
 );
 const enableServiceModal = computed(() => servicesPageConfig.value.enableServiceModal);
 
-const showServicesSection = computed(() => !isContactPage.value && serviceCards.value.length > 0);
-const showContactSection = computed(() => isHomePage.value || isContactPage.value);
+const showServicesSection = computed(
+  () =>
+    !isContactPage.value &&
+    serviceCards.value.length > 0 &&
+    (!isHomePage.value || homeSectionVisibility.value.services),
+);
+const showContactSection = computed(
+  () => (isHomePage.value || isContactPage.value) && (!isHomePage.value || homeSectionVisibility.value.contact),
+);
+const showFaqSection = computed(
+  () => faqItems.value.length > 0 && (!isHomePage.value || homeSectionVisibility.value.faq),
+);
+
+const canRenderPageSection = (section: WebsiteHomeSectionId) => {
+  switch (section) {
+    case 'services':
+      return showServicesSection.value;
+    case 'contact':
+      return showContactSection.value;
+    case 'gallery':
+      return showGallerySection.value;
+    case 'faq':
+      return showFaqSection.value;
+    default:
+      return false;
+  }
+};
+
+const pageSectionsToRender = computed<WebsiteHomeSectionId[]>(() => {
+  const order = isHomePage.value
+    ? homeSectionOrder.value
+    : DEFAULT_WEBSITE_HOME_SECTION_CONFIG.order;
+  return order.filter((section) => canRenderPageSection(section));
+});
 
 const serviceModal = reactive<{
   open: boolean;
@@ -1343,316 +1390,332 @@ const footerView = computed(() => {
         </div>
       </section>
 
-      <section v-if="showServicesSection" id="services" class="sf-container sf-section space-y-4">
-        <div class="flex items-center justify-between">
-          <h2 class="text-2xl font-semibold text-text">Services</h2>
-        </div>
+      <template v-for="section in pageSectionsToRender" :key="section">
+        <section
+          v-if="section === 'services'"
+          id="services"
+          class="sf-container sf-section space-y-4"
+        >
+          <div class="flex items-center justify-between">
+            <h2 class="text-2xl font-semibold text-text">Services</h2>
+          </div>
 
-        <div v-if="showServiceHighlights" class="grid gap-3 lg:grid-cols-[1.3fr,0.7fr] items-start">
-          <div class="space-y-3">
-            <p v-if="servicesIntro" class="text-base text-muted leading-relaxed">
-              {{ servicesIntro }}
-            </p>
-            <div v-if="valueProps.length" class="grid gap-2 sm:grid-cols-2">
+          <div v-if="showServiceHighlights" class="grid gap-3 lg:grid-cols-[1.3fr,0.7fr] items-start">
+            <div class="space-y-3">
+              <p v-if="servicesIntro" class="text-base text-muted leading-relaxed">
+                {{ servicesIntro }}
+              </p>
+              <div v-if="valueProps.length" class="grid gap-2 sm:grid-cols-2">
+                <div
+                  v-for="(val, idx) in valueProps"
+                  :key="idx"
+                  class="rounded-xl border border-border bg-surface px-3 py-3 text-sm font-semibold text-text shadow-sm"
+                >
+                  • {{ val }}
+                </div>
+              </div>
               <div
-                v-for="(val, idx) in valueProps"
-                :key="idx"
-                class="rounded-xl border border-border bg-surface px-3 py-3 text-sm font-semibold text-text shadow-sm"
+                v-if="promoBanner"
+                class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 text-sm font-semibold shadow-sm flex items-center gap-2"
               >
-                • {{ val }}
+                <span>{{ promoBanner.text }}</span>
+                <a
+                  v-if="promoBanner.cta && promoBanner.url"
+                  :href="promoBanner.url"
+                  class="underline font-bold"
+                >
+                  {{ promoBanner.cta }}
+                </a>
               </div>
             </div>
+
+            <div class="rounded-2xl border border-border bg-surface-muted px-4 py-4 shadow-inner space-y-2">
+              <div class="text-sm uppercase tracking-wide text-muted">Hygiene</div>
+              <p class="text-sm text-text leading-relaxed">{{ hygieneNote }}</p>
+              <div v-if="bookingNote" class="pt-2 text-sm text-muted leading-relaxed">
+                {{ bookingNote }}
+              </div>
+              <div v-if="socialProof.headline" class="pt-3 border-t border-border">
+                <div class="text-sm font-semibold text-text">{{ socialProof.headline }}</div>
+                <p v-if="socialProof.body" class="text-sm text-muted leading-relaxed">
+                  {{ socialProof.body }}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <p v-if="servicesError" class="text-sm text-rose-600">{{ servicesError }}</p>
+          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div
-              v-if="promoBanner"
-              class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 text-sm font-semibold shadow-sm flex items-center gap-2"
+              v-for="(card, idx) in serviceCards"
+              :key="card.id"
+              class="relative overflow-hidden rounded-2xl border border-border bg-white shadow-lg service-tilt"
+              :class="enableServiceModal ? 'cursor-pointer' : ''"
+              :role="enableServiceModal ? 'button' : undefined"
+              :tabindex="enableServiceModal ? 0 : undefined"
+              @click="enableServiceModal ? openServiceModal('cards', idx) : undefined"
+              @keydown.enter.prevent="enableServiceModal ? openServiceModal('cards', idx) : undefined"
+              @keydown.space.prevent="enableServiceModal ? openServiceModal('cards', idx) : undefined"
             >
-              <span>{{ promoBanner.text }}</span>
-              <a
-                v-if="promoBanner.cta && promoBanner.url"
-                :href="promoBanner.url"
-                class="underline font-bold"
-              >
-                {{ promoBanner.cta }}
-              </a>
+              <div class="absolute inset-0 services-card-glow"></div>
+              <picture v-if="card.image?.src" class="block">
+                <source
+                  v-for="(src, sIdx) in card.image.sources"
+                  :key="sIdx"
+                  :srcset="src.srcset"
+                  :type="src.type"
+                  :media="src.media"
+                />
+                <img
+                  :src="card.image.src"
+                  :alt="card.name"
+                  class="w-full h-36 object-cover"
+                  loading="lazy"
+                  @error="onImageError"
+                />
+              </picture>
+              <div class="p-4 flex items-center justify-between gap-3">
+                <div class="text-base font-semibold text-text">
+                  <div>{{ card.name }}</div>
+                  <div v-if="card.description" class="text-sm text-muted font-normal mt-1 line-clamp-2">
+                    {{ card.description }}
+                  </div>
+                  <div
+                    v-if="card.durationMinutes || card.priceCents !== undefined"
+                    class="text-sm text-muted mt-1 flex items-center gap-2"
+                  >
+                    <span v-if="card.durationMinutes">{{ card.durationMinutes }} min</span>
+                    <span v-if="card.durationMinutes && card.priceCents !== undefined">•</span>
+                    <span v-if="card.priceCents !== undefined">
+                      {{ formatMoney(card.priceCents, card.currency || 'USD') }}
+                    </span>
+                  </div>
+                </div>
+                <span class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-text text-white text-sm font-semibold shadow-md">
+                  {{ idx + 1 }}
+                </span>
+              </div>
             </div>
           </div>
 
-          <div class="rounded-2xl border border-border bg-surface-muted px-4 py-4 shadow-inner space-y-2">
-            <div class="text-sm uppercase tracking-wide text-muted">Hygiene</div>
-            <p class="text-sm text-text leading-relaxed">{{ hygieneNote }}</p>
-            <div v-if="bookingNote" class="pt-2 text-sm text-muted leading-relaxed">
-              {{ bookingNote }}
-            </div>
-            <div v-if="socialProof.headline" class="pt-3 border-t border-border">
-              <div class="text-sm font-semibold text-text">{{ socialProof.headline }}</div>
-              <p v-if="socialProof.body" class="text-sm text-muted leading-relaxed">
-                {{ socialProof.body }}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <p v-if="servicesError" class="text-sm text-rose-600">{{ servicesError }}</p>
-        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div
-            v-for="(card, idx) in serviceCards"
-            :key="card.id"
-            class="relative overflow-hidden rounded-2xl border border-border bg-white shadow-lg service-tilt"
-            :class="enableServiceModal ? 'cursor-pointer' : ''"
-            :role="enableServiceModal ? 'button' : undefined"
-            :tabindex="enableServiceModal ? 0 : undefined"
-            @click="enableServiceModal ? openServiceModal('cards', idx) : undefined"
-            @keydown.enter.prevent="enableServiceModal ? openServiceModal('cards', idx) : undefined"
-            @keydown.space.prevent="enableServiceModal ? openServiceModal('cards', idx) : undefined"
+          <section
+            v-if="isServicesPage && showAllServicesSection"
+            id="services-list"
+            class="space-y-4"
           >
-            <div class="absolute inset-0 services-card-glow"></div>
-            <picture v-if="card.image?.src" class="block">
+            <div class="flex items-center justify-between">
+              <h2 class="text-2xl font-semibold text-text">All services</h2>
+              <div v-if="categoriesLoading" class="text-sm text-muted">Loading services…</div>
+            </div>
+            <p v-if="categoriesError" class="text-sm text-rose-600">{{ categoriesError }}</p>
+            <div class="space-y-6">
+              <div
+                v-for="cat in visibleServicesPageCategories"
+                :key="cat.id"
+                class="rounded-2xl border border-border bg-white shadow-sm overflow-hidden"
+              >
+                <div class="flex items-center justify-between px-4 py-3 border-b border-border bg-surface-muted">
+                  <div>
+                    <div class="text-sm uppercase tracking-wide text-muted">Category</div>
+                    <h3 class="text-lg font-semibold text-text">{{ cat.name }}</h3>
+                    <p v-if="cat.shortDescription" class="text-sm text-muted mt-1">
+                      {{ cat.shortDescription }}
+                    </p>
+                  </div>
+                </div>
+                <div
+                  v-if="(categoryServices[cat.id] || []).length"
+                  class="grid gap-3 md:grid-cols-2 lg:grid-cols-3 px-4 py-4"
+                >
+                  <div
+                    v-for="svc in categoryServices[cat.id]"
+                    :key="svc.id"
+                    class="rounded-xl border border-border bg-surface px-3 py-3 shadow-sm transition"
+                    :class="enableServiceModal ? 'cursor-pointer hover:-translate-y-0.5 hover:shadow-lg' : ''"
+                    :role="enableServiceModal ? 'button' : undefined"
+                    :tabindex="enableServiceModal ? 0 : undefined"
+                    @click="enableServiceModal ? openServiceModal('catalog', catalogModalItems.findIndex((item) => item.id === svc.id)) : undefined"
+                    @keydown.enter.prevent="enableServiceModal ? openServiceModal('catalog', catalogModalItems.findIndex((item) => item.id === svc.id)) : undefined"
+                    @keydown.space.prevent="enableServiceModal ? openServiceModal('catalog', catalogModalItems.findIndex((item) => item.id === svc.id)) : undefined"
+                  >
+                    <div class="flex items-start justify-between gap-2">
+                      <div>
+                        <div class="text-base font-semibold text-text">{{ svc.name }}</div>
+                        <div v-if="svc.shortSummary" class="text-sm text-muted mt-1 line-clamp-2">
+                          {{ svc.shortSummary }}
+                        </div>
+                      </div>
+                      <div class="text-right text-sm text-muted space-y-1">
+                        <div v-if="svc.durationMinutes">{{ svc.durationMinutes }} min</div>
+                        <div v-if="svc.priceCents !== undefined">
+                          {{ formatMoney(svc.priceCents, svc.currency || 'USD') }}
+                        </div>
+                      </div>
+                    </div>
+                    <div v-if="svc.featured" class="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-800 border border-amber-200">
+                      Featured
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section
+          v-else-if="section === 'contact'"
+          id="contact"
+          class="sf-container sf-section space-y-4"
+        >
+          <div class="flex items-center justify-between">
+            <h2 class="text-2xl font-semibold text-text">Contact</h2>
+          </div>
+          <div class="grid gap-4 lg:grid-cols-[1.05fr,0.95fr]">
+            <div class="space-y-3">
+              <div class="grid gap-3 sm:grid-cols-2">
+                <div class="rounded-xl border border-border bg-surface p-4 shadow-sm">
+                  <div class="text-sm uppercase tracking-wide text-muted">Address</div>
+                  <div class="text-base text-text">{{ contact.address || 'Add your address' }}</div>
+                </div>
+                <div class="rounded-xl border border-border bg-surface p-4 shadow-sm">
+                  <div class="text-sm uppercase tracking-wide text-muted">Phone</div>
+                  <div class="text-base text-text">{{ contact.phone || '(361) 000-0000' }}</div>
+                </div>
+                <div class="rounded-xl border border-border bg-surface p-4 shadow-sm">
+                  <div class="text-sm uppercase tracking-wide text-muted">Email</div>
+                  <div class="text-base text-text">{{ contactEmail }}</div>
+                </div>
+                <div class="rounded-xl border border-border bg-surface p-4 shadow-sm">
+                  <div class="text-sm uppercase tracking-wide text-muted">Hours</div>
+                  <div v-if="contactHoursLines.length" class="text-base text-text space-y-1">
+                    <div v-for="(line, idx) in contactHoursLines" :key="idx">{{ line }}</div>
+                  </div>
+                  <div v-else class="text-base text-text">Set your business hours</div>
+                </div>
+              </div>
+              <div v-if="contactNotes || contactPolicies" class="grid gap-3 lg:grid-cols-2">
+                <div v-if="contactNotes" class="rounded-xl border border-border bg-surface p-4 shadow-sm">
+                  <div class="text-sm uppercase tracking-wide text-muted">Parking / Access</div>
+                  <div class="text-sm text-text leading-relaxed whitespace-pre-line">
+                    {{ contactNotes }}
+                  </div>
+                </div>
+                <div v-if="contactPolicies" class="rounded-xl border border-border bg-surface p-4 shadow-sm">
+                  <div class="text-sm uppercase tracking-wide text-muted">Policies</div>
+                  <div class="text-sm text-text leading-relaxed whitespace-pre-line">
+                    {{ contactPolicies }}
+                  </div>
+                </div>
+              </div>
+              <div
+                v-if="mapEmbedSrc"
+                class="rounded-xl border border-border bg-surface shadow-sm overflow-hidden"
+              >
+                <iframe
+                  :src="mapEmbedSrc"
+                  class="w-full h-72"
+                  style="border: 0;"
+                  allowfullscreen
+                  loading="lazy"
+                  referrerpolicy="no-referrer-when-downgrade"
+                ></iframe>
+              </div>
+            </div>
+            <div class="rounded-xl border border-border bg-surface p-4 shadow-sm">
+              <div class="text-sm uppercase tracking-wide text-muted">Send us a message</div>
+              <form class="mt-2 space-y-3" @submit.prevent="submitLead">
+                <div class="grid gap-3 sm:grid-cols-2">
+                  <label class="block text-sm font-semibold text-text">
+                    Name
+                    <input v-model="leadForm.name" required class="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-border focus:outline-none" />
+                  </label>
+                  <label class="block text-sm font-semibold text-text">
+                    Phone
+                    <input v-model="leadForm.phone" inputmode="tel" class="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-border focus:outline-none" placeholder="(555) 123-4567" />
+                  </label>
+                </div>
+                <label class="block text-sm font-semibold text-text">
+                  Email
+                  <input v-model="leadForm.email" type="email" class="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-border focus:outline-none" placeholder="you@example.com" />
+                </label>
+                <label class="block text-sm font-semibold text-text">
+                  Preferred time
+                  <input v-model="leadForm.preferred_time" class="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-border focus:outline-none" placeholder="e.g. Tomorrow 2-4pm" />
+                </label>
+                <label class="block text-sm font-semibold text-text">
+                  Message
+                  <textarea v-model="leadForm.message" rows="3" class="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-border focus:outline-none" placeholder="Tell us what you need"></textarea>
+                </label>
+                <input v-model="leadForm.website" class="hidden" aria-hidden="true" />
+                <div class="flex items-center gap-3">
+                  <button :disabled="leadSubmitting" type="submit" class="inline-flex items-center gap-2 rounded-full bg-text px-4 py-2 text-white text-sm font-semibold hover:bg-text/90 disabled:opacity-60">
+                    {{ leadSubmitting ? 'Sending…' : 'Send message' }}
+                  </button>
+                  <p class="text-sm text-muted" v-if="leadSuccess">Thanks! We received your message.</p>
+                  <p class="text-sm text-rose-600" v-if="leadError">{{ leadError }}</p>
+                </div>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <section
+          v-else-if="section === 'gallery'"
+          class="sf-container sf-section space-y-4"
+        >
+          <h2 class="text-2xl font-semibold text-text">Gallery</h2>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <picture
+              v-for="(img, idx) in galleryPreview"
+              :key="img.id || idx"
+              class="block cursor-pointer"
+              @click="openGalleryLightbox(idx)"
+            >
               <source
-                v-for="(src, sIdx) in card.image.sources"
+                v-for="(src, sIdx) in img.sources"
                 :key="sIdx"
                 :srcset="src.srcset"
                 :type="src.type"
                 :media="src.media"
               />
               <img
-                :src="card.image.src"
-                :alt="card.name"
-                class="w-full h-36 object-cover"
+                :src="img.src"
+                class="w-full rounded-xl border border-border object-cover aspect-[4/3]"
                 loading="lazy"
+                :alt="img.alt || ''"
                 @error="onImageError"
               />
             </picture>
-            <div class="p-4 flex items-center justify-between gap-3">
-              <div class="text-base font-semibold text-text">
-                <div>{{ card.name }}</div>
-                <div v-if="card.description" class="text-sm text-muted font-normal mt-1 line-clamp-2">
-                  {{ card.description }}
-                </div>
-                <div
-                  v-if="card.durationMinutes || card.priceCents !== undefined"
-                  class="text-sm text-muted mt-1 flex items-center gap-2"
-                >
-                  <span v-if="card.durationMinutes">{{ card.durationMinutes }} min</span>
-                  <span v-if="card.durationMinutes && card.priceCents !== undefined">•</span>
-                  <span v-if="card.priceCents !== undefined">
-                    {{ formatMoney(card.priceCents, card.currency || 'USD') }}
-                  </span>
-                </div>
-              </div>
-              <span class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-text text-white text-sm font-semibold shadow-md">
-                {{ idx + 1 }}
-              </span>
-            </div>
           </div>
-        </div>
-      </section>
-
-      <section
-        v-if="isServicesPage && showAllServicesSection"
-        id="services-list"
-        class="sf-container sf-section space-y-4"
-      >
-        <div class="flex items-center justify-between">
-          <h2 class="text-2xl font-semibold text-text">All services</h2>
-          <div v-if="categoriesLoading" class="text-sm text-muted">Loading services…</div>
-        </div>
-        <p v-if="categoriesError" class="text-sm text-rose-600">{{ categoriesError }}</p>
-        <div class="space-y-6">
-          <div
-            v-for="cat in visibleServicesPageCategories"
-            :key="cat.id"
-            class="rounded-2xl border border-border bg-white shadow-sm overflow-hidden"
-          >
-            <div class="flex items-center justify-between px-4 py-3 border-b border-border bg-surface-muted">
-              <div>
-                <div class="text-sm uppercase tracking-wide text-muted">Category</div>
-                <h3 class="text-lg font-semibold text-text">{{ cat.name }}</h3>
-                <p v-if="cat.shortDescription" class="text-sm text-muted mt-1">
-                  {{ cat.shortDescription }}
-                </p>
-              </div>
-            </div>
-            <div
-              v-if="(categoryServices[cat.id] || []).length"
-              class="grid gap-3 md:grid-cols-2 lg:grid-cols-3 px-4 py-4"
+          <div v-if="hasMoreGalleryImages" class="flex justify-center">
+            <button
+              type="button"
+              class="inline-flex items-center gap-2 rounded-full border border-border bg-white px-4 py-2 text-sm font-semibold text-text shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
+              @click="openGalleryLightbox(GALLERY_PREVIEW_LIMIT)"
             >
-              <div
-                v-for="svc in categoryServices[cat.id]"
-                :key="svc.id"
-                class="rounded-xl border border-border bg-surface px-3 py-3 shadow-sm transition"
-                :class="enableServiceModal ? 'cursor-pointer hover:-translate-y-0.5 hover:shadow-lg' : ''"
-                :role="enableServiceModal ? 'button' : undefined"
-                :tabindex="enableServiceModal ? 0 : undefined"
-                @click="enableServiceModal ? openServiceModal('catalog', catalogModalItems.findIndex((item) => item.id === svc.id)) : undefined"
-                @keydown.enter.prevent="enableServiceModal ? openServiceModal('catalog', catalogModalItems.findIndex((item) => item.id === svc.id)) : undefined"
-                @keydown.space.prevent="enableServiceModal ? openServiceModal('catalog', catalogModalItems.findIndex((item) => item.id === svc.id)) : undefined"
-              >
-                <div class="flex items-start justify-between gap-2">
-                  <div>
-                    <div class="text-base font-semibold text-text">{{ svc.name }}</div>
-                    <div v-if="svc.shortSummary" class="text-sm text-muted mt-1 line-clamp-2">
-                      {{ svc.shortSummary }}
-                    </div>
-                  </div>
-                  <div class="text-right text-sm text-muted space-y-1">
-                    <div v-if="svc.durationMinutes">{{ svc.durationMinutes }} min</div>
-                    <div v-if="svc.priceCents !== undefined">
-                      {{ formatMoney(svc.priceCents, svc.currency || 'USD') }}
-                    </div>
-                  </div>
-                </div>
-                <div v-if="svc.featured" class="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-800 border border-amber-200">
-                  Featured
-                </div>
-              </div>
-            </div>
+              View More
+            </button>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section v-if="showContactSection" id="contact" class="sf-container sf-section space-y-4">
-        <div class="flex items-center justify-between">
-          <h2 class="text-2xl font-semibold text-text">Contact</h2>
-        </div>
-        <div class="grid gap-4 lg:grid-cols-[1.05fr,0.95fr]">
-          <div class="space-y-3">
-            <div class="grid gap-3 sm:grid-cols-2">
-              <div class="rounded-xl border border-border bg-surface p-4 shadow-sm">
-                <div class="text-sm uppercase tracking-wide text-muted">Address</div>
-                <div class="text-base text-text">{{ contact.address || 'Add your address' }}</div>
-              </div>
-              <div class="rounded-xl border border-border bg-surface p-4 shadow-sm">
-                <div class="text-sm uppercase tracking-wide text-muted">Phone</div>
-                <div class="text-base text-text">{{ contact.phone || '(361) 000-0000' }}</div>
-              </div>
-              <div class="rounded-xl border border-border bg-surface p-4 shadow-sm">
-                <div class="text-sm uppercase tracking-wide text-muted">Email</div>
-                <div class="text-base text-text">{{ contactEmail }}</div>
-              </div>
-              <div class="rounded-xl border border-border bg-surface p-4 shadow-sm">
-                <div class="text-sm uppercase tracking-wide text-muted">Hours</div>
-                <div v-if="contactHoursLines.length" class="text-base text-text space-y-1">
-                  <div v-for="(line, idx) in contactHoursLines" :key="idx">{{ line }}</div>
-                </div>
-                <div v-else class="text-base text-text">Set your business hours</div>
-              </div>
-            </div>
-            <div v-if="contactNotes || contactPolicies" class="grid gap-3 lg:grid-cols-2">
-              <div v-if="contactNotes" class="rounded-xl border border-border bg-surface p-4 shadow-sm">
-                <div class="text-sm uppercase tracking-wide text-muted">Parking / Access</div>
-                <div class="text-sm text-text leading-relaxed whitespace-pre-line">
-                  {{ contactNotes }}
-                </div>
-              </div>
-              <div v-if="contactPolicies" class="rounded-xl border border-border bg-surface p-4 shadow-sm">
-                <div class="text-sm uppercase tracking-wide text-muted">Policies</div>
-                <div class="text-sm text-text leading-relaxed whitespace-pre-line">
-                  {{ contactPolicies }}
-                </div>
-              </div>
-            </div>
+        <section
+          v-else-if="section === 'faq'"
+          class="sf-container sf-section space-y-3"
+        >
+          <h2 class="text-2xl font-semibold text-text">FAQ</h2>
+          <div class="grid gap-3 lg:grid-cols-2">
             <div
-              v-if="mapEmbedSrc"
-              class="rounded-xl border border-border bg-surface shadow-sm overflow-hidden"
+              v-for="(item, idx) in faqItems"
+              :key="idx"
+              class="rounded-xl border border-border bg-surface p-4 shadow-sm space-y-2"
             >
-              <iframe
-                :src="mapEmbedSrc"
-                class="w-full h-72"
-                style="border: 0;"
-                allowfullscreen
-                loading="lazy"
-                referrerpolicy="no-referrer-when-downgrade"
-              ></iframe>
+              <div class="text-sm uppercase tracking-wide text-muted">Q{{ idx + 1 }}</div>
+              <div class="text-base font-semibold text-text">{{ item.question }}</div>
+              <div class="text-sm text-muted leading-relaxed whitespace-pre-line">{{ item.answer }}</div>
             </div>
           </div>
-          <div class="rounded-xl border border-border bg-surface p-4 shadow-sm">
-            <div class="text-sm uppercase tracking-wide text-muted">Send us a message</div>
-            <form class="mt-2 space-y-3" @submit.prevent="submitLead">
-              <div class="grid gap-3 sm:grid-cols-2">
-                <label class="block text-sm font-semibold text-text">
-                  Name
-                  <input v-model="leadForm.name" required class="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-border focus:outline-none" />
-                </label>
-                <label class="block text-sm font-semibold text-text">
-                  Phone
-                  <input v-model="leadForm.phone" inputmode="tel" class="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-border focus:outline-none" placeholder="(555) 123-4567" />
-                </label>
-              </div>
-              <label class="block text-sm font-semibold text-text">
-                Email
-                <input v-model="leadForm.email" type="email" class="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-border focus:outline-none" placeholder="you@example.com" />
-              </label>
-              <label class="block text-sm font-semibold text-text">
-                Preferred time
-                <input v-model="leadForm.preferred_time" class="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-border focus:outline-none" placeholder="e.g. Tomorrow 2-4pm" />
-              </label>
-              <label class="block text-sm font-semibold text-text">
-                Message
-                <textarea v-model="leadForm.message" rows="3" class="mt-1 w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-border focus:outline-none" placeholder="Tell us what you need"></textarea>
-              </label>
-              <input v-model="leadForm.website" class="hidden" aria-hidden="true" />
-              <div class="flex items-center gap-3">
-                <button :disabled="leadSubmitting" type="submit" class="inline-flex items-center gap-2 rounded-full bg-text px-4 py-2 text-white text-sm font-semibold hover:bg-text/90 disabled:opacity-60">
-                  {{ leadSubmitting ? 'Sending…' : 'Send message' }}
-                </button>
-                <p class="text-sm text-muted" v-if="leadSuccess">Thanks! We received your message.</p>
-                <p class="text-sm text-rose-600" v-if="leadError">{{ leadError }}</p>
-              </div>
-            </form>
-          </div>
-        </div>
-      </section>
-
-      <section v-if="showGallerySection" class="sf-container sf-section space-y-4">
-        <h2 class="text-2xl font-semibold text-text">Gallery</h2>
-        <div class="grid gap-3 sm:grid-cols-2">
-          <picture
-            v-for="(img, idx) in galleryPreview"
-            :key="img.id || idx"
-            class="block cursor-pointer"
-            @click="openGalleryLightbox(idx)"
-          >
-            <source
-              v-for="(src, sIdx) in img.sources"
-              :key="sIdx"
-              :srcset="src.srcset"
-              :type="src.type"
-              :media="src.media"
-            />
-            <img
-              :src="img.src"
-              class="w-full rounded-xl border border-border object-cover aspect-[4/3]"
-              loading="lazy"
-              :alt="img.alt || ''"
-              @error="onImageError"
-            />
-          </picture>
-        </div>
-        <div v-if="hasMoreGalleryImages" class="flex justify-center">
-          <button
-            type="button"
-            class="inline-flex items-center gap-2 rounded-full border border-border bg-white px-4 py-2 text-sm font-semibold text-text shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
-            @click="openGalleryLightbox(GALLERY_PREVIEW_LIMIT)"
-          >
-            View More
-          </button>
-        </div>
-      </section>
-
-      <section v-if="faqItems.length" class="sf-container sf-section space-y-3">
-        <h2 class="text-2xl font-semibold text-text">FAQ</h2>
-        <div class="grid gap-3 lg:grid-cols-2">
-          <div
-            v-for="(item, idx) in faqItems"
-            :key="idx"
-            class="rounded-xl border border-border bg-surface p-4 shadow-sm space-y-2"
-          >
-            <div class="text-sm uppercase tracking-wide text-muted">Q{{ idx + 1 }}</div>
-            <div class="text-base font-semibold text-text">{{ item.question }}</div>
-            <div class="text-sm text-muted leading-relaxed whitespace-pre-line">{{ item.answer }}</div>
-          </div>
-        </div>
-      </section>
+        </section>
+      </template>
 
       <div v-if="loading" class="sf-container text-sm text-muted">Loading…</div>
       <div v-if="error" class="sf-container text-sm text-rose-600">{{ error }}</div>
