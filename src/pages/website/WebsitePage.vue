@@ -252,14 +252,6 @@ const socialProof = computed(() => {
   };
 });
 
-const promoBanner = computed(() => {
-  const raw = (page.value?.content as any)?.promo || (page.value?.content as any)?.promotion;
-  if (!raw) return null as null | { text: string; cta?: string | null; url?: string | null };
-  if (typeof raw === 'string') return { text: raw, cta: null, url: null };
-  const text = raw.text || raw.headline || '';
-  if (!text) return null;
-  return { text, cta: raw.cta || raw.ctaText || null, url: raw.url || raw.ctaUrl || null };
-});
 const bookingNote = computed(() => {
   const raw = (page.value?.content as any)?.bookingNote || (page.value?.content as any)?.booking_note;
   return raw ? String(raw) : '';
@@ -1417,19 +1409,6 @@ const footerView = computed(() => {
                 >
                   • {{ val }}
                 </div>
-              </div>
-              <div
-                v-if="promoBanner"
-                class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900 text-sm font-semibold shadow-sm flex items-center gap-2"
-              >
-                <span>{{ promoBanner.text }}</span>
-                <a
-                  v-if="promoBanner.cta && promoBanner.url"
-                  :href="promoBanner.url"
-                  class="underline font-bold"
-                >
-                  {{ promoBanner.cta }}
-                </a>
               </div>
             </div>
 
