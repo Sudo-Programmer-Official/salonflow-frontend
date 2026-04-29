@@ -40,6 +40,7 @@ const emit = defineEmits<{
 const activeImageIndex = ref(0);
 const zoomLevel = ref(1);
 const isDocumentLike = ref(false);
+const imageRatio = ref(1);
 const hasManualZoom = ref(false);
 const detailsCollapsed = ref(false);
 const hasManualDetailsToggle = ref(false);
@@ -50,16 +51,22 @@ const images = computed(() => {
 });
 
 const activeImage = computed(() => images.value[activeImageIndex.value] || images.value[0]);
-const zoomOptions = [1, 1.5, 2, 2.5];
+const zoomOptions = [1, 1.25, 1.5, 2, 2.5];
 const showInfoPanel = computed(() => !isDocumentLike.value || !detailsCollapsed.value);
 const imageStyle = computed(() => {
   const widthPercent = Math.max(100, Math.round(zoomLevel.value * 100));
   return {
     width: `${widthPercent}%`,
-    maxWidth: zoomLevel.value <= 1 ? '1120px' : 'none',
-    minWidth: isDocumentLike.value ? '960px' : undefined,
+    maxWidth: zoomLevel.value <= 1 ? (isDocumentLike.value ? '1280px' : '1120px') : 'none',
+    minWidth: isDocumentLike.value && zoomLevel.value > 1 ? '960px' : undefined,
   };
 });
+const imageClass = computed(() =>
+  [
+    'service-modal-image mx-auto w-full rounded-[22px] bg-white/95 object-contain shadow-[0_28px_60px_rgba(15,23,42,0.25)]',
+    isDocumentLike.value ? 'service-modal-image--document' : 'service-modal-image--photo',
+  ].join(' '),
+);
 
 const formatMoney = (cents?: number | null, currency = 'USD') => {
   if (cents === null || cents === undefined) return null;
@@ -106,9 +113,10 @@ const onImageLoad = (event: Event) => {
   const target = event.target;
   if (!(target instanceof HTMLImageElement)) return;
   const ratio = target.naturalWidth > 0 ? target.naturalHeight / target.naturalWidth : 1;
+  imageRatio.value = ratio;
   isDocumentLike.value = Boolean(props.service?.documentMode) && ratio > 1.18;
   if (!hasManualZoom.value) {
-    zoomLevel.value = isDocumentLike.value ? 1.9 : 1;
+    zoomLevel.value = isDocumentLike.value ? 1 : 1;
   }
   if (!hasManualDetailsToggle.value) {
     detailsCollapsed.value = isDocumentLike.value;
@@ -139,6 +147,7 @@ watch(
     activeImageIndex.value = 0;
     zoomLevel.value = 1;
     isDocumentLike.value = false;
+    imageRatio.value = 1;
     hasManualZoom.value = false;
     detailsCollapsed.value = false;
     hasManualDetailsToggle.value = false;
@@ -150,6 +159,7 @@ watch(
   () => {
     zoomLevel.value = 1;
     isDocumentLike.value = false;
+    imageRatio.value = 1;
     hasManualZoom.value = false;
     detailsCollapsed.value = false;
     hasManualDetailsToggle.value = false;
@@ -272,8 +282,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
               </div>
             </div>
 
-            <div class="flex-1 overflow-auto px-4 py-4">
-              <div class="flex min-h-full items-start justify-center rounded-[22px] bg-white/5 p-3">
+            <div
+              class="service-modal-media-scroll flex-1 overflow-auto px-4 py-4"
+              :class="{ 'service-modal-media-scroll--document': isDocumentLike }"
+            >
+              <div class="service-modal-image-stage flex min-h-full items-start justify-center rounded-[22px] bg-white/5 p-3">
                 <picture class="block shrink-0" :style="imageStyle">
                   <source
                     v-for="(src, idx) in activeImage?.sources || []"
@@ -285,7 +298,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
                   <img
                     :src="activeImage?.src || FALLBACK_IMAGE"
                     :alt="activeImage?.alt || service.name"
-                    class="mx-auto w-full rounded-[22px] bg-white/95 object-contain shadow-[0_28px_60px_rgba(15,23,42,0.25)]"
+                    :class="imageClass"
+                    :style="{ aspectRatio: imageRatio > 0 ? `${1 / imageRatio}` : undefined }"
                     @error="onImageError"
                     @load="onImageLoad"
                   />
@@ -436,5 +450,59 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
 .service-modal-leave-to .service-modal-panel {
   opacity: 0;
   transform: translateY(18px) scale(0.98);
+}
+
+.service-modal-media {
+  min-height: 0;
+}
+
+.service-modal-media-scroll {
+  min-height: 0;
+  scrollbar-color: rgba(255, 255, 255, 0.55) rgba(255, 255, 255, 0.08);
+  scrollbar-width: thin;
+}
+
+.service-modal-media-scroll::-webkit-scrollbar {
+  height: 12px;
+  width: 12px;
+}
+
+.service-modal-media-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+}
+
+.service-modal-media-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.48);
+  border: 3px solid rgba(2, 6, 23, 0.96);
+  border-radius: 999px;
+}
+
+.service-modal-media-scroll--document {
+  scroll-padding: 1rem;
+}
+
+.service-modal-image-stage {
+  min-width: min-content;
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.service-modal-image {
+  display: block;
+  height: auto;
+}
+
+.service-modal-image--photo {
+  max-height: calc(96vh - 11rem);
+}
+
+.service-modal-image--document {
+  max-height: none;
+}
+
+@media (max-width: 1023px) {
+  .service-modal-image--photo {
+    max-height: calc(96vh - 14rem);
+  }
 }
 </style>
