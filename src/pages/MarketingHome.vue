@@ -331,16 +331,6 @@ const faqItems = [
               </RouterLink>
             </div>
 
-            <div class="mt-4">
-              <RouterLink
-                to="/downloads/pos"
-                class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 transition hover:text-slate-950"
-              >
-                <span>Download the Windows POS installer</span>
-                <span aria-hidden="true">→</span>
-              </RouterLink>
-            </div>
-
             <div class="mt-8 grid gap-4 sm:grid-cols-3">
               <div
                 v-for="stat in outcomeStats"
