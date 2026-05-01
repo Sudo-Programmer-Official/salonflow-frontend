@@ -42,6 +42,7 @@ type StoredDraftSnapshot = {
   draftId: string | null;
   stepIndex: number;
   answers: AssistantAnswers;
+  quickLeadText?: string;
 };
 
 const props = withDefaults(
@@ -136,6 +137,8 @@ const error = ref('');
 const isFullscreen = ref(props.defaultFullscreen);
 const draftId = ref<string | null>(null);
 const draftSaveState = ref<DraftSaveState>('idle');
+const quickLeadText = ref('');
+const quickLeadNotice = ref('');
 
 const storageKey = computed(() => `lead-assistant:${props.source}`);
 const activeStep = computed(() => steps[stepIndex.value] ?? null);
@@ -152,12 +155,13 @@ const hasAnyProgress = computed(
         answers.biggestPain.trim() ||
         answers.timeline.trim() ||
         answers.email.trim() ||
+        quickLeadText.value.trim() ||
         phoneDigits.value,
     ),
 );
 
 const initialAssistantMessage =
-  'I help salon owners figure out the fastest path to more bookings, smoother operations, and more repeat visits. This takes about 60 seconds.';
+  'I can capture your demo request from one message, or guide you step by step if you prefer.';
 
 const summaryPoints = computed<string[]>(() =>
   [
@@ -245,6 +249,7 @@ const normalizeSnapshot = (): StoredDraftSnapshot => ({
   draftId: draftId.value,
   stepIndex: clampStepIndex(stepIndex.value),
   answers: { ...answers },
+  quickLeadText: quickLeadText.value,
 });
 
 const restoreLocalDraft = () => {
@@ -258,6 +263,9 @@ const restoreLocalDraft = () => {
     }
     if (typeof parsed.stepIndex === 'number') {
       stepIndex.value = clampStepIndex(parsed.stepIndex);
+    }
+    if (typeof parsed.quickLeadText === 'string') {
+      quickLeadText.value = parsed.quickLeadText;
     }
     draftId.value = typeof parsed.draftId === 'string' ? parsed.draftId : null;
   } catch {
@@ -287,6 +295,7 @@ const buildLeadSummary = () =>
     answers.teamSize.trim() ? `Team size: ${answers.teamSize.trim()}` : null,
     answers.biggestPain.trim() ? `Biggest pain: ${answers.biggestPain.trim()}` : null,
     answers.timeline.trim() ? `Timeline: ${answers.timeline.trim()}` : null,
+    quickLeadText.value.trim() ? `Quick note: ${quickLeadText.value.trim()}` : null,
     answers.preferredContact.trim()
       ? `Preferred contact: ${answers.preferredContact}${answers.phone.trim() ? ` (${answers.phone.trim()})` : ''}`
       : null,
@@ -296,6 +305,13 @@ const buildLeadSummary = () =>
 
 const buildTranscript = (): TranscriptEntry[] => {
   const transcript: TranscriptEntry[] = [];
+  if (quickLeadText.value.trim()) {
+    transcript.push({
+      role: 'assistant',
+      message: 'Tell me your salon details and the best way to reach you. I will turn it into a demo request.',
+    });
+    transcript.push({ role: 'lead', message: quickLeadText.value.trim() });
+  }
   steps.forEach((step) => {
     const answer = answerForStep(step.id);
     if (!answer) return;
@@ -310,6 +326,7 @@ const buildDetails = (mode: SaveMode) => ({
   primaryGoal: answers.primaryGoal.trim(),
   teamSize: answers.teamSize.trim(),
   biggestPain: answers.biggestPain.trim(),
+  quickCaptureNote: quickLeadText.value.trim(),
   timeline: answers.timeline.trim(),
   preferredContact: answers.preferredContact,
   sourcePath: route.fullPath,
@@ -483,6 +500,97 @@ const setChoice = (field: 'primaryGoal' | 'teamSize' | 'timeline' | 'preferredCo
   }
 };
 
+const extractFirstMatch = (value: string, patterns: RegExp[]) => {
+  for (const pattern of patterns) {
+    const match = value.match(pattern);
+    if (match?.[1]) return match[1].trim().replace(/[.,;:]+$/, '');
+  }
+  return '';
+};
+
+const inferGoal = (value: string) => {
+  const lower = value.toLowerCase();
+  if (lower.includes('no-show') || lower.includes('no show') || lower.includes('reminder')) return 'Fewer no-shows';
+  if (lower.includes('repeat') || lower.includes('retention') || lower.includes('review') || lower.includes('loyalty')) {
+    return 'Better repeat visits';
+  }
+  if (lower.includes('pos') || lower.includes('all in one') || lower.includes('one place')) {
+    return 'Run everything in one place';
+  }
+  if (lower.includes('booking') || lower.includes('customer') || lower.includes('lead') || lower.includes('website')) {
+    return 'More bookings';
+  }
+  return '';
+};
+
+const applyQuickLeadText = () => {
+  const raw = quickLeadText.value.trim();
+  if (!raw) {
+    quickLeadNotice.value = 'Tell me your name, salon, goal, and email in one message.';
+    return;
+  }
+
+  const email = raw.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] ?? '';
+  const phone = raw.match(/(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}/)?.[0] ?? '';
+  const name = extractFirstMatch(raw, [
+    /(?:my name is|i am|i'm)\s+([a-z][a-z\s.'-]{1,60})(?=,|\.|;|\band\b|\bfrom\b|\bat\b|\bwith\b|$)/i,
+    /^([a-z][a-z\s.'-]{1,60})(?=,|\.|;|\s+-\s+)/i,
+  ]);
+  const businessName = extractFirstMatch(raw, [
+    /(?:salon|studio|business|shop)\s+(?:is|name is|called)\s+([a-z0-9 &.'-]{2,80})(?=,|\.|;|\band\b|\bin\b|$)/i,
+    /(?:from|at|for)\s+([a-z0-9 &.'-]{2,80})(?:\s+(?:salon|studio|nails|spa|barber))?(?=,|\.|;|\band\b|\bin\b|$)/i,
+  ]);
+  const teamSize = raw.match(/\b(?:team of|staff of|we have)\s+(\d{1,2})\b/i)?.[1] ?? '';
+  const timeline = raw.match(/\b(this week|this month|next quarter|asap|soon|immediately)\b/i)?.[1] ?? '';
+  const goal = inferGoal(raw);
+
+  if (email) answers.email = email;
+  if (phone) answers.phone = phone;
+  if (name && !answers.name.trim()) answers.name = name;
+  if (businessName && !answers.businessName.trim()) answers.businessName = businessName;
+  if (teamSize && !answers.teamSize.trim()) {
+    const numericTeamSize = Number(teamSize);
+    answers.teamSize =
+      numericTeamSize <= 1 ? 'Just me' : numericTeamSize <= 5 ? '2-5 team members' : numericTeamSize <= 10 ? '6-10 team members' : '10+ team members';
+  }
+  if (timeline && !answers.timeline.trim()) {
+    answers.timeline = timeline.toLowerCase() === 'asap' || timeline.toLowerCase() === 'soon' || timeline.toLowerCase() === 'immediately'
+      ? 'This week'
+      : timeline.replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+  if (goal && !answers.primaryGoal.trim()) answers.primaryGoal = goal;
+  if (!answers.biggestPain.trim()) answers.biggestPain = raw;
+  if (!answers.preferredContact.trim()) answers.preferredContact = phone ? 'Text' : 'Email';
+
+  quickLeadNotice.value = 'I filled the lead details from your message. You can send now or adjust anything below.';
+  persistLocalDraft();
+  queueDraftSave(150);
+};
+
+const submitQuickLead = async () => {
+  applyQuickLeadText();
+  error.value = '';
+
+  if (!answers.name.trim()) {
+    error.value = 'Add your name in the message or the name field below.';
+    return;
+  }
+  if (!answers.email.trim()) {
+    error.value = 'Add an email so we can send the demo plan.';
+    return;
+  }
+  if (!emailValid(answers.email.trim())) {
+    error.value = 'Enter a valid email address.';
+    return;
+  }
+  if (phoneDigits.value && phoneDigits.value.length !== 10) {
+    error.value = 'Enter a valid 10-digit phone number or remove it.';
+    return;
+  }
+
+  await submitLead();
+};
+
 const submitLead = async () => {
   busy.value = true;
   error.value = '';
@@ -504,6 +612,12 @@ const submitLead = async () => {
 const toggleFullscreen = () => {
   isFullscreen.value = !isFullscreen.value;
 };
+
+const openFullscreen = () => {
+  isFullscreen.value = true;
+};
+
+defineExpose({ openFullscreen });
 
 const handleVisibilityChange = () => {
   if (typeof document === 'undefined') return;
@@ -528,6 +642,7 @@ watch(
     () => answers.preferredContact,
     () => answers.email,
     () => answers.phone,
+    () => quickLeadText.value,
   ],
   () => {
     if (hydrating) return;
@@ -625,6 +740,42 @@ onBeforeUnmount(() => {
 
       <div class="assistant-grid">
         <div class="assistant-transcript rounded-[26px] border border-slate-200/80 bg-slate-950 p-4 text-white sm:p-5">
+          <div class="mb-4 rounded-[24px] border border-white/10 bg-white/[0.06] p-4">
+            <div class="text-[11px] font-semibold uppercase tracking-[0.24em] text-emerald-200">
+              Fast capture
+            </div>
+            <label class="mt-3 block">
+              <span class="text-sm font-medium text-white">Tell me everything in one message</span>
+              <textarea
+                v-model="quickLeadText"
+                rows="5"
+                class="mt-2 w-full resize-none rounded-2xl border border-white/10 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-emerald-300 focus:ring-4 focus:ring-emerald-300/20"
+                placeholder="Hi, I am Maria from Glow House Salon. We have 5 staff, need more bookings and fewer no-shows, and want to launch this month. Email maria@glowhouse.com, text 361 555 0184."
+                @blur="applyQuickLeadText"
+              />
+            </label>
+            <div class="mt-3 flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                class="inline-flex items-center justify-center rounded-full bg-emerald-300 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-60"
+                :disabled="busy"
+                @click="submitQuickLead"
+              >
+                {{ busy ? 'Sending...' : 'Send from this message' }}
+              </button>
+              <button
+                type="button"
+                class="inline-flex items-center justify-center rounded-full border border-white/12 px-4 py-2.5 text-sm font-semibold text-white transition hover:border-white/24 hover:bg-white/8"
+                @click="applyQuickLeadText"
+              >
+                Fill details below
+              </button>
+            </div>
+            <p v-if="quickLeadNotice" class="mt-3 text-xs leading-5 text-emerald-100">
+              {{ quickLeadNotice }}
+            </p>
+          </div>
+
           <div class="space-y-3">
             <div
               v-for="(message, index) in completedConversation"

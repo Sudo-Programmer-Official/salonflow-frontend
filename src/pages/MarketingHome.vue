@@ -1,13 +1,26 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { RouterLink } from 'vue-router';
+import { nextTick, onMounted, ref, watch } from 'vue';
+import { RouterLink, useRoute } from 'vue-router';
 import LeadAssistant from '../components/marketing/LeadAssistant.vue';
 
+const route = useRoute();
 const assistantSection = ref<HTMLElement | null>(null);
+const leadAssistant = ref<InstanceType<typeof LeadAssistant> | null>(null);
 
 const jumpToAssistant = () => {
   assistantSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  leadAssistant.value?.openFullscreen();
 };
+
+const openDemoFromRoute = async () => {
+  if (route.query.demo !== '1') return;
+  await nextTick();
+  jumpToAssistant();
+};
+
+onMounted(openDemoFromRoute);
+
+watch(() => route.query.demo, openDemoFromRoute);
 
 const outcomeStats = [
   { value: '1 system', label: 'Website, booking, social scheduling, reminders, CRM, and POS rollout in one place' },
@@ -95,6 +108,16 @@ const spotlightCards = [
     desc: 'Plan promos, publish updates, and keep your website fresh without hiring a separate marketing team.',
     image: '/images/landing/marketing-feature-social.jpg',
   },
+];
+
+const offeringHighlights = [
+  { label: 'Website + booking', className: 'offering-pill--sky' },
+  { label: 'Social media scheduling', className: 'offering-pill--violet' },
+  { label: 'SMS reminders', className: 'offering-pill--amber' },
+  { label: 'Loyalty + reviews', className: 'offering-pill--emerald' },
+  { label: 'Owner visibility', className: 'offering-pill--rose' },
+  { label: 'POS rollout', className: 'offering-pill--indigo' },
+  { label: 'Done-for-you setup', className: 'offering-pill--teal' },
 ];
 
 const differenceRows = [
@@ -222,6 +245,49 @@ const pricingPlans = [
     priceNote: 'The clearest value if you want the full SalonFlow operating system.',
   },
 ];
+
+const faqItems = [
+  {
+    question: 'What exactly does SalonFlow do for my salon?',
+    answer:
+      'SalonFlow brings your website, online booking, QR check-in, SMS reminders, customer capture, reviews, loyalty, social scheduling, and POS rollout into one operating system. The goal is less tool-hopping and a cleaner path from first click to repeat visit.',
+  },
+  {
+    question: 'Is setup really included, or do I have to build everything myself?',
+    answer:
+      'Setup is included. We help organize the launch around your salon, your services, your booking flow, and the plan you choose so you are not left stitching together software on your own.',
+  },
+  {
+    question: 'Do I need to sign a long contract?',
+    answer:
+      'No. SalonFlow is built so you can start simple, prove the value, and upgrade when your salon needs more follow-up, visibility, or POS structure.',
+  },
+  {
+    question: 'Which plan should I choose?',
+    answer:
+      'Core is best if you need a polished website and booking flow. Growth is the strongest fit for most salons that want reviews, loyalty, social scheduling, and repeat-visit support. Complete is for salons that want the fullest operating layer with POS rollout visibility and priority support.',
+  },
+  {
+    question: 'Can SalonFlow replace the tools I already use?',
+    answer:
+      'In many cases, yes, but we do not force a messy switch on day one. During the demo, we look at what you use now, what is working, and where SalonFlow can remove friction without disrupting your team.',
+  },
+  {
+    question: 'How does this help me get more customers?',
+    answer:
+      'SalonFlow focuses on the moments that usually leak revenue: weak first impressions, lost DMs, slow follow-up, missed reminders, inconsistent reviews, and no clear repeat-visit system. The product is designed to turn more attention into booked and returning guests.',
+  },
+  {
+    question: 'Is SalonFlow only for large salons?',
+    answer:
+      'No. It works for salons that want a cleaner foundation now and room to grow later. Smaller salons can start with Core, while busier teams can move into Growth or Complete as operations become more complex.',
+  },
+  {
+    question: 'Can I see a real example before trusting it?',
+    answer:
+      'Yes. MTV Nails in Corpus Christi is already live on SalonFlow, so you can inspect a real customer website instead of relying only on mockups or screenshots.',
+  },
+];
 </script>
 
 <template>
@@ -335,16 +401,24 @@ const pricingPlans = [
       </div>
     </section>
 
-    <section class="border-b border-black/5 bg-white/70">
-      <div class="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
-        <div class="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm font-medium text-slate-600">
-          <span>Website + booking</span>
-          <span>Social media scheduling</span>
-          <span>SMS reminders</span>
-          <span>Loyalty + reviews</span>
-          <span>Owner visibility</span>
-          <span>POS rollout</span>
-          <span>Done-for-you setup</span>
+    <section class="offering-marquee-section border-b border-black/5">
+      <div class="offering-marquee-fade relative overflow-hidden py-6">
+        <div class="offering-marquee-track flex w-max items-center gap-4">
+          <div
+            v-for="repeat in 2"
+            :key="repeat"
+            class="flex items-center gap-4"
+            :aria-hidden="repeat === 2"
+          >
+            <span
+              v-for="item in offeringHighlights"
+              :key="`${repeat}-${item.label}`"
+              class="offering-pill inline-flex items-center rounded-full px-6 py-3 text-base font-bold shadow-sm sm:px-7 sm:py-3.5 sm:text-lg"
+              :class="item.className"
+            >
+              {{ item.label }}
+            </span>
+          </div>
         </div>
       </div>
     </section>
@@ -805,9 +879,10 @@ const pricingPlans = [
         </div>
 
         <LeadAssistant
+          ref="leadAssistant"
           source="marketing-home-assistant"
           title="See how SalonFlow fits your salon in one guided conversation"
-          subtitle="Share a few details about your salon and we will tailor the right setup for your team. Your progress saves automatically while we build your demo plan."
+          subtitle="Send your details in one message or use the guided questions. Either way, we capture the lead quickly and save progress automatically."
           cta-label="Send My Demo Plan"
         />
       </div>
@@ -898,6 +973,49 @@ const pricingPlans = [
         </p>
       </div>
     </section>
+
+    <section class="border-t border-black/5 bg-white">
+      <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+        <div class="grid gap-10 lg:grid-cols-[0.78fr,1.22fr] lg:items-start">
+          <div class="lg:sticky lg:top-8">
+            <div class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.32em] text-slate-600">
+              Questions owners ask
+            </div>
+            <h2 class="sf-display mt-5 text-3xl font-semibold leading-tight text-slate-950 sm:text-4xl">
+              Clear answers before you book a demo.
+            </h2>
+            <p class="mt-5 text-base leading-8 text-slate-600">
+              Salon owners should know what they are buying, how setup works, and why the system can earn trust before a sales call starts.
+            </p>
+            <button
+              type="button"
+              class="mt-7 inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_16px_40px_rgba(15,23,42,0.16)] transition hover:-translate-y-0.5 hover:bg-slate-800"
+              @click="jumpToAssistant"
+            >
+              Ask About My Salon
+            </button>
+          </div>
+
+          <div class="grid gap-4 md:grid-cols-2">
+            <article
+              v-for="item in faqItems"
+              :key="item.question"
+              class="faq-card rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_18px_55px_rgba(15,23,42,0.06)]"
+            >
+              <div class="flex items-start gap-4">
+                <span class="mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-sm font-bold text-emerald-700">
+                  ?
+                </span>
+                <div>
+                  <h3 class="text-base font-semibold leading-7 text-slate-950">{{ item.question }}</h3>
+                  <p class="mt-3 text-sm leading-7 text-slate-600">{{ item.answer }}</p>
+                </div>
+              </div>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
   </div>
 </template>
 
@@ -929,6 +1047,84 @@ const pricingPlans = [
 
 .hero-plan-card__copy {
   color: rgba(255, 255, 255, 0.9);
+}
+
+.offering-marquee-section {
+  background:
+    radial-gradient(circle at 12% 20%, rgba(56, 189, 248, 0.18), transparent 30%),
+    radial-gradient(circle at 82% 30%, rgba(244, 114, 182, 0.14), transparent 28%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.9), rgba(255, 251, 235, 0.9));
+}
+
+.offering-marquee-fade::before,
+.offering-marquee-fade::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 10;
+  width: min(14vw, 160px);
+  content: '';
+  pointer-events: none;
+}
+
+.offering-marquee-fade::before {
+  left: 0;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.98), transparent);
+}
+
+.offering-marquee-fade::after {
+  right: 0;
+  background: linear-gradient(270deg, rgba(255, 251, 235, 0.96), transparent);
+}
+
+.offering-marquee-track {
+  animation: offering-marquee 28s linear infinite;
+}
+
+.offering-marquee-section:hover .offering-marquee-track {
+  animation-play-state: paused;
+}
+
+.offering-pill {
+  min-width: max-content;
+  border: 1px solid rgba(255, 255, 255, 0.84);
+  letter-spacing: 0;
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
+}
+
+.offering-pill--sky {
+  background: linear-gradient(135deg, #e0f2fe, #bae6fd);
+  color: #075985;
+}
+
+.offering-pill--violet {
+  background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+  color: #5b21b6;
+}
+
+.offering-pill--amber {
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  color: #92400e;
+}
+
+.offering-pill--emerald {
+  background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+  color: #065f46;
+}
+
+.offering-pill--rose {
+  background: linear-gradient(135deg, #ffe4e6, #fecdd3);
+  color: #9f1239;
+}
+
+.offering-pill--indigo {
+  background: linear-gradient(135deg, #e0e7ff, #c7d2fe);
+  color: #3730a3;
+}
+
+.offering-pill--teal {
+  background: linear-gradient(135deg, #ccfbf1, #99f6e4);
+  color: #115e59;
 }
 
 .feature-system-card {
@@ -1029,6 +1225,16 @@ const pricingPlans = [
   background: linear-gradient(135deg, #111f39, #253349);
 }
 
+.faq-card {
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.faq-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(148, 163, 184, 0.72);
+  box-shadow: 0 24px 65px rgba(15, 23, 42, 0.1);
+}
+
 .client-billboard-card {
   transform: perspective(1800px) rotateY(-3.5deg) rotateX(1.4deg);
   transform-style: preserve-3d;
@@ -1077,6 +1283,32 @@ const pricingPlans = [
   }
   50% {
     transform: translateY(-10px);
+  }
+}
+
+@keyframes offering-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(-50% - 8px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .offering-marquee-track {
+    animation: none;
+  }
+
+  .offering-marquee-fade {
+    overflow-x: auto;
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .offering-marquee-fade::before,
+  .offering-marquee-fade::after {
+    display: none;
   }
 }
 
