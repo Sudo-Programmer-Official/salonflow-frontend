@@ -520,12 +520,12 @@ const pricingPlans = [
     <section class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
       <div class="grid gap-10 lg:grid-cols-[0.9fr,1.1fr] lg:items-center">
         <div>
-          <div class="text-[11px] font-semibold uppercase tracking-[0.32em] text-slate-500">Why it lands better</div>
+          <div class="text-[11px] font-semibold uppercase tracking-[0.32em] text-slate-500">Built for salon growth</div>
           <h2 class="sf-display mt-3 text-3xl font-semibold leading-tight text-slate-950 sm:text-4xl">
-            You are not selling software. You are selling more revenue with less chaos.
+            One system for the moments that turn salon interest into booked visits.
           </h2>
           <p class="mt-5 text-base leading-8 text-slate-600">
-            That is the frame salon owners actually care about. More customers. More repeat visits. Less admin drag. Less tool sprawl.
+            SalonFlow connects the public website, booking flow, follow-up, reminders, and owner visibility so every guest touchpoint feels organized from the first click.
           </p>
 
           <div class="mt-8 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.08)]">

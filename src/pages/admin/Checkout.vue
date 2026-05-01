@@ -647,7 +647,9 @@ const availableGiftBalance = (card: { id: number; source?: 'new' | 'legacy'; leg
   const fetched = giftCardInfo.value[card.id]?.card?.balance;
   if (fetched !== undefined && fetched !== null) return Math.max(0, fetched);
   if (card.source === 'legacy') {
-    const manual = Number(card.legacyBalance);
+    const rawBalance = (card.legacyBalance || '').trim();
+    if (!rawBalance) return undefined;
+    const manual = Number(rawBalance);
     if (Number.isFinite(manual) && manual >= 0) return manual;
   }
   return undefined;
@@ -679,6 +681,9 @@ const autopopulateGiftAmount = (id: number) => {
     card.amount = suggested ? suggested.toFixed(2) : '';
   }
 };
+
+const showLegacyBalanceInput = (card: { id: number; source?: 'new' | 'legacy' }) =>
+  card.source === 'legacy' && !giftCardInfo.value[card.id]?.card;
 
 const fetchGiftCardBalance = async (card: { id: number; number: string; source?: 'new' | 'legacy'; legacyBalance?: string }) => {
   const num = (card.number || '').trim();
@@ -780,6 +785,10 @@ const validateGiftCards = () => {
       return false;
     }
     const bal = availableGiftBalance(card);
+    if (card.source === 'legacy' && !info?.card && bal === undefined) {
+      ElMessage.warning(`Enter the current balance for old gift card ${num}`);
+      return false;
+    }
     if (bal !== undefined && amt > bal) {
       ElMessage.warning(`Gift card ${num} exceeds available balance`);
       return false;
@@ -1273,6 +1282,16 @@ onBeforeUnmount(() => {
                       Gift Card Number
                       <ElInput v-model="card.number" placeholder="Number" />
                     </label>
+                    <label v-if="showLegacyBalanceInput(card)" class="gift-label legacy-balance">
+                      Current balance
+                      <ElInput
+                        v-model="card.legacyBalance"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="Balance"
+                      />
+                    </label>
                     <label class="gift-label">
                       Amount
                       <ElInput
@@ -1315,6 +1334,7 @@ onBeforeUnmount(() => {
                           }}
                         </span>
                       </template>
+                      <span v-else-if="showLegacyBalanceInput(card)">Enter the current balance before applying this old gift card.</span>
                     </div>
                   </div>
                 </div>
@@ -1991,7 +2011,7 @@ onBeforeUnmount(() => {
 }
 .gift-row {
   display: grid;
-  grid-template-columns: 140px 1fr 140px auto;
+  grid-template-columns: 140px minmax(180px, 1fr) 140px 140px auto;
   gap: 8px;
   align-items: center;
 }
@@ -2066,8 +2086,7 @@ onBeforeUnmount(() => {
   min-height: 44px;
 }
 .legacy-balance :deep(.el-input__wrapper) {
-  padding: 4px 10px;
-  height: 32px;
+  min-height: 44px;
 }
 .checkout-footer {
   position: fixed;
