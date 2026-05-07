@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { ElCard, ElInput, ElTable, ElTableColumn, ElTag, ElButton, ElMessage, ElDrawer, ElTooltip, ElSwitch } from 'element-plus';
+import { ElCard, ElInput, ElTable, ElTableColumn, ElTag, ElButton, ElMessage, ElDrawer, ElTooltip, ElSwitch, ElDropdown, ElDropdownMenu, ElDropdownItem } from 'element-plus';
 import {
   searchCustomers,
   fetchCustomerTimeline,
@@ -195,6 +195,24 @@ const sendFeedbackAction = async (row: CustomerSearchResult) => {
   }
 };
 
+const handleActionCommand = (command: string, row: CustomerSearchResult) => {
+  if (command === 'view') {
+    void openTimeline(row.id);
+    return;
+  }
+  if (command === 'edit') {
+    openEdit(row);
+    return;
+  }
+  if (command === 'reminder') {
+    void sendReminderAction(row);
+    return;
+  }
+  if (command === 'feedback') {
+    void sendFeedbackAction(row);
+  }
+};
+
 const ensureDataForPage = async (target: number) => {
   const needed = target * PAGE_SIZE;
   if (needed > results.value.length && hasMore.value && nextCursor.value) {
@@ -333,30 +351,22 @@ watch(results, () => {
               </template>
             </ElTableColumn>
 
-            <ElTableColumn label="Actions" min-width="260" width="280" fixed="right" align="center" header-align="center" class-name="actions-col">
+            <ElTableColumn label="Actions" min-width="90" width="100" fixed="right" align="center" header-align="center" class-name="actions-col">
               <template #default="{ row }">
                 <div class="table-actions">
-                  <ElButton size="small" plain class="action-btn-text" @click.stop="openTimeline(row.id)">View</ElButton>
-                  <ElButton size="small" type="primary" plain class="action-btn-text" @click.stop="openEdit(row)">Edit</ElButton>
-                  <ElButton
-                    size="small"
-                    type="primary"
-                    class="action-btn-text"
-                    :disabled="!canSendReminder(row)"
-                    @click.stop="sendReminderAction(row)"
-                  >
-                    Reminder
-                  </ElButton>
-                  <ElButton
-                    size="small"
-                    type="primary"
-                    plain
-                    class="action-btn-text"
-                    :disabled="!canSendFeedback(row)"
-                    @click.stop="sendFeedbackAction(row)"
-                  >
-                    Feedback
-                  </ElButton>
+                  <ElDropdown trigger="click" @command="(command) => handleActionCommand(String(command), row)">
+                    <ElButton class="kebab-btn" plain @click.stop>
+                      ⋯
+                    </ElButton>
+                    <template #dropdown>
+                      <ElDropdownMenu>
+                        <ElDropdownItem command="view">View</ElDropdownItem>
+                        <ElDropdownItem command="edit">Edit</ElDropdownItem>
+                        <ElDropdownItem command="reminder" :disabled="!canSendReminder(row)">Send Reminder</ElDropdownItem>
+                        <ElDropdownItem command="feedback" :disabled="!canSendFeedback(row)">Send Feedback</ElDropdownItem>
+                      </ElDropdownMenu>
+                    </template>
+                  </ElDropdown>
                 </div>
               </template>
             </ElTableColumn>
@@ -461,16 +471,21 @@ watch(results, () => {
 .table-actions {
   display: flex;
   justify-content: center;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 0;
 }
-.action-btn-text {
-  min-width: 72px;
+.kebab-btn {
+  min-width: 36px;
+  width: 36px;
+  height: 30px;
+  padding: 0;
+  font-size: 20px;
+  line-height: 1;
+  color: #334155;
 }
 .actions-col {
-  min-width: 240px;
-  max-width: 300px;
+  min-width: 90px;
+  max-width: 100px;
 }
 .stat-chip {
   display: inline-flex;
