@@ -184,6 +184,7 @@ export async function checkoutCheckIn(
     giftCardAmount?: number | null;
     giftCards?: Array<{ number: string; amount: number }>;
     payments?: Array<{ method: 'cash' | 'card' | 'gift'; amount: number }>;
+    promotionId?: string | null;
   },
 ) {
   const res = await fetch(`${apiBase}/${checkInId}/checkout`, {

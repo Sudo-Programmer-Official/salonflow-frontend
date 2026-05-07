@@ -38,6 +38,11 @@ export type Promotion = {
   sendWindow?: PromotionSendWindow | null;
 };
 
+export type AvailablePromotion = Pick<
+  Promotion,
+  'id' | 'name' | 'offerType' | 'offerValue' | 'startAt' | 'endAt' | 'oneTimeUse' | 'status'
+>;
+
 export async function fetchPromotions(status?: 'active' | 'expired'): Promise<Promotion[]> {
   const params = status ? `?status=${status.toUpperCase()}` : '';
   const res = await fetch(`${apiUrl('/promotions')}${params}`, {
@@ -46,6 +51,18 @@ export async function fetchPromotions(status?: 'active' | 'expired'): Promise<Pr
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.message || 'Failed to load promotions');
+  }
+  return res.json();
+}
+
+export async function fetchAvailablePromotions(customerId: string): Promise<AvailablePromotion[]> {
+  const params = new URLSearchParams({ customerId });
+  const res = await fetch(`${apiUrl('/promotions/available')}?${params.toString()}`, {
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'Failed to load available promotions');
   }
   return res.json();
 }

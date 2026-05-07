@@ -9,6 +9,7 @@ import { humanizeTime } from '@/utils/dates';
 import { fetchServices, type ServiceItem } from '@/api/services';
 import { fetchCategories, type ServiceCategory } from '@/api/serviceCategories';
 import { fetchGiftCard, addLegacyGiftCard, type GiftCard } from '@/api/giftCards';
+import { fetchAvailablePromotions, type AvailablePromotion } from '@/api/promotions';
 import { type RedeemStatus } from '@/utils/redeemStatus';
 import { resolveCheckoutRedeemState } from '@/utils/checkoutLoyalty';
 import {
@@ -56,6 +57,11 @@ const nextGiftCardId = ref(2);
 const giftCardInfo = ref<Record<number, { loading: boolean; error: string; card: GiftCard | null }>>({});
 const fetchedNumbers = ref<Record<number, string>>({});
 const checkoutStep = ref<'services' | 'payment'>('services');
+const availablePromotions = ref<AvailablePromotion[]>([]);
+const promotionsLoading = ref(false);
+const promotionsError = ref('');
+const selectedPromotionId = ref('');
+const manualDiscountValue = ref('');
 const REDEEM_REQUIRED_POINTS = 300;
 const REDEEM_DOLLAR_VALUE = 5;
 let loyaltyRequestId = 0;
@@ -88,6 +94,8 @@ const loadDrafts = () => {
       paymentAmounts.value = { ...paymentAmounts.value, ...(pay.amounts ?? {}) };
       customTotalMode.value = Boolean(pay.customTotal?.enabled);
       customTotalValue.value = pay.customTotal?.amount || '';
+      selectedPromotionId.value = pay.promotionId || '';
+      manualDiscountValue.value = pay.manualDiscount || '';
       giftCards.value = pay.giftCards ?? [{ id: 1, number: '', amount: '' }];
       nextGiftCardId.value = giftCards.value.length
         ? Math.max(...giftCards.value.map((g) => g.id)) + 1
@@ -113,6 +121,8 @@ const persistPayments = () => {
     options: paymentOptions.value,
     amounts: paymentAmounts.value,
     customTotal: { enabled: customTotalMode.value, amount: customTotalValue.value },
+    promotionId: selectedPromotionId.value,
+    manualDiscount: manualDiscountValue.value,
     giftCards: giftCards.value,
   };
   localStorage.setItem(PAYMENT_KEY, JSON.stringify(existing));
@@ -137,6 +147,10 @@ const clearDraftForCurrent = () => {
   paymentAmounts.value = { cash: '', card: '' };
   customTotalMode.value = false;
   customTotalValue.value = '';
+  selectedPromotionId.value = '';
+  manualDiscountValue.value = '';
+  availablePromotions.value = [];
+  promotionsError.value = '';
   giftCards.value = [{ id: 1, number: '', amount: '', source: 'new', legacyBalance: '' }];
   nextGiftCardId.value = 2;
   giftCardInfo.value = {};
@@ -212,6 +226,25 @@ const selectedServiceObjects = computed(() => {
   return [...base, ...customAddIns.value];
 });
 
+const selectedServiceCounts = computed(() =>
+  selectedServiceIds.value.reduce<Record<string, number>>((acc, id) => {
+    acc[id] = (acc[id] ?? 0) + 1;
+    return acc;
+  }, {}),
+);
+
+const selectedServiceRows = computed(() => {
+  const map = new Map(services.value.map((s) => [s.id, s]));
+  const rows: Array<{ svc: ServiceItem | CustomAddIn; quantity: number }> = [];
+  selectedServiceIds.value.forEach((id) => {
+    if (rows.some((row) => row.svc.id === id)) return;
+    const svc = map.get(id);
+    if (svc) rows.push({ svc, quantity: selectedServiceCounts.value[id] ?? 1 });
+  });
+  customAddIns.value.forEach((svc) => rows.push({ svc, quantity: 1 }));
+  return rows;
+});
+
 const servicesSubtotal = computed(() =>
   selectedServiceObjects.value.reduce((acc, svc) => acc + (svc.priceCents ?? 0), 0) / 100,
 );
@@ -223,6 +256,26 @@ const subtotal = computed(() => {
   if (customTotalValid.value) return Number(Number(customTotalValue.value).toFixed(2));
   return servicesSubtotal.value;
 });
+const selectedPromotion = computed(() =>
+  availablePromotions.value.find((promo) => promo.id === selectedPromotionId.value) ?? null,
+);
+const promotionDiscount = computed(() => {
+  const promo = selectedPromotion.value;
+  if (!promo || subtotal.value <= 0) return 0;
+  const raw =
+    promo.offerType === 'percent'
+      ? subtotal.value * (promo.offerValue / 100)
+      : promo.offerValue;
+  return Math.min(subtotal.value, Math.max(0, Number(raw.toFixed(2))));
+});
+const manualDiscount = computed(() => {
+  const raw = Number(manualDiscountValue.value);
+  if (!Number.isFinite(raw) || raw <= 0) return 0;
+  return Math.min(Math.max(0, subtotal.value - promotionDiscount.value), Number(raw.toFixed(2)));
+});
+const checkoutDiscount = computed(() =>
+  Math.min(subtotal.value, Number((promotionDiscount.value + manualDiscount.value).toFixed(2))),
+);
 const loyaltyReady = computed(
   () =>
     !loading.value &&
@@ -252,6 +305,7 @@ const hasBillItems = computed(() => customTotalValid.value || selectedServiceObj
 const paymentState = computed(() =>
   resolveCheckoutPaymentState({
     subtotal: subtotal.value,
+    discountValue: checkoutDiscount.value,
     hasBillItems: hasBillItems.value,
     redeemSelected: redeemPoints.value,
     redeemStatus: redeemStatus.value,
@@ -283,6 +337,7 @@ const hasDirtyCheckout = computed(() => {
     giftCards.value.some((g) => (g.number || '').trim() || (g.amount || '').trim()) || paymentOptions.value.gift;
   const hasEntries = enteredPayments.value.length > 0;
   const hasCustom = customTotalMode.value || Boolean(customTotalValue.value.trim());
+  const hasDiscount = Boolean(selectedPromotionId.value) || Boolean(manualDiscountValue.value.trim());
   return (
     hasServices ||
     hasPaymentOptions ||
@@ -290,7 +345,8 @@ const hasDirtyCheckout = computed(() => {
     hasGiftCardData ||
     hasEntries ||
     subtotal.value > 0 ||
-    hasCustom
+    hasCustom ||
+    hasDiscount
   );
 });
 const giftCardsTotal = computed(() =>
@@ -365,6 +421,28 @@ const loadCustomerLoyalty = async (customerId: string | null | undefined) => {
   }
 };
 
+const loadAvailablePromotions = async (customerId: string | null | undefined) => {
+  const currentSelection = selectedPromotionId.value;
+  availablePromotions.value = [];
+  promotionsError.value = '';
+  if (!customerId) {
+    selectedPromotionId.value = '';
+    return;
+  }
+
+  promotionsLoading.value = true;
+  try {
+    const promos = await fetchAvailablePromotions(customerId);
+    availablePromotions.value = promos;
+    selectedPromotionId.value = promos.some((promo) => promo.id === currentSelection) ? currentSelection : '';
+  } catch (err) {
+    selectedPromotionId.value = '';
+    promotionsError.value = err instanceof Error ? err.message : 'Failed to load promotions';
+  } finally {
+    promotionsLoading.value = false;
+  }
+};
+
 const loadCheckin = async (opts?: { silent?: boolean }) => {
   if (!opts?.silent) loading.value = true;
   try {
@@ -379,6 +457,7 @@ const loadCheckin = async (opts?: { silent?: boolean }) => {
     }
     item.value = match;
     await loadCustomerLoyalty(match.customerId ?? null);
+    await loadAvailablePromotions(match.customerId ?? null);
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to load checkout');
     router.replace({ name: 'admin-queue' });
@@ -451,6 +530,8 @@ watch(
     giftCards.value,
     customTotalMode.value,
     customTotalValue.value,
+    selectedPromotionId.value,
+    manualDiscountValue.value,
   ],
   () => persistPayments(),
   { deep: true },
@@ -529,16 +610,17 @@ const toggleService = (id: string) => {
     showAddInModal.value = true;
     return;
   }
-  const current = new Set(selectedServiceIds.value);
-  if (current.has(id)) {
-    current.delete(id);
-  } else {
-    current.add(id);
-  }
-  selectedServiceIds.value = Array.from(current);
+  selectedServiceIds.value = [...selectedServiceIds.value, id];
 };
 
 const isSelected = (id: string) => selectedServiceIds.value.includes(id);
+const serviceQuantity = (id: string) => selectedServiceCounts.value[id] ?? 0;
+
+const removeServiceInstance = (id: string) => {
+  const index = selectedServiceIds.value.indexOf(id);
+  if (index === -1) return;
+  selectedServiceIds.value = selectedServiceIds.value.filter((_serviceId, idx) => idx !== index);
+};
 
 const togglePaymentOption = (key: 'cash' | 'card' | 'gift', checked: boolean) => {
   paymentOptions.value = { ...paymentOptions.value, [key]: checked };
@@ -852,6 +934,7 @@ const submitCheckout = async () => {
       giftCardNumber,
       giftCardAmount,
       giftCards: giftCardSummaries,
+      promotionId: selectedPromotion.value?.id ?? null,
     });
     clearDraftForCurrent();
     ElMessage.success('Checkout completed');
@@ -1045,7 +1128,10 @@ onBeforeUnmount(() => {
               >
                 <div class="svc-top">
                   <span class="svc-icon">{{ svc.icon || '💅' }}</span>
-                  <span v-if="isSelected(svc.id) && !isAddInService(svc)" class="svc-check">✓</span>
+                  <span v-if="serviceQuantity(svc.id) > 1 && !isAddInService(svc)" class="svc-quantity">
+                    {{ serviceQuantity(svc.id) }}
+                  </span>
+                  <span v-else-if="isSelected(svc.id) && !isAddInService(svc)" class="svc-check">✓</span>
                   <span v-else-if="popularServiceIds.includes(svc.id) && !isAddInService(svc)" class="svc-popular"
                     >Popular</span
                   >
@@ -1111,31 +1197,32 @@ onBeforeUnmount(() => {
           <div v-if="!selectedServiceObjects.length && !customTotalValid" class="empty-state">
             Add services or enable a custom total to build the bill.
           </div>
-          <div v-else class="selected-list" v-if="selectedServiceObjects.length">
+          <div v-else class="selected-list" v-if="selectedServiceRows.length">
             <div
-              v-for="svc in selectedServiceObjects"
-              :key="svc.id"
+              v-for="row in selectedServiceRows"
+              :key="row.svc.id"
               class="selected-row"
             >
               <div class="selected-name">
-                {{ svc.name }}
+                {{ row.svc.name }}
+                <span v-if="row.quantity > 1" class="selected-quantity">× {{ row.quantity }}</span>
               </div>
               <div class="selected-meta">
-                <span v-if="svc.durationMinutes">{{ svc.durationMinutes }} min</span>
-                <span v-if="svc.priceCents !== undefined && svc.priceCents !== null">
+                <span v-if="row.svc.durationMinutes">{{ row.svc.durationMinutes }} min</span>
+                <span v-if="row.svc.priceCents !== undefined && row.svc.priceCents !== null">
                   {{
                     Intl.NumberFormat('en-US', {
                       style: 'currency',
-                      currency: (svc as any).currency || 'USD',
+                      currency: (row.svc as any).currency || 'USD',
                       minimumFractionDigits: 2,
-                    }).format((svc.priceCents ?? 0) / 100)
+                    }).format(((row.svc.priceCents ?? 0) * row.quantity) / 100)
                   }}
                 </span>
               </div>
               <button
                 class="remove-btn"
                 type="button"
-                @click="(svc as any).isCustom ? removeCustomAddIn(svc.id) : toggleService(svc.id)"
+                @click="(row.svc as any).isCustom ? removeCustomAddIn(row.svc.id) : removeServiceInstance(row.svc.id)"
               >
                 ✕
               </button>
@@ -1157,6 +1244,10 @@ onBeforeUnmount(() => {
               <span>Redeem points</span>
               <span>-{{ Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(redeemValue) }}</span>
             </div>
+            <div class="bill-row" v-if="checkoutDiscount > 0">
+              <span>Promotion / discount</span>
+              <span>-{{ Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(checkoutDiscount) }}</span>
+            </div>
             <div class="bill-row">
               <span>Tax</span>
               <span>—</span>
@@ -1176,6 +1267,32 @@ onBeforeUnmount(() => {
               <div class="payments-title">Payments</div>
               <div class="payments-remaining" :class="remainingState">
                 Remaining {{ Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(remainingBalance) }}
+              </div>
+            </div>
+            <div class="discount-row">
+              <div class="payments-section-title">Promotions & discounts</div>
+              <div class="discount-controls">
+                <select v-model="selectedPromotionId" class="discount-select" :disabled="promotionsLoading">
+                  <option value="">
+                    {{ promotionsLoading ? 'Loading promotions...' : 'No promotion' }}
+                  </option>
+                  <option v-for="promo in availablePromotions" :key="promo.id" :value="promo.id">
+                    {{ promo.name }} -
+                    {{ promo.offerType === 'percent' ? `${promo.offerValue}%` : Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(promo.offerValue) }}
+                    off
+                  </option>
+                </select>
+                <ElInput
+                  v-model="manualDiscountValue"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="Discount amount"
+                />
+              </div>
+              <div class="discount-hint" v-if="promotionsError">{{ promotionsError }}</div>
+              <div class="discount-hint" v-else-if="!promotionsLoading && !availablePromotions.length">
+                No unused customer promotions available.
               </div>
             </div>
             <div class="redeem-row" v-if="displayRedeemStatus.eligible">
@@ -1723,6 +1840,19 @@ onBeforeUnmount(() => {
   font-size: 12px;
   box-shadow: 0 6px 14px rgba(22, 163, 74, 0.35);
 }
+.svc-quantity {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.35);
+}
 .svc-popular {
   padding: 3px 8px;
   border-radius: 999px;
@@ -1782,6 +1912,19 @@ onBeforeUnmount(() => {
 .selected-name {
   font-weight: 600;
   color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.selected-quantity {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 2px 8px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 800;
 }
 .selected-meta {
   font-size: 12px;
@@ -1888,6 +2031,35 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+.discount-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 12px;
+  background: #ffffff;
+}
+.discount-controls {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(160px, 220px);
+  gap: 10px;
+  align-items: center;
+}
+.discount-select {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 10px;
+  background: #fff;
+  padding: 0 12px;
+  color: #0f172a;
+  font-weight: 600;
+}
+.discount-hint {
+  font-size: 12px;
+  color: #64748b;
 }
 .redeem-row {
   display: flex;
