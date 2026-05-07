@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { ElCard, ElInput, ElTable, ElTableColumn, ElTag, ElButton, ElMessage, ElDrawer, ElTooltip } from 'element-plus';
+import { ElCard, ElInput, ElTable, ElTableColumn, ElTag, ElButton, ElMessage, ElDrawer, ElTooltip, ElSwitch } from 'element-plus';
 import {
   searchCustomers,
   fetchCustomerTimeline,
   fetchCustomers,
+  updateCustomer,
   type CustomerSearchResult,
   type CustomerTimeline as CustomerTimelineType,
   sendCustomerReminder,
@@ -25,6 +26,14 @@ const loadingMore = ref(false);
 const timelineOpen = ref(false);
 const timelineLoading = ref(false);
 const timeline = ref<CustomerTimelineType | null>(null);
+const editOpen = ref(false);
+const savingEdit = ref(false);
+const editingCustomerId = ref<string | null>(null);
+const editForm = ref({
+  name: '',
+  phoneE164: '',
+  reviewSmsConsent: false,
+});
 const page = ref(1);
 
 const totalPages = computed(() => Math.max(1, Math.ceil(results.value.length / PAGE_SIZE)));
@@ -70,6 +79,44 @@ const openTimeline = async (customerId: string) => {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to load timeline');
   } finally {
     timelineLoading.value = false;
+  }
+};
+
+const openEdit = (row: CustomerSearchResult) => {
+  editingCustomerId.value = row.id;
+  editForm.value = {
+    name: row.name ?? '',
+    phoneE164: row.phoneE164 ?? '',
+    reviewSmsConsent: !!row.reviewSmsConsent,
+  };
+  editOpen.value = true;
+};
+
+const saveCustomerEdit = async () => {
+  if (!editingCustomerId.value) return;
+  if (!editForm.value.name.trim()) {
+    ElMessage.warning('Customer name is required');
+    return;
+  }
+  savingEdit.value = true;
+  try {
+    await updateCustomer(editingCustomerId.value, {
+      name: editForm.value.name.trim(),
+      phoneE164: editForm.value.phoneE164.trim() || null,
+      reviewSmsConsent: editForm.value.reviewSmsConsent,
+    });
+    const target = results.value.find((item) => item.id === editingCustomerId.value);
+    if (target) {
+      target.name = editForm.value.name.trim();
+      target.phoneE164 = editForm.value.phoneE164.trim() || '';
+      target.reviewSmsConsent = editForm.value.reviewSmsConsent;
+    }
+    ElMessage.success('Customer updated');
+    editOpen.value = false;
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : 'Failed to update customer');
+  } finally {
+    savingEdit.value = false;
   }
 };
 
@@ -286,37 +333,30 @@ watch(results, () => {
               </template>
             </ElTableColumn>
 
-            <ElTableColumn label="Actions" min-width="140" width="160" fixed="right" align="center" header-align="center" class-name="actions-col">
+            <ElTableColumn label="Actions" min-width="260" width="280" fixed="right" align="center" header-align="center" class-name="actions-col">
               <template #default="{ row }">
-                <div class="table-actions icons">
-                  <ElTooltip content="Send reminder" placement="top">
-                    <ElButton
-                      circle
-                      size="small"
-                      type="primary"
-                      class="action-btn"
-                      :disabled="!canSendReminder(row)"
-                      @click.stop="sendReminderAction(row)"
-                    >
-                      🔔
-                    </ElButton>
-                  </ElTooltip>
-                  <ElTooltip content="Send feedback request" placement="top">
-                    <ElButton
-                      circle
-                      size="small"
-                      type="primary"
-                      plain
-                      class="action-btn"
-                      :disabled="!canSendFeedback(row)"
-                      @click.stop="sendFeedbackAction(row)"
-                    >
-                      ✉️
-                    </ElButton>
-                  </ElTooltip>
-                  <ElTooltip content="View timeline" placement="top">
-                    <ElButton circle size="small" class="action-btn" @click.stop="openTimeline(row.id)">👁</ElButton>
-                  </ElTooltip>
+                <div class="table-actions">
+                  <ElButton size="small" plain class="action-btn-text" @click.stop="openTimeline(row.id)">View</ElButton>
+                  <ElButton size="small" type="primary" plain class="action-btn-text" @click.stop="openEdit(row)">Edit</ElButton>
+                  <ElButton
+                    size="small"
+                    type="primary"
+                    class="action-btn-text"
+                    :disabled="!canSendReminder(row)"
+                    @click.stop="sendReminderAction(row)"
+                  >
+                    Reminder
+                  </ElButton>
+                  <ElButton
+                    size="small"
+                    type="primary"
+                    plain
+                    class="action-btn-text"
+                    :disabled="!canSendFeedback(row)"
+                    @click.stop="sendFeedbackAction(row)"
+                  >
+                    Feedback
+                  </ElButton>
                 </div>
               </template>
             </ElTableColumn>
@@ -346,6 +386,26 @@ watch(results, () => {
     <ElDrawer v-model="timelineOpen" title="Customer Timeline" size="30%">
       <div v-if="timelineLoading" class="text-sm text-slate-500">Loading timeline...</div>
       <CustomerTimeline v-else :timeline="timeline" />
+    </ElDrawer>
+
+    <ElDrawer v-model="editOpen" title="Edit Customer" size="32%">
+      <div class="edit-form">
+        <label class="field-label" for="customer-name">Name</label>
+        <ElInput id="customer-name" v-model="editForm.name" placeholder="Customer name" />
+
+        <label class="field-label mt-3" for="customer-phone">Phone</label>
+        <ElInput id="customer-phone" v-model="editForm.phoneE164" placeholder="+13612270110" />
+
+        <div class="mt-4 flex items-center justify-between gap-3">
+          <span class="field-label mb-0">SMS consent</span>
+          <ElSwitch v-model="editForm.reviewSmsConsent" />
+        </div>
+
+        <div class="mt-5 flex justify-end gap-2">
+          <ElButton @click="editOpen = false">Cancel</ElButton>
+          <ElButton type="primary" :loading="savingEdit" @click="saveCustomerEdit">Save</ElButton>
+        </div>
+      </div>
     </ElDrawer>
   </div>
 </template>
@@ -398,19 +458,19 @@ watch(results, () => {
   border-radius: 12px;
   background: #f1f5f9;
 }
-.table-actions.icons {
-  display: inline-flex;
+.table-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
 }
-.action-btn {
-  padding: 6px;
-  min-width: unset;
+.action-btn-text {
+  min-width: 72px;
 }
 .actions-col {
-  min-width: 140px;
-  max-width: 180px;
-  white-space: nowrap;
+  min-width: 240px;
+  max-width: 300px;
 }
 .stat-chip {
   display: inline-flex;
@@ -421,5 +481,12 @@ watch(results, () => {
   background: #f1f5f9;
   font-weight: 600;
   color: #0f172a;
+}
+.field-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
 }
 </style>

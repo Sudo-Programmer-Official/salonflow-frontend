@@ -377,15 +377,50 @@ const statusType = (status: QueueItem['status']) => {
   return 'info';
 };
 
-const waitingItems = computed(() =>
+const activeIdentityKey = (item: QueueItem) => {
+  if (item.customerId) return `customer:${item.customerId}`;
+  const phoneDigits = (item.customerPhone || '').replace(/\D/g, '');
+  if (phoneDigits) return `phone:${phoneDigits}`;
+  return `checkin:${item.id}`;
+};
+
+const activeStatusPriority = (status: QueueItem['status']) => {
+  if (status === 'IN_SERVICE') return 3;
+  if (status === 'CALLED') return 2;
+  if (status === 'WAITING') return 1;
+  return 0;
+};
+
+const activeQueueItems = computed(() => {
+  const byCustomer = new Map<string, QueueItem>();
   queue.value
+    .filter((item) => item.status === 'WAITING' || item.status === 'CALLED' || item.status === 'IN_SERVICE')
+    .forEach((item) => {
+      const key = activeIdentityKey(item);
+      const existing = byCustomer.get(key);
+      if (!existing) {
+        byCustomer.set(key, item);
+        return;
+      }
+      const statusDelta = activeStatusPriority(item.status) - activeStatusPriority(existing.status);
+      const itemTime = new Date(item.createdAt).getTime();
+      const existingTime = new Date(existing.createdAt).getTime();
+      if (statusDelta > 0 || (statusDelta === 0 && itemTime > existingTime)) {
+        byCustomer.set(key, item);
+      }
+    });
+  return Array.from(byCustomer.values());
+});
+
+const waitingItems = computed(() =>
+  activeQueueItems.value
     .filter((item) => item.status === 'WAITING' || item.status === 'CALLED')
     .slice()
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
 );
 
 const inServiceItems = computed(() =>
-  queue.value
+  activeQueueItems.value
     .filter((item) => item.status === 'IN_SERVICE')
     .slice()
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),

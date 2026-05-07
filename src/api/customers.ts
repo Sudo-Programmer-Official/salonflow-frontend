@@ -13,6 +13,12 @@ export type CustomerSearchResult = {
   reviewSentAt?: string | null;
 };
 
+export type UpdateCustomerInput = {
+  name: string;
+  phoneE164?: string | null;
+  reviewSmsConsent: boolean;
+};
+
 export type CustomerTimelineVisit = {
   paidAt: string | null;
   amountPaid: number | null;
@@ -123,5 +129,17 @@ export async function sendCustomerFeedback(customerId: string): Promise<void> {
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || 'Failed to send feedback');
+  }
+}
+
+export async function updateCustomer(customerId: string, input: UpdateCustomerInput): Promise<void> {
+  const res = await fetch(apiUrl(`/customers/${customerId}`), {
+    method: 'PATCH',
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to update customer');
   }
 }
