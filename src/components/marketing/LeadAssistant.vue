@@ -26,6 +26,11 @@ type TranscriptEntry = {
 type AssistantAnswers = {
   name: string;
   businessName: string;
+  country: string;
+  website: string;
+  googleBusinessUrl: string;
+  instagramHandle: string;
+  timezone: string;
   primaryGoal: string;
   teamSize: string;
   biggestPain: string;
@@ -121,6 +126,11 @@ const contactOptions: ChoiceOption[] = [
 const answers = reactive<AssistantAnswers>({
   name: '',
   businessName: '',
+  country: '',
+  website: '',
+  googleBusinessUrl: '',
+  instagramHandle: '',
+  timezone: '',
   primaryGoal: '',
   teamSize: '',
   biggestPain: '',
@@ -150,6 +160,11 @@ const hasAnyProgress = computed(
     Boolean(
       answers.name.trim() ||
         answers.businessName.trim() ||
+        answers.country.trim() ||
+        answers.website.trim() ||
+        answers.googleBusinessUrl.trim() ||
+        answers.instagramHandle.trim() ||
+        answers.timezone.trim() ||
         answers.primaryGoal.trim() ||
         answers.teamSize.trim() ||
         answers.biggestPain.trim() ||
@@ -166,6 +181,8 @@ const initialAssistantMessage =
 const summaryPoints = computed<string[]>(() =>
   [
     answers.businessName.trim() ? `Salon: ${answers.businessName.trim()}` : null,
+    answers.country.trim() ? `Country: ${answers.country.trim()}` : null,
+    answers.timezone.trim() ? `Time zone: ${answers.timezone.trim()}` : null,
     answers.primaryGoal.trim() ? `Goal: ${answers.primaryGoal.trim()}` : null,
     answers.teamSize.trim() ? `Team: ${answers.teamSize.trim()}` : null,
     answers.timeline.trim() ? `Timeline: ${answers.timeline.trim()}` : null,
@@ -203,6 +220,11 @@ const answerForStep = (stepId: StepId): string => {
       return answers.timeline.trim();
     case 'contact': {
       const parts = [
+        answers.country.trim() ? answers.country.trim() : null,
+        answers.timezone.trim() ? answers.timezone.trim() : null,
+        answers.website.trim() ? answers.website.trim() : null,
+        answers.googleBusinessUrl.trim() ? answers.googleBusinessUrl.trim() : null,
+        answers.instagramHandle.trim() ? answers.instagramHandle.trim() : null,
         answers.email.trim(),
         answers.phone.trim() ? `${answers.preferredContact} at ${answers.phone.trim()}` : answers.preferredContact,
       ].filter(Boolean);
@@ -291,6 +313,11 @@ const clearLocalDraft = () => {
 const buildLeadSummary = () =>
   [
     answers.businessName.trim() ? `Salon: ${answers.businessName.trim()}` : null,
+    answers.country.trim() ? `Country: ${answers.country.trim()}` : null,
+    answers.website.trim() ? `Website: ${answers.website.trim()}` : null,
+    answers.googleBusinessUrl.trim() ? `Google Business URL: ${answers.googleBusinessUrl.trim()}` : null,
+    answers.instagramHandle.trim() ? `Instagram: ${answers.instagramHandle.trim()}` : null,
+    answers.timezone.trim() ? `Time zone: ${answers.timezone.trim()}` : null,
     answers.primaryGoal.trim() ? `Primary goal: ${answers.primaryGoal.trim()}` : null,
     answers.teamSize.trim() ? `Team size: ${answers.teamSize.trim()}` : null,
     answers.biggestPain.trim() ? `Biggest pain: ${answers.biggestPain.trim()}` : null,
@@ -323,6 +350,11 @@ const buildTranscript = (): TranscriptEntry[] => {
 
 const buildDetails = (mode: SaveMode) => ({
   businessName: answers.businessName.trim(),
+  country: answers.country.trim(),
+  website: answers.website.trim(),
+  googleBusinessUrl: answers.googleBusinessUrl.trim(),
+  instagramHandle: answers.instagramHandle.trim(),
+  timezone: answers.timezone.trim(),
   primaryGoal: answers.primaryGoal.trim(),
   teamSize: answers.teamSize.trim(),
   biggestPain: answers.biggestPain.trim(),
@@ -635,6 +667,11 @@ watch(
     () => stepIndex.value,
     () => answers.name,
     () => answers.businessName,
+    () => answers.country,
+    () => answers.website,
+    () => answers.googleBusinessUrl,
+    () => answers.instagramHandle,
+    () => answers.timezone,
     () => answers.primaryGoal,
     () => answers.teamSize,
     () => answers.biggestPain,
@@ -884,6 +921,53 @@ onBeforeUnmount(() => {
             </div>
 
             <div v-else-if="activeStep?.id === 'contact'" class="space-y-4">
+              <div class="grid gap-3 sm:grid-cols-2">
+                <label class="block">
+                  <span class="text-sm font-medium text-slate-800">Country</span>
+                  <input
+                    v-model="answers.country"
+                    type="text"
+                    class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                    placeholder="United States"
+                  />
+                </label>
+                <label class="block">
+                  <span class="text-sm font-medium text-slate-800">Time zone</span>
+                  <input
+                    v-model="answers.timezone"
+                    type="text"
+                    class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                    placeholder="America/Chicago"
+                  />
+                </label>
+              </div>
+              <label class="block">
+                <span class="text-sm font-medium text-slate-800">Website</span>
+                <input
+                  v-model="answers.website"
+                  type="url"
+                  class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                  placeholder="https://example.com"
+                />
+              </label>
+              <label class="block">
+                <span class="text-sm font-medium text-slate-800">Google Business URL</span>
+                <input
+                  v-model="answers.googleBusinessUrl"
+                  type="url"
+                  class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                  placeholder="https://g.page/your-business"
+                />
+              </label>
+              <label class="block">
+                <span class="text-sm font-medium text-slate-800">Instagram handle</span>
+                <input
+                  v-model="answers.instagramHandle"
+                  type="text"
+                  class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                  placeholder="@yourbusiness"
+                />
+              </label>
               <label class="block">
                 <span class="text-sm font-medium text-slate-800">Email</span>
                 <input

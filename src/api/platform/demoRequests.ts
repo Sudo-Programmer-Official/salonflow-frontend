@@ -18,8 +18,23 @@ export type DemoRequest = {
   convertedBusinessId?: string | null;
 };
 
-export async function fetchDemoRequests(): Promise<DemoRequest[]> {
-  const res = await fetch(apiUrl('/platform/demo-requests'), {
+export type DemoRequestPagination = {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+};
+
+export type DemoRequestPage = {
+  requests: DemoRequest[];
+  pagination: DemoRequestPagination;
+};
+
+export async function fetchDemoRequests(params?: { page?: number; pageSize?: number }): Promise<DemoRequestPage> {
+  const search = new URLSearchParams();
+  if (typeof params?.page === 'number') search.set('page', String(params.page));
+  if (typeof params?.pageSize === 'number') search.set('pageSize', String(params.pageSize));
+  const res = await fetch(apiUrl(`/platform/demo-requests${search.toString() ? `?${search.toString()}` : ''}`), {
     headers: buildHeaders({ auth: true }),
   });
   if (!res.ok) {

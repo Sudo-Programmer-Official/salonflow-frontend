@@ -9,6 +9,7 @@ import {
   ElDrawer,
   ElSelect,
   ElOption,
+  ElPagination,
   ElMessage,
 } from 'element-plus';
 import dayjs from 'dayjs';
@@ -19,6 +20,9 @@ import {
 } from '../../api/platform/demoRequests';
 
 const requests = ref<DemoRequest[]>([]);
+const page = ref(1);
+const pageSize = ref(10);
+const total = ref(0);
 const loading = ref(false);
 const drawerOpen = ref(false);
 const selected = ref<DemoRequest | null>(null);
@@ -26,13 +30,22 @@ const saving = ref(false);
 const statusOptions = ['NEW', 'CONTACTED', 'CONVERTED', 'DISQUALIFIED', 'CLOSED'];
 const detailSummary = (row: DemoRequest | null) =>
   row?.details?.summary || row?.notes || '—';
+const fieldValue = (row: DemoRequest | null, key: string) => {
+  const value = row?.details?.[key];
+  if (typeof value !== 'string' || !value.trim()) return '—';
+  return value;
+};
 const statusLabel = (row: DemoRequest) =>
   row.isDraft ? `DRAFT${row.progressStep ? ` · STEP ${row.progressStep}/7` : ''}` : row.status;
 
-const load = async () => {
+const load = async (nextPage = page.value) => {
   loading.value = true;
   try {
-    requests.value = await fetchDemoRequests();
+    const response = await fetchDemoRequests({ page: nextPage, pageSize: pageSize.value });
+    requests.value = response.requests;
+    page.value = response.pagination.page;
+    pageSize.value = response.pagination.pageSize;
+    total.value = response.pagination.total;
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to load demo requests');
   } finally {
@@ -61,6 +74,11 @@ const saveStatus = async () => {
 };
 
 const formatDate = (iso: string) => dayjs(iso).format('MMM D, YYYY HH:mm');
+const onPageChange = (nextPage: number) => load(nextPage);
+const onPageSizeChange = (nextPageSize: number) => {
+  pageSize.value = nextPageSize;
+  load(1);
+};
 
 onMounted(load);
 </script>
@@ -73,7 +91,13 @@ onMounted(load);
     </div>
 
     <ElCard class="bg-white" :loading="loading">
-      <ElTable :data="requests" stripe style="width: 100%">
+      <div class="mb-4 flex items-center justify-between gap-3">
+        <div class="text-sm text-slate-600">
+          Showing {{ requests.length }} of {{ total }} requests
+        </div>
+        <ElButton :loading="loading" @click="load(page)">Refresh</ElButton>
+      </div>
+      <ElTable :data="requests" stripe style="width: 100%" v-loading="loading">
         <ElTableColumn prop="name" label="Name" />
         <ElTableColumn prop="email" label="Email" />
         <ElTableColumn prop="phone" label="Phone" />
@@ -95,6 +119,18 @@ onMounted(load);
       </ElTable>
       <div v-if="!loading && requests.length === 0" class="py-6 text-center text-sm text-slate-500">
         No demo requests yet.
+      </div>
+      <div class="mt-4 flex justify-end" v-if="total > pageSize">
+        <ElPagination
+          background
+          layout="prev, pager, next, sizes, total"
+          :current-page="page"
+          :page-size="pageSize"
+          :page-sizes="[10, 20, 50, 100]"
+          :total="total"
+          @current-change="onPageChange"
+          @size-change="onPageSizeChange"
+        />
       </div>
     </ElCard>
 
@@ -123,6 +159,26 @@ onMounted(load);
         <div>
           <div class="text-xs text-slate-500">Source</div>
           <div>{{ selected.source || 'website form' }}</div>
+        </div>
+        <div>
+          <div class="text-xs text-slate-500">Country</div>
+          <div>{{ fieldValue(selected, 'country') }}</div>
+        </div>
+        <div>
+          <div class="text-xs text-slate-500">Website</div>
+          <div class="break-all">{{ fieldValue(selected, 'website') }}</div>
+        </div>
+        <div>
+          <div class="text-xs text-slate-500">Google Business URL</div>
+          <div class="break-all">{{ fieldValue(selected, 'googleBusinessUrl') }}</div>
+        </div>
+        <div>
+          <div class="text-xs text-slate-500">Instagram handle</div>
+          <div>{{ fieldValue(selected, 'instagramHandle') }}</div>
+        </div>
+        <div>
+          <div class="text-xs text-slate-500">Time zone</div>
+          <div>{{ fieldValue(selected, 'timezone') }}</div>
         </div>
         <div>
           <div class="text-xs text-slate-500">State</div>
