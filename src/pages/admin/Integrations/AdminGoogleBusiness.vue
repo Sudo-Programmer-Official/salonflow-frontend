@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ElCard, ElButton, ElInput, ElForm, ElFormItem, ElMessage, ElTable, ElTableColumn, ElTag, ElSwitch, ElInputNumber, ElDivider, ElSelect, ElOption } from 'element-plus';
+import { ElCard, ElButton, ElInput, ElForm, ElFormItem, ElMessage, ElTable, ElTableColumn, ElTag, ElSwitch, ElInputNumber, ElDivider, ElSelect, ElOption, ElAlert } from 'element-plus';
 import {
   connectGoogleBusiness,
   googleBusinessAuthorize,
@@ -58,6 +58,7 @@ const settings = ref<GoogleSettings>({
   },
 });
 const status = ref<GoogleBusinessStatus | null>(null);
+const callbackNotice = ref<{ type: 'success' | 'error'; message: string } | null>(null);
 
 const connect = async () => {
   if (!form.value.accessToken) {
@@ -220,9 +221,34 @@ const handleGoogleOauthCallback = async () => {
   }
 };
 
+const handleGoogleBusinessResult = async () => {
+  const connected = route.query.connected as string | undefined;
+  const error = route.query.error as string | undefined;
+  if (connected === '1') {
+    callbackNotice.value = {
+      type: 'success',
+      message: 'Google Business connected successfully.',
+    };
+    await loadStatus();
+  } else if (error) {
+    callbackNotice.value = {
+      type: 'error',
+      message: 'Google Business connection failed. Please try again.',
+    };
+  }
+
+  if (connected === '1' || error) {
+    const next = { ...route.query };
+    delete next.connected;
+    delete next.error;
+    router.replace({ query: next });
+  }
+};
+
 onMounted(loadReviews);
 onMounted(loadStatus);
 onMounted(handleGoogleOauthCallback);
+onMounted(handleGoogleBusinessResult);
 </script>
 
 <template>
@@ -233,6 +259,13 @@ onMounted(handleGoogleOauthCallback);
       <span>Google Business</span>
     </div>
     <h1 class="text-2xl font-semibold text-slate-900">Google Business Profile</h1>
+    <ElAlert
+      v-if="callbackNotice"
+      :type="callbackNotice.type"
+      :title="callbackNotice.message"
+      :closable="false"
+      class="border border-slate-200"
+    />
     <ElCard shadow="never" class="border border-slate-200">
       <div class="flex items-center justify-between gap-4 flex-wrap">
         <div class="flex items-center gap-3">
