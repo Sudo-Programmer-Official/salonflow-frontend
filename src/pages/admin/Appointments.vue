@@ -979,14 +979,17 @@ const appointmentRowClassName = ({ row }: { row: Appointment }) =>
 
 .appointment-date-tile,
 .appointment-summary-tile {
-  border-radius: 16px;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
+  position: relative;
+  overflow: hidden;
+  border-radius: 22px;
+  border: 1px solid rgba(226, 232, 240, 0.94);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.05);
   min-height: 5rem;
 }
 
 .appointment-date-tile {
-  padding: 0.9rem 1rem;
+  padding: 1rem 1.05rem;
 }
 
 .appointment-date-tile__row {
@@ -997,6 +1000,8 @@ const appointmentRowClassName = ({ row }: { row: Appointment }) =>
 
 .appointment-date-tile__label,
 .appointment-summary-tile__label {
+  position: relative;
+  z-index: 1;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -1005,11 +1010,13 @@ const appointmentRowClassName = ({ row }: { row: Appointment }) =>
 }
 
 .appointment-summary-tile {
-  padding: 0.75rem 0.9rem;
+  padding: 0.95rem 0.95rem;
   text-align: center;
 }
 
 .appointment-summary-tile__value {
+  position: relative;
+  z-index: 1;
   margin-top: 0.35rem;
   font-size: 1.8rem;
   line-height: 1;
@@ -1019,19 +1026,20 @@ const appointmentRowClassName = ({ row }: { row: Appointment }) =>
 
 .appointment-date-picker {
   width: 100%;
+  max-width: 24rem;
 }
 
 .appointment-date-picker :deep(.el-input__wrapper) {
   min-height: 3rem;
-  border-radius: 14px;
-  padding-inline: 0.8rem;
-  border: 1px solid #cbd5e1;
-  background: #fff;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  border-radius: 9999px;
+  padding-inline: 0.9rem;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
 }
 
 .appointment-date-picker :deep(.el-input__inner) {
-  font-size: 1.15rem;
+  font-size: 1rem;
   font-weight: 600;
   color: #0f172a;
 }
@@ -1041,7 +1049,7 @@ const appointmentRowClassName = ({ row }: { row: Appointment }) =>
 }
 
 .appointment-date-picker :deep(.el-input__prefix-inner) {
-  font-size: 1.05rem;
+  font-size: 1rem;
 }
 
 .appointment-date-picker :deep(.el-input__suffix) {
@@ -1049,12 +1057,12 @@ const appointmentRowClassName = ({ row }: { row: Appointment }) =>
 }
 
 .appointment-date-picker :deep(.el-input__wrapper:hover) {
-  border-color: #93c5fd;
+  border-color: rgba(148, 163, 184, 0.95);
 }
 
 .appointment-date-picker :deep(.el-input__wrapper.is-focus) {
-  border-color: #60a5fa;
-  box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.12);
+  border-color: rgba(59, 130, 246, 0.35);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
 }
 
 .appointment-empty-state {
@@ -1139,7 +1147,7 @@ const appointmentRowClassName = ({ row }: { row: Appointment }) =>
   }
 
   .appointment-date-picker :deep(.el-input__inner) {
-    font-size: 1.05rem;
+    font-size: 0.98rem;
   }
 }
 </style>
