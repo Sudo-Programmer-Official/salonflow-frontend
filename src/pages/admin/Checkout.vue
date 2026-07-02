@@ -322,6 +322,25 @@ const loyaltyState = computed(() =>
 );
 const redeemStatus = computed<RedeemStatus>(() => loyaltyState.value.redeemStatus);
 const hasBillItems = computed(() => customTotalValid.value || selectedServiceObjects.value.length > 0);
+const staffTrackingEnabled = computed(
+  () => Boolean(settings.value?.enableStaffSelection ?? settings.value?.allowStaffSelection),
+);
+const staffSelectionRequired = computed(
+  () => Boolean(staffTrackingEnabled.value && settings.value?.requireStaffSelection),
+);
+const tipsEnabled = computed(() => Boolean(settings.value?.enableTips));
+const taxEnabled = computed(() => Boolean(settings.value?.enableTax));
+const taxMode = computed(() => settings.value?.taxMode ?? 'disabled');
+const paymentMethods = computed(
+  () =>
+    settings.value?.paymentMethods ?? {
+      cash: true,
+      card: true,
+      gift_card: true,
+      check: false,
+      other: false,
+    },
+);
 const giftCardsTotal = computed(() =>
   giftCards.value.reduce((acc, card) => {
     const amount = Number(card.amount);
@@ -341,6 +360,23 @@ const giftCardsTotal = computed(() =>
     return acc + capped;
   }, 0),
 );
+const taxAmount = computed(() => {
+  if (!taxEnabled.value) return 0;
+  if (taxMode.value === 'manual') {
+    const raw = Number(taxDraft.value);
+    return Number.isFinite(raw) && raw > 0 ? Number(raw.toFixed(2)) : 0;
+  }
+  if (taxMode.value === 'configured_rate') {
+    const rate = Number(settings.value?.taxRatePercent ?? 0);
+    return Number.isFinite(rate) && rate > 0 ? Number(((subtotal.value - checkoutDiscount.value) * rate / 100).toFixed(2)) : 0;
+  }
+  return 0;
+});
+const tipAmount = computed(() => {
+  if (!tipsEnabled.value) return 0;
+  const raw = Number(tipDraft.value);
+  return Number.isFinite(raw) && raw > 0 ? Number(raw.toFixed(2)) : 0;
+});
 const paymentState = computed(() =>
   resolveCheckoutPaymentState({
     subtotal: subtotal.value,
@@ -629,43 +665,6 @@ const formatCurrency = (amount: number, currency?: string | null) =>
     currency: currency || 'USD',
     minimumFractionDigits: 2,
   }).format(amount);
-
-const staffTrackingEnabled = computed(
-  () => Boolean(settings.value?.enableStaffSelection ?? settings.value?.allowStaffSelection),
-);
-const staffSelectionRequired = computed(
-  () => Boolean(staffTrackingEnabled.value && settings.value?.requireStaffSelection),
-);
-const tipsEnabled = computed(() => Boolean(settings.value?.enableTips));
-const taxEnabled = computed(() => Boolean(settings.value?.enableTax));
-const taxMode = computed(() => settings.value?.taxMode ?? 'disabled');
-const paymentMethods = computed(
-  () =>
-    settings.value?.paymentMethods ?? {
-      cash: true,
-      card: true,
-      gift_card: true,
-      check: false,
-      other: false,
-    },
-);
-const taxAmount = computed(() => {
-  if (!taxEnabled.value) return 0;
-  if (taxMode.value === 'manual') {
-    const raw = Number(taxDraft.value);
-    return Number.isFinite(raw) && raw > 0 ? Number(raw.toFixed(2)) : 0;
-  }
-  if (taxMode.value === 'configured_rate') {
-    const rate = Number(settings.value?.taxRatePercent ?? 0);
-    return Number.isFinite(rate) && rate > 0 ? Number(((subtotal.value - checkoutDiscount.value) * rate / 100).toFixed(2)) : 0;
-  }
-  return 0;
-});
-const tipAmount = computed(() => {
-  if (!tipsEnabled.value) return 0;
-  const raw = Number(tipDraft.value);
-  return Number.isFinite(raw) && raw > 0 ? Number(raw.toFixed(2)) : 0;
-});
 
 const toggleService = (id: string) => {
   const svc = services.value.find((s) => s.id === id);
