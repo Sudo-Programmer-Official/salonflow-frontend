@@ -72,7 +72,22 @@ export type BusinessSettings = {
   allowMultiService: boolean;
   requireService: boolean;
   allowStaffSelection: boolean;
+  enableStaffSelection?: boolean;
   requireStaffSelection: boolean;
+  enableTips: boolean;
+  enableTax: boolean;
+  taxMode: 'disabled' | 'manual' | 'configured_rate';
+  taxRatePercent: number | null;
+  paymentMethods: {
+    cash: boolean;
+    card: boolean;
+    gift_card: boolean;
+    check: boolean;
+    other: boolean;
+  };
+  enableGiftCards: boolean;
+  enableLoyaltyRedemption: boolean;
+  enablePromotions: boolean;
   kioskWelcomeStyle: 'classic' | 'modern';
   kioskShowRewardsCard: boolean;
   kioskAllowSkipService: boolean;
@@ -114,11 +129,20 @@ export type SettingsPatch = Partial<
     | 'requirePhone'
     | 'showPointsOnKiosk'
     | 'showPointsPreview'
-    | 'allowMultiService'
-    | 'requireService'
-    | 'allowStaffSelection'
-    | 'requireStaffSelection'
-    | 'kioskWelcomeStyle'
+  | 'allowMultiService'
+  | 'requireService'
+  | 'allowStaffSelection'
+  | 'enableStaffSelection'
+  | 'requireStaffSelection'
+  | 'enableTips'
+  | 'enableTax'
+  | 'taxMode'
+  | 'taxRatePercent'
+  | 'paymentMethods'
+  | 'enableGiftCards'
+  | 'enableLoyaltyRedemption'
+  | 'enablePromotions'
+  | 'kioskWelcomeStyle'
     | 'kioskShowRewardsCard'
     | 'kioskAllowSkipService'
     | 'kioskAllowSkipStaff'

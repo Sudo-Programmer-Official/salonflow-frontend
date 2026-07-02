@@ -10,6 +10,8 @@ import { fetchServices, type ServiceItem } from '@/api/services';
 import { fetchCategories, type ServiceCategory } from '@/api/serviceCategories';
 import { fetchGiftCard, addLegacyGiftCard, type GiftCard } from '@/api/giftCards';
 import { fetchAvailablePromotions, type AvailablePromotion } from '@/api/promotions';
+import { fetchSettings, type BusinessSettings } from '@/api/settings';
+import { fetchStaff, type StaffMember } from '@/api/staff';
 import { type RedeemStatus } from '@/utils/redeemStatus';
 import { resolveCheckoutRedeemState } from '@/utils/checkoutLoyalty';
 import {
@@ -23,6 +25,12 @@ const checkinId = computed(() => route.params.checkinId as string);
 
 const loading = ref(true);
 const item = ref<QueueItem | null>(null);
+const settings = ref<BusinessSettings | null>(null);
+const staffList = ref<StaffMember[]>([]);
+const selectedStaffId = ref('');
+const selectedStaffName = ref('');
+const taxDraft = ref('0.00');
+const tipDraft = ref('0.00');
 const loyalty = ref<{
   customerId: string | null;
   pointsBalance: number | null;
@@ -96,6 +104,10 @@ const loadDrafts = () => {
       customTotalValue.value = pay.customTotal?.amount || '';
       selectedPromotionId.value = pay.promotionId || '';
       manualDiscountValue.value = pay.manualDiscount || '';
+      selectedStaffId.value = pay.staffId || '';
+      selectedStaffName.value = pay.staffName || '';
+      taxDraft.value = pay.taxDraft || '0.00';
+      tipDraft.value = pay.tipDraft || '0.00';
       giftCards.value = pay.giftCards ?? [{ id: 1, number: '', amount: '' }];
       nextGiftCardId.value = giftCards.value.length
         ? Math.max(...giftCards.value.map((g) => g.id)) + 1
@@ -123,6 +135,10 @@ const persistPayments = () => {
     customTotal: { enabled: customTotalMode.value, amount: customTotalValue.value },
     promotionId: selectedPromotionId.value,
     manualDiscount: manualDiscountValue.value,
+    staffId: selectedStaffId.value,
+    staffName: selectedStaffName.value,
+    taxDraft: taxDraft.value,
+    tipDraft: tipDraft.value,
     giftCards: giftCards.value,
   };
   localStorage.setItem(PAYMENT_KEY, JSON.stringify(existing));
@@ -149,6 +165,10 @@ const clearDraftForCurrent = () => {
   customTotalValue.value = '';
   selectedPromotionId.value = '';
   manualDiscountValue.value = '';
+  selectedStaffId.value = '';
+  selectedStaffName.value = '';
+  taxDraft.value = '0.00';
+  tipDraft.value = '0.00';
   availablePromotions.value = [];
   promotionsError.value = '';
   giftCards.value = [{ id: 1, number: '', amount: '', source: 'new', legacyBalance: '' }];
@@ -306,6 +326,8 @@ const paymentState = computed(() =>
   resolveCheckoutPaymentState({
     subtotal: subtotal.value,
     discountValue: checkoutDiscount.value,
+    taxValue: taxAmount.value,
+    tipValue: tipAmount.value,
     hasBillItems: hasBillItems.value,
     redeemSelected: redeemPoints.value,
     redeemStatus: redeemStatus.value,
@@ -338,6 +360,9 @@ const hasDirtyCheckout = computed(() => {
   const hasEntries = enteredPayments.value.length > 0;
   const hasCustom = customTotalMode.value || Boolean(customTotalValue.value.trim());
   const hasDiscount = Boolean(selectedPromotionId.value) || Boolean(manualDiscountValue.value.trim());
+  const hasStaff = Boolean(selectedStaffId.value || selectedStaffName.value);
+  const hasTax = Boolean(taxDraft.value.trim());
+  const hasTip = Boolean(tipDraft.value.trim());
   return (
     hasServices ||
     hasPaymentOptions ||
@@ -346,7 +371,10 @@ const hasDirtyCheckout = computed(() => {
     hasEntries ||
     subtotal.value > 0 ||
     hasCustom ||
-    hasDiscount
+    hasDiscount ||
+    hasStaff ||
+    hasTax ||
+    hasTip
   );
 });
 const giftCardsTotal = computed(() =>
@@ -498,6 +526,13 @@ onMounted(() => {
   document.body.style.overflow = 'hidden';
 
   loadDrafts();
+  Promise.all([
+    fetchSettings().catch(() => null),
+    fetchStaff(1, 200).catch(() => ({ items: [], total: 0 })),
+  ]).then(([settingsData, staffData]) => {
+    settings.value = settingsData;
+    staffList.value = staffData.items ?? [];
+  });
   loadCheckin();
   Promise.all([fetchCategories(), fetchServices()])
     .then(([cats, svcs]) => {
@@ -595,6 +630,43 @@ const formatCurrency = (amount: number, currency?: string | null) =>
     minimumFractionDigits: 2,
   }).format(amount);
 
+const staffTrackingEnabled = computed(
+  () => Boolean(settings.value?.enableStaffSelection ?? settings.value?.allowStaffSelection),
+);
+const staffSelectionRequired = computed(
+  () => Boolean(staffTrackingEnabled.value && settings.value?.requireStaffSelection),
+);
+const tipsEnabled = computed(() => Boolean(settings.value?.enableTips));
+const taxEnabled = computed(() => Boolean(settings.value?.enableTax));
+const taxMode = computed(() => settings.value?.taxMode ?? 'disabled');
+const paymentMethods = computed(
+  () =>
+    settings.value?.paymentMethods ?? {
+      cash: true,
+      card: true,
+      gift_card: true,
+      check: false,
+      other: false,
+    },
+);
+const taxAmount = computed(() => {
+  if (!taxEnabled.value) return 0;
+  if (taxMode.value === 'manual') {
+    const raw = Number(taxDraft.value);
+    return Number.isFinite(raw) && raw > 0 ? Number(raw.toFixed(2)) : 0;
+  }
+  if (taxMode.value === 'configured_rate') {
+    const rate = Number(settings.value?.taxRatePercent ?? 0);
+    return Number.isFinite(rate) && rate > 0 ? Number(((subtotal.value - checkoutDiscount.value) * rate / 100).toFixed(2)) : 0;
+  }
+  return 0;
+});
+const tipAmount = computed(() => {
+  if (!tipsEnabled.value) return 0;
+  const raw = Number(tipDraft.value);
+  return Number.isFinite(raw) && raw > 0 ? Number(raw.toFixed(2)) : 0;
+});
+
 const toggleService = (id: string) => {
   const svc = services.value.find((s) => s.id === id);
   if (isAddInService(svc)) {
@@ -638,6 +710,11 @@ const togglePaymentOption = (key: 'cash' | 'card' | 'gift', checked: boolean) =>
       paymentAmounts.value = { ...paymentAmounts.value, [key]: '' };
     }
   }
+};
+
+const handleStaffChange = (staffId: string) => {
+  selectedStaffId.value = staffId;
+  selectedStaffName.value = staffList.value.find((staff) => staff.id === staffId)?.name || '';
 };
 
 // Add-in modal state and helpers
@@ -881,6 +958,9 @@ const validateGiftCards = () => {
 
 const submitCheckout = async () => {
   if (!item.value) return;
+  if (!settings.value) {
+    settings.value = await fetchSettings().catch(() => null);
+  }
   await loadCheckin({ silent: true });
   if (!canCompleteCheckout.value) {
     ElMessage.warning('Add a total (services or custom) and payments before checkout.');
@@ -896,6 +976,10 @@ const submitCheckout = async () => {
         ? 'Not enough points to redeem.'
         : 'Loyalty points are unavailable right now.',
     );
+    return;
+  }
+  if (staffSelectionRequired.value && !selectedStaffId.value && !selectedStaffName.value) {
+    ElMessage.warning('Please select a staff member before checkout.');
     return;
   }
   if (!validateGiftCards()) return;
@@ -923,12 +1007,24 @@ const submitCheckout = async () => {
             }))
             .filter((g) => g.number && Number.isFinite(g.amount) && g.amount > 0)
         : [];
+    const paymentBreakdown = enteredPayments.value.reduce<Record<string, number>>((acc, payment) => {
+      const key = payment.method === 'gift' ? 'gift_card' : payment.method;
+      acc[key] = (acc[key] ?? 0) + payment.amount;
+      return acc;
+    }, {});
 
     checkoutCompleted.value = true;
     await checkoutCheckIn(checkinId.value, {
       amountPaid: enteredTotal.value,
+      taxAmount: taxAmount.value,
+      tipAmount: tipAmount.value,
+      staffId: selectedStaffId.value || null,
+      staffName: selectedStaffName.value || null,
+      source: 'admin_checkout',
+      createdFrom: 'queue',
+      paymentBreakdown,
       reviewSmsConsent: true,
-      servedByName: null,
+      servedByName: selectedStaffName.value || null,
       redeemPoints: redeemPoints.value && redeemStatus.value.eligible,
       payments: enteredPayments.value,
       giftCardNumber,
@@ -1250,11 +1346,44 @@ onBeforeUnmount(() => {
             </div>
             <div class="bill-row">
               <span>Tax</span>
-              <span>—</span>
+              <span v-if="taxEnabled">{{ Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(taxAmount) }}</span>
+              <span v-else>—</span>
+            </div>
+            <div class="bill-row" v-if="tipsEnabled">
+              <span>Tip</span>
+              <span>{{ Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(tipAmount) }}</span>
             </div>
             <div class="bill-row total">
               <span>Total</span>
               <span>{{ Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(totalDue) }}</span>
+            </div>
+          </div>
+
+          <div v-if="staffTrackingEnabled" class="staff-block">
+            <div class="payments-section-title">Staff tracking</div>
+            <select v-model="selectedStaffId" class="discount-select" @change="handleStaffChange(selectedStaffId)">
+              <option value="">Unassigned</option>
+              <option v-for="staff in staffList" :key="staff.id" :value="staff.id">
+                {{ staff.name }}
+              </option>
+            </select>
+            <div v-if="staffSelectionRequired && !selectedStaffId" class="discount-hint">
+              Please select a staff member before checkout.
+            </div>
+          </div>
+
+          <div v-if="taxEnabled || tipsEnabled" class="adjustment-block">
+            <div class="payments-section-title">Adjustments</div>
+            <div v-if="taxEnabled && taxMode === 'manual'" class="pay-row">
+              <span>Tax</span>
+              <ElInput v-model="taxDraft" type="number" min="0" step="0.01" placeholder="0.00" />
+            </div>
+            <div v-else-if="taxEnabled && taxMode === 'configured_rate'" class="discount-hint">
+              Tax is set to {{ settings?.taxRatePercent ?? 0 }}%.
+            </div>
+            <div v-if="tipsEnabled" class="pay-row">
+              <span>Tip</span>
+              <ElInput v-model="tipDraft" type="number" min="0" step="0.01" placeholder="0.00" />
             </div>
           </div>
 
@@ -1322,6 +1451,7 @@ onBeforeUnmount(() => {
               <div class="payments-section-title">Select payment method</div>
               <div class="payments-options">
                 <button
+                  v-if="paymentMethods.cash"
                   type="button"
                   class="payment-method"
                   :class="{ active: paymentOptions.cash }"
@@ -1331,6 +1461,7 @@ onBeforeUnmount(() => {
                   <span>Cash</span>
                 </button>
                 <button
+                  v-if="paymentMethods.card"
                   type="button"
                   class="payment-method"
                   :class="{ active: paymentOptions.card }"
@@ -1340,6 +1471,7 @@ onBeforeUnmount(() => {
                   <span>Card</span>
                 </button>
                 <button
+                  v-if="paymentMethods.gift_card"
                   type="button"
                   class="payment-method"
                   :class="{ active: paymentOptions.gift }"

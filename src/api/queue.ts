@@ -177,13 +177,22 @@ export async function checkoutCheckIn(
   checkInId: string,
   payload: {
     amountPaid?: number | null;
+    taxAmount?: number | null;
+    tipAmount?: number | null;
+    staffId?: string | null;
+    staffName?: string | null;
+    source?: 'admin_checkout' | 'pos';
+    createdFrom?: string | null;
+    operatorId?: string | null;
+    locationId?: string | null;
     reviewSmsConsent: boolean;
     servedByName?: string | null;
     redeemPoints?: boolean;
     giftCardNumber?: string | null;
     giftCardAmount?: number | null;
     giftCards?: Array<{ number: string; amount: number }>;
-    payments?: Array<{ method: 'cash' | 'card' | 'gift'; amount: number }>;
+    payments?: Array<{ method: 'cash' | 'card' | 'gift' | 'gift_card' | 'check' | 'other'; amount: number }>;
+    paymentBreakdown?: Record<string, number>;
     promotionId?: string | null;
   },
 ) {

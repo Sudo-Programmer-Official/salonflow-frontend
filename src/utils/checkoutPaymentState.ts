@@ -53,6 +53,8 @@ export function shouldClearRedeemSelection(params: {
 export function resolveCheckoutPaymentState(params: {
   subtotal: unknown;
   discountValue?: unknown;
+  taxValue?: unknown;
+  tipValue?: unknown;
   hasBillItems: boolean;
   redeemSelected: boolean;
   redeemStatus: RedeemStatus;
@@ -75,6 +77,8 @@ export function resolveCheckoutPaymentState(params: {
 } {
   const subtotal = Math.max(0, roundMoney(params.subtotal));
   const discountValue = Math.min(subtotal, Math.max(0, roundMoney(params.discountValue)));
+  const taxValue = Math.max(0, roundMoney(params.taxValue));
+  const tipValue = Math.max(0, roundMoney(params.tipValue));
   const redeemStatus = resolveEffectiveRedeemStatus({
     redeemSelected: params.redeemSelected,
     redeemStatus: params.redeemStatus,
@@ -86,7 +90,7 @@ export function resolveCheckoutPaymentState(params: {
     params.redeemSelected && redeemStatus.eligible
       ? Math.max(0, roundMoney(params.redeemDollarValue))
       : 0;
-  const totalDue = Math.max(0, roundMoney(subtotal - discountValue - redeemValue));
+  const totalDue = Math.max(0, roundMoney(subtotal - discountValue + taxValue + tipValue - redeemValue));
 
   const enteredPayments: Array<{ method: PaymentMethod; amount: number }> = [];
   (['cash', 'card'] as const).forEach((method) => {

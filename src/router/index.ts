@@ -35,6 +35,7 @@ import AdminBillingSuccessPage from "../pages/admin/BillingSuccess.vue";
 import AdminSettingsPage from "../pages/admin/Settings.vue";
 import AdminCategoriesPage from "../pages/admin/Categories.vue";
 import AdminAnalyticsPage from "../pages/admin/Analytics.vue";
+import AdminReportsPage from "../pages/admin/Reports.vue";
 import AdminGiftCardsPage from "../pages/admin/GiftCards.vue";
 import AdminPromotionsPage from "../pages/admin/Promotions.vue";
 import AdminInboxPage from "../pages/admin/Inbox.vue";
@@ -379,6 +380,12 @@ const appRoutes = [
         path: "analytics",
         name: "admin-analytics",
         component: AdminAnalyticsPage,
+        meta: { requiresAuth: true, roles: ["OWNER"] },
+      },
+      {
+        path: "reports",
+        name: "admin-reports",
+        component: AdminReportsPage,
         meta: { requiresAuth: true, roles: ["OWNER"] },
       },
       {

@@ -33,6 +33,7 @@ const loading = ref(false);
 const saving = ref(false);
 const error = ref('');
 const settings = ref<BusinessSettings | null>(null);
+const currentSettings = computed(() => settings.value as BusinessSettings);
 const pendingPatch = ref<SettingsPatch>({});
 const saveTimer = ref<number | null>(null);
 const messaging = ref<MessagingSettings | null>(null);
@@ -266,6 +267,18 @@ const mergeThemeTokens = (
   },
 });
 
+const mergePaymentMethods = (
+  base: BusinessSettings['paymentMethods'] | undefined,
+  patch?: Partial<BusinessSettings['paymentMethods']>,
+): BusinessSettings['paymentMethods'] => ({
+  cash: base?.cash ?? true,
+  card: base?.card ?? true,
+  gift_card: base?.gift_card ?? true,
+  check: base?.check ?? false,
+  other: base?.other ?? false,
+  ...(patch ?? {}),
+});
+
 const mergeSettings = (current: BusinessSettings, patch: SettingsPatch): BusinessSettings => ({
   ...current,
   ...patch,
@@ -279,6 +292,9 @@ const mergeSettings = (current: BusinessSettings, patch: SettingsPatch): Busines
   themeTokens: patch.themeTokens
     ? mergeThemeTokens(current.themeTokens ?? DEFAULT_WEBSITE_THEME, patch.themeTokens)
     : current.themeTokens ?? DEFAULT_WEBSITE_THEME,
+  paymentMethods: patch.paymentMethods
+    ? mergePaymentMethods(current.paymentMethods, patch.paymentMethods)
+    : current.paymentMethods,
   businessHours:
     patch.businessHours !== undefined
       ? (patch.businessHours as BusinessHours | null)
@@ -299,6 +315,13 @@ const mergePending = (current: SettingsPatch, patch: SettingsPatch): SettingsPat
         settings.value?.themeTokens ??
         DEFAULT_WEBSITE_THEME,
       patch.themeTokens,
+    );
+  }
+  if (patch.paymentMethods) {
+    next.paymentMethods = mergePaymentMethods(
+      (current.paymentMethods as BusinessSettings['paymentMethods'] | undefined) ??
+        settings.value?.paymentMethods,
+      patch.paymentMethods,
     );
   }
   if (patch.kiosk) {
@@ -1042,6 +1065,166 @@ onMounted(loadSettings);
               placeholder="10"
               @change="(val: number | undefined, _prev: number | undefined) => handleKioskResetChange(val ?? null)"
             />
+          </div>
+        </div>
+      </ElCard>
+
+      <ElCard class="bg-white">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-lg font-semibold text-slate-900">Checkout / Reporting</div>
+            <div class="text-sm text-slate-600">
+              Control staff tracking, tips, tax, payments, gift cards, and loyalty behavior at checkout.
+            </div>
+          </div>
+          <div class="text-xs text-slate-500" v-if="saving">Saving…</div>
+        </div>
+
+        <ElDivider />
+
+        <div class="space-y-4">
+          <div class="grid gap-4 md:grid-cols-2">
+            <div class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <div>
+                <div class="text-sm font-semibold text-slate-900">Staff tracking</div>
+                <div class="text-xs text-slate-600">Show the staff picker during checkout.</div>
+              </div>
+              <ElSwitch
+                :model-value="currentSettings.enableStaffSelection ?? currentSettings.allowStaffSelection"
+                @change="(val) => scheduleSave({ enableStaffSelection: val as boolean, allowStaffSelection: val as boolean })"
+              />
+            </div>
+
+            <div class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <div>
+                <div class="text-sm font-semibold text-slate-900">Require staff before checkout</div>
+                <div class="text-xs text-slate-600">Force a staff pick when staff tracking is on.</div>
+              </div>
+              <ElSwitch
+                :model-value="currentSettings.requireStaffSelection"
+                @change="(val) => scheduleSave({ requireStaffSelection: val as boolean })"
+              />
+            </div>
+
+            <div class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <div>
+                <div class="text-sm font-semibold text-slate-900">Tip tracking</div>
+                <div class="text-xs text-slate-600">Show a tip amount field in checkout.</div>
+              </div>
+              <ElSwitch
+                :model-value="currentSettings.enableTips"
+                @change="(val) => scheduleSave({ enableTips: val as boolean })"
+              />
+            </div>
+
+            <div class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <div>
+                <div class="text-sm font-semibold text-slate-900">Tax tracking</div>
+                <div class="text-xs text-slate-600">Show tax at checkout and keep it separate in reports.</div>
+              </div>
+              <ElSwitch
+                :model-value="currentSettings.enableTax"
+                @change="(val) => scheduleSave({ enableTax: val as boolean })"
+              />
+            </div>
+          </div>
+
+          <div class="grid gap-4 md:grid-cols-2">
+            <div class="space-y-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+              <div class="text-sm font-semibold text-slate-900">Tax mode</div>
+              <ElSelect
+                class="w-full"
+                :model-value="currentSettings.taxMode"
+                @change="(val: 'disabled' | 'manual' | 'configured_rate') => scheduleSave({ taxMode: val })"
+              >
+                <ElOption label="Off" value="disabled" />
+                <ElOption label="Manual amount" value="manual" />
+                <ElOption label="Configured rate" value="configured_rate" />
+              </ElSelect>
+              <div v-if="currentSettings.taxMode === 'configured_rate'" class="text-xs text-slate-600">
+                Set a percentage that applies to the pre-tax total.
+              </div>
+              <div v-if="currentSettings.taxMode !== 'disabled'" class="space-y-1">
+                <div class="text-sm font-semibold text-slate-900">Tax rate percent</div>
+                <ElInputNumber
+                  :model-value="currentSettings.taxRatePercent"
+                  :min="0"
+                  :max="100"
+                  :step="0.1"
+                  :controls="false"
+                  :value-on-clear="null"
+                  placeholder="8.25"
+                  @change="(val: number | undefined, _prev: number | undefined) => scheduleSave({ taxRatePercent: val ?? null })"
+                />
+              </div>
+            </div>
+
+            <div class="space-y-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+              <div class="text-sm font-semibold text-slate-900">Payment methods</div>
+              <div class="grid gap-2 sm:grid-cols-2">
+                <div class="flex items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2">
+                  <span class="text-sm text-slate-900">Cash</span>
+                  <ElSwitch
+                    :model-value="currentSettings.paymentMethods.cash"
+                    @change="(val) => scheduleSave({ paymentMethods: { ...currentSettings.paymentMethods, cash: val as boolean } })"
+                  />
+                </div>
+                <div class="flex items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2">
+                  <span class="text-sm text-slate-900">Card</span>
+                  <ElSwitch
+                    :model-value="currentSettings.paymentMethods.card"
+                    @change="(val) => scheduleSave({ paymentMethods: { ...currentSettings.paymentMethods, card: val as boolean } })"
+                  />
+                </div>
+                <div class="flex items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2">
+                  <span class="text-sm text-slate-900">Gift cards</span>
+                  <ElSwitch
+                    :model-value="currentSettings.paymentMethods.gift_card"
+                    @change="(val) => scheduleSave({ paymentMethods: { ...currentSettings.paymentMethods, gift_card: val as boolean } })"
+                  />
+                </div>
+                <div class="flex items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2">
+                  <span class="text-sm text-slate-900">Check</span>
+                  <ElSwitch
+                    :model-value="currentSettings.paymentMethods.check"
+                    @change="(val) => scheduleSave({ paymentMethods: { ...currentSettings.paymentMethods, check: val as boolean } })"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid gap-4 md:grid-cols-3">
+            <div class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <div>
+                <div class="text-sm font-semibold text-slate-900">Gift cards</div>
+                <div class="text-xs text-slate-600">Allow gift card redemption in checkout.</div>
+              </div>
+              <ElSwitch
+                :model-value="currentSettings.enableGiftCards"
+                @change="(val) => scheduleSave({ enableGiftCards: val as boolean })"
+              />
+            </div>
+            <div class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <div>
+                <div class="text-sm font-semibold text-slate-900">Loyalty redemption</div>
+                <div class="text-xs text-slate-600">Allow points to be redeemed at checkout.</div>
+              </div>
+              <ElSwitch
+                :model-value="currentSettings.enableLoyaltyRedemption"
+                @change="(val) => scheduleSave({ enableLoyaltyRedemption: val as boolean })"
+              />
+            </div>
+            <div class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <div>
+                <div class="text-sm font-semibold text-slate-900">Promotions</div>
+                <div class="text-xs text-slate-600">Allow checkout promotions and discounts.</div>
+              </div>
+              <ElSwitch
+                :model-value="currentSettings.enablePromotions"
+                @change="(val) => scheduleSave({ enablePromotions: val as boolean })"
+              />
+            </div>
           </div>
         </div>
       </ElCard>

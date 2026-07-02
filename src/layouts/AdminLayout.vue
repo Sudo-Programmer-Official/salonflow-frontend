@@ -435,7 +435,7 @@ const sidebarGroups = computed(() => [
     key: 'insights',
     label: 'Insights',
     defaultOpen: true,
-    items: [{ label: 'Analytics', name: 'admin-analytics', icon: '📈', roles: ['OWNER'] }],
+    items: [{ label: 'Reports', name: 'admin-reports', icon: '📈', roles: ['OWNER'] }],
   },
   {
     key: 'system',
