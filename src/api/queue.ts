@@ -1,4 +1,4 @@
-import { apiUrl, buildHeaders } from '@/api/client';
+import { apiUrl, buildHeaders, readJsonResponse } from '@/api/client';
 
 export type QueueItem = {
   id: string;
@@ -67,7 +67,7 @@ export async function fetchQueue(params?: {
     throw new Error(err.error || 'Failed to load queue');
   }
 
-  const data = await res.json();
+  const data = await readJsonResponse(res, { items: [], nextCursor: null, hasMore: false });
   if (Array.isArray(data)) {
     return { items: data, nextCursor: null, hasMore: false };
   }
@@ -92,7 +92,7 @@ export async function fetchQueueSummary(params?: {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || 'Failed to load queue summary');
   }
-  return res.json();
+  return readJsonResponse(res, { waiting: 0, inService: 0, completed: 0, noShow: 0 });
 }
 
 export async function callCheckIn(checkInId: string) {
@@ -104,7 +104,7 @@ export async function callCheckIn(checkInId: string) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || 'Failed to call');
   }
-  return res.json();
+  return readJsonResponse(res, null);
 }
 
 export async function assignToMe(checkInId: string) {
@@ -118,7 +118,7 @@ export async function assignToMe(checkInId: string) {
     throw new Error(err.error || 'Failed to assign');
   }
 
-  return res.json();
+  return readJsonResponse(res, null);
 }
 
 export async function startCheckIn(checkInId: string) {
@@ -132,7 +132,7 @@ export async function startCheckIn(checkInId: string) {
     throw new Error(err.error || 'Failed to start service');
   }
 
-  return res.json();
+  return readJsonResponse(res, null);
 }
 
 export async function completeCheckIn(checkInId: string) {
@@ -146,7 +146,7 @@ export async function completeCheckIn(checkInId: string) {
     throw new Error(err.error || 'Failed to complete');
   }
 
-  return res.json();
+  return readJsonResponse(res, null);
 }
 
 export async function markNoShow(checkInId: string) {
@@ -158,7 +158,7 @@ export async function markNoShow(checkInId: string) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || 'Failed to mark no-show');
   }
-  return res.json();
+  return readJsonResponse(res, null);
 }
 
 export async function cancelCheckIn(checkInId: string) {
@@ -170,7 +170,7 @@ export async function cancelCheckIn(checkInId: string) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || 'Failed to cancel');
   }
-  return res.json();
+  return readJsonResponse(res, null);
 }
 
 export async function checkoutCheckIn(
@@ -207,5 +207,5 @@ export async function checkoutCheckIn(
     throw new Error(err.error || 'Failed to checkout');
   }
 
-  return res.json();
+  return readJsonResponse(res, null);
 }

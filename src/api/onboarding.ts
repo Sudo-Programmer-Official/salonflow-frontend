@@ -1,3 +1,5 @@
+import { readJsonResponse } from './client';
+
 export type OnboardingStatus = {
   businessName: string;
   subdomain: string;
@@ -14,6 +16,21 @@ export type OnboardingStatus = {
 };
 
 let cache: OnboardingStatus | null = null;
+
+const emptyOnboardingStatus = (): OnboardingStatus => ({
+  businessName: '',
+  subdomain: '',
+  timezone: null,
+  countryCode: null,
+  postalCode: null,
+  servicesAdded: false,
+  staffAdded: false,
+  qrPrinted: false,
+  reviewSmsEnabled: false,
+  billingReady: false,
+  completed: false,
+  onboardingBannerDismissed: false,
+});
 
 const authHeaders = (): Record<string, string> => {
   const token = localStorage.getItem('token');
@@ -63,7 +80,7 @@ export async function fetchOnboardingStatus(force = false): Promise<OnboardingSt
     headers,
   });
   if (!res.ok) throw new Error('Failed to load onboarding status');
-  cache = (await res.json()) as OnboardingStatus;
+  cache = await readJsonResponse(res, emptyOnboardingStatus());
   return cache;
 }
 
@@ -78,7 +95,7 @@ export async function markQrPrinted(): Promise<OnboardingStatus> {
     headers,
   });
   if (!res.ok) throw new Error('Failed to update QR status');
-  cache = (await res.json()) as OnboardingStatus;
+  cache = await readJsonResponse(res, emptyOnboardingStatus());
   return cache;
 }
 
@@ -97,7 +114,7 @@ export async function dismissOnboardingBanner(): Promise<OnboardingStatus> {
     headers,
   });
   if (!res.ok) throw new Error('Failed to dismiss onboarding banner');
-  cache = (await res.json()) as OnboardingStatus;
+  cache = await readJsonResponse(res, emptyOnboardingStatus());
   return cache;
 }
 
@@ -121,6 +138,6 @@ export async function updateOnboardingLocation(input: {
     }),
   });
   if (!res.ok) throw new Error('Failed to update location');
-  cache = (await res.json()) as OnboardingStatus;
+  cache = await readJsonResponse(res, emptyOnboardingStatus());
   return cache;
 }

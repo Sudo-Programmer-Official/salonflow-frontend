@@ -1,4 +1,4 @@
-import { apiUrl, buildHeaders } from '@/api/client';
+import { apiUrl, buildHeaders, readJsonResponse } from '@/api/client';
 
 const apiBase = apiUrl('/review-sms');
 
@@ -17,7 +17,7 @@ export async function fetchReviewSmsSettings(): Promise<ReviewSettingsResponse> 
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || 'Failed to load settings');
   }
-  return res.json();
+  return readJsonResponse(res, { enabled: false, reviewLink: null });
 }
 
 export async function updateReviewSmsSettings(enabled: boolean, reviewLink: string | null) {
@@ -30,7 +30,7 @@ export async function updateReviewSmsSettings(enabled: boolean, reviewLink: stri
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || 'Failed to update settings');
   }
-  return res.json();
+  return readJsonResponse(res, { enabled, reviewLink });
 }
 
 export async function fetchReviewQr(): Promise<{ reviewLink: string; qrDataUrl: string }> {
@@ -41,5 +41,5 @@ export async function fetchReviewQr(): Promise<{ reviewLink: string; qrDataUrl: 
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || 'Failed to load review QR');
   }
-  return res.json();
+  return readJsonResponse(res, { reviewLink: '', qrDataUrl: '' });
 }

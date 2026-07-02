@@ -1,4 +1,4 @@
-import { apiUrl, buildHeaders } from '@/api/client';
+import { apiUrl, buildHeaders, readJsonResponse } from '@/api/client';
 
 export type AppointmentStatus =
   | 'PENDING'
@@ -53,7 +53,7 @@ export async function fetchAppointments(params?: {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || 'Failed to load appointments');
   }
-  return res.json();
+  return readJsonResponse(res, []);
 }
 
 export type TodayAppointmentsResponse =
@@ -71,7 +71,7 @@ export async function fetchTodayAppointments(): Promise<TodayAppointmentsRespons
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || 'Failed to load today appointments');
   }
-  return { items: await res.json() };
+  return { items: await readJsonResponse(res, []) };
 }
 
 export async function createAppointment(payload: {
@@ -159,7 +159,7 @@ export async function getAttentionCount(): Promise<number> {
   const res = await fetch(`${apiBase}/attention-count`, {
     headers: buildHeaders({ auth: true, tenant: true, json: true }),
   });
-  const body = await res.json().catch(() => ({}));
+  const body = await readJsonResponse(res, {} as { error?: string; count?: number });
   if (!res.ok) {
     throw new Error(body.error || 'Failed to load attention count');
   }

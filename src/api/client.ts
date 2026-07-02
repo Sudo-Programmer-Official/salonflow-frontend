@@ -53,6 +53,16 @@ export const buildHeaders = (opts: {
   ...(opts.tenant ? tenantHeader() : {}),
 });
 
+export async function readJsonResponse<T>(res: Response, fallback: T): Promise<T> {
+  const text = await res.text();
+  if (!text.trim()) return fallback;
+  try {
+    return JSON.parse(text) as T;
+  } catch (_error) {
+    return fallback;
+  }
+}
+
 export { authHeader, tenantHeader, isPlatformHost };
 
 const client = { apiUrl, buildHeaders, authHeader, tenantHeader, isPlatformHost };
