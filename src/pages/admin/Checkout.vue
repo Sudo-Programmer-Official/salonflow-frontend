@@ -322,6 +322,25 @@ const loyaltyState = computed(() =>
 );
 const redeemStatus = computed<RedeemStatus>(() => loyaltyState.value.redeemStatus);
 const hasBillItems = computed(() => customTotalValid.value || selectedServiceObjects.value.length > 0);
+const giftCardsTotal = computed(() =>
+  giftCards.value.reduce((acc, card) => {
+    const amount = Number(card.amount);
+    if (!Number.isFinite(amount) || amount <= 0) return acc;
+    const bal = giftCardInfo.value[card.id]?.card?.balance;
+    const manualBal =
+      !giftCardInfo.value[card.id]?.card && card.source === 'legacy'
+        ? Number(card.legacyBalance)
+        : undefined;
+    const usableBalance =
+      bal !== undefined && bal !== null
+        ? Math.max(0, bal)
+        : Number.isFinite(manualBal)
+          ? Math.max(0, manualBal as number)
+          : undefined;
+    const capped = usableBalance !== undefined ? Math.min(amount, usableBalance) : amount;
+    return acc + capped;
+  }, 0),
+);
 const paymentState = computed(() =>
   resolveCheckoutPaymentState({
     subtotal: subtotal.value,
@@ -350,6 +369,11 @@ const redeemShortfall = computed(
   () => Math.max(0, displayRedeemStatus.value.required - displayRedeemStatus.value.points),
 );
 const totalDue = computed(() => paymentState.value.totalDue);
+const enteredPayments = computed(() => paymentState.value.enteredPayments);
+const enteredTotal = computed(() => paymentState.value.enteredTotal);
+const remainingBalance = computed(() => paymentState.value.remainingBalance);
+const remainingState = computed<'due' | 'paid' | 'over'>(() => paymentState.value.remainingState);
+const canCompleteCheckout = computed(() => paymentState.value.canCompleteCheckout);
 const hasDirtyCheckout = computed(() => {
   const hasServices = selectedServiceIds.value.length > 0;
   const hasPaymentOptions = paymentOptions.value.cash || paymentOptions.value.card || paymentOptions.value.gift;
@@ -377,30 +401,6 @@ const hasDirtyCheckout = computed(() => {
     hasTip
   );
 });
-const giftCardsTotal = computed(() =>
-  giftCards.value.reduce((acc, card) => {
-    const amount = Number(card.amount);
-    if (!Number.isFinite(amount) || amount <= 0) return acc;
-    const bal = giftCardInfo.value[card.id]?.card?.balance;
-    const manualBal =
-      !giftCardInfo.value[card.id]?.card && card.source === 'legacy'
-        ? Number(card.legacyBalance)
-        : undefined;
-    const usableBalance =
-      bal !== undefined && bal !== null
-        ? Math.max(0, bal)
-        : Number.isFinite(manualBal)
-          ? Math.max(0, manualBal as number)
-          : undefined;
-    const capped = usableBalance !== undefined ? Math.min(amount, usableBalance) : amount;
-    return acc + capped;
-  }, 0),
-);
-const enteredPayments = computed(() => paymentState.value.enteredPayments);
-const enteredTotal = computed(() => paymentState.value.enteredTotal);
-const remainingBalance = computed(() => paymentState.value.remainingBalance);
-const remainingState = computed<'due' | 'paid' | 'over'>(() => paymentState.value.remainingState);
-const canCompleteCheckout = computed(() => paymentState.value.canCompleteCheckout);
 const completing = ref(false);
 const checkoutCompleted = ref(false);
 
