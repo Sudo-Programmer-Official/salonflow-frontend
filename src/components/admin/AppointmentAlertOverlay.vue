@@ -132,7 +132,7 @@ watch(
             :disabled="resolving"
             @click="emit('confirm')"
           >
-            Confirm
+            {{ resolving ? 'Confirming…' : 'Confirm' }}
           </button>
         </div>
       </section>

@@ -176,6 +176,18 @@ const openAlertAppointment = async () => {
   await viewCurrentAlert(router);
 };
 
+const handleConfirmCurrentAlert = async () => {
+  const confirmed = await confirmCurrentAlert();
+  if (!confirmed) {
+    return;
+  }
+
+  await Promise.allSettled([pollUnread(), pollAttention()]);
+  if (bellOpen.value) {
+    await loadFeed();
+  }
+};
+
 const enableAppointmentAlertAudio = async () => {
   await enableAudioAlerts();
 };
@@ -854,7 +866,7 @@ const toggleSidebarCollapse = () => {
     :error="appointmentAlertState.actionError ?? undefined"
     :audio-enabled="appointmentAlertState.audioEnabled"
     :audio-blocked="appointmentAlertState.audioBlocked"
-    @confirm="confirmCurrentAlert"
+    @confirm="handleConfirmCurrentAlert"
     @enable-audio="enableAppointmentAlertAudio"
     @view="openAlertAppointment"
   />

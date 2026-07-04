@@ -1,7 +1,7 @@
 import { computed, reactive, watch } from 'vue';
 import type { Router } from 'vue-router';
 
-import { fetchAppointments, type Appointment } from '../api/appointments';
+import { confirmAppointment, fetchAppointments, type Appointment } from '../api/appointments';
 import { dayjs, getBusinessTimezone, toBusinessDayKey } from '../utils/dates';
 import { useBusinessDayClock } from './useBusinessDayClock';
 import { enableAudio, isAudioEnabled, playAppointmentAlertTone } from '../utils/sound';
@@ -644,8 +644,28 @@ const resolveAlertByAppointmentId = (appointmentId: string | null | undefined) =
   reconcileCueState();
 };
 
-const resolveCurrentAlert = () => {
-  resolveAlertByAppointmentId(currentAlert.value?.id);
+const resolveCurrentAlert = async () => {
+  const appointmentId = currentAlert.value?.id;
+  if (!appointmentId || state.resolving) {
+    return false;
+  }
+
+  state.resolving = true;
+  state.actionError = null;
+
+  try {
+    await confirmAppointment(appointmentId);
+    resolveAlertByAppointmentId(appointmentId);
+    await refreshAlerts();
+    return true;
+  } catch (error) {
+    state.actionError = error instanceof Error && error.message.trim()
+      ? error.message
+      : 'Unable to confirm this appointment. Please try again.';
+    return false;
+  } finally {
+    state.resolving = false;
+  }
 };
 
 const refreshAlerts = async (options: { syncCueState?: boolean } = {}) => {
@@ -701,7 +721,7 @@ const stopPolling = () => {
 };
 
 const confirmCurrentAlert = () => {
-  resolveCurrentAlert();
+  return resolveCurrentAlert();
 };
 
 const viewCurrentAlert = async (router: Router) => {
