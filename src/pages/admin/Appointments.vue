@@ -320,6 +320,10 @@ const appointmentGroups = computed<AppointmentGroup[]>(() => {
     inProgress.push(appointment);
   }
 
+  completedPast.sort(
+    (left, right) => dayjs(right.scheduledAt).valueOf() - dayjs(left.scheduledAt).valueOf(),
+  );
+
   return [
     {
       key: 'upcoming',
