@@ -1205,7 +1205,7 @@ watch(
                 class="appointment-table"
                 stripe
               >
-                <ElTableColumn label="Time" min-width="120">
+                <ElTableColumn label="Time" min-width="108">
                   <template #default="{ row }">
                     <div class="flex flex-col gap-0.5">
                       <span class="font-medium text-slate-900">
@@ -1217,7 +1217,7 @@ watch(
                     </div>
                   </template>
                 </ElTableColumn>
-                <ElTableColumn label="Customer" min-width="180">
+                <ElTableColumn label="Customer" min-width="152">
                   <template #default="{ row }">
                     <div class="flex flex-col gap-0.5">
                       <span class="font-medium text-slate-900">{{ row.customerName }}</span>
@@ -1225,8 +1225,8 @@ watch(
                     </div>
                   </template>
                 </ElTableColumn>
-                <ElTableColumn prop="serviceName" label="Service" min-width="160" />
-                <ElTableColumn label="Staff" min-width="170">
+                <ElTableColumn prop="serviceName" label="Service" min-width="136" />
+                <ElTableColumn label="Staff" min-width="150">
                   <template #default="{ row }">
                     <div class="flex flex-col gap-0.5">
                       <span>{{ row.staffName || '—' }}</span>
@@ -1239,7 +1239,7 @@ watch(
                     </div>
                   </template>
                 </ElTableColumn>
-                <ElTableColumn prop="status" label="Status" width="160">
+                <ElTableColumn prop="status" label="Status" min-width="132" class-name="appointment-table__status-cell">
                   <template #default="{ row }">
                     <div class="flex flex-col gap-1">
                       <span :class="statusBadgeForAppointment(row).cls">
@@ -1254,7 +1254,12 @@ watch(
                     </div>
                   </template>
                 </ElTableColumn>
-                <ElTableColumn label="Actions" min-width="176" align="right">
+                <ElTableColumn
+                  label="Actions"
+                  min-width="220"
+                  align="right"
+                  class-name="appointment-table__actions-cell"
+                >
                   <template #default="{ row }">
                     <AppointmentActionsMenu
                       :appointment="row"
@@ -1764,6 +1769,14 @@ watch(
 .appointment-table :deep(.el-table__cell) {
   padding-top: 0.7rem;
   padding-bottom: 0.7rem;
+}
+
+.appointment-table :deep(.appointment-table__status-cell) {
+  padding-right: 1rem;
+}
+
+.appointment-table :deep(.appointment-table__actions-cell) {
+  overflow: visible;
 }
 
 .appointment-table :deep(.cell) {
