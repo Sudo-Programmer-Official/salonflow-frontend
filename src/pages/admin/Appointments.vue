@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from
 import { useRoute, useRouter } from 'vue-router';
 import {
   ElButton,
+  ElAlert,
   ElCard,
   ElDatePicker,
   ElDialog,
@@ -24,6 +25,7 @@ import {
   createAppointment,
   fetchAppointments,
   type Appointment,
+  type AppointmentStatus,
   updateAppointment,
 } from '../../api/appointments';
 import { fetchPublicSettings } from '../../api/settings';
@@ -40,6 +42,8 @@ import {
   setBusinessTimezone,
 } from '../../utils/dates';
 import { formatPhone } from '../../utils/format';
+import AppointmentDayTimeline from '../../components/admin/AppointmentDayTimeline.vue';
+import { useScheduler } from '../../composables/useScheduler';
 
 type AppointmentDialogMode = 'create' | 'edit' | 'view';
 
@@ -66,6 +70,15 @@ const role = computed(() => localStorage.getItem('role') || '');
 const isStaff = computed(() => role.value === 'STAFF');
 const canManageAppointments = computed(() => role.value === 'OWNER');
 const COMPLETED_PAST_INCREMENT = 10;
+const statusFilterOptions: Array<{ label: string; value: AppointmentStatus }> = [
+  { label: 'Awaiting', value: 'PENDING' },
+  { label: 'Confirmed', value: 'CONFIRMED' },
+  { label: 'Checked In', value: 'CHECKED_IN' },
+  { label: 'In Progress', value: 'BOOKED' },
+  { label: 'Completed', value: 'COMPLETED' },
+  { label: 'Cancelled', value: 'CANCELED' },
+  { label: 'No Show', value: 'NO_SHOW' },
+];
 
 const terminalStatuses = new Set(['COMPLETED', 'NO_SHOW', 'CANCELED']);
 const readRouteAppointmentDate = (value: unknown) =>
@@ -100,6 +113,18 @@ const actionLoading = ref<Record<string, boolean>>({});
 const highlightedAppointmentId = ref<string | null>(null);
 const nowTick = ref(Date.now());
 const businessTimezone = ref(getBusinessTimezone() || DEFAULT_TIMEZONE);
+const appointmentSearch = ref('');
+const selectedStaffId = ref('');
+const showSecondaryFilters = ref(false);
+const statusFilters = reactive<Record<AppointmentStatus, boolean>>({
+  PENDING: true,
+  CONFIRMED: true,
+  BOOKED: true,
+  CHECKED_IN: true,
+  COMPLETED: true,
+  CANCELED: true,
+  NO_SHOW: true,
+});
 const initialTargetDate = resolveRouteTargetDate(
   route.query.appointmentDate,
   route.query.appointmentAt,
@@ -118,7 +143,13 @@ const dialogTitle = computed(() => {
 const isViewMode = computed(() => dialogMode.value === 'view');
 const saving = ref(false);
 const editingId = ref<string | null>(null);
+const dialogAppointment = ref<Appointment | null>(null);
 const completedPastVisibleCount = ref(COMPLETED_PAST_INCREMENT);
+const scheduler = useScheduler();
+const schedulerWorkspace = computed(() => scheduler.workspace.value);
+const schedulerLoading = computed(() => scheduler.loading.value);
+const schedulerError = computed(() => scheduler.error.value);
+const schedulerViewMode = ref<'day' | 'week'>('day');
 
 const { resolveAlertByAppointmentId } = useAppointmentAlerts();
 
@@ -137,6 +168,35 @@ let consumingRouteTarget = false;
 let clockId: number | null = null;
 
 const defaultFormDate = computed(() => dayjs().tz(businessTimezone.value).format('YYYY-MM-DD'));
+const selectedTimelineDate = computed(() => selectedDate.value || defaultFormDate.value);
+const dialogNeedsConfirmation = computed(
+  () => dialogAppointment.value && ['PENDING', 'BOOKED'].includes(dialogAppointment.value.status),
+);
+const schedulerRange = computed(() => {
+  const base = dayjs.tz(selectedTimelineDate.value, businessTimezone.value).startOf('day');
+  if (schedulerViewMode.value === 'week') {
+    const start = base.subtract(base.day(), 'day');
+    return {
+      from: start.format('YYYY-MM-DD'),
+      to: start.add(6, 'day').format('YYYY-MM-DD'),
+    };
+  }
+
+  return {
+    from: base.format('YYYY-MM-DD'),
+    to: base.format('YYYY-MM-DD'),
+  };
+});
+const selectedDateLabel = computed(() =>
+  selectedDate.value
+    ? dayjs.tz(selectedDate.value, businessTimezone.value).format('ddd, MMM D')
+    : 'All dates',
+);
+const selectedDateDisplay = computed(() =>
+  selectedDate.value
+    ? dayjs.tz(selectedDate.value, businessTimezone.value).format('MMM D, YYYY')
+    : 'All dates',
+);
 
 const currentTime = computed(() => {
   nowTick.value;
@@ -214,13 +274,13 @@ const statusBadge = (status: string) => {
 
   switch (status) {
     case 'PENDING':
-      return { label: 'Awaiting confirmation', cls: `${base} bg-amber-100 text-amber-800` };
+      return { label: 'Pending', cls: `${base} bg-orange-100 text-orange-800` };
     case 'CONFIRMED':
-      return { label: 'Confirmed', cls: `${base} bg-emerald-100 text-emerald-800` };
+      return { label: 'Confirmed', cls: `${base} bg-blue-100 text-blue-800` };
     case 'CHECKED_IN':
-      return { label: 'Checked in', cls: `${base} bg-sky-100 text-sky-800` };
+      return { label: 'Checked In', cls: `${base} bg-purple-100 text-purple-800` };
     case 'COMPLETED':
-      return { label: 'Completed', cls: `${base} bg-indigo-100 text-indigo-800` };
+      return { label: 'Completed', cls: `${base} bg-emerald-100 text-emerald-800` };
     case 'CANCELED':
       return { label: 'Cancelled', cls: `${base} bg-rose-100 text-rose-800` };
     case 'NO_SHOW':
@@ -242,12 +302,15 @@ const statusBadgeForAppointment = (appointment: Appointment) => {
   return statusBadge(appointment.status);
 };
 
+const needsConfirmation = (appointment: Appointment) =>
+  appointment.status === 'PENDING' || appointment.status === 'BOOKED';
+
 const appointmentGroups = computed<AppointmentGroup[]>(() => {
   const upcoming: Appointment[] = [];
   const inProgress: Appointment[] = [];
   const completedPast: Appointment[] = [];
 
-  for (const appointment of appointments.value) {
+  for (const appointment of filteredAppointments.value) {
     if (isPastResolvedAppointment(appointment)) {
       completedPast.push(appointment);
       continue;
@@ -310,7 +373,7 @@ const displayedAppointmentGroups = computed<DisplayAppointmentGroup[]>(() =>
 );
 
 const nextAppointment = computed(() => appointmentGroups.value[0]?.items[0] ?? null);
-const appointmentsVisible = computed(() => appointments.value.length > 0);
+const appointmentsVisible = computed(() => filteredAppointments.value.length > 0);
 const emptyStateMessage = computed(() => {
   if (selectedDate.value) {
     return isStaff.value ? 'No appointments assigned for this date.' : 'No appointments for this date.';
@@ -342,6 +405,7 @@ const resetForm = () => {
 
 const applyAppointmentToForm = (appointment: Appointment) => {
   editingId.value = appointment.id;
+  dialogAppointment.value = appointment;
   form.customerName = appointment.customerName;
   form.phoneE164 = appointment.phoneE164;
   form.serviceId = appointment.serviceId || '';
@@ -361,13 +425,23 @@ const clearAppointmentRouteQuery = async () => {
   await router.replace({ query: nextQuery });
 };
 
-const openCreate = () => {
+const openCreate = (prefill?: { date?: string; time?: string; staffId?: string | null }) => {
   if (!canManageAppointments.value) {
     return;
   }
 
   dialogMode.value = 'create';
+  dialogAppointment.value = null;
   resetForm();
+  if (prefill?.date) {
+    form.date = prefill.date;
+  }
+  if (prefill?.time) {
+    form.time = prefill.time;
+  }
+  if (typeof prefill?.staffId !== 'undefined') {
+    form.staffId = prefill.staffId || '';
+  }
   dialogVisible.value = true;
 };
 
@@ -545,8 +619,83 @@ const buildScheduledAt = () => {
   return composed.isValid() ? composed.utc().toISOString() : '';
 };
 
-const formatTime = (_: unknown, __: unknown, value: string) =>
-  formatInBusinessTz(value, 'MMM D, h:mm A', businessTimezone.value);
+const setSelectedDateToToday = () => {
+  selectedDate.value = dayjs().tz(businessTimezone.value).format('YYYY-MM-DD');
+};
+
+const shiftSelectedDate = (days: number) => {
+  const base = selectedDate.value
+    ? dayjs.tz(selectedDate.value, businessTimezone.value)
+    : dayjs().tz(businessTimezone.value);
+  selectedDate.value = base.add(days, 'day').format('YYYY-MM-DD');
+};
+
+const toggleStatusFilter = (status: AppointmentStatus) => {
+  statusFilters[status] = !statusFilters[status];
+};
+
+const clearFilters = () => {
+  appointmentSearch.value = '';
+  selectedStaffId.value = '';
+  Object.keys(statusFilters).forEach((key) => {
+    statusFilters[key as AppointmentStatus] = true;
+  });
+};
+
+const selectedStatusCount = computed(() =>
+  Object.values(statusFilters).filter(Boolean).length,
+);
+
+const selectedStaffName = computed(() => {
+  if (!selectedStaffId.value) {
+    return 'All staff';
+  }
+
+  return staff.value.find((member) => member.id === selectedStaffId.value)?.name || 'Selected staff';
+});
+
+const activeStatusSet = computed(
+  () =>
+    new Set(
+      (Object.entries(statusFilters) as Array<[AppointmentStatus, boolean]>)
+        .filter(([, enabled]) => enabled)
+        .map(([status]) => status),
+    ),
+);
+
+const normalizedSearch = computed(() => appointmentSearch.value.trim().toLowerCase());
+
+const filteredAppointments = computed(() =>
+  appointments.value.filter((appointment) => {
+    if (selectedStaffId.value && appointment.staffId !== selectedStaffId.value) {
+      return false;
+    }
+
+    if (!activeStatusSet.value.has(appointment.status)) {
+      return false;
+    }
+
+    const query = normalizedSearch.value;
+    if (query) {
+      const haystack = [
+        appointment.customerName,
+        appointment.phoneE164,
+        appointment.serviceName,
+        appointment.staffName ?? '',
+        appointment.preferredTech ?? '',
+        appointment.status,
+      ]
+        .join(' ')
+        .toLowerCase();
+
+      if (!haystack.includes(query)) {
+        return false;
+      }
+    }
+
+    return true;
+  }),
+);
 
 const saveAppointment = async () => {
   if (isViewMode.value) {
@@ -593,6 +742,7 @@ const saveAppointment = async () => {
     }
 
     dialogVisible.value = false;
+    dialogAppointment.value = null;
     await loadAppointments();
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : 'Save failed');
@@ -659,187 +809,536 @@ const handlePrimaryAction = async ({
 
 const appointmentRowClassName = ({ row }: { row: Appointment }) =>
   row.id === highlightedAppointmentId.value ? 'appointment-row--highlighted' : '';
+
+const appointmentTotals = computed(() => {
+  const total = filteredAppointments.value.length;
+  const upcoming = appointmentGroups.value[0]?.items.length ?? 0;
+  const inProgress = appointmentGroups.value[1]?.items.length ?? 0;
+  const completed = appointmentGroups.value[2]?.items.length ?? 0;
+  const checkedIn = filteredAppointments.value.filter(
+    (appointment) => appointment.status === 'CHECKED_IN',
+  ).length;
+  const occupancy = total > 0 ? Math.round(((checkedIn + inProgress) / total) * 100) : 0;
+
+  return {
+    total,
+    upcoming,
+    inProgress,
+    completed,
+    checkedIn,
+    occupancy,
+  };
+});
+
+const nextAppointmentCountdown = computed(() => {
+  nowTick.value;
+  if (!nextAppointment.value) {
+    return '';
+  }
+
+  const now = nowInBusinessTz(businessTimezone.value);
+  const start = dayjs(nextAppointment.value.scheduledAt).tz(businessTimezone.value);
+  if (!start.isValid()) {
+    return '';
+  }
+
+  const minutes = Math.max(0, Math.round(start.diff(now, 'minute', true)));
+  if (minutes <= 0) {
+    return 'Starting now';
+  }
+  if (minutes < 60) {
+    return `Starts in ${minutes} min`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  return remainder > 0 ? `Starts in ${hours}h ${remainder}m` : `Starts in ${hours}h`;
+});
+
+const openNextAppointmentCheckIn = () => {
+  if (!nextAppointment.value) {
+    return;
+  }
+
+  router.push({
+    name: 'admin-queue',
+    query: {
+      newCheckin: '1',
+      appointmentCustomer: nextAppointment.value.customerName,
+      appointmentPhone: nextAppointment.value.phoneE164 || '',
+      appointmentService: nextAppointment.value.serviceName,
+      appointmentStaff: nextAppointment.value.staffName || '',
+    },
+  });
+};
+
+const handleTimelineAppointmentClick = (appointmentId: string) => {
+  const appointment = appointments.value.find((candidate) => candidate.id === appointmentId);
+  if (!appointment) {
+    return;
+  }
+
+  openView(appointment);
+};
+
+const handleTimelineSlotClick = ({
+  startAt,
+  staffId,
+}: {
+  startAt: string;
+  staffId: string | null;
+}) => {
+  if (!canManageAppointments.value) {
+    return;
+  }
+
+  const slotTime = formatInBusinessTz(startAt, 'HH:mm', businessTimezone.value);
+  const slotDate = formatInBusinessTz(startAt, 'YYYY-MM-DD', businessTimezone.value);
+  openCreate({
+    date: slotDate,
+    time: slotTime,
+    staffId,
+  });
+};
+
+const handleTimelineAppointmentMove = async ({
+  appointmentId,
+  startAt,
+  staffId,
+}: {
+  appointmentId: string;
+  startAt: string;
+  staffId: string | null;
+}) => {
+  if (!canManageAppointments.value) {
+    return;
+  }
+
+  const appointment = appointments.value.find((candidate) => candidate.id === appointmentId);
+  if (!appointment) {
+    return;
+  }
+
+  actionLoading.value = { ...actionLoading.value, [appointmentId]: true };
+
+  try {
+    const nextDate = dayjs(startAt).tz(businessTimezone.value).format('YYYY-MM-DD');
+    const nextTime = dayjs(startAt).tz(businessTimezone.value).format('HH:mm');
+    const scheduledAt = dayjs.tz(`${nextDate}T${nextTime}:00`, businessTimezone.value)
+      .utc()
+      .toISOString();
+
+    await updateAppointment(appointment.id, {
+      customerName: appointment.customerName,
+      phoneE164: appointment.phoneE164,
+      serviceId: appointment.serviceId,
+      staffId: staffId || undefined,
+      scheduledAt,
+      notes: appointment.notes || undefined,
+      preferredTech: appointment.preferredTech || undefined,
+    });
+
+    ElMessage.success('Appointment moved');
+    await loadAppointments();
+    await scheduler.refresh(schedulerRange.value);
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'Move failed');
+  } finally {
+    actionLoading.value = { ...actionLoading.value, [appointmentId]: false };
+  }
+};
+
+watch(
+  schedulerRange,
+  (range) => {
+    void scheduler.refresh(range);
+  },
+  { immediate: true },
+);
 </script>
 
 <template>
-  <div class="space-y-5">
+  <div class="appointment-page space-y-5">
     <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <h1 class="text-2xl font-semibold text-slate-900">Appointments</h1>
         <p class="text-sm text-slate-600">
           {{
             canManageAppointments
-              ? 'Appointments stay visible after their scheduled time so your team can track what is next and what still needs completion.'
+              ? 'Keep the schedule visible, quick to scan, and ready for same-day action.'
               : 'Review and acknowledge appointments relevant to your schedule.'
           }}
         </p>
       </div>
-      <ElButton
-        v-if="canManageAppointments"
-        type="primary"
-        class="sf-btn"
-        @click="openCreate"
-      >
-        New Appointment
-      </ElButton>
     </div>
 
-    <ElCard v-if="nextAppointment" class="appointment-next-card">
-      <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div class="space-y-1">
-          <div class="appointment-next-card__eyebrow">Next Appointment</div>
-          <div class="text-2xl font-semibold text-slate-900">{{ nextAppointment.customerName }}</div>
-          <div class="text-sm text-slate-600">
-            {{ formatInBusinessTz(nextAppointment.scheduledAt, 'MMM D, YYYY h:mm A', businessTimezone) }}
-            <span class="mx-2 text-slate-300">•</span>
-            {{ nextAppointment.serviceName }}
+    <div class="appointment-layout">
+      <div class="appointment-main">
+        <ElCard class="appointment-toolbar-card">
+          <div class="appointment-toolbar">
+            <div class="appointment-toolbar__row appointment-toolbar__row--top">
+              <div class="appointment-day-nav">
+                <ElButton class="sf-btn appointment-day-nav__button" @click="setSelectedDateToToday">
+                  Today
+                </ElButton>
+                <ElButton class="sf-btn appointment-day-nav__button" @click="shiftSelectedDate(-1)">
+                  ←
+                </ElButton>
+                <ElDatePicker
+                  v-model="selectedDate"
+                  type="date"
+                  placeholder="Pick a date"
+                  format="YYYY-MM-DD"
+                  value-format="YYYY-MM-DD"
+                  size="small"
+                  class="appointment-day-nav__picker"
+                />
+                <ElButton class="sf-btn appointment-day-nav__button" @click="shiftSelectedDate(1)">
+                  →
+                </ElButton>
+              </div>
+
+              <div class="appointment-toolbar__heading">
+                <p class="appointment-toolbar__eyebrow">Schedule</p>
+                <h2 class="appointment-toolbar__title">{{ selectedDateLabel }}</h2>
+                <p class="appointment-toolbar__copy">
+                  {{ selectedDateDisplay }} • {{ selectedStatusCount }} status filters active
+                </p>
+              </div>
+
+            <div class="appointment-toolbar__actions">
+              <div class="appointment-view-toggle">
+                <ElButton
+                  class="sf-btn appointment-toolbar__action"
+                  :type="schedulerViewMode === 'day' ? 'primary' : 'default'"
+                  @click="schedulerViewMode = 'day'"
+                >
+                  Day
+                </ElButton>
+                <ElButton
+                  class="sf-btn appointment-toolbar__action"
+                  :type="schedulerViewMode === 'week' ? 'primary' : 'default'"
+                  @click="schedulerViewMode = 'week'"
+                >
+                  Week
+                </ElButton>
+              </div>
+              <ElButton
+                class="sf-btn appointment-toolbar__action"
+                :type="showSecondaryFilters ? 'primary' : 'default'"
+                  @click="showSecondaryFilters = !showSecondaryFilters"
+                >
+                  Filters
+                </ElButton>
+                <ElButton
+                  v-if="canManageAppointments"
+                  type="primary"
+                  class="sf-btn appointment-toolbar__action appointment-toolbar__action--primary"
+                  @click="() => openCreate()"
+                >
+                  New Appointment
+                </ElButton>
+              </div>
+            </div>
+
+          <div class="appointment-toolbar__row appointment-toolbar__row--middle">
+            <ElInput
+              v-model="appointmentSearch"
+              clearable
+              placeholder="Search customers, phone, or service..."
+              class="appointment-search"
+            />
+            <ElSelect
+              v-model="selectedStaffId"
+              clearable
+              placeholder="All staff"
+              class="appointment-staff-filter"
+            >
+              <ElOption label="All staff" value="" />
+              <ElOption
+                v-for="member in staff"
+                :key="member.id"
+                :label="member.name"
+                :value="member.id"
+              />
+            </ElSelect>
           </div>
+
+          <div v-if="showSecondaryFilters" class="appointment-filters-panel">
+            <div class="appointment-filters-panel__header">
+              <div>
+                <div class="appointment-filters-panel__eyebrow">Secondary filters</div>
+                <div class="appointment-filters-panel__title">Status and cleanup</div>
+              </div>
+              <ElButton class="sf-btn appointment-toolbar__action" @click="clearFilters">
+                Clear Filters
+              </ElButton>
+            </div>
+
+            <div class="appointment-status-row">
+              <button
+                v-for="status in statusFilterOptions"
+                :key="status.value"
+                type="button"
+                class="appointment-status-chip"
+                :class="{ 'appointment-status-chip--active': statusFilters[status.value] }"
+                @click="toggleStatusFilter(status.value)"
+              >
+                {{ status.label }}
+              </button>
+            </div>
+          </div>
+        </ElCard>
+
+        <div class="appointment-kpi-grid">
+          <ElCard class="appointment-kpi-card">
+            <div class="appointment-kpi-card__label">Upcoming</div>
+            <div class="appointment-kpi-card__value">{{ appointmentTotals.upcoming }}</div>
+          </ElCard>
+          <ElCard class="appointment-kpi-card">
+            <div class="appointment-kpi-card__label">Checked In</div>
+            <div class="appointment-kpi-card__value">{{ appointmentTotals.checkedIn }}</div>
+          </ElCard>
+          <ElCard class="appointment-kpi-card">
+            <div class="appointment-kpi-card__label">In Progress</div>
+            <div class="appointment-kpi-card__value">{{ appointmentTotals.inProgress }}</div>
+          </ElCard>
+          <ElCard class="appointment-kpi-card">
+            <div class="appointment-kpi-card__label">Completed</div>
+            <div class="appointment-kpi-card__value">{{ appointmentTotals.completed }}</div>
+          </ElCard>
+          <ElCard class="appointment-kpi-card appointment-kpi-card--accent">
+            <div class="appointment-kpi-card__label">Occupancy</div>
+            <div class="appointment-kpi-card__value">{{ appointmentTotals.occupancy }}%</div>
+          </ElCard>
         </div>
-        <div class="flex flex-wrap gap-2">
-          <ElButton class="sf-btn" @click="openView(nextAppointment)">View</ElButton>
+
+        <AppointmentDayTimeline
+          :workspace="schedulerWorkspace"
+          :loading="schedulerLoading"
+          :error="schedulerError"
+          :mode="schedulerViewMode"
+          :can-manage="canManageAppointments"
+          @appointment-click="handleTimelineAppointmentClick"
+          @appointment-move="handleTimelineAppointmentMove"
+          @slot-click="handleTimelineSlotClick"
+        />
+
+        <div v-if="!loading && !appointmentsVisible" class="appointment-empty-state">
+          <div class="appointment-empty-state__title">{{ emptyStateMessage }}</div>
+          <p class="appointment-empty-state__copy">Create a new appointment or clear filters to continue.</p>
           <ElButton
             v-if="canManageAppointments"
             type="primary"
-            class="sf-btn"
-            @click="openEdit(nextAppointment)"
+            class="sf-btn appointment-empty-state__button"
+            @click="() => openCreate()"
           >
-            Edit
+            Create Appointment
           </ElButton>
         </div>
-      </div>
-    </ElCard>
 
-    <ElCard class="appointment-filter-card bg-white">
-      <div class="appointment-filter-grid">
-        <div class="appointment-date-tile">
-          <div class="appointment-date-tile__row">
-            <span class="appointment-date-tile__label">Selected Date</span>
-            <ElDatePicker
-              v-model="selectedDate"
-              type="date"
-              placeholder="All dates"
-              format="YYYY-MM-DD"
-              value-format="YYYY-MM-DD"
-              size="small"
-              class="appointment-date-picker"
-            />
-          </div>
-        </div>
-        <div
-          v-for="group in appointmentGroups"
-          :key="group.key"
-          class="appointment-summary-tile"
-        >
-          <div class="appointment-summary-tile__label">
-            {{ group.title }}
-          </div>
-          <div class="appointment-summary-tile__value">{{ group.items.length }}</div>
-        </div>
-      </div>
-    </ElCard>
-
-    <div v-if="!loading && !appointmentsVisible" class="appointment-empty-state">
-      {{ emptyStateMessage }}
-    </div>
-
-    <div v-if="loading || appointmentsVisible">
-      <div v-for="group in displayedAppointmentGroups" :key="group.key" class="space-y-2">
-      <ElCard class="bg-white">
-        <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div class="text-lg font-semibold text-slate-900">{{ group.title }}</div>
-            <div class="text-sm text-slate-600">{{ group.description }}</div>
-          </div>
-          <div class="text-sm font-medium text-slate-500">
-            {{ group.totalCount }} appointment{{ group.totalCount === 1 ? '' : 's' }}
-          </div>
-        </div>
-
-        <ElTable
-          v-if="loading || group.visibleItems.length > 0"
-          :data="group.visibleItems"
-          :loading="loading"
-          :row-class-name="appointmentRowClassName"
-          stripe
-        >
-          <ElTableColumn prop="customerName" label="Customer" min-width="140" />
-          <ElTableColumn label="Phone" min-width="140">
-            <template #default="{ row }">
-              <span>{{ formatPhone(row.phoneE164) }}</span>
-            </template>
-          </ElTableColumn>
-          <ElTableColumn prop="serviceName" label="Service" min-width="140" />
-          <ElTableColumn label="Staff" min-width="160">
-            <template #default="{ row }">
-              <div class="flex flex-col gap-0.5">
-                <span>{{ row.staffName || '—' }}</span>
-                <span
-                  v-if="row.preferredTech && row.preferredTech !== row.staffName"
-                  class="text-xs text-slate-500"
-                >
-                  Prefers {{ row.preferredTech }}
-                </span>
+        <div v-if="loading || appointmentsVisible" class="space-y-4">
+          <div v-for="group in displayedAppointmentGroups" :key="group.key" class="space-y-2">
+            <ElCard class="bg-white">
+              <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div class="text-lg font-semibold text-slate-900">{{ group.title }}</div>
+                  <div class="text-sm text-slate-600">{{ group.description }}</div>
+                </div>
+                <div class="text-sm font-medium text-slate-500">
+                  {{ group.totalCount }} appointment{{ group.totalCount === 1 ? '' : 's' }}
+                </div>
               </div>
-            </template>
-          </ElTableColumn>
-          <ElTableColumn
-            prop="scheduledAt"
-            label="Time"
-            min-width="110"
-            :formatter="formatTime"
-          />
-          <ElTableColumn prop="status" label="Status" width="150">
-            <template #default="{ row }">
-              <span :class="statusBadgeForAppointment(row).cls">
-                {{ statusBadgeForAppointment(row).label }}
-              </span>
-            </template>
-          </ElTableColumn>
-          <ElTableColumn label="Actions" min-width="176" align="right">
-            <template #default="{ row }">
-              <AppointmentActionsMenu
-                :appointment="row"
-                :disabled="Boolean(actionLoading[row.id])"
-                :loading="Boolean(actionLoading[row.id])"
-                :can-manage="canManageAppointments"
-                @view="openView"
-                @edit="openEdit"
-                @cancel="handleCancel($event.id)"
-                @primary="handlePrimaryAction"
-              />
-            </template>
-          </ElTableColumn>
-        </ElTable>
 
-        <div
-          v-else-if="!loading"
-          class="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500"
-        >
-          {{ group.emptyMessage }}
-        </div>
+              <ElTable
+                v-if="loading || group.visibleItems.length > 0"
+                :data="group.visibleItems"
+                :loading="loading"
+                :row-class-name="appointmentRowClassName"
+                class="appointment-table"
+                stripe
+              >
+                <ElTableColumn label="Time" min-width="120">
+                  <template #default="{ row }">
+                    <div class="flex flex-col gap-0.5">
+                      <span class="font-medium text-slate-900">
+                        {{ formatInBusinessTz(row.scheduledAt, 'h:mm A', businessTimezone) }}
+                      </span>
+                      <span class="text-xs text-slate-500">
+                        {{ formatInBusinessTz(row.scheduledAt, 'MMM D', businessTimezone) }}
+                      </span>
+                    </div>
+                  </template>
+                </ElTableColumn>
+                <ElTableColumn label="Customer" min-width="180">
+                  <template #default="{ row }">
+                    <div class="flex flex-col gap-0.5">
+                      <span class="font-medium text-slate-900">{{ row.customerName }}</span>
+                      <span class="text-xs text-slate-500">{{ formatPhone(row.phoneE164) }}</span>
+                    </div>
+                  </template>
+                </ElTableColumn>
+                <ElTableColumn prop="serviceName" label="Service" min-width="160" />
+                <ElTableColumn label="Staff" min-width="170">
+                  <template #default="{ row }">
+                    <div class="flex flex-col gap-0.5">
+                      <span>{{ row.staffName || '—' }}</span>
+                      <span
+                        v-if="row.preferredTech && row.preferredTech !== row.staffName"
+                        class="text-xs text-slate-500"
+                      >
+                        Prefers {{ row.preferredTech }}
+                      </span>
+                    </div>
+                  </template>
+                </ElTableColumn>
+                <ElTableColumn prop="status" label="Status" width="160">
+                  <template #default="{ row }">
+                    <div class="flex flex-col gap-1">
+                      <span :class="statusBadgeForAppointment(row).cls">
+                        {{ statusBadgeForAppointment(row).label }}
+                      </span>
+                      <span
+                        v-if="needsConfirmation(row)"
+                        class="text-[11px] font-semibold uppercase tracking-[0.14em] text-orange-700"
+                      >
+                        Needs confirmation
+                      </span>
+                    </div>
+                  </template>
+                </ElTableColumn>
+                <ElTableColumn label="Actions" min-width="176" align="right">
+                  <template #default="{ row }">
+                    <AppointmentActionsMenu
+                      :appointment="row"
+                      :disabled="Boolean(actionLoading[row.id])"
+                      :loading="Boolean(actionLoading[row.id])"
+                      :can-manage="canManageAppointments"
+                      @view="openView"
+                      @edit="openEdit"
+                      @cancel="handleCancel($event.id)"
+                      @primary="handlePrimaryAction"
+                    />
+                  </template>
+                </ElTableColumn>
+              </ElTable>
 
-        <div
-          v-if="!loading && group.key === 'completed_past' && group.hasMore"
-          class="mt-4 flex flex-col gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between"
-        >
-          <div class="text-sm text-slate-500">
-            Showing {{ group.visibleCount }} of {{ group.totalCount }} appointments
+              <div
+                v-else-if="!loading"
+                class="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500"
+              >
+                {{ group.emptyMessage }}
+              </div>
+
+              <div
+                v-if="!loading && group.key === 'completed_past' && group.hasMore"
+                class="mt-4 flex flex-col gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div class="text-sm text-slate-500">
+                  Showing {{ group.visibleCount }} of {{ group.totalCount }} appointments
+                </div>
+                <ElButton
+                  size="small"
+                  class="sf-btn"
+                  @click="loadMoreCompletedPast"
+                >
+                  Load {{ Math.min(COMPLETED_PAST_INCREMENT, group.remainingCount) }} more
+                </ElButton>
+              </div>
+            </ElCard>
           </div>
-          <ElButton
-            size="small"
-            class="sf-btn"
-            @click="loadMoreCompletedPast"
-          >
-            Load {{ Math.min(COMPLETED_PAST_INCREMENT, group.remainingCount) }} more
-          </ElButton>
         </div>
-      </ElCard>
       </div>
+
+      <aside class="appointment-side">
+        <ElCard v-if="nextAppointment" class="appointment-preview-card">
+          <div class="appointment-preview-card__header">
+            <div>
+              <p class="appointment-preview-card__eyebrow">Next appointment</p>
+              <h3 class="appointment-preview-card__title">{{ nextAppointment.customerName }}</h3>
+              <p class="appointment-preview-card__copy">
+                {{ formatInBusinessTz(nextAppointment.scheduledAt, 'ddd, MMM D • h:mm A', businessTimezone) }}
+              </p>
+            </div>
+            <span :class="statusBadgeForAppointment(nextAppointment).cls">
+              {{ statusBadgeForAppointment(nextAppointment).label }}
+            </span>
+          </div>
+
+          <dl class="appointment-preview-card__details">
+            <div>
+              <dt>Service</dt>
+              <dd>{{ nextAppointment.serviceName }}</dd>
+            </div>
+            <div>
+              <dt>Staff</dt>
+              <dd>{{ nextAppointment.staffName || 'Unassigned' }}</dd>
+            </div>
+            <div>
+              <dt>Phone</dt>
+              <dd>{{ formatPhone(nextAppointment.phoneE164) }}</dd>
+            </div>
+            <div>
+              <dt>Countdown</dt>
+              <dd>{{ nextAppointmentCountdown }}</dd>
+            </div>
+          </dl>
+
+          <div
+            v-if="needsConfirmation(nextAppointment)"
+            class="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-semibold text-orange-800"
+          >
+            Needs confirmation
+          </div>
+
+          <div class="appointment-preview-card__actions">
+            <ElButton class="sf-btn appointment-preview-card__button" @click="openView(nextAppointment)">
+              View
+            </ElButton>
+            <ElButton
+              v-if="canManageAppointments"
+              type="primary"
+              class="sf-btn appointment-preview-card__button"
+              @click="openNextAppointmentCheckIn"
+            >
+              Check In
+            </ElButton>
+          </div>
+        </ElCard>
+
+        <ElCard class="appointment-preview-card appointment-preview-card--subtle">
+          <div class="appointment-preview-card__eyebrow">Filter state</div>
+          <div class="appointment-preview-card__stack">
+            <div class="appointment-preview-card__meta">
+              <span>Staff</span>
+              <strong>{{ selectedStaffName }}</strong>
+            </div>
+            <div class="appointment-preview-card__meta">
+              <span>Status filters</span>
+              <strong>{{ selectedStatusCount }} active</strong>
+            </div>
+            <div class="appointment-preview-card__meta">
+              <span>Loaded appointments</span>
+              <strong>{{ appointmentTotals.total }}</strong>
+            </div>
+          </div>
+        </ElCard>
+      </aside>
     </div>
 
     <ElDialog v-model="dialogVisible" :title="dialogTitle" width="760px" class="appointment-dialog">
       <div class="space-y-4">
         <ElForm label-position="top" class="appointment-dialog-form">
+          <ElAlert
+            v-if="dialogNeedsConfirmation"
+            type="warning"
+            :closable="false"
+            class="appointment-dialog-alert"
+          >
+            <template #title>Needs confirmation</template>
+            <template #default>
+              This time is reserved, but the salon still needs to confirm it.
+            </template>
+          </ElAlert>
           <div class="appointment-dialog-grid">
           <ElFormItem label="Customer name" required>
             <ElInput
@@ -953,6 +1452,312 @@ const appointmentRowClassName = ({ row }: { row: Appointment }) =>
 </template>
 
 <style scoped>
+.appointment-layout {
+  display: grid;
+  gap: 1rem;
+}
+
+.appointment-main {
+  min-width: 0;
+  display: grid;
+  gap: 1rem;
+}
+
+.appointment-side {
+  display: grid;
+  gap: 1rem;
+}
+
+.appointment-toolbar-card :deep(.el-card__body) {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.appointment-toolbar {
+  display: grid;
+  gap: 1rem;
+}
+
+.appointment-toolbar__row {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.appointment-toolbar__row--top {
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr) minmax(0, auto);
+  align-items: center;
+}
+
+.appointment-toolbar__row--middle {
+  grid-template-columns: minmax(0, 1fr) minmax(12rem, 14rem);
+  align-items: center;
+}
+
+.appointment-toolbar__heading {
+  display: grid;
+  gap: 0.2rem;
+  justify-self: center;
+  text-align: center;
+}
+
+.appointment-toolbar__eyebrow,
+.appointment-filters-panel__eyebrow {
+  margin: 0;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.appointment-toolbar__title,
+.appointment-filters-panel__title {
+  margin: 0;
+  font-size: 1.2rem;
+  line-height: 1.1;
+  color: #0f172a;
+}
+
+.appointment-toolbar__copy {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.93rem;
+}
+
+.appointment-toolbar__actions,
+.appointment-day-nav,
+.appointment-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.appointment-day-nav {
+  align-items: center;
+  justify-self: start;
+}
+
+.appointment-day-nav__button {
+  min-height: 2.75rem;
+  border-radius: 999px;
+}
+
+.appointment-day-nav__picker {
+  min-width: 12.5rem;
+  flex: 1 1 12.5rem;
+}
+
+.appointment-day-nav__picker :deep(.el-input__wrapper) {
+  min-height: 2.75rem;
+  border-radius: 999px;
+}
+
+.appointment-search {
+  min-width: 0;
+}
+
+.appointment-staff-filter {
+  min-width: 0;
+  width: 100%;
+}
+
+.appointment-toolbar__actions {
+  justify-content: flex-end;
+}
+
+.appointment-toolbar__action {
+  min-height: 2.75rem;
+  border-radius: 999px;
+}
+
+.appointment-toolbar__action--primary {
+  padding-inline: 1.1rem;
+}
+
+.appointment-filters-panel {
+  display: grid;
+  gap: 0.9rem;
+  padding: 0.95rem;
+  border-radius: 22px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.96), rgba(255, 255, 255, 0.98));
+}
+
+.appointment-filters-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.appointment-status-row {
+  align-items: center;
+}
+
+.appointment-status-chip {
+  min-height: 2.2rem;
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  background: #ffffff;
+  color: #475569;
+  font-size: 0.88rem;
+  font-weight: 600;
+  transition:
+    transform 0.15s ease,
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.appointment-status-chip:hover {
+  transform: translateY(-1px);
+  border-color: rgba(148, 163, 184, 0.9);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.06);
+}
+
+.appointment-status-chip--active {
+  border-color: rgba(59, 130, 246, 0.28);
+  background: rgba(239, 246, 255, 1);
+  color: #1d4ed8;
+}
+
+.appointment-kpi-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+}
+
+.appointment-kpi-card :deep(.el-card__body) {
+  display: grid;
+  align-content: space-between;
+  gap: 0.25rem;
+  min-height: 5.75rem;
+}
+
+.appointment-kpi-card__label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.appointment-kpi-card__value {
+  font-size: 1.7rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #0f172a;
+}
+
+.appointment-kpi-card--accent :deep(.el-card__body) {
+  background: linear-gradient(135deg, rgba(239, 246, 255, 0.95), rgba(255, 255, 255, 0.98));
+}
+
+.appointment-preview-card :deep(.el-card__body) {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.appointment-preview-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.appointment-preview-card__eyebrow {
+  margin: 0 0 0.2rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.appointment-preview-card__title {
+  margin: 0;
+  font-size: 1.2rem;
+  line-height: 1.1;
+  color: #0f172a;
+}
+
+.appointment-preview-card__copy {
+  margin: 0.25rem 0 0;
+  color: #64748b;
+  font-size: 0.92rem;
+}
+
+.appointment-preview-card__details {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.appointment-preview-card__details dt,
+.appointment-preview-card__details dd {
+  margin: 0;
+}
+
+.appointment-preview-card__details div {
+  display: grid;
+  gap: 0.18rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 18px;
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  background: #f8fafc;
+}
+
+.appointment-preview-card__details dt,
+.appointment-preview-card__meta span {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.appointment-preview-card__details dd,
+.appointment-preview-card__meta strong {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.appointment-preview-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.appointment-preview-card__button {
+  flex: 1 1 8.5rem;
+}
+
+.appointment-preview-card__stack {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.appointment-preview-card__meta {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 18px;
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  background: #ffffff;
+}
+
+.appointment-preview-card--subtle {
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.95), rgba(255, 255, 255, 0.98));
+}
+
+.appointment-preview-card--subtle :deep(.el-card__body) {
+  gap: 0.75rem;
+}
+
 .appointment-next-card {
   border: 1px solid rgba(251, 146, 60, 0.18);
   background:
@@ -972,107 +1777,50 @@ const appointmentRowClassName = ({ row }: { row: Appointment }) =>
   padding: 1rem 1.1rem;
 }
 
-.appointment-filter-grid {
-  display: grid;
-  gap: 0.75rem;
+.appointment-table :deep(.el-table__cell) {
+  padding-top: 0.7rem;
+  padding-bottom: 0.7rem;
 }
 
-.appointment-date-tile,
-.appointment-summary-tile {
-  position: relative;
-  overflow: hidden;
-  border-radius: 22px;
-  border: 1px solid rgba(226, 232, 240, 0.94);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
-  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.05);
-  min-height: 5rem;
-}
-
-.appointment-date-tile {
-  padding: 1rem 1.05rem;
-}
-
-.appointment-date-tile__row {
-  display: flex;
-  flex-direction: column;
-  gap: 0.7rem;
-}
-
-.appointment-date-tile__label,
-.appointment-summary-tile__label {
-  position: relative;
-  z-index: 1;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: #64748b;
-}
-
-.appointment-summary-tile {
-  padding: 0.95rem 0.95rem;
-  text-align: center;
-}
-
-.appointment-summary-tile__value {
-  position: relative;
-  z-index: 1;
-  margin-top: 0.35rem;
-  font-size: 1.8rem;
-  line-height: 1;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.appointment-date-picker {
-  width: 100%;
-  max-width: 24rem;
-}
-
-.appointment-date-picker :deep(.el-input__wrapper) {
-  min-height: 3rem;
-  border-radius: 9999px;
-  padding-inline: 0.9rem;
-  border: 1px solid rgba(226, 232, 240, 0.95);
-  background: linear-gradient(180deg, #ffffff, #f8fafc);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
-}
-
-.appointment-date-picker :deep(.el-input__inner) {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #0f172a;
-}
-
-.appointment-date-picker :deep(.el-input__prefix) {
-  color: #94a3b8;
-}
-
-.appointment-date-picker :deep(.el-input__prefix-inner) {
-  font-size: 1rem;
-}
-
-.appointment-date-picker :deep(.el-input__suffix) {
-  color: #94a3b8;
-}
-
-.appointment-date-picker :deep(.el-input__wrapper:hover) {
-  border-color: rgba(148, 163, 184, 0.95);
-}
-
-.appointment-date-picker :deep(.el-input__wrapper.is-focus) {
-  border-color: rgba(59, 130, 246, 0.35);
-  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+.appointment-table :deep(.cell) {
+  line-height: 1.2;
 }
 
 .appointment-empty-state {
-  border-radius: 18px;
+  display: grid;
+  gap: 0.5rem;
+  place-items: center;
+  border-radius: 22px;
   border: 1px dashed #cbd5e1;
-  background: #f8fafc;
-  padding: 1.25rem;
+  background:
+    radial-gradient(circle at top, rgba(59, 130, 246, 0.08), transparent 42%),
+    #f8fafc;
+  padding: 1.5rem;
   text-align: center;
   font-size: 0.95rem;
   color: #64748b;
+}
+
+.appointment-empty-state__title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.appointment-empty-state__copy {
+  margin: 0;
+  max-width: 24rem;
+}
+
+.appointment-empty-state__button {
+  min-height: 2.75rem;
+  border-radius: 999px;
+}
+
+.appointment-empty-state::before {
+  content: '📅';
+  font-size: 1.6rem;
+  line-height: 1;
 }
 
 :deep(.appointment-row--highlighted td) {
@@ -1099,6 +1847,10 @@ const appointmentRowClassName = ({ row }: { row: Appointment }) =>
   gap: 0.9rem 1rem;
 }
 
+.appointment-dialog-alert {
+  border-radius: 18px;
+}
+
 .appointment-dialog-grid :deep(.el-form-item) {
   margin-bottom: 0;
 }
@@ -1118,36 +1870,58 @@ const appointmentRowClassName = ({ row }: { row: Appointment }) =>
 }
 
 @media (min-width: 768px) {
-  .appointment-filter-grid {
-    grid-template-columns: minmax(16rem, 1.75fr) repeat(3, minmax(0, 1fr));
-    align-items: stretch;
+  .appointment-layout {
+    grid-template-columns: minmax(0, 1fr) 20rem;
+    align-items: start;
   }
 
-  .appointment-date-tile__row {
-    gap: 0.75rem;
+  .appointment-side {
+    position: sticky;
+    top: 1rem;
   }
 
-  .appointment-date-picker {
-    max-width: 22rem;
+  .appointment-toolbar__title {
+    font-size: 1.35rem;
   }
 }
 
 @media (max-width: 640px) {
-  .appointment-filter-card :deep(.el-card__body) {
+  .appointment-toolbar-card :deep(.el-card__body) {
     padding: 0.9rem;
   }
 
-  .appointment-date-tile,
-  .appointment-summary-tile {
-    min-height: auto;
+  .appointment-toolbar__row--top,
+  .appointment-toolbar__row--middle {
+    grid-template-columns: 1fr;
   }
 
-  .appointment-date-picker :deep(.el-input__wrapper) {
-    min-height: 2.8rem;
+  .appointment-toolbar__heading {
+    justify-self: start;
+    text-align: left;
   }
 
-  .appointment-date-picker :deep(.el-input__inner) {
-    font-size: 0.98rem;
+  .appointment-day-nav {
+    width: 100%;
+  }
+
+  .appointment-day-nav__picker,
+  .appointment-search,
+  .appointment-staff-filter,
+  .appointment-toolbar__action {
+    width: 100%;
+  }
+
+  .appointment-toolbar__actions {
+    justify-content: stretch;
+  }
+
+  .appointment-toolbar__action,
+  .appointment-day-nav__button {
+    flex: 1 1 8rem;
+  }
+
+  .appointment-status-row {
+    gap: 0.5rem;
   }
 }
 </style>
