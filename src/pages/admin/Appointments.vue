@@ -171,11 +171,6 @@ let clockId: number | null = null;
 
 const defaultFormDate = computed(() => dayjs().tz(businessTimezone.value).format('YYYY-MM-DD'));
 const selectedTimelineDate = computed(() => selectedDate.value || defaultFormDate.value);
-const selectedDateSummary = computed(() =>
-  selectedDate.value
-    ? dayjs.tz(selectedDate.value, businessTimezone.value).format('ddd, MMM D, YYYY')
-    : 'All dates',
-);
 const dialogNeedsConfirmation = computed(
   () => dialogAppointment.value && ['PENDING', 'BOOKED'].includes(dialogAppointment.value.status),
 );
@@ -1004,20 +999,19 @@ watch(
                 <ElButton class="sf-btn appointment-day-nav__button" @click="shiftSelectedDate(1)">
                   →
                 </ElButton>
-                <span class="appointment-day-nav__label">{{ selectedDateSummary }}</span>
               </div>
 
               <div class="appointment-toolbar__actions">
-                <div class="appointment-view-toggle">
+                <div class="appointment-view-toggle" role="group" aria-label="Calendar view">
                   <ElButton
-                    class="sf-btn appointment-toolbar__action"
+                    class="sf-btn appointment-toolbar__action appointment-toolbar__action--segment"
                     :type="schedulerViewMode === 'day' ? 'primary' : 'default'"
                     @click="schedulerViewMode = 'day'"
                   >
                     Day
                   </ElButton>
                   <ElButton
-                    class="sf-btn appointment-toolbar__action"
+                    class="sf-btn appointment-toolbar__action appointment-toolbar__action--segment"
                     :type="schedulerViewMode === 'week' ? 'primary' : 'default'"
                     @click="schedulerViewMode = 'week'"
                   >
@@ -1042,10 +1036,10 @@ watch(
                 >
                   <template #reference>
                     <ElButton
-                      class="sf-btn appointment-toolbar__action"
+                      class="sf-btn appointment-toolbar__action appointment-toolbar__action--filters"
                       :type="hasActiveFilters ? 'primary' : 'default'"
                     >
-                      Filters
+                      Filters ▼
                     </ElButton>
                   </template>
 
@@ -1490,13 +1484,13 @@ watch(
 
 .appointment-toolbar-card :deep(.el-card__body) {
   display: grid;
-  gap: 0.85rem;
-  padding: 0.85rem;
+  gap: 0.75rem;
+  padding: 0.75rem;
 }
 
 .appointment-toolbar {
   display: grid;
-  gap: 0.85rem;
+  gap: 0.6rem;
 }
 
 .appointment-toolbar__row {
@@ -1509,54 +1503,27 @@ watch(
 
 .appointment-toolbar__row--primary {
   min-width: 0;
+  flex-wrap: nowrap;
+  align-items: center;
 }
 
 .appointment-day-nav {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.55rem;
   align-items: center;
   flex: 0 1 auto;
+  min-width: 0;
 }
 
 .appointment-toolbar__actions {
   display: flex;
-  flex: 1 1 0;
+  flex: 1 1 auto;
   flex-wrap: wrap;
   gap: 0.6rem;
   justify-content: flex-end;
   align-items: center;
-}
-
-.appointment-toolbar__heading {
-  display: grid;
-  gap: 0.2rem;
-  justify-self: center;
-  text-align: center;
-}
-
-.appointment-toolbar__eyebrow,
-.appointment-filters-panel__eyebrow {
-  margin: 0;
-  font-size: 0.74rem;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: #64748b;
-}
-
-.appointment-toolbar__title,
-.appointment-filters-panel__title {
-  margin: 0;
-  font-size: 1.2rem;
-  line-height: 1.1;
-  color: #0f172a;
-}
-
-.appointment-toolbar__copy {
-  margin: 0;
-  color: #64748b;
-  font-size: 0.93rem;
+  min-width: 0;
 }
 
 .appointment-status-row {
@@ -1566,28 +1533,39 @@ watch(
 }
 
 .appointment-day-nav__button {
-  min-height: 2.75rem;
+  min-height: 2.5rem;
   border-radius: 999px;
 }
 
 .appointment-day-nav__picker {
-  min-width: 12.5rem;
-  flex: 0 1 12.5rem;
+  min-width: 11rem;
+  flex: 0 1 11rem;
 }
 
 .appointment-day-nav__picker :deep(.el-input__wrapper) {
-  min-height: 2.75rem;
+  min-height: 2.5rem;
   border-radius: 999px;
 }
 
 .appointment-search {
-  min-width: 18rem;
-  flex: 1 1 18rem;
+  min-width: 16rem;
+  max-width: 20rem;
+  flex: 1 1 16rem;
 }
 
 .appointment-toolbar__action {
-  min-height: 2.75rem;
+  min-height: 2.5rem;
   border-radius: 999px;
+}
+
+.appointment-toolbar__action--segment {
+  min-width: 4.2rem;
+  padding-inline: 0.95rem;
+}
+
+.appointment-toolbar__action--filters {
+  min-width: 7rem;
+  padding-inline: 1rem;
 }
 
 .appointment-toolbar__action--primary {
