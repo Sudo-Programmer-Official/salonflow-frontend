@@ -12,6 +12,7 @@ import {
   ElInput,
   ElMessage,
   ElOption,
+  ElPopover,
   ElSelect,
   ElTable,
   ElTableColumn,
@@ -187,17 +188,6 @@ const schedulerRange = computed(() => {
     to: base.format('YYYY-MM-DD'),
   };
 });
-const selectedDateLabel = computed(() =>
-  selectedDate.value
-    ? dayjs.tz(selectedDate.value, businessTimezone.value).format('ddd, MMM D')
-    : 'All dates',
-);
-const selectedDateDisplay = computed(() =>
-  selectedDate.value
-    ? dayjs.tz(selectedDate.value, businessTimezone.value).format('MMM D, YYYY')
-    : 'All dates',
-);
-
 const currentTime = computed(() => {
   nowTick.value;
   return nowInBusinessTz(businessTimezone.value);
@@ -646,13 +636,9 @@ const selectedStatusCount = computed(() =>
   Object.values(statusFilters).filter(Boolean).length,
 );
 
-const selectedStaffName = computed(() => {
-  if (!selectedStaffId.value) {
-    return 'All staff';
-  }
-
-  return staff.value.find((member) => member.id === selectedStaffId.value)?.name || 'Selected staff';
-});
+const hasActiveFilters = computed(
+  () => Boolean(selectedStaffId.value) || selectedStatusCount.value < statusFilterOptions.length,
+);
 
 const activeStatusSet = computed(
   () =>
@@ -975,7 +961,7 @@ watch(
       <div class="appointment-main">
         <ElCard class="appointment-toolbar-card">
           <div class="appointment-toolbar">
-            <div class="appointment-toolbar__row appointment-toolbar__row--top">
+            <div class="appointment-toolbar__row appointment-toolbar__row--primary">
               <div class="appointment-day-nav">
                 <ElButton class="sf-btn appointment-day-nav__button" @click="setSelectedDateToToday">
                   Today
@@ -997,38 +983,95 @@ watch(
                 </ElButton>
               </div>
 
-              <div class="appointment-toolbar__heading">
-                <p class="appointment-toolbar__eyebrow">Schedule</p>
-                <h2 class="appointment-toolbar__title">{{ selectedDateLabel }}</h2>
-                <p class="appointment-toolbar__copy">
-                  {{ selectedDateDisplay }} • {{ selectedStatusCount }} status filters active
-                </p>
-              </div>
+              <div class="appointment-toolbar__actions">
+                <div class="appointment-view-toggle">
+                  <ElButton
+                    class="sf-btn appointment-toolbar__action"
+                    :type="schedulerViewMode === 'day' ? 'primary' : 'default'"
+                    @click="schedulerViewMode = 'day'"
+                  >
+                    Day
+                  </ElButton>
+                  <ElButton
+                    class="sf-btn appointment-toolbar__action"
+                    :type="schedulerViewMode === 'week' ? 'primary' : 'default'"
+                    @click="schedulerViewMode = 'week'"
+                  >
+                    Week
+                  </ElButton>
+                </div>
 
-            <div class="appointment-toolbar__actions">
-              <div class="appointment-view-toggle">
-                <ElButton
-                  class="sf-btn appointment-toolbar__action"
-                  :type="schedulerViewMode === 'day' ? 'primary' : 'default'"
-                  @click="schedulerViewMode = 'day'"
+                <ElInput
+                  v-model="appointmentSearch"
+                  clearable
+                  placeholder="Search customers, phone, or service..."
+                  class="appointment-search"
+                />
+
+                <ElPopover
+                  v-model:visible="showSecondaryFilters"
+                  trigger="click"
+                  placement="bottom-end"
+                  :width="320"
+                  :teleported="true"
+                  popper-class="appointment-filters-popover"
                 >
-                  Day
-                </ElButton>
-                <ElButton
-                  class="sf-btn appointment-toolbar__action"
-                  :type="schedulerViewMode === 'week' ? 'primary' : 'default'"
-                  @click="schedulerViewMode = 'week'"
-                >
-                  Week
-                </ElButton>
-              </div>
-              <ElButton
-                class="sf-btn appointment-toolbar__action"
-                :type="showSecondaryFilters ? 'primary' : 'default'"
-                  @click="showSecondaryFilters = !showSecondaryFilters"
-                >
-                  Filters
-                </ElButton>
+                  <template #reference>
+                    <ElButton
+                      class="sf-btn appointment-toolbar__action"
+                      :type="hasActiveFilters ? 'primary' : 'default'"
+                    >
+                      Filters
+                    </ElButton>
+                  </template>
+
+                  <div class="appointment-filters-popover__content">
+                    <div class="appointment-filters-popover__header">
+                      <div>
+                        <p class="appointment-filters-popover__eyebrow">Filters</p>
+                        <h3 class="appointment-filters-popover__title">Staff & status</h3>
+                      </div>
+                      <ElButton class="sf-btn appointment-filters-popover__clear" @click="clearFilters">
+                        Reset
+                      </ElButton>
+                    </div>
+
+                    <div class="appointment-filters-popover__section">
+                      <div class="appointment-filters-popover__label">Staff</div>
+                      <ElSelect
+                        v-model="selectedStaffId"
+                        clearable
+                        placeholder="All staff"
+                        class="appointment-filters-popover__select"
+                      >
+                        <ElOption label="All staff" value="" />
+                        <ElOption
+                          v-for="member in staff"
+                          :key="member.id"
+                          :label="member.name"
+                          :value="member.id"
+                        />
+                      </ElSelect>
+                    </div>
+
+                    <div class="appointment-filters-popover__section">
+                      <div class="appointment-filters-popover__label">Status</div>
+                      <div class="appointment-status-row">
+                        <button
+                          v-for="status in statusFilterOptions"
+                          :key="status.value"
+                          type="button"
+                          class="appointment-status-chip"
+                          :class="{ 'appointment-status-chip--active': statusFilters[status.value] }"
+                          @click="toggleStatusFilter(status.value)"
+                        >
+                          {{ status.label }}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </ElPopover>
+
                 <ElButton
                   v-if="canManageAppointments"
                   type="primary"
@@ -1039,55 +1082,6 @@ watch(
                 </ElButton>
               </div>
             </div>
-
-          <div class="appointment-toolbar__row appointment-toolbar__row--middle">
-            <ElInput
-              v-model="appointmentSearch"
-              clearable
-              placeholder="Search customers, phone, or service..."
-              class="appointment-search"
-            />
-            <ElSelect
-              v-model="selectedStaffId"
-              clearable
-              placeholder="All staff"
-              class="appointment-staff-filter"
-            >
-              <ElOption label="All staff" value="" />
-              <ElOption
-                v-for="member in staff"
-                :key="member.id"
-                :label="member.name"
-                :value="member.id"
-              />
-            </ElSelect>
-          </div>
-
-          <div v-if="showSecondaryFilters" class="appointment-filters-panel">
-            <div class="appointment-filters-panel__header">
-              <div>
-                <div class="appointment-filters-panel__eyebrow">Secondary filters</div>
-                <div class="appointment-filters-panel__title">Status and cleanup</div>
-              </div>
-              <ElButton class="sf-btn appointment-toolbar__action" @click="clearFilters">
-                Clear Filters
-              </ElButton>
-            </div>
-
-            <div class="appointment-status-row">
-              <button
-                v-for="status in statusFilterOptions"
-                :key="status.value"
-                type="button"
-                class="appointment-status-chip"
-                :class="{ 'appointment-status-chip--active': statusFilters[status.value] }"
-                @click="toggleStatusFilter(status.value)"
-              >
-                {{ status.label }}
-              </button>
-            </div>
-          </div>
-
           </div>
         </ElCard>
 
@@ -1306,24 +1300,6 @@ watch(
             </ElButton>
           </div>
         </ElCard>
-
-        <ElCard class="appointment-preview-card appointment-preview-card--subtle">
-          <div class="appointment-preview-card__eyebrow">Filter state</div>
-          <div class="appointment-preview-card__stack">
-            <div class="appointment-preview-card__meta">
-              <span>Staff</span>
-              <strong>{{ selectedStaffName }}</strong>
-            </div>
-            <div class="appointment-preview-card__meta">
-              <span>Status filters</span>
-              <strong>{{ selectedStatusCount }} active</strong>
-            </div>
-            <div class="appointment-preview-card__meta">
-              <span>Loaded appointments</span>
-              <strong>{{ appointmentTotals.total }}</strong>
-            </div>
-          </div>
-        </ElCard>
       </aside>
     </div>
 
@@ -1472,27 +1448,41 @@ watch(
 
 .appointment-toolbar-card :deep(.el-card__body) {
   display: grid;
-  gap: 1rem;
-  padding: 1rem;
+  gap: 0.85rem;
+  padding: 0.85rem;
 }
 
 .appointment-toolbar {
   display: grid;
-  gap: 1rem;
+  gap: 0.85rem;
 }
 
 .appointment-toolbar__row {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.75rem;
-}
-
-.appointment-toolbar__row--top {
-  grid-template-columns: minmax(0, auto) minmax(0, 1fr) minmax(0, auto);
   align-items: center;
+  justify-content: space-between;
 }
 
-.appointment-toolbar__row--middle {
-  grid-template-columns: minmax(0, 1fr) minmax(12rem, 14rem);
+.appointment-toolbar__row--primary {
+  min-width: 0;
+}
+
+.appointment-day-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
+  flex: 0 1 auto;
+}
+
+.appointment-toolbar__actions {
+  display: flex;
+  flex: 1 1 0;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: flex-end;
   align-items: center;
 }
 
@@ -1527,17 +1517,10 @@ watch(
   font-size: 0.93rem;
 }
 
-.appointment-toolbar__actions,
-.appointment-day-nav,
 .appointment-status-row {
   display: flex;
   flex-wrap: wrap;
   gap: 0.6rem;
-}
-
-.appointment-day-nav {
-  align-items: center;
-  justify-self: start;
 }
 
 .appointment-day-nav__button {
@@ -1547,7 +1530,7 @@ watch(
 
 .appointment-day-nav__picker {
   min-width: 12.5rem;
-  flex: 1 1 12.5rem;
+  flex: 0 1 12.5rem;
 }
 
 .appointment-day-nav__picker :deep(.el-input__wrapper) {
@@ -1556,16 +1539,8 @@ watch(
 }
 
 .appointment-search {
-  min-width: 0;
-}
-
-.appointment-staff-filter {
-  min-width: 0;
-  width: 100%;
-}
-
-.appointment-toolbar__actions {
-  justify-content: flex-end;
+  min-width: 18rem;
+  flex: 1 1 18rem;
 }
 
 .appointment-toolbar__action {
@@ -1577,20 +1552,58 @@ watch(
   padding-inline: 1.1rem;
 }
 
-.appointment-filters-panel {
+.appointment-filters-popover__content {
   display: grid;
   gap: 0.9rem;
-  padding: 0.95rem;
-  border-radius: 22px;
-  border: 1px solid rgba(226, 232, 240, 0.95);
-  background: linear-gradient(180deg, rgba(248, 250, 252, 0.96), rgba(255, 255, 255, 0.98));
 }
 
-.appointment-filters-panel__header {
+.appointment-filters-popover__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.appointment-filters-popover__eyebrow,
+.appointment-filters-popover__label {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.appointment-filters-popover__title {
+  margin: 0.15rem 0 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.appointment-filters-popover__clear {
+  min-height: 2.25rem;
+  border-radius: 999px;
+}
+
+.appointment-filters-popover__section {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.appointment-filters-popover__select {
+  width: 100%;
+}
+
+.appointment-filters-popover__select :deep(.el-input__wrapper) {
+  min-height: 2.65rem;
+  border-radius: 999px;
+}
+
+.appointment-filters-popover__content :deep(.el-select) {
+  width: 100%;
 }
 
 .appointment-status-row {
@@ -1636,7 +1649,7 @@ watch(
   display: grid;
   align-content: space-between;
   gap: 0.25rem;
-  min-height: 5.75rem;
+  min-height: 5.25rem;
 }
 
 .appointment-kpi-card__label {
@@ -1760,25 +1773,6 @@ watch(
   gap: 0.75rem;
 }
 
-.appointment-next-card {
-  border: 1px solid rgba(251, 146, 60, 0.18);
-  background:
-    linear-gradient(135deg, rgba(255, 247, 237, 0.98), rgba(255, 255, 255, 0.98)),
-    white;
-}
-
-.appointment-next-card__eyebrow {
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: #c2410c;
-}
-
-.appointment-filter-card :deep(.el-card__body) {
-  padding: 1rem 1.1rem;
-}
-
 .appointment-table :deep(.el-table__cell) {
   padding-top: 0.7rem;
   padding-bottom: 0.7rem;
@@ -1873,7 +1867,7 @@ watch(
 
 @media (min-width: 768px) {
   .appointment-layout {
-    grid-template-columns: minmax(0, 1fr) 20rem;
+    grid-template-columns: minmax(0, 1fr) 18rem;
     align-items: start;
   }
 
@@ -1882,8 +1876,8 @@ watch(
     top: 1rem;
   }
 
-  .appointment-toolbar__title {
-    font-size: 1.35rem;
+  .appointment-toolbar__actions {
+    min-width: 0;
   }
 }
 
@@ -1892,34 +1886,32 @@ watch(
     padding: 0.9rem;
   }
 
-  .appointment-toolbar__row--top,
-  .appointment-toolbar__row--middle {
-    grid-template-columns: 1fr;
-  }
-
-  .appointment-toolbar__heading {
-    justify-self: start;
-    text-align: left;
-  }
-
   .appointment-day-nav {
     width: 100%;
   }
 
+  .appointment-toolbar__actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
   .appointment-day-nav__picker,
   .appointment-search,
-  .appointment-staff-filter,
   .appointment-toolbar__action {
     width: 100%;
   }
 
-  .appointment-toolbar__actions {
-    justify-content: stretch;
+  .appointment-search {
+    min-width: 0;
   }
 
   .appointment-toolbar__action,
   .appointment-day-nav__button {
     flex: 1 1 8rem;
+  }
+
+  .appointment-toolbar__actions .appointment-view-toggle {
+    width: 100%;
   }
 
   .appointment-status-row {
