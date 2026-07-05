@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { ElCard, ElSkeleton } from 'element-plus';
 import { dayjs, nowInBusinessTz } from '../../utils/dates';
 import type { SchedulerAppointment, SchedulerWorkspace } from '@/api/scheduling';
@@ -27,10 +27,11 @@ const emit = defineEmits<{
 }>();
 
 const timeColumnWidth = 88;
-const rowHeight = 36;
+const rowHeight = 28;
 const headerHeight = 54;
 const minLaneWidth = 180;
 const displayMode = computed<TimelineMode>(() => props.mode ?? 'day');
+const gridWrapRef = ref<HTMLElement | null>(null);
 
 const days = computed(() => props.workspace?.days ?? []);
 const timezone = computed(() => props.workspace?.timezone ?? 'America/Chicago');
@@ -210,6 +211,39 @@ const nowMarkerStyle = computed(() => {
   };
 });
 
+const syncWorkspaceScroll = async () => {
+  await nextTick();
+
+  const gridWrap = gridWrapRef.value;
+  if (!gridWrap) {
+    return;
+  }
+
+  if (displayMode.value !== 'day' || !nowMarkerStyle.value) {
+    gridWrap.scrollTop = 0;
+    return;
+  }
+
+  const markerTop = Number.parseFloat(nowMarkerStyle.value.top || '0');
+  if (!Number.isFinite(markerTop)) {
+    return;
+  }
+
+  const targetScroll = Math.max(0, markerTop - gridWrap.clientHeight * 0.22);
+  gridWrap.scrollTop = Math.min(targetScroll, Math.max(0, gridWrap.scrollHeight - gridWrap.clientHeight));
+};
+
+onMounted(() => {
+  void syncWorkspaceScroll();
+});
+
+watch(
+  () => [displayMode.value, primaryDay.value?.date, slots.value.length, appointments.value.length],
+  () => {
+    void syncWorkspaceScroll();
+  },
+);
+
 const appointmentBlocks = computed(() =>
   appointments.value.map((appointment) => ({
     appointment,
@@ -293,8 +327,8 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
       </p>
     </div>
 
-    <div v-else-if="displayMode === 'day'" class="appointment-timeline-card__grid-wrap">
-      <div class="appointment-timeline-card__grid" :style="gridStyle">
+    <div v-else-if="displayMode === 'day'" ref="gridWrapRef" class="appointment-timeline-card__grid-wrap">
+        <div class="appointment-timeline-card__grid" :style="gridStyle">
         <div class="appointment-timeline-card__corner">Time</div>
         <div
           v-for="lane in lanes"
@@ -388,7 +422,7 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
       </div>
     </div>
 
-    <div v-else class="appointment-timeline-card__week">
+    <div v-else ref="gridWrapRef" class="appointment-timeline-card__week">
       <section
         v-for="day in days"
         :key="day.date"
@@ -579,14 +613,20 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
 
 .appointment-timeline-card__grid-wrap {
   overflow: auto;
+  height: clamp(620px, calc(100vh - 360px), 920px);
   border-radius: 20px;
   border: 1px solid rgba(226, 232, 240, 0.92);
   background: #fff;
+  scrollbar-gutter: stable both-edges;
 }
 
 .appointment-timeline-card__week {
   display: grid;
   gap: 1rem;
+  max-height: clamp(620px, calc(100vh - 360px), 920px);
+  overflow: auto;
+  padding-right: 0.25rem;
+  scrollbar-gutter: stable both-edges;
 }
 
 .appointment-timeline-card__week-day {
@@ -628,6 +668,7 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
   position: relative;
   display: grid;
   min-width: 760px;
+  width: 100%;
 }
 
 .appointment-timeline-card__corner,
