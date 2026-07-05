@@ -7,6 +7,7 @@ import {
   ElCard,
   ElDatePicker,
   ElDialog,
+  ElDrawer,
   ElForm,
   ElFormItem,
   ElInput,
@@ -46,7 +47,7 @@ import { formatPhone } from '../../utils/format';
 import AppointmentDayTimeline from '../../components/admin/AppointmentDayTimeline.vue';
 import { useScheduler } from '../../composables/useScheduler';
 
-type AppointmentDialogMode = 'create' | 'edit' | 'view';
+type AppointmentDialogMode = 'create' | 'edit';
 
 type AppointmentGroup = {
   key: 'upcoming' | 'in_progress' | 'completed_past';
@@ -138,13 +139,13 @@ const dialogVisible = ref(false);
 const dialogMode = ref<AppointmentDialogMode>('create');
 const dialogTitle = computed(() => {
   if (dialogMode.value === 'create') return 'New Appointment';
-  if (dialogMode.value === 'edit') return 'Edit Appointment';
-  return 'Appointment Details';
+  return 'Edit Appointment';
 });
-const isViewMode = computed(() => dialogMode.value === 'view');
 const saving = ref(false);
 const editingId = ref<string | null>(null);
 const dialogAppointment = ref<Appointment | null>(null);
+const detailVisible = ref(false);
+const detailAppointment = ref<Appointment | null>(null);
 const completedPastVisibleCount = ref(COMPLETED_PAST_INCREMENT);
 const scheduler = useScheduler();
 const schedulerWorkspace = computed(() => scheduler.workspace.value);
@@ -170,6 +171,11 @@ let clockId: number | null = null;
 
 const defaultFormDate = computed(() => dayjs().tz(businessTimezone.value).format('YYYY-MM-DD'));
 const selectedTimelineDate = computed(() => selectedDate.value || defaultFormDate.value);
+const selectedDateSummary = computed(() =>
+  selectedDate.value
+    ? dayjs.tz(selectedDate.value, businessTimezone.value).format('ddd, MMM D, YYYY')
+    : 'All dates',
+);
 const dialogNeedsConfirmation = computed(
   () => dialogAppointment.value && ['PENDING', 'BOOKED'].includes(dialogAppointment.value.status),
 );
@@ -422,6 +428,7 @@ const openCreate = (prefill?: { date?: string; time?: string; staffId?: string |
 
   dialogMode.value = 'create';
   dialogAppointment.value = null;
+  detailVisible.value = false;
   resetForm();
   if (prefill?.date) {
     form.date = prefill.date;
@@ -441,14 +448,14 @@ const openEdit = (appointment: Appointment) => {
   }
 
   dialogMode.value = 'edit';
+  detailVisible.value = false;
   applyAppointmentToForm(appointment);
   dialogVisible.value = true;
 };
 
 const openView = (appointment: Appointment) => {
-  dialogMode.value = 'view';
-  applyAppointmentToForm(appointment);
-  dialogVisible.value = true;
+  detailAppointment.value = appointment;
+  detailVisible.value = true;
 };
 
 const consumeRouteAppointmentTarget = async (sourceAppointments = appointments.value) => {
@@ -684,10 +691,6 @@ const filteredAppointments = computed(() =>
 );
 
 const saveAppointment = async () => {
-  if (isViewMode.value) {
-    return;
-  }
-
   if (!form.customerName || !form.phoneE164 || !form.serviceId || !form.date || !form.time) {
     ElMessage.warning('Name, phone, service, date, and time are required');
     return;
@@ -729,6 +732,7 @@ const saveAppointment = async () => {
 
     dialogVisible.value = false;
     dialogAppointment.value = null;
+    detailVisible.value = false;
     await loadAppointments();
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : 'Save failed');
@@ -816,14 +820,14 @@ const appointmentTotals = computed(() => {
   };
 });
 
-const nextAppointmentCountdown = computed(() => {
+const appointmentCountdown = (appointment: Appointment | null) => {
   nowTick.value;
-  if (!nextAppointment.value) {
+  if (!appointment) {
     return '';
   }
 
   const now = nowInBusinessTz(businessTimezone.value);
-  const start = dayjs(nextAppointment.value.scheduledAt).tz(businessTimezone.value);
+  const start = dayjs(appointment.scheduledAt).tz(businessTimezone.value);
   if (!start.isValid()) {
     return '';
   }
@@ -838,7 +842,9 @@ const nextAppointmentCountdown = computed(() => {
   const hours = Math.floor(minutes / 60);
   const remainder = minutes % 60;
   return remainder > 0 ? `Starts in ${hours}h ${remainder}m` : `Starts in ${hours}h`;
-});
+};
+
+const nextAppointmentCountdown = computed(() => appointmentCountdown(nextAppointment.value));
 
 const openNextAppointmentCheckIn = () => {
   if (!nextAppointment.value) {
@@ -853,6 +859,23 @@ const openNextAppointmentCheckIn = () => {
       appointmentPhone: nextAppointment.value.phoneE164 || '',
       appointmentService: nextAppointment.value.serviceName,
       appointmentStaff: nextAppointment.value.staffName || '',
+    },
+  });
+};
+
+const openAppointmentCheckIn = (appointment: Appointment | null) => {
+  if (!appointment) {
+    return;
+  }
+
+  router.push({
+    name: 'admin-queue',
+    query: {
+      newCheckin: '1',
+      appointmentCustomer: appointment.customerName,
+      appointmentPhone: appointment.phoneE164 || '',
+      appointmentService: appointment.serviceName,
+      appointmentStaff: appointment.staffName || '',
     },
   });
 };
@@ -981,6 +1004,7 @@ watch(
                 <ElButton class="sf-btn appointment-day-nav__button" @click="shiftSelectedDate(1)">
                   →
                 </ElButton>
+                <span class="appointment-day-nav__label">{{ selectedDateSummary }}</span>
               </div>
 
               <div class="appointment-toolbar__actions">
@@ -1107,6 +1131,38 @@ watch(
             <div class="appointment-kpi-card__value">{{ appointmentTotals.occupancy }}%</div>
           </ElCard>
         </div>
+
+        <ElCard v-if="nextAppointment" class="appointment-next-strip">
+          <div class="appointment-next-strip__content">
+            <div class="appointment-next-strip__copy">
+              <p class="appointment-next-strip__eyebrow">Next appointment</p>
+              <div class="appointment-next-strip__name">{{ nextAppointment.customerName }}</div>
+              <div class="appointment-next-strip__meta">
+                {{ formatInBusinessTz(nextAppointment.scheduledAt, 'ddd, MMM D • h:mm A', businessTimezone) }}
+                •
+                {{ nextAppointment.serviceName }}
+                •
+                {{ nextAppointmentCountdown }}
+              </div>
+            </div>
+            <div class="appointment-next-strip__actions">
+              <span :class="statusBadgeForAppointment(nextAppointment).cls">
+                {{ statusBadgeForAppointment(nextAppointment).label }}
+              </span>
+              <ElButton class="sf-btn appointment-next-strip__button" @click="openView(nextAppointment)">
+                View
+              </ElButton>
+              <ElButton
+                v-if="canManageAppointments"
+                type="primary"
+                class="sf-btn appointment-next-strip__button"
+                @click="openNextAppointmentCheckIn"
+              >
+                Check In
+              </ElButton>
+            </div>
+          </div>
+        </ElCard>
 
         <AppointmentDayTimeline
           :workspace="schedulerWorkspace"
@@ -1243,64 +1299,6 @@ watch(
             </ElCard>
           </div>
         </div>
-      </div>
-
-      <aside class="appointment-side">
-        <ElCard v-if="nextAppointment" class="appointment-preview-card">
-          <div class="appointment-preview-card__header">
-            <div>
-              <p class="appointment-preview-card__eyebrow">Next appointment</p>
-              <h3 class="appointment-preview-card__title">{{ nextAppointment.customerName }}</h3>
-              <p class="appointment-preview-card__copy">
-                {{ formatInBusinessTz(nextAppointment.scheduledAt, 'ddd, MMM D • h:mm A', businessTimezone) }}
-              </p>
-            </div>
-            <span :class="statusBadgeForAppointment(nextAppointment).cls">
-              {{ statusBadgeForAppointment(nextAppointment).label }}
-            </span>
-          </div>
-
-          <dl class="appointment-preview-card__details">
-            <div>
-              <dt>Service</dt>
-              <dd>{{ nextAppointment.serviceName }}</dd>
-            </div>
-            <div>
-              <dt>Staff</dt>
-              <dd>{{ nextAppointment.staffName || 'Unassigned' }}</dd>
-            </div>
-            <div>
-              <dt>Phone</dt>
-              <dd>{{ formatPhone(nextAppointment.phoneE164) }}</dd>
-            </div>
-            <div>
-              <dt>Countdown</dt>
-              <dd>{{ nextAppointmentCountdown }}</dd>
-            </div>
-          </dl>
-
-          <div
-            v-if="needsConfirmation(nextAppointment)"
-            class="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-semibold text-orange-800"
-          >
-            Needs confirmation
-          </div>
-
-          <div class="appointment-preview-card__actions">
-            <ElButton class="sf-btn appointment-preview-card__button" @click="openView(nextAppointment)">
-              View
-            </ElButton>
-            <ElButton
-              v-if="canManageAppointments"
-              type="primary"
-              class="sf-btn appointment-preview-card__button"
-              @click="openNextAppointmentCheckIn"
-            >
-              Check In
-            </ElButton>
-          </div>
-        </ElCard>
-      </aside>
     </div>
 
     <ElDialog v-model="dialogVisible" :title="dialogTitle" width="760px" class="appointment-dialog">
@@ -1319,25 +1317,16 @@ watch(
           </ElAlert>
           <div class="appointment-dialog-grid">
           <ElFormItem label="Customer name" required>
-            <ElInput
-              v-model="form.customerName"
-              placeholder="Customer name"
-              :disabled="isViewMode"
-            />
+            <ElInput v-model="form.customerName" placeholder="Customer name" />
           </ElFormItem>
           <ElFormItem label="Phone number" required>
-            <ElInput
-              v-model="form.phoneE164"
-              placeholder="+1 555 123 4567"
-              :disabled="isViewMode"
-            />
+            <ElInput v-model="form.phoneE164" placeholder="+1 555 123 4567" />
           </ElFormItem>
           <ElFormItem label="Service" required>
             <ElSelect
               v-model="form.serviceId"
               placeholder="Select service"
               filterable
-              :disabled="isViewMode"
               :loading="loadingServices"
             >
               <ElOption
@@ -1354,7 +1343,6 @@ watch(
               placeholder="Select staff"
               clearable
               filterable
-              :disabled="isViewMode"
               :loading="loadingStaff"
             >
               <ElOption
@@ -1366,11 +1354,7 @@ watch(
             </ElSelect>
           </ElFormItem>
           <ElFormItem label="Preferred tech (optional)">
-            <ElInput
-              v-model="form.preferredTech"
-              placeholder="e.g. Alex (nails)"
-              :disabled="isViewMode"
-            />
+            <ElInput v-model="form.preferredTech" placeholder="e.g. Alex (nails)" />
           </ElFormItem>
           <ElFormItem label="Date" required>
             <ElDatePicker
@@ -1379,16 +1363,10 @@ watch(
               value-format="YYYY-MM-DD"
               format="YYYY-MM-DD"
               placeholder="YYYY-MM-DD"
-              :disabled="isViewMode"
             />
           </ElFormItem>
           <ElFormItem label="Time" required>
-            <ElSelect
-              v-model="form.time"
-              placeholder="Select time"
-              filterable
-              :disabled="isViewMode"
-            >
+            <ElSelect v-model="form.time" placeholder="Select time" filterable>
               <ElOption
                 v-for="slot in timeSlots"
                 :key="slot.value"
@@ -1398,13 +1376,7 @@ watch(
             </ElSelect>
           </ElFormItem>
           <ElFormItem label="Notes" class="appointment-dialog-grid__notes">
-            <ElInput
-              v-model="form.notes"
-              type="textarea"
-              :rows="3"
-              placeholder="Notes (optional)"
-              :disabled="isViewMode"
-            />
+            <ElInput v-model="form.notes" type="textarea" :rows="3" placeholder="Notes (optional)" />
           </ElFormItem>
           </div>
         </ElForm>
@@ -1412,20 +1384,93 @@ watch(
       <template #footer>
         <div class="flex justify-end gap-2">
           <ElButton class="sf-btn" @click="dialogVisible = false">
-            {{ isViewMode ? 'Close' : 'Cancel' }}
+            Cancel
           </ElButton>
-          <ElButton
-            v-if="!isViewMode"
-            type="primary"
-            class="sf-btn"
-            :loading="saving"
-            @click="saveAppointment"
-          >
+          <ElButton type="primary" class="sf-btn" :loading="saving" @click="saveAppointment">
             Save
           </ElButton>
         </div>
       </template>
     </ElDialog>
+
+    <ElDrawer
+      v-model="detailVisible"
+      size="420px"
+      direction="rtl"
+      class="appointment-detail-drawer"
+      :with-header="false"
+    >
+      <div v-if="detailAppointment" class="appointment-detail-drawer__content">
+        <div class="appointment-detail-drawer__header">
+          <div>
+            <p class="appointment-detail-drawer__eyebrow">Appointment details</p>
+            <h3 class="appointment-detail-drawer__title">{{ detailAppointment.customerName }}</h3>
+            <p class="appointment-detail-drawer__copy">
+              {{ formatInBusinessTz(detailAppointment.scheduledAt, 'ddd, MMM D • h:mm A', businessTimezone) }}
+            </p>
+          </div>
+          <ElButton text class="appointment-detail-drawer__close" @click="detailVisible = false">
+            ✕
+          </ElButton>
+        </div>
+
+        <div class="appointment-detail-drawer__status">
+          <span :class="statusBadgeForAppointment(detailAppointment).cls">
+            {{ statusBadgeForAppointment(detailAppointment).label }}
+          </span>
+          <span
+            v-if="needsConfirmation(detailAppointment)"
+            class="rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-orange-700"
+          >
+            Needs confirmation
+          </span>
+        </div>
+
+        <dl class="appointment-detail-drawer__details">
+          <div>
+            <dt>Service</dt>
+            <dd>{{ detailAppointment.serviceName }}</dd>
+          </div>
+          <div>
+            <dt>Staff</dt>
+            <dd>{{ detailAppointment.staffName || 'Unassigned' }}</dd>
+          </div>
+          <div>
+            <dt>Phone</dt>
+            <dd>{{ formatPhone(detailAppointment.phoneE164) }}</dd>
+          </div>
+          <div>
+            <dt>Countdown</dt>
+            <dd>{{ appointmentCountdown(detailAppointment) }}</dd>
+          </div>
+        </dl>
+
+          <div class="appointment-detail-drawer__notes">
+            <div class="appointment-detail-drawer__notes-label">Notes</div>
+            <p>{{ detailAppointment.notes || 'No notes added.' }}</p>
+          </div>
+
+          <div class="appointment-detail-drawer__actions">
+            <ElButton class="sf-btn appointment-detail-drawer__button" @click="openEdit(detailAppointment)">
+              Edit
+            </ElButton>
+            <ElButton
+              v-if="canManageAppointments"
+              class="sf-btn appointment-detail-drawer__button"
+              @click="openAppointmentCheckIn(detailAppointment)"
+            >
+              Check In
+            </ElButton>
+            <ElButton
+              type="primary"
+              class="sf-btn appointment-detail-drawer__button"
+              @click="detailVisible = false"
+            >
+              Close
+            </ElButton>
+          </div>
+        </div>
+      </ElDrawer>
   </div>
 </template>
 
@@ -1437,11 +1482,6 @@ watch(
 
 .appointment-main {
   min-width: 0;
-  display: grid;
-  gap: 1rem;
-}
-
-.appointment-side {
   display: grid;
   gap: 1rem;
 }
@@ -1639,6 +1679,64 @@ watch(
   color: #1d4ed8;
 }
 
+.appointment-next-strip {
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  background:
+    linear-gradient(135deg, rgba(239, 246, 255, 0.85), rgba(255, 255, 255, 0.98)),
+    #fff;
+}
+
+.appointment-next-strip :deep(.el-card__body) {
+  padding: 0.9rem 1rem;
+}
+
+.appointment-next-strip__content {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.appointment-next-strip__copy {
+  min-width: 0;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.appointment-next-strip__eyebrow {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.appointment-next-strip__name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.appointment-next-strip__meta {
+  color: #64748b;
+  font-size: 0.88rem;
+}
+
+.appointment-next-strip__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.appointment-next-strip__button {
+  min-height: 2.5rem;
+  border-radius: 999px;
+}
+
 .appointment-kpi-grid {
   display: grid;
   gap: 0.75rem;
@@ -1669,108 +1767,6 @@ watch(
 
 .appointment-kpi-card--accent :deep(.el-card__body) {
   background: linear-gradient(135deg, rgba(239, 246, 255, 0.95), rgba(255, 255, 255, 0.98));
-}
-
-.appointment-preview-card :deep(.el-card__body) {
-  display: grid;
-  gap: 0.85rem;
-}
-
-.appointment-preview-card__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.appointment-preview-card__eyebrow {
-  margin: 0 0 0.2rem;
-  font-size: 0.74rem;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: #64748b;
-}
-
-.appointment-preview-card__title {
-  margin: 0;
-  font-size: 1.2rem;
-  line-height: 1.1;
-  color: #0f172a;
-}
-
-.appointment-preview-card__copy {
-  margin: 0.25rem 0 0;
-  color: #64748b;
-  font-size: 0.92rem;
-}
-
-.appointment-preview-card__details {
-  display: grid;
-  gap: 0.75rem;
-}
-
-.appointment-preview-card__details dt,
-.appointment-preview-card__details dd {
-  margin: 0;
-}
-
-.appointment-preview-card__details div {
-  display: grid;
-  gap: 0.18rem;
-  padding: 0.7rem 0.85rem;
-  border-radius: 18px;
-  border: 1px solid rgba(226, 232, 240, 0.92);
-  background: #f8fafc;
-}
-
-.appointment-preview-card__details dt,
-.appointment-preview-card__meta span {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #64748b;
-}
-
-.appointment-preview-card__details dd,
-.appointment-preview-card__meta strong {
-  margin: 0;
-  font-size: 0.98rem;
-  font-weight: 600;
-  color: #0f172a;
-}
-
-.appointment-preview-card__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-}
-
-.appointment-preview-card__button {
-  flex: 1 1 8.5rem;
-}
-
-.appointment-preview-card__stack {
-  display: grid;
-  gap: 0.8rem;
-}
-
-.appointment-preview-card__meta {
-  display: grid;
-  gap: 0.2rem;
-  padding: 0.7rem 0.85rem;
-  border-radius: 18px;
-  border: 1px solid rgba(226, 232, 240, 0.92);
-  background: #ffffff;
-}
-
-.appointment-preview-card--subtle {
-  background: linear-gradient(180deg, rgba(248, 250, 252, 0.95), rgba(255, 255, 255, 0.98));
-}
-
-.appointment-preview-card--subtle :deep(.el-card__body) {
-  gap: 0.75rem;
 }
 
 .appointment-table :deep(.el-table__cell) {
@@ -1855,6 +1851,119 @@ watch(
   min-height: 7rem;
 }
 
+.appointment-detail-drawer :deep(.el-drawer__body) {
+  padding: 1rem;
+}
+
+.appointment-detail-drawer__content {
+  display: grid;
+  gap: 1rem;
+}
+
+.appointment-detail-drawer__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.appointment-detail-drawer__eyebrow {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.appointment-detail-drawer__title {
+  margin: 0.15rem 0 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.appointment-detail-drawer__copy {
+  margin: 0.25rem 0 0;
+  color: #64748b;
+  font-size: 0.92rem;
+}
+
+.appointment-detail-drawer__close {
+  color: #64748b;
+}
+
+.appointment-detail-drawer__status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.appointment-detail-drawer__details {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.appointment-detail-drawer__details div {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.8rem 0.9rem;
+  border-radius: 18px;
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  background: #f8fafc;
+}
+
+.appointment-detail-drawer__details dt {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.appointment-detail-drawer__details dd {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.appointment-detail-drawer__notes {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.9rem;
+  border-radius: 18px;
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.94), rgba(255, 255, 255, 0.98));
+}
+
+.appointment-detail-drawer__notes-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.appointment-detail-drawer__notes p {
+  margin: 0;
+  color: #0f172a;
+  line-height: 1.5;
+}
+
+.appointment-detail-drawer__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.appointment-detail-drawer__button {
+  flex: 1 1 8rem;
+  min-height: 2.7rem;
+  border-radius: 999px;
+}
+
 @media (min-width: 720px) {
   .appointment-dialog-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1867,13 +1976,8 @@ watch(
 
 @media (min-width: 768px) {
   .appointment-layout {
-    grid-template-columns: minmax(0, 1fr) 18rem;
+    grid-template-columns: minmax(0, 1fr);
     align-items: start;
-  }
-
-  .appointment-side {
-    position: sticky;
-    top: 1rem;
   }
 
   .appointment-toolbar__actions {
@@ -1916,6 +2020,11 @@ watch(
 
   .appointment-status-row {
     gap: 0.5rem;
+  }
+
+  .appointment-next-strip__actions,
+  .appointment-detail-drawer__actions {
+    width: 100%;
   }
 }
 </style>
