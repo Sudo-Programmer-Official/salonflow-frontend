@@ -1046,17 +1046,36 @@ watch(
         <h1 class="text-2xl font-semibold text-slate-900">Appointments</h1>
       </div>
 
-      <ElButton
-        v-if="canManageAppointments"
-        type="primary"
-        class="sf-btn appointment-page__header-action"
-        @click="() => openCreate()"
-      >
-        <ElIcon aria-hidden="true">
-          <Plus />
-        </ElIcon>
-        New Appointment
-      </ElButton>
+      <div class="appointment-page__header-actions">
+        <div class="appointment-view-toggle" role="group" aria-label="Calendar view">
+          <ElButton
+            class="sf-btn appointment-toolbar__action appointment-toolbar__action--segment"
+            :type="schedulerViewMode === 'day' ? 'primary' : 'default'"
+            @click="schedulerViewMode = 'day'"
+          >
+            Day
+          </ElButton>
+          <ElButton
+            class="sf-btn appointment-toolbar__action appointment-toolbar__action--segment"
+            :type="schedulerViewMode === 'week' ? 'primary' : 'default'"
+            @click="schedulerViewMode = 'week'"
+          >
+            Week
+          </ElButton>
+        </div>
+
+        <ElButton
+          v-if="canManageAppointments"
+          type="primary"
+          class="sf-btn appointment-page__header-action"
+          @click="() => openCreate()"
+        >
+          <ElIcon aria-hidden="true">
+            <Plus />
+          </ElIcon>
+          New Appointment
+        </ElButton>
+      </div>
     </div>
 
     <div class="appointment-layout">
@@ -1085,23 +1104,6 @@ watch(
               </div>
 
               <div class="appointment-toolbar__actions">
-                <div class="appointment-view-toggle" role="group" aria-label="Calendar view">
-                  <ElButton
-                    class="sf-btn appointment-toolbar__action appointment-toolbar__action--segment"
-                    :type="schedulerViewMode === 'day' ? 'primary' : 'default'"
-                    @click="schedulerViewMode = 'day'"
-                  >
-                    Day
-                  </ElButton>
-                  <ElButton
-                    class="sf-btn appointment-toolbar__action appointment-toolbar__action--segment"
-                    :type="schedulerViewMode === 'week' ? 'primary' : 'default'"
-                    @click="schedulerViewMode = 'week'"
-                  >
-                    Week
-                  </ElButton>
-                </div>
-
                 <ElInput
                   v-model="appointmentSearch"
                   clearable
@@ -1567,10 +1569,18 @@ watch(
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.85rem;
 }
 
 .appointment-page__title-group {
+  min-width: 0;
+}
+
+.appointment-page__header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.65rem;
   min-width: 0;
 }
 
@@ -2089,6 +2099,12 @@ watch(
 
   .appointment-page__header {
     width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .appointment-page__header-actions {
+    width: 100%;
+    justify-content: stretch;
     flex-wrap: wrap;
   }
 

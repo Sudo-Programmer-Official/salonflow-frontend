@@ -48,6 +48,13 @@ const appointmentsByDay = computed(() => {
   }
   return map;
 });
+const primaryDayAppointments = computed(() =>
+  primaryDay.value
+    ? [...(appointmentsByDay.value.get(primaryDay.value.date) ?? [])].sort(
+        (left, right) => dayjs(left.scheduledAt).valueOf() - dayjs(right.scheduledAt).valueOf(),
+      )
+    : [],
+);
 
 const hasUnassignedAppointments = computed(() =>
   appointments.value.some((appointment) => !appointment.staffId),
@@ -220,16 +227,33 @@ const syncWorkspaceScroll = async () => {
   }
 
   if (displayMode.value !== 'day' || !nowMarkerStyle.value) {
+    if (displayMode.value !== 'day') {
+      gridWrap.scrollTop = 0;
+      return;
+    }
+  }
+
+  let targetTop: number | null = null;
+  if (nowMarkerStyle.value) {
+    const markerTop = Number.parseFloat(nowMarkerStyle.value.top || '0');
+    targetTop = Number.isFinite(markerTop) ? markerTop - gridWrap.clientHeight * 0.22 : null;
+  } else if (primaryDayAppointments.value.length > 0 && dayStart.value) {
+    const [firstAppointment] = primaryDayAppointments.value;
+    if (!firstAppointment) {
+      gridWrap.scrollTop = 0;
+      return;
+    }
+    const firstStart = dayjs(firstAppointment.scheduledAt).tz(timezone.value);
+    const firstMinutes = firstStart.diff(dayStart.value, 'minute', true);
+    targetTop = headerHeight + (firstMinutes / slotMinutes.value) * rowHeight - gridWrap.clientHeight * 0.22;
+  }
+
+  if (targetTop === null || !Number.isFinite(targetTop)) {
     gridWrap.scrollTop = 0;
     return;
   }
 
-  const markerTop = Number.parseFloat(nowMarkerStyle.value.top || '0');
-  if (!Number.isFinite(markerTop)) {
-    return;
-  }
-
-  const targetScroll = Math.max(0, markerTop - gridWrap.clientHeight * 0.22);
+  const targetScroll = Math.max(0, targetTop);
   gridWrap.scrollTop = Math.min(targetScroll, Math.max(0, gridWrap.scrollHeight - gridWrap.clientHeight));
 };
 
