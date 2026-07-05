@@ -1301,6 +1301,8 @@ watch(
         </div>
     </div>
 
+    </div>
+
     <ElDialog v-model="dialogVisible" :title="dialogTitle" width="760px" class="appointment-dialog">
       <div class="space-y-4">
         <ElForm label-position="top" class="appointment-dialog-form">
