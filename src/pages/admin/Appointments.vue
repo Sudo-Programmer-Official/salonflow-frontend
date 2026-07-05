@@ -1087,6 +1087,8 @@ watch(
               </button>
             </div>
           </div>
+
+          </div>
         </ElCard>
 
         <div class="appointment-kpi-grid">
