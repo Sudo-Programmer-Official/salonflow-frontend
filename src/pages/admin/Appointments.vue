@@ -432,6 +432,12 @@ const displayedAppointmentGroups = computed<DisplayAppointmentGroup[]>(() =>
     };
   }),
 );
+const activeAppointmentGroups = computed(() =>
+  displayedAppointmentGroups.value.filter((group) => group.key !== 'completed_past'),
+);
+const completedPastAppointmentGroup = computed(
+  () => displayedAppointmentGroups.value.find((group) => group.key === 'completed_past') ?? null,
+);
 
 const nextAppointment = computed(() => appointmentGroups.value[0]?.items[0] ?? null);
 const appointmentsVisible = computed(() => filteredAppointments.value.length > 0);
@@ -1239,17 +1245,6 @@ watch(
           </div>
         </ElCard>
 
-        <AppointmentDayTimeline
-          :workspace="schedulerWorkspace"
-          :loading="schedulerLoading"
-          :error="schedulerError"
-          :mode="schedulerViewMode"
-          :can-manage="canManageAppointments"
-          @appointment-click="handleTimelineAppointmentClick"
-          @appointment-move="handleTimelineAppointmentMove"
-          @slot-click="handleTimelineSlotClick"
-        />
-
         <div v-if="!loading && !appointmentsVisible" class="appointment-empty-state">
           <div class="appointment-empty-state__title">{{ emptyStateMessage }}</div>
           <p class="appointment-empty-state__copy">Create a new appointment or clear filters to continue.</p>
@@ -1264,7 +1259,7 @@ watch(
         </div>
 
         <div v-if="loading || appointmentsVisible" class="space-y-4">
-          <div v-for="group in displayedAppointmentGroups" :key="group.key" class="space-y-2">
+          <div v-for="group in activeAppointmentGroups" :key="group.key" class="space-y-2">
             <ElCard class="bg-white">
               <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -1281,10 +1276,7 @@ watch(
                 :data="group.visibleItems"
                 :loading="loading"
                 :row-class-name="appointmentRowClassName"
-                :class="[
-                  'appointment-table',
-                  group.key === 'completed_past' ? 'appointment-table--past' : '',
-                ]"
+                class="appointment-table"
                 stripe
               >
                 <ElTableColumn label="Time" min-width="108">
@@ -1364,19 +1356,133 @@ watch(
                 {{ group.emptyMessage }}
               </div>
 
+            </ElCard>
+          </div>
+
+          <AppointmentDayTimeline
+            :workspace="schedulerWorkspace"
+            :loading="schedulerLoading"
+            :error="schedulerError"
+            :mode="schedulerViewMode"
+            :can-manage="canManageAppointments"
+            @appointment-click="handleTimelineAppointmentClick"
+            @appointment-move="handleTimelineAppointmentMove"
+            @slot-click="handleTimelineSlotClick"
+          />
+
+          <div v-if="completedPastAppointmentGroup" class="space-y-2">
+            <ElCard class="bg-white">
+              <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div class="text-lg font-semibold text-slate-900">
+                    {{ completedPastAppointmentGroup.title }}
+                  </div>
+                  <div class="text-sm text-slate-600">
+                    {{ completedPastAppointmentGroup.description }}
+                  </div>
+                </div>
+                <div class="text-sm font-medium text-slate-500">
+                  {{ completedPastAppointmentGroup.totalCount }} appointment{{
+                    completedPastAppointmentGroup.totalCount === 1 ? '' : 's'
+                  }}
+                </div>
+              </div>
+
+              <ElTable
+                v-if="loading || completedPastAppointmentGroup.visibleItems.length > 0"
+                :data="completedPastAppointmentGroup.visibleItems"
+                :loading="loading"
+                :row-class-name="appointmentRowClassName"
+                class="appointment-table appointment-table--past"
+                stripe
+              >
+                <ElTableColumn label="Time" min-width="108">
+                  <template #default="{ row }">
+                    <div class="flex flex-col gap-0.5">
+                      <span class="font-medium text-slate-900">
+                        {{ formatInBusinessTz(row.scheduledAt, 'h:mm A', businessTimezone) }}
+                      </span>
+                      <span class="text-xs text-slate-500">
+                        {{ formatInBusinessTz(row.scheduledAt, 'MMM D', businessTimezone) }}
+                      </span>
+                    </div>
+                  </template>
+                </ElTableColumn>
+                <ElTableColumn label="Customer" min-width="152">
+                  <template #default="{ row }">
+                    <div class="flex flex-col gap-0.5">
+                      <span class="font-medium text-slate-900">{{ row.customerName }}</span>
+                      <span class="text-xs text-slate-500">{{ formatPhone(row.phoneE164) }}</span>
+                    </div>
+                  </template>
+                </ElTableColumn>
+                <ElTableColumn prop="serviceName" label="Service" min-width="136" />
+                <ElTableColumn label="Staff" min-width="150">
+                  <template #default="{ row }">
+                    <div class="flex flex-col gap-0.5">
+                      <span>{{ row.staffName || '—' }}</span>
+                      <span
+                        v-if="row.preferredTech && row.preferredTech !== row.staffName"
+                        class="text-xs text-slate-500"
+                      >
+                        Prefers {{ row.preferredTech }}
+                      </span>
+                    </div>
+                  </template>
+                </ElTableColumn>
+                <ElTableColumn prop="status" label="Status" min-width="132" class-name="appointment-table__status-cell">
+                  <template #default="{ row }">
+                    <div class="flex flex-col gap-1">
+                      <span :class="statusBadgeForAppointment(row).cls">
+                        {{ statusBadgeForAppointment(row).label }}
+                      </span>
+                      <span
+                        v-if="statusBadgeForAppointment(row).helperLabel"
+                        :class="statusBadgeForAppointment(row).helperCls"
+                      >
+                        {{ statusBadgeForAppointment(row).helperLabel }}
+                      </span>
+                    </div>
+                  </template>
+                </ElTableColumn>
+                <ElTableColumn
+                  label="Actions"
+                  min-width="220"
+                  align="right"
+                  class-name="appointment-table__actions-cell"
+                >
+                  <template #default="{ row }">
+                    <AppointmentActionsMenu
+                      :appointment="row"
+                      :disabled="Boolean(actionLoading[row.id])"
+                      :loading="Boolean(actionLoading[row.id])"
+                      :can-manage="canManageAppointments"
+                      @view="openView"
+                      @edit="openEdit"
+                      @cancel="handleCancel($event.id)"
+                      @primary="handlePrimaryAction"
+                    />
+                  </template>
+                </ElTableColumn>
+              </ElTable>
+
               <div
-                v-if="!loading && group.key === 'completed_past' && group.hasMore"
+                v-else-if="!loading"
+                class="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500"
+              >
+                {{ completedPastAppointmentGroup.emptyMessage }}
+              </div>
+
+              <div
+                v-if="!loading && completedPastAppointmentGroup.hasMore"
                 class="mt-4 flex flex-col gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div class="text-sm text-slate-500">
-                  Showing {{ group.visibleCount }} of {{ group.totalCount }} appointments
+                  Showing {{ completedPastAppointmentGroup.visibleCount }} of
+                  {{ completedPastAppointmentGroup.totalCount }} appointments
                 </div>
-                <ElButton
-                  size="small"
-                  class="sf-btn"
-                  @click="loadMoreCompletedPast"
-                >
-                  Load {{ Math.min(COMPLETED_PAST_INCREMENT, group.remainingCount) }} more
+                <ElButton size="small" class="sf-btn" @click="loadMoreCompletedPast">
+                  Load {{ Math.min(COMPLETED_PAST_INCREMENT, completedPastAppointmentGroup.remainingCount) }} more
                 </ElButton>
               </div>
             </ElCard>
