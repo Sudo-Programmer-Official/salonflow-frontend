@@ -1202,7 +1202,10 @@ watch(
                 :data="group.visibleItems"
                 :loading="loading"
                 :row-class-name="appointmentRowClassName"
-                class="appointment-table"
+                :class="[
+                  'appointment-table',
+                  group.key === 'completed_past' ? 'appointment-table--past' : '',
+                ]"
                 stripe
               >
                 <ElTableColumn label="Time" min-width="108">
@@ -1781,6 +1784,18 @@ watch(
 
 .appointment-table :deep(.cell) {
   line-height: 1.2;
+}
+
+@media (max-width: 1024px) {
+  .appointment-table--past :deep(.el-table__cell) {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .appointment-table--past :deep(.cell) {
+    font-size: 0.94rem;
+    line-height: 1.15;
+  }
 }
 
 .appointment-empty-state {
