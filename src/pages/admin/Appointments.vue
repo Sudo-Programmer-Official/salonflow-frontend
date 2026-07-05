@@ -195,6 +195,7 @@ const currentTime = computed(() => {
   nowTick.value;
   return nowInBusinessTz(businessTimezone.value);
 });
+const currentBusinessDayStart = computed(() => currentTime.value.startOf('day'));
 
 const timeSlots = computed(() => {
   const slots: { label: string; value: string }[] = [];
@@ -249,6 +250,16 @@ const appointmentAtBusinessTime = (appointment: Appointment) =>
 const isPastResolvedAppointment = (appointment: Appointment) =>
   terminalStatuses.has(appointment.status);
 
+const isConfirmationPendingAppointment = (appointment: Appointment) =>
+  !isPastResolvedAppointment(appointment) &&
+  ['PENDING', 'BOOKED'].includes(appointment.status) &&
+  appointmentAtBusinessTime(appointment).valueOf() >= currentBusinessDayStart.value.valueOf();
+
+const isExpiredConfirmationAppointment = (appointment: Appointment) =>
+  !isPastResolvedAppointment(appointment) &&
+  ['PENDING', 'BOOKED'].includes(appointment.status) &&
+  appointmentAtBusinessTime(appointment).valueOf() < currentBusinessDayStart.value.valueOf();
+
 const isUpcomingAppointment = (appointment: Appointment) =>
   !isPastResolvedAppointment(appointment) &&
   appointmentAtBusinessTime(appointment).isAfter(currentTime.value);
@@ -262,41 +273,94 @@ const isDerivedInProgressAppointment = (appointment: Appointment) =>
   appointmentAtBusinessTime(appointment).isSame(currentTime.value, 'day') &&
   !appointmentAtBusinessTime(appointment).isAfter(currentTime.value);
 
-const statusBadge = (status: string) => {
+type AppointmentBadge = {
+  label: string;
+  cls: string;
+  helperLabel: string | null;
+  helperCls: string | null;
+};
+
+const statusBadge = (status: string): AppointmentBadge => {
   const base = 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold';
 
   switch (status) {
     case 'PENDING':
-      return { label: 'Pending', cls: `${base} bg-orange-100 text-orange-800` };
+    case 'BOOKED':
+      return {
+        label: 'Pending',
+        cls: `${base} bg-orange-100 text-orange-800`,
+        helperLabel: null,
+        helperCls: null,
+      };
     case 'CONFIRMED':
-      return { label: 'Confirmed', cls: `${base} bg-blue-100 text-blue-800` };
+      return {
+        label: 'Confirmed',
+        cls: `${base} bg-blue-100 text-blue-800`,
+        helperLabel: null,
+        helperCls: null,
+      };
     case 'CHECKED_IN':
-      return { label: 'Checked In', cls: `${base} bg-purple-100 text-purple-800` };
+      return {
+        label: 'Checked In',
+        cls: `${base} bg-purple-100 text-purple-800`,
+        helperLabel: null,
+        helperCls: null,
+      };
     case 'COMPLETED':
-      return { label: 'Completed', cls: `${base} bg-emerald-100 text-emerald-800` };
+      return {
+        label: 'Completed',
+        cls: `${base} bg-emerald-100 text-emerald-800`,
+        helperLabel: null,
+        helperCls: null,
+      };
     case 'CANCELED':
-      return { label: 'Cancelled', cls: `${base} bg-rose-100 text-rose-800` };
+      return {
+        label: 'Cancelled',
+        cls: `${base} bg-rose-100 text-rose-800`,
+        helperLabel: null,
+        helperCls: null,
+      };
     case 'NO_SHOW':
-      return { label: 'No show', cls: `${base} bg-gray-200 text-gray-700` };
+      return {
+        label: 'No show',
+        cls: `${base} bg-gray-200 text-gray-700`,
+        helperLabel: null,
+        helperCls: null,
+      };
     default:
-      return { label: status, cls: `${base} bg-slate-100 text-slate-700` };
+      return {
+        label: status,
+        cls: `${base} bg-slate-100 text-slate-700`,
+        helperLabel: null,
+        helperCls: null,
+      };
   }
 };
 
 const statusBadgeForAppointment = (appointment: Appointment) => {
+  if (isExpiredConfirmationAppointment(appointment)) {
+    const base = 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold';
+    return {
+      label: 'Expired',
+      helperLabel: 'Confirmation missed',
+      cls: `${base} bg-amber-100 text-amber-800`,
+      helperCls:
+        'rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-700',
+    };
+  }
+
   if (isDerivedInProgressAppointment(appointment)) {
     const base = 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold';
     return {
       label: 'In progress',
       cls: `${base} bg-orange-100 text-orange-800`,
+      helperLabel: null,
+      helperCls: null,
     };
   }
 
   return statusBadge(appointment.status);
 };
-
-const needsConfirmation = (appointment: Appointment) =>
-  appointment.status === 'PENDING' || appointment.status === 'BOOKED';
 
 const appointmentGroups = computed<AppointmentGroup[]>(() => {
   const upcoming: Appointment[] = [];
@@ -803,9 +867,17 @@ const appointmentRowClassName = ({ row }: { row: Appointment }) =>
 
 const appointmentTotals = computed(() => {
   const total = filteredAppointments.value.length;
-  const upcoming = appointmentGroups.value[0]?.items.length ?? 0;
+  const upcoming = filteredAppointments.value.filter(
+    (appointment) =>
+      !isPastResolvedAppointment(appointment) &&
+      appointment.status === 'CONFIRMED' &&
+      appointmentAtBusinessTime(appointment).valueOf() >= currentTime.value.valueOf(),
+  ).length;
+  const needsConfirmation = filteredAppointments.value.filter(isConfirmationPendingAppointment).length;
   const inProgress = appointmentGroups.value[1]?.items.length ?? 0;
-  const completed = appointmentGroups.value[2]?.items.length ?? 0;
+  const completed = filteredAppointments.value.filter(
+    (appointment) => appointment.status === 'COMPLETED',
+  ).length;
   const checkedIn = filteredAppointments.value.filter(
     (appointment) => appointment.status === 'CHECKED_IN',
   ).length;
@@ -814,6 +886,7 @@ const appointmentTotals = computed(() => {
   return {
     total,
     upcoming,
+    needsConfirmation,
     inProgress,
     completed,
     checkedIn,
@@ -1110,6 +1183,10 @@ watch(
             <div class="appointment-kpi-card__label">Upcoming</div>
             <div class="appointment-kpi-card__value">{{ appointmentTotals.upcoming }}</div>
           </ElCard>
+          <ElCard class="appointment-kpi-card appointment-kpi-card--accent">
+            <div class="appointment-kpi-card__label">Needs Confirmation</div>
+            <div class="appointment-kpi-card__value">{{ appointmentTotals.needsConfirmation }}</div>
+          </ElCard>
           <ElCard class="appointment-kpi-card">
             <div class="appointment-kpi-card__label">Checked In</div>
             <div class="appointment-kpi-card__value">{{ appointmentTotals.checkedIn }}</div>
@@ -1249,10 +1326,10 @@ watch(
                         {{ statusBadgeForAppointment(row).label }}
                       </span>
                       <span
-                        v-if="needsConfirmation(row)"
-                        class="text-[11px] font-semibold uppercase tracking-[0.14em] text-orange-700"
+                        v-if="statusBadgeForAppointment(row).helperLabel"
+                        :class="statusBadgeForAppointment(row).helperCls"
                       >
-                        Needs confirmation
+                        {{ statusBadgeForAppointment(row).helperLabel }}
                       </span>
                     </div>
                   </template>
@@ -1425,10 +1502,10 @@ watch(
             {{ statusBadgeForAppointment(detailAppointment).label }}
           </span>
           <span
-            v-if="needsConfirmation(detailAppointment)"
-            class="rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-orange-700"
+            v-if="statusBadgeForAppointment(detailAppointment).helperLabel"
+            :class="statusBadgeForAppointment(detailAppointment).helperCls"
           >
-            Needs confirmation
+            {{ statusBadgeForAppointment(detailAppointment).helperLabel }}
           </span>
         </div>
 
