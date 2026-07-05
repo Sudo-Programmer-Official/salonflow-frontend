@@ -1487,19 +1487,19 @@ watch(
 
 .appointment-toolbar-card :deep(.el-card__body) {
   display: grid;
-  gap: 0.75rem;
-  padding: 0.75rem;
+  gap: 0.55rem;
+  padding: 0.65rem;
 }
 
 .appointment-toolbar {
   display: grid;
-  gap: 0.6rem;
+  gap: 0.45rem;
 }
 
 .appointment-toolbar__row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 0.5rem;
   align-items: center;
   justify-content: space-between;
 }
@@ -1513,7 +1513,7 @@ watch(
 .appointment-day-nav {
   display: flex;
   flex-wrap: nowrap;
-  gap: 0.55rem;
+  gap: 0.45rem;
   align-items: center;
   flex: 0 1 auto;
   min-width: 0;
@@ -1523,7 +1523,7 @@ watch(
   display: flex;
   flex: 1 1 auto;
   flex-wrap: wrap;
-  gap: 0.6rem;
+  gap: 0.5rem;
   justify-content: flex-end;
   align-items: center;
   min-width: 0;
@@ -1536,38 +1536,38 @@ watch(
 }
 
 .appointment-day-nav__button {
-  min-height: 2.5rem;
+  min-height: 2.35rem;
   border-radius: 999px;
 }
 
 .appointment-day-nav__picker {
-  min-width: 14rem;
-  flex: 0 1 14rem;
+  min-width: 13rem;
+  flex: 0 1 13rem;
 }
 
 .appointment-search {
-  min-width: 14rem;
+  min-width: 13rem;
   max-width: 20rem;
-  flex: 1 1 16rem;
+  flex: 1 1 15rem;
 }
 
 .appointment-toolbar__action {
-  min-height: 2.5rem;
+  min-height: 2.35rem;
   border-radius: 999px;
 }
 
 .appointment-toolbar__action--segment {
-  min-width: 4.2rem;
-  padding-inline: 0.95rem;
+  min-width: 4rem;
+  padding-inline: 0.9rem;
 }
 
 .appointment-toolbar__action--filters {
-  min-width: 7rem;
-  padding-inline: 1rem;
+  min-width: 6.6rem;
+  padding-inline: 0.95rem;
 }
 
 .appointment-toolbar__action--primary {
-  padding-inline: 1.1rem;
+  padding-inline: 1rem;
 }
 
 .appointment-filters-popover__content {
