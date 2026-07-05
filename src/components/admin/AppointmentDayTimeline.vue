@@ -130,8 +130,37 @@ const warningChip = (warnings: string[]) => ({
   cls: 'appointment-timeline__warning',
 });
 
+const statusTone = (status: SchedulerAppointment['status']) => {
+  switch (status) {
+    case 'PENDING':
+      return { accent: '#f97316', soft: 'rgba(249, 115, 22, 0.10)' };
+    case 'CONFIRMED':
+      return { accent: '#3b82f6', soft: 'rgba(59, 130, 246, 0.10)' };
+    case 'CHECKED_IN':
+      return { accent: '#8b5cf6', soft: 'rgba(139, 92, 246, 0.10)' };
+    case 'BOOKED':
+      return { accent: '#14b8a6', soft: 'rgba(20, 184, 166, 0.10)' };
+    case 'COMPLETED':
+      return { accent: '#10b981', soft: 'rgba(16, 185, 129, 0.10)' };
+    case 'CANCELED':
+      return { accent: '#f43f5e', soft: 'rgba(244, 63, 94, 0.10)' };
+    case 'NO_SHOW':
+      return { accent: '#94a3b8', soft: 'rgba(148, 163, 184, 0.12)' };
+    default:
+      return { accent: '#64748b', soft: 'rgba(100, 116, 139, 0.10)' };
+  }
+};
+
 const needsConfirmation = (status: SchedulerAppointment['status']) =>
   status === 'PENDING' || status === 'BOOKED';
+
+const initialsForAppointment = (appointment: SchedulerAppointment) =>
+  appointment.customerName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('') || 'SF';
 
 const laneIdForAppointment = (appointment: SchedulerAppointment) =>
   appointment.staffId || (hasUnassignedAppointments.value ? 'unassigned' : lanes.value[0]?.id || 'salon');
@@ -154,6 +183,8 @@ const blockStyle = (appointment: SchedulerAppointment, dateKey = appointment.day
   return {
     gridColumn: laneIndexForAppointment(appointment) + 2,
     gridRow: `${startRow} / span ${Math.min(span, maxSpan)}`,
+    '--block-accent': statusTone(appointment.status).accent,
+    '--block-soft': statusTone(appointment.status).soft,
   };
 };
 
@@ -319,7 +350,17 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
           @click="emit('appointment-click', block.appointment.id)"
         >
           <div class="appointment-timeline-card__block-top">
-            <strong>{{ block.appointment.customerName }}</strong>
+            <div class="appointment-timeline-card__block-identity">
+              <div class="appointment-timeline-card__block-avatar">
+                {{ initialsForAppointment(block.appointment) }}
+              </div>
+              <div class="appointment-timeline-card__block-text">
+                <strong>{{ block.appointment.customerName }}</strong>
+                <div class="appointment-timeline-card__block-copy">
+                  {{ block.appointment.serviceName }}
+                </div>
+              </div>
+            </div>
             <span class="appointment-timeline-card__block-badges">
               <span :class="statusChip(block.appointment.status).cls">
                 {{ statusChip(block.appointment.status).label }}
@@ -332,12 +373,6 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
               </span>
             </span>
           </div>
-          <div class="appointment-timeline-card__block-copy">
-            {{ block.appointment.serviceName }}
-          </div>
-          <div v-if="needsConfirmation(block.appointment.status)" class="appointment-timeline-card__block-note">
-            Needs confirmation
-          </div>
           <div class="appointment-timeline-card__block-meta">
             <span>
               {{ dayjs(block.appointment.scheduledAt).tz(timezone).format('h:mm A') }}
@@ -345,6 +380,9 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
               {{ dayjs(block.appointment.endAt).tz(timezone).format('h:mm A') }}
             </span>
             <span>{{ block.appointment.staffName || 'Unassigned' }}</span>
+          </div>
+          <div v-if="needsConfirmation(block.appointment.status)" class="appointment-timeline-card__block-note">
+            Needs confirmation
           </div>
         </button>
       </div>
@@ -415,7 +453,17 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
               @click="emit('appointment-click', appointment.id)"
             >
               <div class="appointment-timeline-card__block-top">
-                <strong>{{ appointment.customerName }}</strong>
+                <div class="appointment-timeline-card__block-identity">
+                  <div class="appointment-timeline-card__block-avatar">
+                    {{ initialsForAppointment(appointment) }}
+                  </div>
+                  <div class="appointment-timeline-card__block-text">
+                    <strong>{{ appointment.customerName }}</strong>
+                    <div class="appointment-timeline-card__block-copy">
+                      {{ appointment.serviceName }}
+                    </div>
+                  </div>
+                </div>
                 <span class="appointment-timeline-card__block-badges">
                   <span :class="statusChip(appointment.status).cls">
                     {{ statusChip(appointment.status).label }}
@@ -428,12 +476,6 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
                   </span>
                 </span>
               </div>
-              <div class="appointment-timeline-card__block-copy">
-                {{ appointment.serviceName }}
-              </div>
-              <div v-if="needsConfirmation(appointment.status)" class="appointment-timeline-card__block-note">
-                Needs confirmation
-              </div>
               <div class="appointment-timeline-card__block-meta">
                 <span>
                   {{ dayjs(appointment.scheduledAt).tz(timezone).format('h:mm A') }}
@@ -441,6 +483,9 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
                   {{ dayjs(appointment.endAt).tz(timezone).format('h:mm A') }}
                 </span>
                 <span>{{ appointment.staffName || 'Unassigned' }}</span>
+              </div>
+              <div v-if="needsConfirmation(appointment.status)" class="appointment-timeline-card__block-note">
+                Needs confirmation
               </div>
             </button>
           </div>
@@ -694,11 +739,14 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
   position: relative;
   z-index: 2;
   margin: 0.2rem 0.35rem;
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: 16px;
-  background: #fff;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
-  padding: 0.65rem 0.75rem;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-left: 5px solid var(--block-accent, #3b82f6);
+  border-radius: 18px;
+  background:
+    linear-gradient(90deg, var(--block-soft, rgba(59, 130, 246, 0.1)), rgba(255, 255, 255, 0.98) 28%),
+    #fff;
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.06);
+  padding: 0.7rem 0.8rem;
   text-align: left;
   cursor: pointer;
   transition:
@@ -710,7 +758,7 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
 .appointment-timeline-card__block:hover {
   transform: translateY(-1px);
   box-shadow: 0 14px 24px rgba(15, 23, 42, 0.1);
-  border-color: rgba(59, 130, 246, 0.25);
+  border-color: rgba(59, 130, 246, 0.28);
 }
 
 .appointment-timeline-card__block-top {
@@ -718,6 +766,35 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.5rem;
+}
+
+.appointment-timeline-card__block-identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.appointment-timeline-card__block-avatar {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #0f172a;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.16);
+}
+
+.appointment-timeline-card__block-text {
+  min-width: 0;
+  display: grid;
+  gap: 0.15rem;
 }
 
 .appointment-timeline-card__block-badges {
@@ -728,15 +805,18 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
 }
 
 .appointment-timeline-card__block-top strong {
-  font-size: 0.92rem;
+  font-size: 0.94rem;
   font-weight: 700;
   color: #0f172a;
 }
 
 .appointment-timeline-card__block-copy {
-  margin-top: 0.3rem;
-  font-size: 0.82rem;
+  margin-top: 0;
+  font-size: 0.84rem;
   color: #475569;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .appointment-timeline-card__block-note {
@@ -751,7 +831,7 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem 0.6rem;
-  font-size: 0.72rem;
+  font-size: 0.76rem;
   color: #64748b;
 }
 
