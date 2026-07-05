@@ -870,21 +870,36 @@ const stopPolling = () => {
 const route = useRoute();
 const router = useRouter();
 
+const readQueryString = (value: unknown) => (typeof value === 'string' && value.trim() ? value.trim() : '');
+
 const handleManualCheckinEvent = () => {
   openCheckinModal();
 };
 
-const handleNoShow = async (item: QueueItem) => {
-  await handleAction(`${item.id}-no-show`, () => markNoShow(item.id));
-};
-
 const consumeNewCheckinQuery = async () => {
   if (route.query.newCheckin === '1') {
-    openCheckinModal();
+    const appt = {
+      id: '',
+      customerName: readQueryString(route.query.appointmentCustomer),
+      phoneE164: readQueryString(route.query.appointmentPhone),
+      serviceName: readQueryString(route.query.appointmentService),
+      scheduledAt: new Date().toISOString(),
+      status: 'PENDING' as const,
+      staffName: readQueryString(route.query.appointmentStaff) || null,
+    };
+    openCheckinModal(appt);
     const nextQuery = { ...route.query };
     delete (nextQuery as any).newCheckin;
+    delete (nextQuery as any).appointmentCustomer;
+    delete (nextQuery as any).appointmentPhone;
+    delete (nextQuery as any).appointmentService;
+    delete (nextQuery as any).appointmentStaff;
     await router.replace({ query: nextQuery });
   }
+};
+
+const handleNoShow = async (item: QueueItem) => {
+  await handleAction(`${item.id}-no-show`, () => markNoShow(item.id));
 };
 
 const handleVisibility = () => {
