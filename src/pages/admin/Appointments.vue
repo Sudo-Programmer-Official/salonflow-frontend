@@ -10,6 +10,7 @@ import {
   ElDrawer,
   ElForm,
   ElFormItem,
+  ElIcon,
   ElInput,
   ElMessage,
   ElOption,
@@ -18,6 +19,7 @@ import {
   ElTable,
   ElTableColumn,
 } from 'element-plus';
+import { Plus } from '@element-plus/icons-vue';
 
 import AppointmentActionsMenu from '../../components/admin/AppointmentActionsMenu.vue';
 import {
@@ -193,6 +195,7 @@ const currentTime = computed(() => {
   nowTick.value;
   return nowInBusinessTz(businessTimezone.value);
 });
+const currentBusinessDayStart = computed(() => currentTime.value.startOf('day'));
 
 const timeSlots = computed(() => {
   const slots: { label: string; value: string }[] = [];
@@ -247,6 +250,16 @@ const appointmentAtBusinessTime = (appointment: Appointment) =>
 const isPastResolvedAppointment = (appointment: Appointment) =>
   terminalStatuses.has(appointment.status);
 
+const isConfirmationPendingAppointment = (appointment: Appointment) =>
+  !isPastResolvedAppointment(appointment) &&
+  ['PENDING', 'BOOKED'].includes(appointment.status) &&
+  appointmentAtBusinessTime(appointment).valueOf() >= currentBusinessDayStart.value.valueOf();
+
+const isExpiredConfirmationAppointment = (appointment: Appointment) =>
+  !isPastResolvedAppointment(appointment) &&
+  ['PENDING', 'BOOKED'].includes(appointment.status) &&
+  appointmentAtBusinessTime(appointment).valueOf() < currentBusinessDayStart.value.valueOf();
+
 const isUpcomingAppointment = (appointment: Appointment) =>
   !isPastResolvedAppointment(appointment) &&
   appointmentAtBusinessTime(appointment).isAfter(currentTime.value);
@@ -260,41 +273,94 @@ const isDerivedInProgressAppointment = (appointment: Appointment) =>
   appointmentAtBusinessTime(appointment).isSame(currentTime.value, 'day') &&
   !appointmentAtBusinessTime(appointment).isAfter(currentTime.value);
 
-const statusBadge = (status: string) => {
+type AppointmentBadge = {
+  label: string;
+  cls: string;
+  helperLabel: string | null;
+  helperCls: string | null;
+};
+
+const statusBadge = (status: string): AppointmentBadge => {
   const base = 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold';
 
   switch (status) {
     case 'PENDING':
-      return { label: 'Pending', cls: `${base} bg-orange-100 text-orange-800` };
+    case 'BOOKED':
+      return {
+        label: 'Pending',
+        cls: `${base} bg-orange-100 text-orange-800`,
+        helperLabel: null,
+        helperCls: null,
+      };
     case 'CONFIRMED':
-      return { label: 'Confirmed', cls: `${base} bg-blue-100 text-blue-800` };
+      return {
+        label: 'Confirmed',
+        cls: `${base} bg-blue-100 text-blue-800`,
+        helperLabel: null,
+        helperCls: null,
+      };
     case 'CHECKED_IN':
-      return { label: 'Checked In', cls: `${base} bg-purple-100 text-purple-800` };
+      return {
+        label: 'Checked In',
+        cls: `${base} bg-purple-100 text-purple-800`,
+        helperLabel: null,
+        helperCls: null,
+      };
     case 'COMPLETED':
-      return { label: 'Completed', cls: `${base} bg-emerald-100 text-emerald-800` };
+      return {
+        label: 'Completed',
+        cls: `${base} bg-emerald-100 text-emerald-800`,
+        helperLabel: null,
+        helperCls: null,
+      };
     case 'CANCELED':
-      return { label: 'Cancelled', cls: `${base} bg-rose-100 text-rose-800` };
+      return {
+        label: 'Cancelled',
+        cls: `${base} bg-rose-100 text-rose-800`,
+        helperLabel: null,
+        helperCls: null,
+      };
     case 'NO_SHOW':
-      return { label: 'No show', cls: `${base} bg-gray-200 text-gray-700` };
+      return {
+        label: 'No show',
+        cls: `${base} bg-gray-200 text-gray-700`,
+        helperLabel: null,
+        helperCls: null,
+      };
     default:
-      return { label: status, cls: `${base} bg-slate-100 text-slate-700` };
+      return {
+        label: status,
+        cls: `${base} bg-slate-100 text-slate-700`,
+        helperLabel: null,
+        helperCls: null,
+      };
   }
 };
 
 const statusBadgeForAppointment = (appointment: Appointment) => {
+  if (isExpiredConfirmationAppointment(appointment)) {
+    const base = 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold';
+    return {
+      label: 'Expired',
+      helperLabel: 'Confirmation missed',
+      cls: `${base} bg-amber-100 text-amber-800`,
+      helperCls:
+        'rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-700',
+    };
+  }
+
   if (isDerivedInProgressAppointment(appointment)) {
     const base = 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold';
     return {
       label: 'In progress',
       cls: `${base} bg-orange-100 text-orange-800`,
+      helperLabel: null,
+      helperCls: null,
     };
   }
 
   return statusBadge(appointment.status);
 };
-
-const needsConfirmation = (appointment: Appointment) =>
-  appointment.status === 'PENDING' || appointment.status === 'BOOKED';
 
 const appointmentGroups = computed<AppointmentGroup[]>(() => {
   const upcoming: Appointment[] = [];
@@ -801,9 +867,17 @@ const appointmentRowClassName = ({ row }: { row: Appointment }) =>
 
 const appointmentTotals = computed(() => {
   const total = filteredAppointments.value.length;
-  const upcoming = appointmentGroups.value[0]?.items.length ?? 0;
+  const upcoming = filteredAppointments.value.filter(
+    (appointment) =>
+      !isPastResolvedAppointment(appointment) &&
+      appointment.status === 'CONFIRMED' &&
+      appointmentAtBusinessTime(appointment).valueOf() >= currentTime.value.valueOf(),
+  ).length;
+  const needsConfirmation = filteredAppointments.value.filter(isConfirmationPendingAppointment).length;
   const inProgress = appointmentGroups.value[1]?.items.length ?? 0;
-  const completed = appointmentGroups.value[2]?.items.length ?? 0;
+  const completed = filteredAppointments.value.filter(
+    (appointment) => appointment.status === 'COMPLETED',
+  ).length;
   const checkedIn = filteredAppointments.value.filter(
     (appointment) => appointment.status === 'CHECKED_IN',
   ).length;
@@ -812,6 +886,7 @@ const appointmentTotals = computed(() => {
   return {
     total,
     upcoming,
+    needsConfirmation,
     inProgress,
     completed,
     checkedIn,
@@ -966,17 +1041,22 @@ watch(
 
 <template>
   <div class="appointment-page space-y-5">
-    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-      <div>
+    <div class="appointment-page__header">
+      <div class="appointment-page__title-group">
         <h1 class="text-2xl font-semibold text-slate-900">Appointments</h1>
-        <p class="text-sm text-slate-600">
-          {{
-            canManageAppointments
-              ? 'Keep the schedule visible, quick to scan, and ready for same-day action.'
-              : 'Review and acknowledge appointments relevant to your schedule.'
-          }}
-        </p>
       </div>
+
+      <ElButton
+        v-if="canManageAppointments"
+        type="primary"
+        class="sf-btn appointment-page__header-action"
+        @click="() => openCreate()"
+      >
+        <ElIcon aria-hidden="true">
+          <Plus />
+        </ElIcon>
+        New Appointment
+      </ElButton>
     </div>
 
     <div class="appointment-layout">
@@ -1093,14 +1173,6 @@ watch(
                   </div>
                 </ElPopover>
 
-                <ElButton
-                  v-if="canManageAppointments"
-                  type="primary"
-                  class="sf-btn appointment-toolbar__action appointment-toolbar__action--primary"
-                  @click="() => openCreate()"
-                >
-                  New Appointment
-                </ElButton>
               </div>
             </div>
           </div>
@@ -1110,6 +1182,10 @@ watch(
           <ElCard class="appointment-kpi-card">
             <div class="appointment-kpi-card__label">Upcoming</div>
             <div class="appointment-kpi-card__value">{{ appointmentTotals.upcoming }}</div>
+          </ElCard>
+          <ElCard class="appointment-kpi-card appointment-kpi-card--accent">
+            <div class="appointment-kpi-card__label">Needs Confirmation</div>
+            <div class="appointment-kpi-card__value">{{ appointmentTotals.needsConfirmation }}</div>
           </ElCard>
           <ElCard class="appointment-kpi-card">
             <div class="appointment-kpi-card__label">Checked In</div>
@@ -1203,10 +1279,13 @@ watch(
                 :data="group.visibleItems"
                 :loading="loading"
                 :row-class-name="appointmentRowClassName"
-                class="appointment-table"
+                :class="[
+                  'appointment-table',
+                  group.key === 'completed_past' ? 'appointment-table--past' : '',
+                ]"
                 stripe
               >
-                <ElTableColumn label="Time" min-width="120">
+                <ElTableColumn label="Time" min-width="108">
                   <template #default="{ row }">
                     <div class="flex flex-col gap-0.5">
                       <span class="font-medium text-slate-900">
@@ -1218,7 +1297,7 @@ watch(
                     </div>
                   </template>
                 </ElTableColumn>
-                <ElTableColumn label="Customer" min-width="180">
+                <ElTableColumn label="Customer" min-width="152">
                   <template #default="{ row }">
                     <div class="flex flex-col gap-0.5">
                       <span class="font-medium text-slate-900">{{ row.customerName }}</span>
@@ -1226,8 +1305,8 @@ watch(
                     </div>
                   </template>
                 </ElTableColumn>
-                <ElTableColumn prop="serviceName" label="Service" min-width="160" />
-                <ElTableColumn label="Staff" min-width="170">
+                <ElTableColumn prop="serviceName" label="Service" min-width="136" />
+                <ElTableColumn label="Staff" min-width="150">
                   <template #default="{ row }">
                     <div class="flex flex-col gap-0.5">
                       <span>{{ row.staffName || '—' }}</span>
@@ -1240,22 +1319,27 @@ watch(
                     </div>
                   </template>
                 </ElTableColumn>
-                <ElTableColumn prop="status" label="Status" width="160">
+                <ElTableColumn prop="status" label="Status" min-width="132" class-name="appointment-table__status-cell">
                   <template #default="{ row }">
                     <div class="flex flex-col gap-1">
                       <span :class="statusBadgeForAppointment(row).cls">
                         {{ statusBadgeForAppointment(row).label }}
                       </span>
                       <span
-                        v-if="needsConfirmation(row)"
-                        class="text-[11px] font-semibold uppercase tracking-[0.14em] text-orange-700"
+                        v-if="statusBadgeForAppointment(row).helperLabel"
+                        :class="statusBadgeForAppointment(row).helperCls"
                       >
-                        Needs confirmation
+                        {{ statusBadgeForAppointment(row).helperLabel }}
                       </span>
                     </div>
                   </template>
                 </ElTableColumn>
-                <ElTableColumn label="Actions" min-width="176" align="right">
+                <ElTableColumn
+                  label="Actions"
+                  min-width="220"
+                  align="right"
+                  class-name="appointment-table__actions-cell"
+                >
                   <template #default="{ row }">
                     <AppointmentActionsMenu
                       :appointment="row"
@@ -1418,10 +1502,10 @@ watch(
             {{ statusBadgeForAppointment(detailAppointment).label }}
           </span>
           <span
-            v-if="needsConfirmation(detailAppointment)"
-            class="rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-orange-700"
+            v-if="statusBadgeForAppointment(detailAppointment).helperLabel"
+            :class="statusBadgeForAppointment(detailAppointment).helperCls"
           >
-            Needs confirmation
+            {{ statusBadgeForAppointment(detailAppointment).helperLabel }}
           </span>
         </div>
 
@@ -1479,6 +1563,21 @@ watch(
   gap: 1rem;
 }
 
+.appointment-page__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.appointment-page__title-group {
+  min-width: 0;
+}
+
+.appointment-page__header-action {
+  flex: 0 0 auto;
+}
+
 .appointment-main {
   min-width: 0;
   display: grid;
@@ -1487,19 +1586,19 @@ watch(
 
 .appointment-toolbar-card :deep(.el-card__body) {
   display: grid;
-  gap: 0.55rem;
-  padding: 0.65rem;
+  gap: 0.45rem;
+  padding: 0.55rem;
 }
 
 .appointment-toolbar {
   display: grid;
-  gap: 0.45rem;
+  gap: 0.35rem;
 }
 
 .appointment-toolbar__row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.4rem;
   align-items: center;
   justify-content: space-between;
 }
@@ -1513,7 +1612,7 @@ watch(
 .appointment-day-nav {
   display: flex;
   flex-wrap: nowrap;
-  gap: 0.45rem;
+  gap: 0.35rem;
   align-items: center;
   flex: 0 1 auto;
   min-width: 0;
@@ -1522,8 +1621,8 @@ watch(
 .appointment-toolbar__actions {
   display: flex;
   flex: 1 1 auto;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  flex-wrap: nowrap;
+  gap: 0.4rem;
   justify-content: flex-end;
   align-items: center;
   min-width: 0;
@@ -1541,14 +1640,14 @@ watch(
 }
 
 .appointment-day-nav__picker {
-  min-width: 13rem;
-  flex: 0 1 13rem;
+  min-width: 10.5rem;
+  flex: 0 1 10.5rem;
 }
 
 .appointment-search {
-  min-width: 13rem;
-  max-width: 20rem;
-  flex: 1 1 15rem;
+  min-width: 10.5rem;
+  max-width: 16rem;
+  flex: 1 1 11rem;
 }
 
 .appointment-toolbar__action {
@@ -1557,13 +1656,13 @@ watch(
 }
 
 .appointment-toolbar__action--segment {
-  min-width: 4rem;
-  padding-inline: 0.9rem;
+  min-width: 3.9rem;
+  padding-inline: 0.85rem;
 }
 
 .appointment-toolbar__action--filters {
-  min-width: 6.6rem;
-  padding-inline: 0.95rem;
+  min-width: 6.2rem;
+  padding-inline: 0.9rem;
 }
 
 .appointment-toolbar__action--primary {
@@ -1752,8 +1851,28 @@ watch(
   padding-bottom: 0.7rem;
 }
 
+.appointment-table :deep(.appointment-table__status-cell) {
+  padding-right: 1rem;
+}
+
+.appointment-table :deep(.appointment-table__actions-cell) {
+  overflow: visible;
+}
+
 .appointment-table :deep(.cell) {
   line-height: 1.2;
+}
+
+@media (max-width: 1024px) {
+  .appointment-table--past :deep(.el-table__cell) {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .appointment-table--past :deep(.cell) {
+    font-size: 0.94rem;
+    line-height: 1.15;
+  }
 }
 
 .appointment-empty-state {
@@ -1965,7 +2084,17 @@ watch(
 
 @media (max-width: 640px) {
   .appointment-toolbar-card :deep(.el-card__body) {
-    padding: 0.9rem;
+    padding: 0.75rem;
+  }
+
+  .appointment-page__header {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .appointment-page__header-action {
+    width: 100%;
+    justify-content: center;
   }
 
   .appointment-day-nav {
@@ -1975,6 +2104,7 @@ watch(
   .appointment-toolbar__actions {
     width: 100%;
     justify-content: stretch;
+    flex-wrap: wrap;
   }
 
   .appointment-day-nav__picker,

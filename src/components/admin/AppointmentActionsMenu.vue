@@ -127,14 +127,14 @@ const handleCommand = (command: MenuAction) => {
   align-items: center;
   justify-content: flex-end;
   flex-wrap: nowrap;
-  gap: 0.5rem;
+  gap: 0.4rem;
   width: 100%;
 }
 
 .appointment-actions-menu__primary {
   flex: 0 0 auto;
   min-height: 2.75rem;
-  padding-inline: 1rem;
+  padding-inline: 0.9rem;
   border-radius: 999px;
 }
 
@@ -151,6 +151,23 @@ const handleCommand = (command: MenuAction) => {
   color: #0f172a;
 }
 
+@media (max-width: 1024px) {
+  .appointment-actions-menu {
+    gap: 0.3rem;
+  }
+
+  .appointment-actions-menu__primary {
+    flex: 1 1 6.4rem;
+    min-width: 6.4rem;
+    padding-inline: 0.75rem;
+  }
+
+  .appointment-actions-menu__trigger {
+    min-width: 2.55rem;
+    min-height: 2.75rem;
+  }
+}
+
 :deep(.appointment-actions-menu__danger) {
   color: #dc2626;
   font-weight: 600;
@@ -158,12 +175,17 @@ const handleCommand = (command: MenuAction) => {
 
 @media (max-width: 768px) {
   .appointment-actions-menu {
-    gap: 0.35rem;
+    gap: 0.3rem;
+    flex-wrap: wrap;
   }
 
   .appointment-actions-menu__primary,
   .appointment-actions-menu__trigger {
     min-height: 2.9rem;
+  }
+
+  .appointment-actions-menu__primary {
+    flex: 1 1 calc(100% - 3rem);
   }
 }
 </style>
