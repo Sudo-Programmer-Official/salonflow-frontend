@@ -997,8 +997,7 @@ watch(
                   placeholder="Pick a date"
                   format="YYYY-MM-DD"
                   value-format="YYYY-MM-DD"
-                  size="small"
-                  class="appointment-day-nav__picker"
+                  class="sf-input appointment-day-nav__picker"
                 />
                 <ElButton class="sf-btn appointment-day-nav__button" @click="shiftSelectedDate(1)">
                   →
@@ -1027,7 +1026,7 @@ watch(
                   v-model="appointmentSearch"
                   clearable
                   placeholder="Search customers, phone, or service..."
-                  class="appointment-search"
+                  class="sf-input appointment-search"
                 />
 
                 <ElPopover
@@ -1542,17 +1541,12 @@ watch(
 }
 
 .appointment-day-nav__picker {
-  min-width: 11rem;
-  flex: 0 1 11rem;
-}
-
-.appointment-day-nav__picker :deep(.el-input__wrapper) {
-  min-height: 2.5rem;
-  border-radius: 999px;
+  min-width: 14rem;
+  flex: 0 1 14rem;
 }
 
 .appointment-search {
-  min-width: 16rem;
+  min-width: 14rem;
   max-width: 20rem;
   flex: 1 1 16rem;
 }
