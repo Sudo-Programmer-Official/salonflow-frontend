@@ -667,7 +667,7 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
 .appointment-timeline-card__grid {
   position: relative;
   display: grid;
-  min-width: 760px;
+  min-width: 100%;
   width: 100%;
 }
 
