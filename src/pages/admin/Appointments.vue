@@ -10,6 +10,7 @@ import {
   ElDrawer,
   ElForm,
   ElFormItem,
+  ElIcon,
   ElInput,
   ElMessage,
   ElOption,
@@ -18,6 +19,7 @@ import {
   ElTable,
   ElTableColumn,
 } from 'element-plus';
+import { Plus } from '@element-plus/icons-vue';
 
 import AppointmentActionsMenu from '../../components/admin/AppointmentActionsMenu.vue';
 import {
@@ -966,17 +968,22 @@ watch(
 
 <template>
   <div class="appointment-page space-y-5">
-    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-      <div>
+    <div class="appointment-page__header">
+      <div class="appointment-page__title-group">
         <h1 class="text-2xl font-semibold text-slate-900">Appointments</h1>
-        <p class="text-sm text-slate-600">
-          {{
-            canManageAppointments
-              ? 'Keep the schedule visible, quick to scan, and ready for same-day action.'
-              : 'Review and acknowledge appointments relevant to your schedule.'
-          }}
-        </p>
       </div>
+
+      <ElButton
+        v-if="canManageAppointments"
+        type="primary"
+        class="sf-btn appointment-page__header-action"
+        @click="() => openCreate()"
+      >
+        <ElIcon aria-hidden="true">
+          <Plus />
+        </ElIcon>
+        New Appointment
+      </ElButton>
     </div>
 
     <div class="appointment-layout">
@@ -1093,14 +1100,6 @@ watch(
                   </div>
                 </ElPopover>
 
-                <ElButton
-                  v-if="canManageAppointments"
-                  type="primary"
-                  class="sf-btn appointment-toolbar__action appointment-toolbar__action--primary"
-                  @click="() => openCreate()"
-                >
-                  New Appointment
-                </ElButton>
               </div>
             </div>
           </div>
@@ -1479,6 +1478,21 @@ watch(
   gap: 1rem;
 }
 
+.appointment-page__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.appointment-page__title-group {
+  min-width: 0;
+}
+
+.appointment-page__header-action {
+  flex: 0 0 auto;
+}
+
 .appointment-main {
   min-width: 0;
   display: grid;
@@ -1487,19 +1501,19 @@ watch(
 
 .appointment-toolbar-card :deep(.el-card__body) {
   display: grid;
-  gap: 0.55rem;
-  padding: 0.65rem;
+  gap: 0.45rem;
+  padding: 0.55rem;
 }
 
 .appointment-toolbar {
   display: grid;
-  gap: 0.45rem;
+  gap: 0.35rem;
 }
 
 .appointment-toolbar__row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.4rem;
   align-items: center;
   justify-content: space-between;
 }
@@ -1513,7 +1527,7 @@ watch(
 .appointment-day-nav {
   display: flex;
   flex-wrap: nowrap;
-  gap: 0.45rem;
+  gap: 0.35rem;
   align-items: center;
   flex: 0 1 auto;
   min-width: 0;
@@ -1522,8 +1536,8 @@ watch(
 .appointment-toolbar__actions {
   display: flex;
   flex: 1 1 auto;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  flex-wrap: nowrap;
+  gap: 0.4rem;
   justify-content: flex-end;
   align-items: center;
   min-width: 0;
@@ -1541,14 +1555,14 @@ watch(
 }
 
 .appointment-day-nav__picker {
-  min-width: 13rem;
-  flex: 0 1 13rem;
+  min-width: 10.5rem;
+  flex: 0 1 10.5rem;
 }
 
 .appointment-search {
-  min-width: 13rem;
-  max-width: 20rem;
-  flex: 1 1 15rem;
+  min-width: 10.5rem;
+  max-width: 16rem;
+  flex: 1 1 11rem;
 }
 
 .appointment-toolbar__action {
@@ -1557,13 +1571,13 @@ watch(
 }
 
 .appointment-toolbar__action--segment {
-  min-width: 4rem;
-  padding-inline: 0.9rem;
+  min-width: 3.9rem;
+  padding-inline: 0.85rem;
 }
 
 .appointment-toolbar__action--filters {
-  min-width: 6.6rem;
-  padding-inline: 0.95rem;
+  min-width: 6.2rem;
+  padding-inline: 0.9rem;
 }
 
 .appointment-toolbar__action--primary {
@@ -1965,7 +1979,17 @@ watch(
 
 @media (max-width: 640px) {
   .appointment-toolbar-card :deep(.el-card__body) {
-    padding: 0.9rem;
+    padding: 0.75rem;
+  }
+
+  .appointment-page__header {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .appointment-page__header-action {
+    width: 100%;
+    justify-content: center;
   }
 
   .appointment-day-nav {
@@ -1975,6 +1999,7 @@ watch(
   .appointment-toolbar__actions {
     width: 100%;
     justify-content: stretch;
+    flex-wrap: wrap;
   }
 
   .appointment-day-nav__picker,
