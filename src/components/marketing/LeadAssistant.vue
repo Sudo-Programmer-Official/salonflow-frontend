@@ -2,10 +2,12 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { apiUrl, buildHeaders } from '@/api/client';
+import { trackMarketingEvent } from '@/api/marketing';
 
 type StepId =
   | 'name'
   | 'businessName'
+  | 'businessType'
   | 'primaryGoal'
   | 'teamSize'
   | 'biggestPain'
@@ -26,6 +28,7 @@ type TranscriptEntry = {
 type AssistantAnswers = {
   name: string;
   businessName: string;
+  businessType: string;
   country: string;
   website: string;
   googleBusinessUrl: string;
@@ -35,6 +38,7 @@ type AssistantAnswers = {
   teamSize: string;
   biggestPain: string;
   timeline: string;
+  currentSoftware: string;
   preferredContact: string;
   email: string;
   phone: string;
@@ -72,6 +76,7 @@ const route = useRoute();
 const steps: Array<{ id: StepId; prompt: string }> = [
   { id: 'name', prompt: 'First, what should I call you?' },
   { id: 'businessName', prompt: 'What is the name of your salon or studio?' },
+  { id: 'businessType', prompt: 'What type of salon business is this?' },
   { id: 'primaryGoal', prompt: 'What would make SalonFlow most valuable for you right now?' },
   { id: 'teamSize', prompt: 'How big is your team today?' },
   { id: 'biggestPain', prompt: 'What is the biggest bottleneck slowing the business down?' },
@@ -111,6 +116,14 @@ const teamSizeOptions: ChoiceOption[] = [
   { label: '10+', value: '10+ team members', detail: 'Multi-staff salon needing structure and visibility.' },
 ];
 
+const businessTypeOptions: ChoiceOption[] = [
+  { label: 'Nail salon', value: 'Nail Salon', detail: 'The flagship demo type with bookings, loyalty, and POS depth.' },
+  { label: 'Hair salon', value: 'Hair Salon', detail: 'Built around color, cuts, styling, and rebooking.' },
+  { label: 'Spa', value: 'Spa', detail: 'Works well for massage, facials, waxing, and packages.' },
+  { label: 'Beauty studio', value: 'Beauty Studio', detail: 'Best for brows, lashes, and specialty services.' },
+  { label: 'Barber', value: 'Barber', detail: 'Focused on fast booking, chair use, and repeat visits.' },
+];
+
 const timelineOptions: ChoiceOption[] = [
   { label: 'This week', value: 'This week', detail: 'Ready to move fast.' },
   { label: 'This month', value: 'This month', detail: 'Actively evaluating options.' },
@@ -126,6 +139,7 @@ const contactOptions: ChoiceOption[] = [
 const answers = reactive<AssistantAnswers>({
   name: '',
   businessName: '',
+  businessType: '',
   country: '',
   website: '',
   googleBusinessUrl: '',
@@ -135,6 +149,7 @@ const answers = reactive<AssistantAnswers>({
   teamSize: '',
   biggestPain: '',
   timeline: '',
+  currentSoftware: '',
   preferredContact: 'Email',
   email: '',
   phone: '',
@@ -149,6 +164,7 @@ const draftId = ref<string | null>(null);
 const draftSaveState = ref<DraftSaveState>('idle');
 const quickLeadText = ref('');
 const quickLeadNotice = ref('');
+const trackedRequestStart = ref(false);
 
 const storageKey = computed(() => `lead-assistant:${props.source}`);
 const activeStep = computed(() => steps[stepIndex.value] ?? null);
@@ -158,8 +174,9 @@ const canPersistRemotely = computed(() => answers.name.trim().length > 0);
 const hasAnyProgress = computed(
   () =>
     Boolean(
-      answers.name.trim() ||
+        answers.name.trim() ||
         answers.businessName.trim() ||
+        answers.businessType.trim() ||
         answers.country.trim() ||
         answers.website.trim() ||
         answers.googleBusinessUrl.trim() ||
@@ -169,6 +186,7 @@ const hasAnyProgress = computed(
         answers.teamSize.trim() ||
         answers.biggestPain.trim() ||
         answers.timeline.trim() ||
+        answers.currentSoftware.trim() ||
         answers.email.trim() ||
         quickLeadText.value.trim() ||
         phoneDigits.value,
@@ -181,10 +199,12 @@ const initialAssistantMessage =
 const summaryPoints = computed<string[]>(() =>
   [
     answers.businessName.trim() ? `Salon: ${answers.businessName.trim()}` : null,
+    answers.businessType.trim() ? `Type: ${answers.businessType.trim()}` : null,
     answers.country.trim() ? `Country: ${answers.country.trim()}` : null,
     answers.timezone.trim() ? `Time zone: ${answers.timezone.trim()}` : null,
     answers.primaryGoal.trim() ? `Goal: ${answers.primaryGoal.trim()}` : null,
     answers.teamSize.trim() ? `Team: ${answers.teamSize.trim()}` : null,
+    answers.currentSoftware.trim() ? `Current software: ${answers.currentSoftware.trim()}` : null,
     answers.timeline.trim() ? `Timeline: ${answers.timeline.trim()}` : null,
   ].filter((value): value is string => Boolean(value)),
 );
@@ -210,6 +230,8 @@ const answerForStep = (stepId: StepId): string => {
       return answers.name.trim();
     case 'businessName':
       return answers.businessName.trim();
+    case 'businessType':
+      return answers.businessType.trim();
     case 'primaryGoal':
       return answers.primaryGoal.trim();
     case 'teamSize':
@@ -256,7 +278,7 @@ const completedConversation = computed<TranscriptEntry[]>(() => {
   if (success.value) {
     transcript.push({
       role: 'assistant',
-      message: `Perfect. We have your info and will send a tailored demo plan for ${answers.businessName.trim() || 'your salon'} shortly.`,
+      message: `Perfect. We have your info and will prepare the best demo for ${answers.businessName.trim() || 'your salon'} shortly.`,
     });
   }
 
@@ -313,6 +335,7 @@ const clearLocalDraft = () => {
 const buildLeadSummary = () =>
   [
     answers.businessName.trim() ? `Salon: ${answers.businessName.trim()}` : null,
+    answers.businessType.trim() ? `Type: ${answers.businessType.trim()}` : null,
     answers.country.trim() ? `Country: ${answers.country.trim()}` : null,
     answers.website.trim() ? `Website: ${answers.website.trim()}` : null,
     answers.googleBusinessUrl.trim() ? `Google Business URL: ${answers.googleBusinessUrl.trim()}` : null,
@@ -320,6 +343,7 @@ const buildLeadSummary = () =>
     answers.timezone.trim() ? `Time zone: ${answers.timezone.trim()}` : null,
     answers.primaryGoal.trim() ? `Primary goal: ${answers.primaryGoal.trim()}` : null,
     answers.teamSize.trim() ? `Team size: ${answers.teamSize.trim()}` : null,
+    answers.currentSoftware.trim() ? `Current software: ${answers.currentSoftware.trim()}` : null,
     answers.biggestPain.trim() ? `Biggest pain: ${answers.biggestPain.trim()}` : null,
     answers.timeline.trim() ? `Timeline: ${answers.timeline.trim()}` : null,
     quickLeadText.value.trim() ? `Quick note: ${quickLeadText.value.trim()}` : null,
@@ -350,6 +374,7 @@ const buildTranscript = (): TranscriptEntry[] => {
 
 const buildDetails = (mode: SaveMode) => ({
   businessName: answers.businessName.trim(),
+  businessType: answers.businessType.trim(),
   country: answers.country.trim(),
   website: answers.website.trim(),
   googleBusinessUrl: answers.googleBusinessUrl.trim(),
@@ -360,6 +385,7 @@ const buildDetails = (mode: SaveMode) => ({
   biggestPain: answers.biggestPain.trim(),
   quickCaptureNote: quickLeadText.value.trim(),
   timeline: answers.timeline.trim(),
+  currentSoftware: answers.currentSoftware.trim(),
   preferredContact: answers.preferredContact,
   sourcePath: route.fullPath,
   progressStep: mode === 'final' ? TOTAL_STEPS : stepIndex.value + 1,
@@ -379,6 +405,15 @@ const buildPayload = (mode: SaveMode) => ({
   progressStep: mode === 'final' ? TOTAL_STEPS : stepIndex.value + 1,
   details: buildDetails(mode),
 });
+
+const trackAssistantEvent = (eventType: 'request_start' | 'request_submit', payload: Record<string, any> = {}) =>
+  trackMarketingEvent({
+    eventType,
+    sourcePage: props.source,
+    path: route.fullPath,
+    referrer: typeof document !== 'undefined' ? document.referrer || null : null,
+    payload,
+  });
 
 let draftSaveTimer: number | null = null;
 let lastDraftFingerprint = '';
@@ -487,6 +522,11 @@ const validateStep = (): boolean => {
     return false;
   }
 
+  if (id === 'businessType' && !answers.businessType.trim()) {
+    error.value = 'Choose the type of salon.';
+    return false;
+  }
+
   if (id === 'biggestPain' && !answers.biggestPain.trim()) {
     error.value = 'Tell us the biggest issue you want solved.';
     return false;
@@ -524,7 +564,10 @@ const goBack = () => {
   if (stepIndex.value > 0) stepIndex.value -= 1;
 };
 
-const setChoice = (field: 'primaryGoal' | 'teamSize' | 'timeline' | 'preferredContact', value: string) => {
+const setChoice = (
+  field: 'businessType' | 'primaryGoal' | 'teamSize' | 'timeline' | 'preferredContact',
+  value: string,
+) => {
   answers[field] = value;
   error.value = '';
   if (field !== 'preferredContact' && activeStep.value?.id === field) {
@@ -572,6 +615,8 @@ const applyQuickLeadText = () => {
     /(?:salon|studio|business|shop)\s+(?:is|name is|called)\s+([a-z0-9 &.'-]{2,80})(?=,|\.|;|\band\b|\bin\b|$)/i,
     /(?:from|at|for)\s+([a-z0-9 &.'-]{2,80})(?:\s+(?:salon|studio|nails|spa|barber))?(?=,|\.|;|\band\b|\bin\b|$)/i,
   ]);
+  const businessType =
+    (raw.match(/\b(nail salon|hair salon|beauty studio|spa|barber)\b/i)?.[1] ?? '').trim();
   const teamSize = raw.match(/\b(?:team of|staff of|we have)\s+(\d{1,2})\b/i)?.[1] ?? '';
   const timeline = raw.match(/\b(this week|this month|next quarter|asap|soon|immediately)\b/i)?.[1] ?? '';
   const goal = inferGoal(raw);
@@ -580,6 +625,12 @@ const applyQuickLeadText = () => {
   if (phone) answers.phone = phone;
   if (name && !answers.name.trim()) answers.name = name;
   if (businessName && !answers.businessName.trim()) answers.businessName = businessName;
+  if (businessType && !answers.businessType.trim()) {
+    answers.businessType = businessType
+      .toLowerCase()
+      .replace(/\b\w/g, (letter) => letter.toUpperCase())
+      .replace(/\bSpa\b/, 'Spa');
+  }
   if (teamSize && !answers.teamSize.trim()) {
     const numericTeamSize = Number(teamSize);
     answers.teamSize =
@@ -593,6 +644,12 @@ const applyQuickLeadText = () => {
   if (goal && !answers.primaryGoal.trim()) answers.primaryGoal = goal;
   if (!answers.biggestPain.trim()) answers.biggestPain = raw;
   if (!answers.preferredContact.trim()) answers.preferredContact = phone ? 'Text' : 'Email';
+  if (!answers.currentSoftware.trim()) {
+    const software = raw.match(/\b(square|fresha|glossgenius|booksy|vagaro|mindbody|phorest)\b/i)?.[1] ?? '';
+    if (software) {
+      answers.currentSoftware = software.replace(/\b\w/g, (letter) => letter.toUpperCase());
+    }
+  }
 
   quickLeadNotice.value = 'I filled the lead details from your message. You can send now or adjust anything below.';
   persistLocalDraft();
@@ -667,6 +724,7 @@ watch(
     () => stepIndex.value,
     () => answers.name,
     () => answers.businessName,
+    () => answers.businessType,
     () => answers.country,
     () => answers.website,
     () => answers.googleBusinessUrl,
@@ -676,6 +734,7 @@ watch(
     () => answers.teamSize,
     () => answers.biggestPain,
     () => answers.timeline,
+    () => answers.currentSoftware,
     () => answers.preferredContact,
     () => answers.email,
     () => answers.phone,
@@ -694,6 +753,13 @@ watch(
   (value) => {
     if (typeof document === 'undefined') return;
     if (value) {
+      if (!trackedRequestStart.value) {
+        trackedRequestStart.value = true;
+        void trackAssistantEvent('request_start', {
+          source: props.source,
+          mode: props.defaultFullscreen ? 'auto-open' : 'manual-open',
+        });
+      }
       bodyOverflowSnapshot = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
     } else {
@@ -869,6 +935,19 @@ onBeforeUnmount(() => {
               </label>
             </div>
 
+            <div v-else-if="activeStep?.id === 'businessType'" class="grid gap-3 sm:grid-cols-2">
+              <button
+                v-for="option in businessTypeOptions"
+                :key="option.value"
+                type="button"
+                class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-sm"
+                @click="setChoice('businessType', option.value)"
+              >
+                <div class="font-semibold text-slate-900">{{ option.label }}</div>
+                <div class="mt-1 text-sm text-slate-500">{{ option.detail }}</div>
+              </button>
+            </div>
+
             <div v-else-if="activeStep?.id === 'primaryGoal'" class="grid gap-3">
               <button
                 v-for="option in goalOptions"
@@ -978,6 +1057,15 @@ onBeforeUnmount(() => {
                 />
               </label>
               <label class="block">
+                <span class="text-sm font-medium text-slate-800">Current booking software</span>
+                <input
+                  v-model="answers.currentSoftware"
+                  type="text"
+                  class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                  placeholder="Square, Fresha, GlossGenius, Booksy..."
+                />
+              </label>
+              <label class="block">
                 <span class="text-sm font-medium text-slate-800">Phone</span>
                 <input
                   v-model="answers.phone"
@@ -1038,7 +1126,7 @@ onBeforeUnmount(() => {
                 You are in.
               </div>
               <p class="mt-2">
-                We stored your request and sent it to the SalonFlow team. Expect a follow-up with a tailored demo plan and next-step recommendation.
+                We stored your request and sent it to the SalonFlow team. Expect a follow-up with the best demo match, login details, and next-step recommendation.
               </p>
               <div class="mt-4 rounded-2xl bg-white px-4 py-3 text-slate-700">
                 <div class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">What we captured</div>

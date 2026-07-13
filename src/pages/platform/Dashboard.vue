@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue';
 import { ElCard, ElTable, ElTableColumn, ElTag, ElMessage, ElProgress } from 'element-plus';
 import { fetchPlatformTenants, type PlatformTenantRow, fetchPlatformUsageOverview } from '../../api/platform';
+import { fetchOnboardingProjects } from '../../api/platformOnboarding';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
@@ -10,15 +11,25 @@ const loading = ref(false);
 const smsSentTotal = ref(0);
 const smsBlockedTotal = ref(0);
 const emailSentTotal = ref(0);
+const onboardingCount = ref(0);
+const onboardingLiveCount = ref(0);
+const onboardingAttentionCount = ref(0);
 
 const load = async () => {
   loading.value = true;
   try {
-    const [tenantRows, overview] = await Promise.all([fetchPlatformTenants(), fetchPlatformUsageOverview()]);
+    const [tenantRows, overview, onboarding] = await Promise.all([
+      fetchPlatformTenants(),
+      fetchPlatformUsageOverview(),
+      fetchOnboardingProjects(),
+    ]);
     tenants.value = tenantRows;
     smsSentTotal.value = Number(overview.sms_sent ?? 0);
     smsBlockedTotal.value = Number(overview.sms_blocked_cap ?? 0);
     emailSentTotal.value = Number(overview.email_sent ?? 0);
+    onboardingCount.value = onboarding.projects.length;
+    onboardingLiveCount.value = onboarding.projects.filter((project) => project.stage === 'LIVE').length;
+    onboardingAttentionCount.value = onboarding.projects.filter((project) => project.stage !== 'LIVE').length;
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to load tenants');
   } finally {
@@ -63,6 +74,25 @@ const smsProgress = (row: PlatformTenantRow) => {
         <div class="text-2xl font-semibold text-slate-900">{{ emailSentTotal }}</div>
       </ElCard>
     </div>
+
+    <ElCard class="bg-white">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div class="text-sm text-slate-600">Onboarding queue</div>
+          <div class="text-2xl font-semibold text-slate-900">{{ onboardingCount }}</div>
+          <div class="mt-1 text-xs text-slate-500">
+            {{ onboardingLiveCount }} live, {{ onboardingAttentionCount }} needing attention
+          </div>
+        </div>
+        <button
+          type="button"
+          class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+          @click="router.push({ name: 'platform-onboarding' })"
+        >
+          Open onboarding
+        </button>
+      </div>
+    </ElCard>
 
     <ElCard class="bg-white">
       <ElTable :data="tenants" :loading="loading" style="width: 100%" stripe>

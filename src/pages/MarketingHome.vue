@@ -2,14 +2,40 @@
 import { nextTick, onMounted, ref, watch } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 import LeadAssistant from '../components/marketing/LeadAssistant.vue';
+import { trackMarketingEvent } from '@/api/marketing';
 
 const route = useRoute();
 const assistantSection = ref<HTMLElement | null>(null);
+const firstWeekSection = ref<HTMLElement | null>(null);
+const firstWeekPulse = ref(false);
 const leadAssistant = ref<InstanceType<typeof LeadAssistant> | null>(null);
 
+const trackHomeEvent = (eventType: 'page_view' | 'cta_click' | 'request_start', payload: Record<string, any> = {}) =>
+  trackMarketingEvent({
+    eventType,
+    sourcePage: 'marketing-home',
+    path: route.fullPath,
+    referrer: typeof document !== 'undefined' ? document.referrer || null : null,
+    payload,
+  });
+
 const jumpToAssistant = () => {
+  void trackHomeEvent('cta_click', { placement: 'hero-see-demo-flow', target: '#assistant' });
   assistantSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   leadAssistant.value?.openFullscreen();
+};
+
+const jumpToFirstWeek = () => {
+  void trackHomeEvent('cta_click', { placement: 'hero-see-first-week', target: '#first-week' });
+  firstWeekSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  firstWeekPulse.value = true;
+  window.setTimeout(() => {
+    firstWeekPulse.value = false;
+  }, 1400);
+};
+
+const handleDemoRequestClick = (placement: string) => {
+  void trackHomeEvent('cta_click', { placement, target: '/start' });
 };
 
 const openDemoFromRoute = async () => {
@@ -18,14 +44,17 @@ const openDemoFromRoute = async () => {
   jumpToAssistant();
 };
 
-onMounted(openDemoFromRoute);
+onMounted(() => {
+  void trackHomeEvent('page_view', { page: 'home' });
+  void openDemoFromRoute();
+});
 
 watch(() => route.query.demo, openDemoFromRoute);
 
 const outcomeStats = [
-  { value: '1 system', label: 'Website, booking, social scheduling, reminders, CRM, and POS rollout in one place' },
-  { value: '24 hrs', label: 'Lead follow-up target after a salon owner reaches out' },
-  { value: '0 contract', label: 'Setup included so owners are not stuck DIYing software' },
+  { value: 'More bookings', label: 'Turn more website visits and referrals into real appointments' },
+  { value: 'Fewer no-shows', label: 'Keep the schedule fuller with reminders and follow-up' },
+  { value: 'Less admin work', label: 'Spend less time chasing leads and setting up tools' },
 ];
 
 const featureSystems = [
@@ -120,26 +149,54 @@ const offeringHighlights = [
   { label: 'Done-for-you setup', className: 'offering-pill--teal' },
 ];
 
-const differenceRows = [
+const comparisonRows = [
   {
-    label: 'What most salon tools do',
-    other: 'Handle booking and stop there',
-    salonFlow: 'Drive booking, follow-up, retention, and website conversion in one system',
+    label: 'Website',
+    other: 'Square / Booksy: booking-first, website secondary',
+    salonFlow: 'SalonFlow: the website is part of the sales system, not an afterthought',
   },
   {
-    label: 'Setup experience',
-    other: 'DIY onboarding and scattered tools',
-    salonFlow: 'We set it up with you so the launch feels operational, not technical',
+    label: 'CRM + follow-up',
+    other: 'GlossGenius: light follow-up, limited owner visibility',
+    salonFlow: 'SalonFlow: customer context, reminders, and repeat-visit workflow in one place',
   },
   {
-    label: 'Owner visibility',
-    other: 'One more dashboard to check',
-    salonFlow: 'Clear owner-level view of leads, bookings, reminders, and growth levers',
+    label: 'Growth tools',
+    other: 'Most booking apps: reviews and marketing are add-ons',
+    salonFlow: 'SalonFlow: reminders, reviews, social, loyalty, and follow-up work together',
   },
   {
-    label: 'Value story',
-    other: 'Scheduling software',
-    salonFlow: 'Salon growth system',
+    label: 'POS rollout',
+    other: 'Often separate and disconnected from the booking stack',
+    salonFlow: 'Built to roll forward into the same salon operating system',
+  },
+];
+
+const firstWeekSteps = [
+  {
+    day: 'Day 1',
+    title: 'We set up your salon',
+    detail: 'Your branding, logo, colors, photos, and contact information are added to a working website.',
+  },
+  {
+    day: 'Day 2',
+    title: 'We import your business',
+    detail: 'Services, pricing, staff, customers, and business settings are brought into the new setup where possible.',
+  },
+  {
+    day: 'Day 3',
+    title: 'Everything is connected',
+    detail: 'SMS reminders, booking links, QR check-in, and email notifications are configured and tested.',
+  },
+  {
+    day: 'Day 5',
+    title: 'Staff training',
+    detail: 'We walk your team through the workflow, verify the setup, and fine-tune anything that needs adjustment.',
+  },
+  {
+    day: 'Day 7',
+    title: 'You’re fully live',
+    detail: 'Customers can book online, history is available, and your old process has been replaced with a smoother one.',
   },
 ];
 
@@ -154,17 +211,17 @@ const clientTrustSignals = [
   {
     label: 'Live website',
     value: 'Public proof',
-    detail: 'Owners can inspect a real SalonFlow client site instead of guessing from screenshots or promises.',
+    detail: 'Inspect a real client site instead of guessing from screenshots.',
   },
   {
     label: 'Real salon',
     value: 'Corpus Christi',
-    detail: 'Built with a working salon in market, not a fake demo brand or generic mock business.',
+    detail: 'A working salon in market, not a fake demo brand.',
   },
   {
     label: 'Product feedback',
     value: 'Owner-shaped',
-    detail: 'Launch decisions are being shaped with real salon workflow, not abstract SaaS assumptions.',
+    detail: 'Launch decisions are shaped by real salon workflow.',
   },
 ];
 
@@ -178,17 +235,62 @@ const clientProofCards = [
   {
     label: 'Proof point',
     title: 'Live public site',
-    detail: 'A real business already trusts SalonFlow enough to be visible in market.',
+    detail: 'A real business already trusts SalonFlow in public.',
   },
   {
     label: 'Experience',
     title: 'Desktop + mobile ready',
-    detail: 'The website presentation holds up on larger screens and on the phone guests reach for first.',
+    detail: 'The website presentation holds up on the screens guests use most.',
+  },
+];
+
+const whoIsItForCards = [
+  {
+    title: 'Nail salons',
+    detail: 'The flagship demo with bookings, loyalty, reminders, and a polished first impression.',
   },
   {
-    label: 'Signal',
-    title: 'Built with owner feedback',
-    detail: 'Product direction comes from a working salon, not from generic templates.',
+    title: 'Hair salons',
+    detail: 'Best for color, styling, rebooking, and owner visibility across a busier schedule.',
+  },
+  {
+    title: 'Barbers',
+    detail: 'Built for fast booking, chair turnover, and a clean customer experience.',
+  },
+  {
+    title: 'Beauty studios',
+    detail: 'Perfect for brows, lashes, PMU, and specialty services that need clarity.',
+  },
+  {
+    title: 'Day spas',
+    detail: 'Designed for massages, facials, waxing, packages, and gift cards.',
+  },
+];
+
+const demoTemplateCards = [
+  {
+    title: 'Nail Salon',
+    eyebrow: 'Flagship demo',
+    stats: ['200+ customers', '3-5 staff', 'Website + POS'],
+    detail: 'The most important demo tenant for salons that need the fullest proof story.',
+  },
+  {
+    title: 'Hair Salon',
+    eyebrow: 'High-volume booking',
+    stats: ['Haircuts', 'Color', 'Balayage'],
+    detail: 'Shows a different service mix, branding, and appointment rhythm.',
+  },
+  {
+    title: 'Spa',
+    eyebrow: 'Packages + gift cards',
+    stats: ['Massage', 'Facial', 'Waxing'],
+    detail: 'Helps prospects see how SalonFlow handles longer services and packages.',
+  },
+  {
+    title: 'Beauty Studio',
+    eyebrow: 'Specialty services',
+    stats: ['Brows', 'Lashes', 'PMU'],
+    detail: 'Built for focused service menus and premium personal-brand experiences.',
   },
 ];
 
@@ -316,19 +418,30 @@ const faqItems = [
             </p>
 
             <div class="mt-8 flex flex-col gap-3 sm:flex-row">
-              <button
-                type="button"
-                class="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_16px_40px_rgba(15,23,42,0.2)] transition hover:-translate-y-0.5 hover:bg-slate-800"
-                @click="jumpToAssistant"
-              >
-                Get Free Demo Plan
-              </button>
               <RouterLink
                 to="/start"
-                class="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white/70 px-6 py-3.5 text-sm font-semibold text-slate-800 transition hover:-translate-y-0.5 hover:border-slate-400 hover:bg-white"
+                class="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_16px_40px_rgba(15,23,42,0.2)] transition hover:-translate-y-0.5 hover:bg-slate-800"
+                @click="handleDemoRequestClick('hero-request-demo')"
               >
-                Talk to our team
+                Request My Demo
               </RouterLink>
+              <button
+                type="button"
+                class="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white/75 px-6 py-3.5 text-sm font-semibold text-slate-800 transition hover:-translate-y-0.5 hover:border-slate-400 hover:bg-white"
+                @click="jumpToFirstWeek"
+              >
+                See Your First Week →
+              </button>
+            </div>
+
+            <p class="mt-4 text-sm font-medium text-slate-500">
+              Takes about 60 seconds • Setup included • No credit card
+            </p>
+
+            <div class="mt-4 flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+              <span class="rounded-full border border-slate-200 bg-white/80 px-3 py-2 shadow-sm">Setup included</span>
+              <span class="rounded-full border border-slate-200 bg-white/80 px-3 py-2 shadow-sm">Personalized demo</span>
+              <span class="rounded-full border border-slate-200 bg-white/80 px-3 py-2 shadow-sm">No long-term contract</span>
             </div>
 
             <div class="mt-8 grid gap-4 sm:grid-cols-3">
@@ -374,18 +487,6 @@ const faqItems = [
               </p>
             </div>
 
-            <div class="floating-card floating-card--top-right">
-              <img
-                src="/images/landing/marketing-mobile.jpg"
-                alt="SalonFlow mobile experience"
-                class="h-full w-full object-cover"
-              />
-              <div class="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,23,42,0.06),rgba(15,23,42,0.5))]" />
-              <div class="absolute inset-x-4 bottom-4 text-white">
-                <div class="text-[11px] font-semibold uppercase tracking-[0.3em] text-white/70">Mobile-ready</div>
-                <div class="mt-1 sf-display text-lg font-semibold">Owners and staff can move fast</div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -408,6 +509,34 @@ const faqItems = [
             >
               {{ item.label }}
             </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="border-b border-black/5 bg-white/78">
+      <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-18">
+        <div class="grid gap-10 lg:grid-cols-[0.78fr,1.22fr] lg:items-start">
+          <div>
+            <div class="text-[11px] font-semibold uppercase tracking-[0.32em] text-slate-500">Who it is for</div>
+            <h2 class="sf-display mt-3 text-3xl font-semibold leading-tight text-slate-950 sm:text-4xl">
+              Built for the salon businesses that need a clearer path from inquiry to repeat visit.
+            </h2>
+            <p class="mt-5 text-base leading-8 text-slate-600">
+              Salon owners should be able to see themselves in the product within seconds. This section makes the fit explicit before they ever reach pricing.
+            </p>
+          </div>
+
+          <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <article
+              v-for="card in whoIsItForCards"
+              :key="card.title"
+              class="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.07)]"
+            >
+              <div class="text-[11px] font-semibold uppercase tracking-[0.26em] text-emerald-700/80">Salon type</div>
+              <h3 class="sf-display mt-3 text-xl font-semibold text-slate-950">{{ card.title }}</h3>
+              <p class="mt-3 text-sm leading-7 text-slate-600">{{ card.detail }}</p>
+            </article>
           </div>
         </div>
       </div>
@@ -584,12 +713,12 @@ const faqItems = [
     <section class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
       <div class="grid gap-10 lg:grid-cols-[0.9fr,1.1fr] lg:items-center">
         <div>
-          <div class="text-[11px] font-semibold uppercase tracking-[0.32em] text-slate-500">Built for salon growth</div>
+          <div class="text-[11px] font-semibold uppercase tracking-[0.32em] text-slate-500">Comparison table</div>
           <h2 class="sf-display mt-3 text-3xl font-semibold leading-tight text-slate-950 sm:text-4xl">
-            One system for the moments that turn salon interest into booked visits.
+            SalonFlow vs typical booking apps
           </h2>
           <p class="mt-5 text-base leading-8 text-slate-600">
-            SalonFlow connects the public website, booking flow, follow-up, reminders, and owner visibility so every guest touchpoint feels organized from the first click.
+            This side-by-side view makes the difference obvious: website, follow-up, growth, and POS rollout are built into one operating system instead of spread across separate tools.
           </p>
 
           <div class="mt-8 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
@@ -608,7 +737,7 @@ const faqItems = [
             <div>SalonFlow</div>
           </div>
           <div
-            v-for="row in differenceRows"
+            v-for="row in comparisonRows"
             :key="row.label"
             class="grid grid-cols-1 gap-3 border-b border-slate-200 px-6 py-5 last:border-b-0 md:grid-cols-[1.1fr,1fr,1fr]"
           >
@@ -616,6 +745,41 @@ const faqItems = [
             <div class="text-sm leading-7 text-slate-500">{{ row.other }}</div>
             <div class="rounded-2xl bg-emerald-50 px-4 py-3 text-sm leading-7 text-emerald-900">{{ row.salonFlow }}</div>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <section ref="firstWeekSection" class="border-b border-black/5 bg-white/76" :class="{ 'first-week-pulse': firstWeekPulse }">
+      <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+        <div class="grid gap-10 lg:grid-cols-[0.82fr,1.18fr] lg:items-start">
+          <div>
+            <div class="text-[11px] font-semibold uppercase tracking-[0.32em] text-slate-500">First week</div>
+            <h2 class="sf-display mt-3 text-3xl font-semibold leading-tight text-slate-950 sm:text-4xl">
+              Here’s what happens after you sign up
+            </h2>
+            <p class="mt-5 text-base leading-8 text-slate-600">
+              This is the part that removes uncertainty. Owners can picture the launch plan before they say yes and see that SalonFlow is an upgrade, not just another login.
+            </p>
+          </div>
+
+          <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <article
+              v-for="step in firstWeekSteps"
+              :key="step.day"
+              class="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.07)]"
+            >
+              <div class="text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-700/80">{{ step.day }}</div>
+              <h3 class="sf-display mt-3 text-xl font-semibold text-slate-950">{{ step.title }}</h3>
+              <p class="mt-3 text-sm leading-7 text-slate-600">{{ step.detail }}</p>
+            </article>
+          </div>
+        </div>
+
+        <div class="mt-8 rounded-[28px] border border-emerald-200 bg-emerald-50 px-5 py-4 text-slate-800 shadow-sm">
+          <div class="text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-700">You’re live</div>
+          <p class="mt-2 text-sm leading-7">
+            We don’t just hand over software. We help migrate your salon so the transition is smooth, your customers stay connected, and your team launches with a working setup.
+          </p>
         </div>
       </div>
     </section>
@@ -662,30 +826,30 @@ const faqItems = [
               and feel the difference between a concept product and software shaped with an actual salon.
             </p>
 
-            <div class="mt-8 grid gap-4 sm:grid-cols-3">
+            <div class="mt-8 grid gap-3 sm:grid-cols-3">
               <div
                 v-for="signal in clientTrustSignals"
                 :key="signal.label"
-                class="rounded-[26px] border border-white/80 bg-white/88 p-5 shadow-[0_16px_45px_rgba(15,23,42,0.08)] backdrop-blur"
+                class="rounded-[24px] border border-white/80 bg-white/88 p-4 shadow-[0_16px_45px_rgba(15,23,42,0.08)] backdrop-blur"
               >
-                <div class="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+                <div class="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
                   {{ signal.label }}
                 </div>
-                <div class="sf-display mt-3 text-2xl font-semibold text-slate-950">{{ signal.value }}</div>
-                <p class="mt-2 text-sm leading-6 text-slate-600">{{ signal.detail }}</p>
+                <div class="sf-display mt-2 text-xl font-semibold text-slate-950">{{ signal.value }}</div>
+                <p class="mt-2 text-xs leading-5 text-slate-600">{{ signal.detail }}</p>
               </div>
             </div>
 
-            <div class="mt-8 rounded-[30px] border border-slate-900/6 bg-slate-950 p-6 text-white shadow-[0_24px_80px_rgba(15,23,42,0.18)]">
+            <div class="mt-6 rounded-[28px] border border-slate-900/6 bg-slate-950 p-5 text-white shadow-[0_24px_80px_rgba(15,23,42,0.18)]">
               <div class="text-[11px] font-semibold uppercase tracking-[0.3em] text-emerald-200/75">Why owners believe it</div>
-              <div class="mt-4 space-y-3">
+              <div class="mt-3 space-y-2.5">
                 <div
                   v-for="point in clientBeliefPoints"
                   :key="point"
                   class="flex items-start gap-3"
                 >
-                  <span class="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-300" />
-                  <p class="text-sm leading-7 text-white/78">{{ point }}</p>
+                  <span class="mt-2 h-2 w-2 shrink-0 rounded-full bg-emerald-300" />
+                  <p class="text-sm leading-6 text-white/78">{{ point }}</p>
                 </div>
               </div>
             </div>
@@ -696,6 +860,7 @@ const faqItems = [
                 target="_blank"
                 rel="noreferrer"
                 class="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_16px_40px_rgba(15,23,42,0.2)] transition hover:-translate-y-0.5 hover:bg-slate-800"
+                @click="handleDemoRequestClick('client-proof-cta')"
               >
                 Visit MTV Nails Website
               </a>
@@ -709,9 +874,9 @@ const faqItems = [
             </div>
           </div>
 
-          <div class="relative min-h-[680px] lg:min-h-[760px]">
-            <div class="client-billboard-card rounded-[38px] border border-white/80 bg-white/70 p-3 shadow-[0_30px_90px_rgba(15,23,42,0.16)] backdrop-blur">
-              <div class="overflow-hidden rounded-[34px] border border-slate-200/80 bg-[#0c1528] shadow-[0_24px_80px_rgba(15,23,42,0.26)]">
+          <div class="relative min-h-[720px] lg:min-h-[820px]">
+            <div class="client-billboard-card rounded-[40px] border border-white/80 bg-white/70 p-4 shadow-[0_34px_110px_rgba(15,23,42,0.16)] backdrop-blur">
+              <div class="overflow-hidden rounded-[36px] border border-slate-200/80 bg-[#0c1528] shadow-[0_28px_90px_rgba(15,23,42,0.28)]">
                 <div class="flex items-center gap-3 border-b border-white/10 bg-slate-950/92 px-4 py-3 text-white sm:px-5">
                   <div class="flex items-center gap-2">
                     <span class="h-3 w-3 rounded-full bg-rose-400" />
@@ -733,8 +898,8 @@ const faqItems = [
                   </a>
                 </div>
 
-                <div class="grid lg:grid-cols-[1.02fr,0.98fr]">
-                  <div class="relative min-h-[440px] overflow-hidden">
+                <div class="grid lg:grid-cols-[1.08fr,0.92fr]">
+                  <div class="relative min-h-[560px] overflow-hidden">
                     <img
                       src="/images/landing/marketing-proof.jpg"
                       :alt="`${featuredClient.name} client spotlight`"
@@ -786,56 +951,31 @@ const faqItems = [
                     </div>
                   </div>
 
-                  <div class="bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] p-5 sm:p-6">
-                    <div class="rounded-[26px] border border-slate-200 bg-white/95 p-5 shadow-sm">
+                  <div class="bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] p-4 sm:p-5">
+                    <div class="rounded-[24px] border border-slate-200 bg-white/95 p-4 shadow-sm sm:p-5">
                       <div class="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">What this proves</div>
-                      <div class="mt-4 space-y-4">
+                      <div class="mt-4 grid gap-3">
                         <div
                           v-for="card in clientProofCards"
                           :key="card.title"
-                          class="rounded-[22px] border border-slate-200 bg-slate-50/80 px-4 py-4"
+                          class="rounded-[20px] border border-slate-200 bg-slate-50/80 px-4 py-3"
                         >
                           <div class="text-[10px] font-semibold uppercase tracking-[0.26em] text-slate-400">{{ card.label }}</div>
-                          <div class="mt-2 font-['Space_Grotesk'] text-xl font-semibold text-slate-950">{{ card.title }}</div>
+                          <div class="mt-1.5 font-['Space_Grotesk'] text-lg font-semibold text-slate-950">{{ card.title }}</div>
                           <p class="mt-2 text-sm leading-6 text-slate-600">{{ card.detail }}</p>
                         </div>
                       </div>
                     </div>
 
-                    <div class="mt-5 rounded-[26px] border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+                    <div class="mt-4 rounded-[24px] border border-emerald-200 bg-emerald-50 p-4 shadow-sm sm:p-5">
                       <div class="text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-700">Billboard value</div>
-                      <div class="mt-3 font-['Space_Grotesk'] text-2xl font-semibold text-slate-950">
+                      <div class="mt-2 font-['Space_Grotesk'] text-xl font-semibold text-slate-950">
                         Owners trust what they can verify.
                       </div>
-                      <p class="mt-3 text-sm leading-7 text-slate-700">
+                      <p class="mt-2 text-sm leading-6 text-slate-700">
                         A public client website reduces doubt fast. It shows SalonFlow is already being used by a real salon and that the brand experience can feel premium from day one.
                       </p>
                     </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="client-phone-card">
-              <div class="rounded-[34px] border border-slate-200/90 bg-white/92 p-3 shadow-[0_24px_70px_rgba(15,23,42,0.18)] backdrop-blur">
-                <div class="mx-auto mt-1 h-6 w-24 rounded-full bg-slate-950" />
-                <div class="relative mt-3 overflow-hidden rounded-[28px] border border-slate-200 bg-slate-950">
-                  <img
-                    src="/images/landing/marketing-mobile.jpg"
-                    alt="MTV Nails mobile preview"
-                    class="h-[420px] w-full object-cover"
-                  />
-                  <div class="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,21,40,0.08),rgba(12,21,40,0.58))]" />
-                  <div class="absolute inset-x-4 bottom-4 rounded-[24px] border border-white/12 bg-slate-950/78 p-4 text-white backdrop-blur-md">
-                    <div class="text-[10px] font-semibold uppercase tracking-[0.26em] text-emerald-200/80">
-                      Mobile preview
-                    </div>
-                    <div class="mt-2 font-['Space_Grotesk'] text-xl font-semibold leading-tight">
-                      Looks polished on the device guests actually use first.
-                    </div>
-                    <p class="mt-2 text-xs leading-6 text-white/74">
-                      Mobile trust matters because most salon discovery starts on a phone.
-                    </p>
                   </div>
                 </div>
               </div>
@@ -849,13 +989,12 @@ const faqItems = [
       <div class="space-y-10">
         <div class="grid gap-8 lg:grid-cols-[0.9fr,1.1fr] lg:items-center">
           <div>
-            <div class="text-[11px] font-semibold uppercase tracking-[0.32em] text-slate-500">Capture more owners</div>
+            <div class="text-[11px] font-semibold uppercase tracking-[0.32em] text-slate-500">Request a tailored demo</div>
             <h2 class="sf-display mt-3 max-w-3xl text-3xl font-semibold leading-tight text-slate-950 sm:text-4xl">
-              Put a smart assistant in front of every serious lead.
+              Let serious leads ask for the right demo without a generic contact form.
             </h2>
             <p class="mt-5 max-w-3xl text-base leading-8 text-slate-600">
-              Instead of a cold contact form, SalonFlow can ask the right questions, qualify the owner, save the lead in your database,
-              and notify you immediately so high-intent prospects do not sit untouched.
+              The request flow should qualify the salon, collect the useful context, and create a clean handoff for the admin team before anyone reaches pricing.
             </p>
           </div>
 
@@ -872,8 +1011,8 @@ const faqItems = [
           ref="leadAssistant"
           source="marketing-home-assistant"
           title="See how SalonFlow fits your salon in one guided conversation"
-          subtitle="Send your details in one message or use the guided questions. Either way, we capture the lead quickly and save progress automatically."
-          cta-label="Send My Demo Plan"
+          subtitle="Tell us your salon type, team size, current software, and contact details. We capture the request quickly and save progress automatically."
+          cta-label="Request Demo"
         />
       </div>
     </section>
@@ -961,6 +1100,61 @@ const faqItems = [
         <p class="mt-2 text-center text-sm text-slate-400">
           Need help choosing? We will recommend the right plan during your demo conversation.
         </p>
+      </div>
+    </section>
+
+    <section class="border-t border-black/5 bg-[linear-gradient(180deg,#eef6f1_0%,#ffffff_100%)]">
+      <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+        <div class="grid gap-10 xl:grid-cols-[0.85fr,1.15fr] xl:items-start">
+          <div>
+            <div class="text-[11px] font-semibold uppercase tracking-[0.32em] text-slate-500">Try the software before buying</div>
+            <h2 class="sf-display mt-3 text-3xl font-semibold leading-tight text-slate-950 sm:text-4xl">
+              See SalonFlow running with real customers, appointments, POS, marketing, and reminders.
+            </h2>
+            <p class="mt-5 text-base leading-8 text-slate-600">
+              The goal is to make the demo feel familiar on the first visit. We match the request to the best demo tenant and then route the owner to the experience that fits them best.
+            </p>
+
+            <div class="mt-8 flex flex-col gap-3 sm:flex-row">
+              <RouterLink
+                to="/start"
+                class="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_16px_40px_rgba(15,23,42,0.2)] transition hover:-translate-y-0.5 hover:bg-slate-800"
+              >
+                Request Demo
+              </RouterLink>
+              <button
+                type="button"
+                class="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white/75 px-6 py-3.5 text-sm font-semibold text-slate-800 transition hover:-translate-y-0.5 hover:border-slate-400 hover:bg-white"
+                @click="jumpToAssistant"
+              >
+                Qualify my salon
+              </button>
+            </div>
+          </div>
+
+          <div class="grid gap-5 md:grid-cols-2">
+            <article
+              v-for="card in demoTemplateCards"
+              :key="card.title"
+              class="rounded-[30px] border border-white/80 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.08)]"
+            >
+              <div class="text-[11px] font-semibold uppercase tracking-[0.26em] text-emerald-700/80">
+                {{ card.eyebrow }}
+              </div>
+              <h3 class="sf-display mt-3 text-2xl font-semibold text-slate-950">{{ card.title }}</h3>
+              <p class="mt-3 text-sm leading-7 text-slate-600">{{ card.detail }}</p>
+              <div class="mt-5 flex flex-wrap gap-2">
+                <span
+                  v-for="stat in card.stats"
+                  :key="stat"
+                  class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600"
+                >
+                  {{ stat }}
+                </span>
+              </div>
+            </article>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -1230,50 +1424,8 @@ const faqItems = [
   transform-style: preserve-3d;
 }
 
-.client-phone-card {
-  position: absolute;
-  right: -10px;
-  bottom: 34px;
-  width: min(290px, 38%);
-  z-index: 20;
-  animation: float-client-device 7.2s ease-in-out infinite;
-}
-
-.floating-card {
-  position: absolute;
-  overflow: hidden;
-  border-radius: 28px;
-  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.18);
-  backdrop-filter: blur(18px);
-  animation: float-card 6.4s ease-in-out infinite;
-}
-
-.floating-card--top-right {
-  top: -24px;
-  right: -18px;
-  width: 180px;
-  height: 220px;
-  border: 1px solid rgba(255, 255, 255, 0.76);
-}
-
-@keyframes float-card {
-  0%,
-  100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-12px);
-  }
-}
-
-@keyframes float-client-device {
-  0%,
-  100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
+.first-week-pulse {
+  animation: first-week-pulse 1.4s ease-out;
 }
 
 @keyframes offering-marquee {
@@ -1282,6 +1434,21 @@ const faqItems = [
   }
   to {
     transform: translateX(calc(-50% - 8px));
+  }
+}
+
+@keyframes first-week-pulse {
+  0% {
+    background-color: rgba(255, 255, 255, 0.78);
+    box-shadow: inset 0 0 0 1px rgba(52, 211, 153, 0);
+  }
+  30% {
+    background-color: rgba(236, 253, 245, 0.98);
+    box-shadow: inset 0 0 0 1px rgba(52, 211, 153, 0.18);
+  }
+  100% {
+    background-color: rgba(255, 255, 255, 0.78);
+    box-shadow: inset 0 0 0 1px rgba(52, 211, 153, 0);
   }
 }
 
@@ -1316,21 +1483,6 @@ const faqItems = [
     transform: none;
   }
 
-  .client-phone-card {
-    position: relative;
-    right: auto;
-    bottom: auto;
-    width: min(320px, 82%);
-    margin: -44px auto 0;
-  }
-
-  .floating-card--top-right {
-    right: 12px;
-    top: 12px;
-    width: 148px;
-    height: 180px;
-  }
-
   .hero-plan-card {
     margin-left: 12px;
     max-width: 248px;
@@ -1338,16 +1490,6 @@ const faqItems = [
 }
 
 @media (max-width: 640px) {
-  .client-phone-card {
-    width: min(280px, 88%);
-    margin-top: 18px;
-  }
-
-  .floating-card--top-right {
-    width: 128px;
-    height: 156px;
-  }
-
   .hero-plan-card {
     margin-left: 0;
     max-width: none;

@@ -15,6 +15,8 @@ import {
   fetchDemoRequests,
   convertDemoRequest,
   generateMagicLink,
+  sendDemoRequest,
+  updateDemoRequestStatus,
   type DemoRequest,
 } from '../../api/demoRequests';
 import { formatInBusinessTz } from '../../utils/dates';
@@ -26,10 +28,46 @@ const selected = ref<DemoRequest | null>(null);
 const convertingId = ref<string | null>(null);
 const linkLoadingId = ref<string | null>(null);
 const resendLoadingId = ref<string | null>(null);
+const statusSavingId = ref<string | null>(null);
+const sendLoadingId = ref<string | null>(null);
 const linkDialogOpen = ref(false);
 const magicLink = ref<string | null>(null);
 const magicLinkTarget = ref<DemoRequest | null>(null);
 const isProd = import.meta.env.PROD;
+const statusDraft = ref('NEW');
+const templateDraft = ref('nail-salon');
+
+const templateOptions = [
+  { key: 'nail-salon', label: 'Nail Salon', summary: 'Flagship salon demo with bookings, loyalty, reminders, and POS depth.' },
+  { key: 'hair-salon', label: 'Hair Salon', summary: 'Color, cuts, styling, and rebooking.' },
+  { key: 'spa', label: 'Spa', summary: 'Massage, facial, waxing, packages, and gift cards.' },
+  { key: 'beauty-studio', label: 'Beauty Studio', summary: 'Brows, lashes, PMU, and premium specialty services.' },
+] as const;
+
+const statusOptions = [
+  'NEW',
+  'PENDING',
+  'APPROVED',
+  'SENT',
+  'ACTIVATED',
+  'CONTACTED',
+  'CONVERTED',
+  'DISQUALIFIED',
+  'CLOSED',
+] as const;
+
+const templateLabel = (key?: string | null) =>
+  templateOptions.find((option) => option.key === key)?.label ?? 'Nail Salon';
+
+const inferTemplateKey = (row: DemoRequest) => {
+  const explicit = row.demo_template_key?.trim().toLowerCase();
+  if (explicit && templateOptions.some((option) => option.key === explicit)) return explicit;
+  const businessType = typeof row.details?.businessType === 'string' ? row.details.businessType.toLowerCase() : '';
+  if (businessType.includes('hair')) return 'hair-salon';
+  if (businessType.includes('spa')) return 'spa';
+  if (businessType.includes('beauty') || businessType.includes('lash') || businessType.includes('brow')) return 'beauty-studio';
+  return 'nail-salon';
+};
 
 const loadRequests = async () => {
   loading.value = true;
@@ -49,12 +87,30 @@ onMounted(() => {
 const statusType = (status: string | undefined) => {
   const value = (status ?? 'NEW').toUpperCase();
   if (value === 'CONVERTED') return 'success';
-  if (value === 'CONTACTED') return 'warning';
+  if (value === 'SENT' || value === 'ACTIVATED') return 'success';
+  if (value === 'APPROVED' || value === 'PENDING' || value === 'CONTACTED') return 'warning';
   return 'info';
 };
 
-const statusLabel = (row: DemoRequest) =>
-  row.isDraft ? `DRAFT${row.progressStep ? ` · STEP ${row.progressStep}/7` : ''}` : row.status || 'NEW';
+const prettyStatus = (status: string) => {
+  const map: Record<string, string> = {
+    NEW: 'Pending',
+    PENDING: 'Pending',
+    APPROVED: 'Approved',
+    SENT: 'Sent',
+    ACTIVATED: 'Activated',
+    CONTACTED: 'Contacted',
+    CONVERTED: 'Converted',
+    DISQUALIFIED: 'Disqualified',
+    CLOSED: 'Closed',
+  };
+  return map[status.toUpperCase()] || status.toUpperCase();
+};
+
+const statusLabel = (row: DemoRequest) => {
+  if (row.isDraft) return `DRAFT${row.progressStep ? ` · STEP ${row.progressStep}/7` : ''}`;
+  return prettyStatus(row.status || 'NEW');
+};
 
 const formatDate = (iso: string) => formatInBusinessTz(iso, 'MMM D, YYYY h:mm A');
 
@@ -67,6 +123,8 @@ const notesText = computed(
 
 const openDetails = (row: DemoRequest) => {
   selected.value = row;
+  statusDraft.value = row.status?.toUpperCase() || 'NEW';
+  templateDraft.value = inferTemplateKey(row);
   detailsOpen.value = true;
 };
 
@@ -75,6 +133,29 @@ const canConvert = (row: DemoRequest) =>
 
 const canGenerateLink = (row: DemoRequest) =>
   !row.isDraft && ((row.status || '').toUpperCase() === 'CONVERTED' || !!row.converted_business_id);
+
+const canSendDemo = (row: DemoRequest) => {
+  const status = (row.status || 'NEW').toUpperCase();
+  return !row.isDraft && !!row.email && !['CONVERTED', 'DISQUALIFIED', 'CLOSED'].includes(status);
+};
+
+const saveStatus = async (row: DemoRequest) => {
+  const status = statusDraft.value.toUpperCase();
+  if (!status) return;
+  statusSavingId.value = row.id;
+  try {
+    await updateDemoRequestStatus(row.id, status);
+    row.status = status;
+    if (selected.value?.id === row.id) {
+      selected.value.status = status;
+    }
+    ElMessage.success(`Status set to ${status}`);
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : 'Failed to update status');
+  } finally {
+    statusSavingId.value = null;
+  }
+};
 
 const convert = async (row: DemoRequest) => {
   if (!canConvert(row)) return;
@@ -155,6 +236,33 @@ const resendLink = async (row: DemoRequest) => {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to resend magic link');
   } finally {
     resendLoadingId.value = null;
+  }
+};
+
+const sendDemo = async (row: DemoRequest) => {
+  if (!canSendDemo(row)) return;
+  sendLoadingId.value = row.id;
+  try {
+    const result = await sendDemoRequest(row.id, templateDraft.value);
+    row.status = result.request.status;
+    row.demo_template_key = result.request.demoTemplateKey;
+    row.assigned_business_id = result.request.assignedBusinessId;
+    row.assigned_subdomain = result.request.assignedSubdomain;
+    row.assigned_username = result.request.assignedUsername;
+    row.assigned_temp_password = result.request.assignedTempPassword;
+    row.login_url = result.request.loginUrl;
+    row.approved_at = result.request.approvedAt;
+    row.sent_at = result.request.sentAt;
+    row.activated_at = result.request.activatedAt;
+    if (selected.value?.id === row.id) {
+      Object.assign(selected.value, row);
+      statusDraft.value = row.status.toUpperCase();
+    }
+    ElMessage.success(`Demo sent for ${result.template.label}`);
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : 'Failed to send demo');
+  } finally {
+    sendLoadingId.value = null;
   }
 };
 </script>
@@ -258,16 +366,112 @@ const resendLink = async (row: DemoRequest) => {
         <div v-if="selected.details?.businessName" class="text-sm text-slate-600">Salon</div>
         <div v-if="selected.details?.businessName" class="text-base text-slate-900">{{ selected.details.businessName }}</div>
 
+        <div v-if="selected.details?.businessType" class="text-sm text-slate-600">Business type</div>
+        <div v-if="selected.details?.businessType" class="text-base text-slate-900">{{ selected.details.businessType }}</div>
+
         <div v-if="selected.details?.primaryGoal" class="text-sm text-slate-600">Primary goal</div>
         <div v-if="selected.details?.primaryGoal" class="text-base text-slate-900">{{ selected.details.primaryGoal }}</div>
 
         <div v-if="selected.details?.teamSize" class="text-sm text-slate-600">Team size</div>
         <div v-if="selected.details?.teamSize" class="text-base text-slate-900">{{ selected.details.teamSize }}</div>
 
+        <div v-if="selected.details?.currentSoftware" class="text-sm text-slate-600">Current software</div>
+        <div v-if="selected.details?.currentSoftware" class="text-base text-slate-900">{{ selected.details.currentSoftware }}</div>
+
         <div class="text-sm text-slate-600">Status</div>
         <ElTag :type="statusType(selected.status)" size="small">
           {{ statusLabel(selected) }}
         </ElTag>
+
+        <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <div class="grid gap-3 sm:grid-cols-2">
+            <label class="block">
+              <span class="text-sm font-medium text-slate-700">Demo template</span>
+              <select
+                v-model="templateDraft"
+                class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-500"
+              >
+                <option v-for="template in templateOptions" :key="template.key" :value="template.key">
+                  {{ template.label }}
+                </option>
+              </select>
+            </label>
+
+            <label class="block">
+              <span class="text-sm font-medium text-slate-700">Status</span>
+              <select
+                v-model="statusDraft"
+                class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-500"
+              >
+                <option v-for="status in statusOptions" :key="status" :value="status">
+                  {{ prettyStatus(status) }}
+                </option>
+              </select>
+            </label>
+          </div>
+
+          <div class="mt-4 flex flex-wrap gap-2">
+            <ElButton
+              size="small"
+              :loading="statusSavingId === selected.id"
+              @click="saveStatus(selected)"
+            >
+              Update Status
+            </ElButton>
+            <ElButton
+              type="primary"
+              size="small"
+              :loading="sendLoadingId === selected.id"
+              :disabled="!canSendDemo(selected)"
+              @click="sendDemo(selected)"
+            >
+              Send Demo
+            </ElButton>
+          </div>
+
+          <p class="mt-3 text-xs leading-5 text-slate-500">
+            Send Demo assigns the chosen template, creates credentials, and emails the login details in one step.
+          </p>
+        </div>
+
+        <div class="grid gap-2 sm:grid-cols-2">
+          <div>
+            <div class="text-sm text-slate-600">Assigned tenant</div>
+            <div class="text-base text-slate-900">{{ selected.details?.businessName || selected.assigned_subdomain || '—' }}</div>
+          </div>
+          <div>
+            <div class="text-sm text-slate-600">Template</div>
+            <div class="text-base text-slate-900">{{ templateLabel(selected.demo_template_key || templateDraft) }}</div>
+          </div>
+          <div>
+            <div class="text-sm text-slate-600">Login URL</div>
+            <div class="break-words rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-800">
+              {{ selected.login_url || '—' }}
+            </div>
+          </div>
+          <div>
+            <div class="text-sm text-slate-600">Username</div>
+            <div class="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-800">
+              {{ selected.assigned_username || selected.email || '—' }}
+            </div>
+          </div>
+          <div>
+            <div class="text-sm text-slate-600">Temporary password</div>
+            <div class="rounded-md bg-slate-50 px-3 py-2 font-mono text-sm text-slate-800">
+              {{ selected.assigned_temp_password || '—' }}
+            </div>
+          </div>
+          <div>
+            <div class="text-sm text-slate-600">Sent / activated</div>
+            <div class="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-800">
+              {{ selected.approved_at ? formatDate(selected.approved_at) : 'Not approved yet' }}
+              <span class="text-slate-400">·</span>
+              {{ selected.sent_at ? formatDate(selected.sent_at) : 'Not sent yet' }}
+              <span class="text-slate-400">·</span>
+              {{ selected.activated_at ? formatDate(selected.activated_at) : 'Not activated yet' }}
+            </div>
+          </div>
+        </div>
 
         <div class="text-sm text-slate-600">Created</div>
         <div class="text-base text-slate-900">

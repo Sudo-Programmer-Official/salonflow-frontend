@@ -16,6 +16,7 @@ import AdminReviewSMSPage from "../pages/admin/ReviewSMS.vue";
 import PublicBookPage from "../pages/public/Book.vue";
 import AdminAppointmentRemindersPage from "../pages/admin/AppointmentReminders.vue";
 import PlatformDashboardPage from "../pages/platform/Dashboard.vue";
+import PlatformOnboardingPage from "../pages/platform/Onboarding.vue";
 import PlatformTenantDetailPage from "../pages/platform/TenantDetail.vue";
 import PlatformCreateTenantPage from "../pages/platform/CreateTenant.vue";
 import PlatformDemoRequestsPage from "../pages/platform/DemoRequests.vue";
@@ -284,6 +285,12 @@ const appRoutes = [
         path: "",
         name: "platform-dashboard",
         component: PlatformDashboardPage,
+        meta: { requiresAuth: true, roles: ["SUPER_ADMIN"] },
+      },
+      {
+        path: "onboarding",
+        name: "platform-onboarding",
+        component: PlatformOnboardingPage,
         meta: { requiresAuth: true, roles: ["SUPER_ADMIN"] },
       },
       {
