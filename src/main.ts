@@ -8,6 +8,7 @@ import { setupTrialInterceptor } from './api/trialBanner';
 import { setupMaintenanceInterceptor } from './api/maintenance';
 import { setupAuthInterceptor } from './api/authInterceptor';
 import { fetchOnboardingStatus } from './api/onboarding';
+import { isPlatformHost } from './api/client';
 import { refreshBusinessDayClock } from './composables/useBusinessDayClock';
 import { setBusinessTimezone } from './utils/dates';
 import { applyThemeFromSettings } from './utils/theme';
@@ -42,7 +43,7 @@ if (typeof document !== 'undefined') {
 // Refresh business timezone from API on app bootstrap to avoid stale localStorage.
 (async () => {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-  if (!token) return;
+  if (!token || isPlatformHost()) return;
   try {
     const status = await fetchOnboardingStatus(true);
     if (status?.timezone) {
