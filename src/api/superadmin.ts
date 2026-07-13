@@ -40,6 +40,7 @@ export async function createTenant(payload: CreateTenantPayload): Promise<{
   businessId: string;
   ownerEmail: string;
   tempPassword: string;
+  onboardingProjectId?: string;
 }> {
   const res = await fetch(apiUrl('/superadmin/tenants'), {
     method: 'POST',

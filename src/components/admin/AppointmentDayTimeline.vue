@@ -46,6 +46,9 @@ const appointmentsByDay = computed(() => {
     bucket.push(appointment);
     map.set(appointment.dayKey, bucket);
   }
+  for (const bucket of map.values()) {
+    bucket.sort((left, right) => dayjs(left.scheduledAt).valueOf() - dayjs(right.scheduledAt).valueOf());
+  }
   return map;
 });
 
@@ -261,10 +264,6 @@ const appointmentBlocks = computed(() =>
 );
 
 const dayAppointments = (date: string) => appointmentsByDay.value.get(date) ?? [];
-const dayGridStyle = (slotCount: number) => ({
-  gridTemplateColumns: `${timeColumnWidth}px repeat(${Math.max(lanes.value.length, 1)}, minmax(${minLaneWidth}px, 1fr))`,
-  gridTemplateRows: `${headerHeight}px repeat(${Math.max(slotCount, 1)}, ${rowHeight}px)`,
-});
 
 const handleSlotClick = (slotStartAt: string, laneId: string, laneName: string) => {
   emit('slot-click', {
@@ -442,95 +441,54 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
             <p class="appointment-timeline-card__week-eyebrow">Week day</p>
             <h4 class="appointment-timeline-card__week-title">{{ day.label }}</h4>
           </div>
-          <div class="appointment-timeline-card__week-copy">
-            {{ dayAppointments(day.date).length }} appointments
-          </div>
+        <div class="appointment-timeline-card__week-copy">
+          {{ dayAppointments(day.date).length }} appointments
         </div>
+      </div>
 
-        <div class="appointment-timeline-card__grid-wrap">
-          <div class="appointment-timeline-card__grid" :style="dayGridStyle(day.slots.length)">
-            <div class="appointment-timeline-card__corner">Time</div>
-            <div
-              v-for="lane in lanes"
-              :key="`${day.date}-${lane.id}`"
-              class="appointment-timeline-card__lane-header"
-            >
-              <div class="appointment-timeline-card__lane-name">{{ lane.name }}</div>
-              <div class="appointment-timeline-card__lane-meta">
-                {{ lane.active ? 'Active' : 'Inactive' }}
+        <div class="appointment-timeline-card__week-list">
+          <button
+            v-for="appointment in dayAppointments(day.date)"
+            :key="appointment.id"
+            type="button"
+            class="appointment-timeline-card__week-item"
+            @click="emit('appointment-click', appointment.id)"
+          >
+            <div class="appointment-timeline-card__week-item-top">
+              <div class="appointment-timeline-card__week-item-time">
+                {{ dayjs(appointment.scheduledAt).tz(timezone).format('h:mm A') }}
+                -
+                {{ dayjs(appointment.endAt).tz(timezone).format('h:mm A') }}
               </div>
+              <span :class="statusChip(appointment.status).cls">
+                {{ statusChip(appointment.status).label }}
+              </span>
             </div>
-
-            <template v-for="(slot, slotIndex) in day.slots" :key="`${day.date}-${slot.startAt}`">
-              <div class="appointment-timeline-card__time">
-                <span>{{ slotIndex % 4 === 0 ? slot.label : '' }}</span>
-              </div>
-              <div
-                v-for="lane in lanes"
-                :key="`${day.date}-${lane.id}-${slot.startAt}`"
-                class="appointment-timeline-card__cell"
-              />
-              <button
-                v-for="lane in lanes"
-                :key="`${day.date}-${lane.id}-${slot.startAt}-slot`"
-                type="button"
-                class="appointment-timeline-card__slot"
-                :style="{
-                  gridColumn: laneIndexById.get(lane.id)! + 2,
-                  gridRow: `${slotIndex + 2}`,
-                }"
-                @click="handleSlotClick(slot.startAt, lane.id, lane.name)"
-                @dragover.prevent
-                @drop.prevent="handleSlotDrop($event, slot.startAt, lane.id)"
-              />
-            </template>
-
-            <button
-              v-for="appointment in dayAppointments(day.date)"
-              :key="appointment.id"
-              type="button"
-              class="appointment-timeline-card__block"
-              :style="blockStyle(appointment, day.date)"
-              :draggable="Boolean(props.canManage)"
-              @dragstart="handleBlockDragStart(appointment.id, $event)"
-              @click="emit('appointment-click', appointment.id)"
-            >
-              <div class="appointment-timeline-card__block-top">
-                <div class="appointment-timeline-card__block-identity">
-                  <div class="appointment-timeline-card__block-avatar">
-                    {{ initialsForAppointment(appointment) }}
-                  </div>
-                  <div class="appointment-timeline-card__block-text">
-                    <strong>{{ appointment.customerName }}</strong>
-                    <div class="appointment-timeline-card__block-copy">
-                      {{ appointment.serviceName }}
-                    </div>
+            <div class="appointment-timeline-card__week-item-body">
+              <div class="appointment-timeline-card__week-item-identity">
+                <div class="appointment-timeline-card__block-avatar">
+                  {{ initialsForAppointment(appointment) }}
+                </div>
+                <div class="appointment-timeline-card__block-text">
+                  <strong>{{ appointment.customerName }}</strong>
+                  <div class="appointment-timeline-card__block-copy">
+                    {{ appointment.serviceName }}
                   </div>
                 </div>
-                <span class="appointment-timeline-card__block-badges">
-                  <span :class="statusChip(appointment.status).cls">
-                    {{ statusChip(appointment.status).label }}
-                  </span>
-                  <span
-                    v-if="appointment.warningReasons.length"
-                    :class="warningChip(appointment.warningReasons).cls"
-                  >
-                    {{ warningChip(appointment.warningReasons).label }}
-                  </span>
-                </span>
               </div>
-              <div class="appointment-timeline-card__block-meta">
-                <span>
-                  {{ dayjs(appointment.scheduledAt).tz(timezone).format('h:mm A') }}
-                  -
-                  {{ dayjs(appointment.endAt).tz(timezone).format('h:mm A') }}
-                </span>
+              <div class="appointment-timeline-card__week-item-meta">
                 <span>{{ appointment.staffName || 'Unassigned' }}</span>
+                <span v-if="appointment.warningReasons.length" class="appointment-timeline-card__week-item-warning">
+                  {{ warningChip(appointment.warningReasons).label }}
+                </span>
               </div>
-              <div v-if="needsConfirmation(appointment.status)" class="appointment-timeline-card__block-note">
-                Needs confirmation
-              </div>
-            </button>
+            </div>
+            <div v-if="needsConfirmation(appointment.status)" class="appointment-timeline-card__block-note">
+              Needs confirmation
+            </div>
+          </button>
+          <div v-if="!dayAppointments(day.date).length" class="appointment-timeline-card__week-empty">
+            No appointments for this day.
           </div>
         </div>
       </section>
@@ -670,6 +628,86 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
 
 .appointment-timeline-card__week-copy {
   font-size: 0.84rem;
+  color: #64748b;
+}
+
+.appointment-timeline-card__week-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.appointment-timeline-card__week-item {
+  display: grid;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-left: 5px solid var(--block-accent, #3b82f6);
+  border-radius: 18px;
+  background:
+    linear-gradient(90deg, var(--block-soft, rgba(59, 130, 246, 0.1)), rgba(255, 255, 255, 0.98) 32%),
+    #fff;
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.05);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    border-color 0.16s ease;
+}
+
+.appointment-timeline-card__week-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 24px rgba(15, 23, 42, 0.1);
+  border-color: rgba(59, 130, 246, 0.28);
+}
+
+.appointment-timeline-card__week-item-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.appointment-timeline-card__week-item-time {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #475569;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.appointment-timeline-card__week-item-body {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.appointment-timeline-card__week-item-identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.appointment-timeline-card__week-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  font-size: 0.84rem;
+  color: #64748b;
+}
+
+.appointment-timeline-card__week-item-warning {
+  color: #b45309;
+  font-weight: 600;
+}
+
+.appointment-timeline-card__week-empty {
+  padding: 0.9rem 1rem;
+  border: 1px dashed #cbd5e1;
+  border-radius: 18px;
+  background: #f8fafc;
   color: #64748b;
 }
 

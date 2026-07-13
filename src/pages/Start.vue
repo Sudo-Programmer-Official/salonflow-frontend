@@ -1,12 +1,24 @@
 <script setup lang="ts">
+import { onMounted } from 'vue';
 import { RouterLink } from 'vue-router';
 import LeadAssistant from '../components/marketing/LeadAssistant.vue';
+import { trackMarketingEvent } from '@/api/marketing';
 
 const launchPoints = [
-  'We set up the website, booking flow, and growth workflow for you.',
-  'Every lead is stored and routed so follow-up does not get missed.',
-  'You get a recommendation based on bookings, retention, and front-desk needs.',
+  'We match the request to the best demo tenant for the salon type.',
+  'Every lead is stored, qualified, and ready for follow-up.',
+  'You get a cleaner handoff for the right demo URL, login, and walkthrough.',
 ];
+
+onMounted(() => {
+  void trackMarketingEvent({
+    eventType: 'page_view',
+    sourcePage: 'marketing-start',
+    path: '/start',
+    referrer: typeof document !== 'undefined' ? document.referrer || null : null,
+    payload: { page: 'demo-request-intake' },
+  });
+});
 </script>
 
 <template>
@@ -15,15 +27,15 @@ const launchPoints = [
       <div class="grid gap-8 lg:grid-cols-[0.82fr,1.18fr] lg:items-start">
         <div class="lg:sticky lg:top-6">
           <div class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-600 shadow-sm">
-            Free demo intake
+            Demo request intake
           </div>
 
           <h1 class="mt-6 font-['Space_Grotesk'] text-4xl font-semibold leading-[1.05] text-slate-950 sm:text-5xl">
-            Tell us about your salon and we will map the right SalonFlow setup.
+            Tell us about your salon and we will map the right SalonFlow demo.
           </h1>
 
           <p class="mt-5 max-w-xl text-lg leading-8 text-slate-600">
-            This is the faster path than a generic contact form. Share the business context, and we will respond with a demo plan tailored to how your salon actually runs.
+            This is the faster path than a generic contact form. Share the business context and we will respond with a demo plan tailored to how your salon actually runs.
           </p>
 
           <div class="mt-8 space-y-3">
@@ -40,7 +52,7 @@ const launchPoints = [
             <div class="text-[11px] font-semibold uppercase tracking-[0.3em] text-emerald-200/80">Need a quick answer?</div>
             <div class="mt-3 font-['Space_Grotesk'] text-2xl font-semibold">We usually follow up within one business day.</div>
             <p class="mt-3 text-sm leading-7 text-white/72">
-              Prefer to browse first? Head back to the product page to see positioning, proof, and the full growth-system breakdown.
+              Prefer to browse first? Head back to the product page to see positioning, proof, and the full demo-first breakdown.
             </p>
             <RouterLink
               to="/"
@@ -54,8 +66,8 @@ const launchPoints = [
         <LeadAssistant
           source="marketing-start-assistant"
           title="Build my SalonFlow demo plan"
-          subtitle="Answer the prompts below and your progress will save automatically while we build the right SalonFlow plan for your salon."
-          cta-label="Request My Demo"
+          subtitle="Answer the prompts below and your progress will save automatically while we build the right demo for your salon."
+          cta-label="Request Demo"
           :default-fullscreen="true"
         />
       </div>
