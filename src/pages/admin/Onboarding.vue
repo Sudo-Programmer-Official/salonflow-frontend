@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router';
 import { fetchOnboardingStatus, markQrPrinted, updateOnboardingLocation } from '../../api/onboarding';
 import { refreshBusinessDayClock } from '../../composables/useBusinessDayClock';
 import { DEFAULT_TIMEZONE, setBusinessTimezone } from '../../utils/dates';
+import { buildTenantUrl } from '../../utils/tenantUrls';
 
 const router = useRouter();
 const status = ref<Awaited<ReturnType<typeof fetchOnboardingStatus>> | null>(null);
@@ -14,12 +15,6 @@ const savingLocation = ref(false);
 const countryCode = ref('US');
 const postalCode = ref('');
 const timezone = ref(DEFAULT_TIMEZONE);
-const rawLiveDomain =
-  (import.meta.env.VITE_PUBLIC_APP_DOMAIN as string | undefined)?.replace(/^\s+|\s+$/g, '') ||
-  'salonflow.app';
-// If the env value includes a leading www, strip it because we prepend the tenant subdomain.
-const liveDomain = rawLiveDomain.replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/+$/, '');
-
 const timezoneOptions = [
   { value: 'America/New_York', label: 'America/New_York (Eastern)' },
   { value: 'America/Chicago', label: 'America/Chicago (Central)' },
@@ -96,12 +91,7 @@ onBeforeUnmount(() => {
 
 const buildLiveLink = (path: string) => {
   if (!status.value?.subdomain) return '';
-  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-  const isLocal = hostname.includes('localhost') || hostname.startsWith('127.');
-  if (isLocal) {
-    return `${window.location.origin}/${path}`;
-  }
-  return `https://${status.value.subdomain}.${liveDomain}/${path}`;
+  return buildTenantUrl(status.value.subdomain, path);
 };
 
 const bookingLink = computed(() => buildLiveLink('book'));

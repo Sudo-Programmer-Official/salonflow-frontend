@@ -39,6 +39,10 @@ import {
 } from '../../api/platformTenantControls';
 import { useRoute, useRouter } from 'vue-router';
 import MaintenanceBanner from '../../components/MaintenanceBanner.vue';
+import {
+  buildTenantAdminUrl,
+  buildTenantKioskUrl,
+} from '../../utils/tenantUrls';
 
 const route = useRoute();
 const router = useRouter();
@@ -128,9 +132,7 @@ const impersonate = async () => {
     if (result.email) localStorage.setItem('email', result.email);
 
     const subdomain = tenant.value?.subdomain ?? '';
-    const host = typeof window !== 'undefined' ? window.location.host : '';
-    const baseDomain = host.split('.').slice(1).join('.') || 'localhost:5173';
-    const target = subdomain ? `http://${subdomain}.${baseDomain}/admin` : '/admin';
+    const target = subdomain ? buildTenantAdminUrl(subdomain) : '/admin';
     window.location.href = target;
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to impersonate');
@@ -144,20 +146,14 @@ const isPlatformTenant = computed(() => tenant.value?.subdomain === 'platform');
 const openTenantAdmin = () => {
   if (!tenant.value) return;
   const subdomain = tenant.value.subdomain ?? '';
-  const host = typeof window !== 'undefined' ? window.location.host : '';
-  const baseDomain = host.split('.').slice(1).join('.') || 'localhost:5173';
-  const target = subdomain ? `http://${subdomain}.${baseDomain}/admin` : '/admin';
+  const target = subdomain ? buildTenantAdminUrl(subdomain) : '/admin';
   window.open(target, '_blank', 'noopener,noreferrer');
 };
 
 const openKiosk = () => {
   if (!tenant.value) return;
   const subdomain = tenant.value.subdomain ?? '';
-  const host = typeof window !== 'undefined' ? window.location.host : '';
-  const baseDomain = host.split('.').slice(1).join('.') || 'localhost:5173';
-  const target = subdomain
-    ? `http://${subdomain}.${baseDomain}/kiosk/checkin/${subdomain}`
-    : '/check-in/kiosk';
+  const target = subdomain ? buildTenantKioskUrl(subdomain) : '/check-in/kiosk';
   window.open(target, '_blank', 'noopener,noreferrer');
 };
 

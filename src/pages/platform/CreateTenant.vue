@@ -2,6 +2,10 @@
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { createTenant, type CreateTenantPayload } from '../../api/superadmin';
+import {
+  buildTenantCheckInUrl,
+  buildTenantLoginUrl,
+} from '../../utils/tenantUrls';
 
 const router = useRouter();
 
@@ -20,11 +24,21 @@ const success = ref<{
 } | null>(null);
 
 const loginUrl = computed(() =>
-  subdomain.value ? `https://${subdomain.value}.salonflow.studio/app/login` : '',
+  subdomain.value ? buildTenantLoginUrl(subdomain.value) : '',
 );
 const checkInUrl = computed(() =>
-  subdomain.value ? `https://${subdomain.value}.salonflow.studio/check-in` : '',
+  subdomain.value ? buildTenantCheckInUrl(subdomain.value) : '',
 );
+const tenantDomainSuffix = computed(() => {
+  if (!loginUrl.value) return '';
+  try {
+    const host = new URL(loginUrl.value).host;
+    const suffix = host.split('.').slice(1).join('.');
+    return suffix ? `.${suffix}` : host;
+  } catch {
+    return '';
+  }
+});
 const onboardingUrl = computed(() =>
   success.value?.onboardingProjectId ? '/platform/onboarding' : '',
 );
@@ -112,10 +126,10 @@ const openOnboarding = () => {
                   placeholder="mtvnails"
                   @blur="normalizeSubdomain"
                 />
-                <span class="text-sm text-slate-500">.salonflow.studio</span>
+                <span class="text-sm text-slate-500">{{ tenantDomainSuffix || '.salonflow.studio' }}</span>
               </div>
               <p v-if="subdomain" class="mt-1 text-xs text-slate-500">
-                Login: https://{{ subdomain }}.salonflow.studio/app/login
+                Login: {{ loginUrl }}
               </p>
             </div>
             <div>

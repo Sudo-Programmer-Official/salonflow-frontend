@@ -28,6 +28,7 @@ import type { BusinessHours } from '../../api/settings';
 import { applyThemeFromSettings, defaultUiPreferences, fontFamilyOptions, themeBounds } from '../../utils/theme';
 import { DEFAULT_WEBSITE_THEME } from '../../utils/websiteTheme';
 import type { ThemeTokens } from '../../api/settings';
+import { buildTenantKioskUrl } from '../../utils/tenantUrls';
 
 const loading = ref(false);
 const saving = ref(false);
@@ -75,22 +76,12 @@ const kioskBusinessPhoneValue = computed({
   get: () => settings.value?.kioskBusinessPhone || '',
   set: (val: string) => scheduleSave({ kioskBusinessPhone: val?.trim() || null }),
 });
-const rawLiveDomain =
-  (import.meta.env.VITE_PUBLIC_APP_DOMAIN as string | undefined)?.replace(/^\s+|\s+$/g, '') ||
-  'salonflow.app';
-const liveDomain = rawLiveDomain.replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/+$/, '');
 const kioskLaunchUrl = computed(() => {
   const subdomain =
     kioskSubdomain.value ||
     (typeof window !== 'undefined' ? localStorage.getItem('tenantSubdomain') ?? '' : '');
   if (!subdomain) return '';
-  if (typeof window === 'undefined') return '';
-  const host = window.location.hostname.toLowerCase();
-  const isLocal = host.includes('localhost') || host.startsWith('127.');
-  if (isLocal) {
-    return `${window.location.origin}/kiosk/checkin/${subdomain}`;
-  }
-  return `https://${subdomain}.${liveDomain}/kiosk/checkin/${subdomain}`;
+  return buildTenantKioskUrl(subdomain);
 });
 const kioskBusinessNameValue = computed({
   get: () => settings.value?.kioskBusinessName || settings.value?.businessName || '',

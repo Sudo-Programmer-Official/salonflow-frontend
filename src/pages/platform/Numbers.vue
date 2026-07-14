@@ -5,6 +5,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { fetchPlatformNumbers, reassignNumber, setNumberActive, type PlatformNumber, type PlatformNumberAudit } from '../../api/platformNumbers';
 import { fetchTenants } from '../../api/superadmin';
+import { buildTenantUrl } from '../../utils/tenantUrls';
 
 dayjs.extend(relativeTime);
 
@@ -41,6 +42,7 @@ const openReassign = (id: string) => {
 };
 
 const selectedNumber = computed(() => numbers.value.find((n) => n.id === selectedId.value));
+const tenantSiteLabel = (subdomain?: string | null) => (subdomain ? buildTenantUrl(subdomain) : '—');
 
 const reassignWarning = computed(() => {
   const num = selectedNumber.value;
@@ -104,7 +106,7 @@ onMounted(() => {
           <template #default="{ row }">
             <div class="leading-tight">
               <div class="font-medium">{{ row.tenantName || 'Unassigned' }}</div>
-              <div class="text-xs text-slate-500">{{ row.tenantSubdomain ? row.tenantSubdomain + '.salonflow.studio' : '—' }}</div>
+              <div class="text-xs text-slate-500">{{ tenantSiteLabel(row.tenantSubdomain) }}</div>
             </div>
           </template>
         </ElTableColumn>
