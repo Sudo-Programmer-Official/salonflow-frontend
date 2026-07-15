@@ -130,6 +130,11 @@ const goToAccountSecurity = () => {
   router.push({ name: 'admin-settings', hash: '#account-security' });
 };
 
+const goToNotifications = () => {
+  accountOpen.value = false;
+  router.push({ name: 'admin-notifications' });
+};
+
 const handleLogout = () => {
   accountOpen.value = false;
   logout('/app/login');
@@ -704,64 +709,6 @@ const toggleSidebarCollapse = () => {
         <div class="flex items-center gap-3">
           <div class="relative">
             <button
-              ref="accountButton"
-              type="button"
-              class="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-left text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
-              @click="openAccountMenu"
-              aria-label="Account menu"
-            >
-              <span class="flex h-8 w-8 items-center justify-center rounded-full bg-sky-100 text-[11px] font-bold uppercase tracking-wide text-sky-700">
-                {{ accountInitials }}
-              </span>
-              <span class="hidden min-w-0 flex-col sm:flex">
-                <span class="truncate text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Signed in as</span>
-                <span class="truncate text-sm font-semibold text-slate-800">{{ accountRoleLabel }}</span>
-              </span>
-              <span aria-hidden="true" class="text-xs text-slate-400">▾</span>
-            </button>
-            <Teleport to="body">
-              <div
-                v-if="accountOpen"
-                ref="accountMenu"
-                class="fixed right-4 top-16 z-[99999] w-72 rounded-xl border border-slate-200 bg-white shadow-[0_20px_40px_rgba(15,23,42,0.18)] backdrop-blur"
-              >
-                <div class="border-b border-slate-100 px-4 py-3">
-                  <div class="text-xs uppercase tracking-[0.22em] text-slate-500">Account</div>
-                  <div class="mt-1 text-sm font-semibold text-slate-900">{{ accountRoleLabel }}</div>
-                  <div class="mt-1 truncate text-sm text-slate-600">{{ accountEmail }}</div>
-                </div>
-                <div class="p-2">
-                  <button
-                    type="button"
-                    class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-900"
-                    @click="goToProfile"
-                  >
-                    <span>My Profile</span>
-                    <span class="text-slate-400">↗</span>
-                  </button>
-                  <button
-                    type="button"
-                    class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-900"
-                    @click="goToAccountSecurity"
-                  >
-                    <span>Account &amp; Security</span>
-                    <span class="text-slate-400">↗</span>
-                  </button>
-                  <div class="my-2 border-t border-slate-100"></div>
-                  <button
-                    type="button"
-                    class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-semibold text-rose-700 transition hover:bg-rose-50"
-                    @click="handleLogout"
-                  >
-                    <span>Sign Out</span>
-                    <span class="text-rose-500">⎋</span>
-                  </button>
-                </div>
-              </div>
-            </Teleport>
-          </div>
-          <div class="relative">
-            <button
               type="button"
               class="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
               @click="bellOpen = !bellOpen"
@@ -826,6 +773,71 @@ const toggleSidebarCollapse = () => {
                   >
                     View all
                   </RouterLink>
+                </div>
+              </div>
+            </Teleport>
+          </div>
+          <div class="relative">
+            <button
+              ref="accountButton"
+              type="button"
+              class="flex h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-2.5 text-left text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 lg:px-3"
+              @click="openAccountMenu"
+              aria-label="Account menu"
+            >
+              <span class="flex h-8 w-8 items-center justify-center rounded-full bg-sky-100 text-[11px] font-bold uppercase tracking-wide text-sky-700">
+                {{ accountInitials }}
+              </span>
+              <span class="hidden min-w-0 flex-col lg:flex">
+                <span class="truncate text-sm font-semibold text-slate-800">{{ accountRoleLabel }}</span>
+              </span>
+              <span aria-hidden="true" class="text-xs text-slate-400">▾</span>
+            </button>
+            <Teleport to="body">
+              <div
+                v-if="accountOpen"
+                ref="accountMenu"
+                class="fixed right-4 top-16 z-[99999] w-72 rounded-xl border border-slate-200 bg-white shadow-[0_20px_40px_rgba(15,23,42,0.18)] backdrop-blur"
+              >
+                <div class="border-b border-slate-100 px-4 py-3">
+                  <div class="text-xs uppercase tracking-[0.22em] text-slate-500">Account</div>
+                  <div class="mt-1 text-sm font-semibold text-slate-900">{{ accountRoleLabel }}</div>
+                  <div class="mt-1 truncate text-sm text-slate-600">{{ accountEmail }}</div>
+                </div>
+                <div class="p-2">
+                  <button
+                    type="button"
+                    class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-900"
+                    @click="goToProfile"
+                  >
+                    <span>My Profile</span>
+                    <span class="text-slate-400">↗</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-900"
+                    @click="goToAccountSecurity"
+                  >
+                    <span>Account &amp; Security</span>
+                    <span class="text-slate-400">↗</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-900"
+                    @click="goToNotifications"
+                  >
+                    <span>Notifications</span>
+                    <span class="text-slate-400">↗</span>
+                  </button>
+                  <div class="my-2 border-t border-slate-100"></div>
+                  <button
+                    type="button"
+                    class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-semibold text-rose-700 transition hover:bg-rose-50"
+                    @click="handleLogout"
+                  >
+                    <span>Sign Out</span>
+                    <span class="text-rose-500">⎋</span>
+                  </button>
                 </div>
               </div>
             </Teleport>
