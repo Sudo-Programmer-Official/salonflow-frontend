@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { formatBusinessHoursRange } from '../../utils/businessTime';
 
 type HoursRow = { day: string; open: string; close: string };
 type GroupedHour = { label: string; open?: string; close?: string; days: string[] };
@@ -176,7 +177,7 @@ function formatRange(days: string[]) {
             :class="{ 'is-today': isToday(row.days) }"
           >
             <span class="day">{{ row.label }}</span>
-            <span class="time">{{ row.close ? `${row.open || ''} – ${row.close}` : (row.open || '') }}</span>
+            <span class="time">{{ formatBusinessHoursRange(row.open, row.close) }}</span>
           </div>
         </div>
         <p v-if="footer?.hours?.source === 'kiosk' && !footer?.hours?.manual?.length" class="sf-footer__note">

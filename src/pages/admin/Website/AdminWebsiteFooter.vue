@@ -10,9 +10,11 @@ import {
   ElMessage,
   ElDivider,
   ElCheckbox,
+  ElTimePicker,
 } from 'element-plus';
 import { fetchWebsiteLayout, saveWebsiteFooter, type WebsiteFooterConfig } from '../../../api/website';
 import { clearWebsiteCache } from '../../../composables/useWebsite';
+import { parseBusinessTime } from '../../../utils/businessTime';
 
 type HoursRow = { day: string; open: string; close: string };
 
@@ -68,7 +70,13 @@ const mapFromConfig = (cfg: WebsiteFooterConfig) => {
     email: cfg.contact?.email || '',
   };
   form.hoursSource = cfg.hours?.source === 'kiosk' ? 'kiosk' : 'manual';
-  form.hours = cfg.hours?.manual?.length ? cfg.hours.manual : defaultHours();
+  form.hours = cfg.hours?.manual?.length
+    ? cfg.hours.manual.map((row) => ({
+        day: row.day || '',
+        open: parseBusinessTime(row.open) || '',
+        close: parseBusinessTime(row.close) || '',
+      }))
+    : defaultHours();
   form.social = {
     instagram: cfg.social?.instagram || '',
     facebook: cfg.social?.facebook || '',
@@ -129,7 +137,16 @@ const buildPayload = (): WebsiteFooterConfig => ({
   },
   hours: {
     source: form.hoursSource,
-    manual: form.hoursSource === 'manual' ? form.hours.filter((h) => h.day && h.open && h.close) : [],
+    manual:
+      form.hoursSource === 'manual'
+        ? form.hours
+            .map((h) => ({
+              day: h.day.trim(),
+              open: parseBusinessTime(h.open) || '',
+              close: parseBusinessTime(h.close) || '',
+            }))
+            .filter((h) => h.day && h.open && h.close)
+        : [],
   },
   social: {
     instagram: form.social.instagram.trim() || null,
@@ -210,9 +227,21 @@ const save = async () => {
         <div v-if="form.hoursSource === 'manual'" class="md:col-span-2 grid gap-2 sm:grid-cols-2">
           <div v-for="(row, idx) in form.hours" :key="row.day + idx" class="flex items-center gap-2">
             <ElInput v-model="row.day" class="w-20" placeholder="Mon" />
-            <ElInput v-model="row.open" placeholder="9:00 AM" />
+            <ElTimePicker
+              v-model="row.open"
+              class="w-full"
+              format="hh:mm A"
+              value-format="HH:mm"
+              placeholder="9:00 AM"
+            />
             <span class="text-slate-500">–</span>
-            <ElInput v-model="row.close" placeholder="5:00 PM" />
+            <ElTimePicker
+              v-model="row.close"
+              class="w-full"
+              format="hh:mm A"
+              value-format="HH:mm"
+              placeholder="5:00 PM"
+            />
           </div>
         </div>
 
