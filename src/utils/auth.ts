@@ -3,6 +3,7 @@ export const clearAuthState = () => {
     'token',
     'role',
     'tenantId',
+    'client',
     'email',
     'impersonationActive',
     'impersonationBusinessName',

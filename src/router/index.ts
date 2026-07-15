@@ -66,6 +66,7 @@ import SalonLoginPage from "../pages/SalonLogin.vue";
 import StartPage from "../pages/Start.vue";
 import LoginPage from "../pages/Login.vue";
 import MagicLoginPage from "../pages/MagicLogin.vue";
+import PasswordResetPage from "../pages/PasswordReset.vue";
 import PrivacyPage from "../pages/Privacy.vue";
 import TermsPage from "../pages/Terms.vue";
 import DataDeletionPage from "../pages/DataDeletion.vue";
@@ -197,6 +198,12 @@ const appRoutes = [
     name: "login",
     alias: "/login",
     component: LoginPage,
+  },
+  {
+    path: "/reset-password",
+    name: "reset-password",
+    alias: "/forgot-password",
+    component: PasswordResetPage,
   },
   {
     path: "/privacy",

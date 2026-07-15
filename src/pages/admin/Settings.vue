@@ -23,6 +23,11 @@ import {
   fetchMessagingSettings,
   type MessagingSettings,
 } from '../../api/settings';
+import {
+  changePassword as changeAccountPassword,
+  fetchCurrentAccount,
+  sendPasswordResetEmail,
+} from '../../api/auth';
 import { fetchOnboardingStatus } from '../../api/onboarding';
 import type { BusinessHours } from '../../api/settings';
 import { applyThemeFromSettings, defaultUiPreferences, fontFamilyOptions, themeBounds } from '../../utils/theme';
@@ -39,6 +44,20 @@ const pendingPatch = ref<SettingsPatch>({});
 const saveTimer = ref<number | null>(null);
 const messaging = ref<MessagingSettings | null>(null);
 const kioskSubdomain = ref('');
+const account = ref<{
+  id: string;
+  businessId: string;
+  role: string;
+  email?: string;
+  passwordChangedAt?: string | null;
+} | null>(null);
+const accountLoading = ref(false);
+const changePasswordLoading = ref(false);
+const sendResetLoading = ref(false);
+const changePasswordError = ref('');
+const currentPassword = ref('');
+const newPassword = ref('');
+const confirmNewPassword = ref('');
 
 const defaultRules: DefaultBookingRules = {
   buffer_before: 0,
@@ -90,6 +109,15 @@ const kioskBusinessNameValue = computed({
 const businessPhoneValue = computed({
   get: () => settings.value?.businessPhone || '',
   set: (val: string) => scheduleSave({ businessPhone: val?.trim() || null }),
+});
+const accountEmail = computed(
+  () => account.value?.email || (typeof window !== 'undefined' ? localStorage.getItem('email') || '' : ''),
+);
+const lastPasswordChangedLabel = computed(() => {
+  const value = account.value?.passwordChangedAt;
+  if (!value) return 'Not recorded yet';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'Not recorded yet' : date.toLocaleString();
 });
 
 const handleFontScaleChange = (value: number) => {
@@ -409,8 +437,62 @@ const handleBookingRuleChange = (
   scheduleSave({ defaultBookingRules: { [key]: value } });
 };
 
+const handleChangePassword = async () => {
+  changePasswordError.value = '';
+  if (!currentPassword.value || !newPassword.value || !confirmNewPassword.value) {
+    changePasswordError.value = 'Current password, new password, and confirmation are required.';
+    return;
+  }
+  if (newPassword.value !== confirmNewPassword.value) {
+    changePasswordError.value = 'New password and confirmation do not match.';
+    return;
+  }
+
+  changePasswordLoading.value = true;
+  try {
+    const result = await changeAccountPassword({
+      currentPassword: currentPassword.value,
+      newPassword: newPassword.value,
+      confirmNewPassword: confirmNewPassword.value,
+    });
+    currentPassword.value = '';
+    newPassword.value = '';
+    confirmNewPassword.value = '';
+    if (result.passwordChangedAt) {
+      account.value = {
+        ...(account.value ?? {
+          id: '',
+          businessId: '',
+          role: 'OWNER',
+          email: accountEmail.value || undefined,
+        }),
+        passwordChangedAt: result.passwordChangedAt,
+      };
+    }
+    ElMessage.success('Password updated');
+  } catch (err: any) {
+    changePasswordError.value = err?.message || 'Failed to change password';
+    ElMessage.error(changePasswordError.value);
+  } finally {
+    changePasswordLoading.value = false;
+  }
+};
+
+const handleSendPasswordReset = async () => {
+  sendResetLoading.value = true;
+  try {
+    const result = await sendPasswordResetEmail();
+    ElMessage.success(result.message || 'Password reset email sent');
+  } catch (err: any) {
+    ElMessage.error(err?.message || 'Failed to send password reset email');
+  } finally {
+    sendResetLoading.value = false;
+  }
+};
+
 const loadSettings = async () => {
   loading.value = true;
+  accountLoading.value = true;
   error.value = '';
   try {
     const data = await fetchSettings();
@@ -422,11 +504,13 @@ const loadSettings = async () => {
       {},
     );
     applyThemeFromSettings(settings.value);
-    const [messagingData, onboardingStatus] = await Promise.all([
+    const [messagingData, onboardingStatus, accountData] = await Promise.all([
       fetchMessagingSettings(),
       fetchOnboardingStatus(true).catch(() => null),
+      fetchCurrentAccount().catch(() => null),
     ]);
     messaging.value = messagingData;
+    account.value = accountData?.user ?? null;
     kioskSubdomain.value =
       onboardingStatus?.subdomain?.trim() ||
       (typeof window !== 'undefined'
@@ -438,6 +522,7 @@ const loadSettings = async () => {
       error.value = 'Only owners can change settings.';
     }
   } finally {
+    accountLoading.value = false;
     loading.value = false;
   }
 };
@@ -465,6 +550,110 @@ onMounted(loadSettings);
     <ElSkeleton v-if="loading && !settings" animated :rows="4" />
 
     <div v-if="settings" class="space-y-6">
+      <ElCard class="glass bg-white">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <div class="text-lg font-semibold text-slate-900">Account & Security</div>
+            <div class="text-sm text-slate-600">
+              Manage your sign-in email and password without touching business settings.
+            </div>
+          </div>
+          <div class="text-xs text-slate-500" v-if="accountLoading">Loading…</div>
+        </div>
+
+        <ElDivider />
+
+        <div class="grid gap-6 lg:grid-cols-2">
+          <div class="space-y-4">
+            <div class="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+              <div class="text-xs uppercase tracking-wide text-slate-500">Email address</div>
+              <div class="mt-1 text-sm font-semibold text-slate-900">
+                {{ accountEmail || 'Not available' }}
+              </div>
+            </div>
+            <div class="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+              <div class="text-xs uppercase tracking-wide text-slate-500">Last password changed</div>
+              <div class="mt-1 text-sm font-semibold text-slate-900">
+                {{ lastPasswordChangedLabel }}
+              </div>
+            </div>
+            <div class="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+              <div class="text-sm font-semibold text-slate-900">Send password reset email</div>
+              <div class="mt-1 text-xs text-slate-600">
+                Sends a secure, single-use reset link to your registered email address.
+              </div>
+              <div class="mt-3">
+                <ElButton
+                  type="primary"
+                  plain
+                  :loading="sendResetLoading"
+                  @click="handleSendPasswordReset"
+                >
+                  Send Password Reset Email
+                </ElButton>
+              </div>
+            </div>
+          </div>
+
+          <form class="space-y-4 rounded-lg border border-slate-200 bg-slate-50 p-4" @submit.prevent="handleChangePassword">
+            <div>
+              <div class="text-sm font-semibold text-slate-900">Change Password</div>
+              <div class="text-xs text-slate-600">
+                Update the password for your current account only.
+              </div>
+            </div>
+
+            <div class="space-y-1.5">
+              <label class="text-sm font-medium text-slate-700">Current Password</label>
+              <input
+                v-model="currentPassword"
+                type="password"
+                required
+                class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-slate-900 shadow-sm transition focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                placeholder="••••••••"
+              />
+            </div>
+
+            <div class="space-y-1.5">
+              <label class="text-sm font-medium text-slate-700">New Password</label>
+              <input
+                v-model="newPassword"
+                type="password"
+                required
+                minlength="8"
+                class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-slate-900 shadow-sm transition focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                placeholder="••••••••"
+              />
+            </div>
+
+            <div class="space-y-1.5">
+              <label class="text-sm font-medium text-slate-700">Confirm New Password</label>
+              <input
+                v-model="confirmNewPassword"
+                type="password"
+                required
+                minlength="8"
+                class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-slate-900 shadow-sm transition focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                placeholder="••••••••"
+              />
+            </div>
+
+            <div
+              v-if="changePasswordError"
+              class="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-700"
+            >
+              {{ changePasswordError }}
+            </div>
+
+            <div class="flex justify-end">
+              <ElButton type="primary" native-type="submit" :loading="changePasswordLoading">
+                Update Password
+              </ElButton>
+            </div>
+          </form>
+        </div>
+      </ElCard>
+
       <ElCard>
         <div class="flex flex-col gap-1">
           <div class="text-lg font-semibold text-slate-900">Messaging</div>

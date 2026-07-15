@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { login } from '../api/auth';
 import { defaultRouteForRole } from '../utils/navigation';
@@ -10,6 +10,15 @@ const password = ref('');
 const error = ref('');
 const loading = ref(false);
 const router = useRouter();
+
+const forgotPasswordTo = computed(() => {
+  if (typeof window === 'undefined') {
+    return { name: 'reset-password' };
+  }
+
+  const tenant = localStorage.getItem('tenantSubdomain')?.trim() || '';
+  return tenant ? { name: 'reset-password', query: { tenant } } : { name: 'reset-password' };
+});
 
 const redirectByRole = (role: string) => {
   router.push(defaultRouteForRole(role));
@@ -26,6 +35,7 @@ const handleSubmit = async () => {
     localStorage.setItem('token', result.token);
     localStorage.setItem('role', result.user.role);
     localStorage.setItem('tenantId', result.user.businessId);
+    localStorage.setItem('client', result.user.client || 'salonflow_admin');
     if (result.user.email) {
       localStorage.setItem('email', result.user.email);
     }
@@ -73,6 +83,15 @@ const handleSubmit = async () => {
             class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-slate-900 shadow-sm transition focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
             placeholder="••••••••"
           />
+        </div>
+
+        <div class="flex justify-end">
+          <router-link
+            :to="forgotPasswordTo"
+            class="text-sm font-medium text-sky-700 transition hover:text-sky-800"
+          >
+            Forgot password?
+          </router-link>
         </div>
 
         <div v-if="error" class="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-700">

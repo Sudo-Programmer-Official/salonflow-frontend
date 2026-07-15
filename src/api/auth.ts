@@ -1,10 +1,27 @@
+import { buildHeaders } from './client';
+
 type LoginResponse = {
   token: string;
   user: {
     id: string;
     businessId: string;
     role: 'SUPER_ADMIN' | 'OWNER' | 'STAFF' | 'CUSTOMER';
+    client: 'salonflow_admin' | 'salonflow_pos';
+    permissions: string[];
     email?: string;
+    passwordChangedAt?: string | null;
+  };
+};
+
+type CurrentAccountResponse = {
+  user: {
+    id: string;
+    businessId: string;
+    role: 'SUPER_ADMIN' | 'OWNER' | 'STAFF' | 'CUSTOMER';
+    client: 'salonflow_admin' | 'salonflow_pos';
+    permissions: string[];
+    email?: string;
+    passwordChangedAt?: string | null;
   };
 };
 
@@ -18,7 +35,10 @@ const isPlatformHost = () => {
   return host === 'platform.localhost' || host.startsWith('platform.');
 };
 
-export async function login(input: { email: string; password: string }): Promise<LoginResponse> {
+export async function login(
+  input: { email: string; password: string },
+  options: { client?: 'salonflow_admin' | 'salonflow_pos' } = {},
+): Promise<LoginResponse> {
   const hostname = typeof window !== 'undefined' ? window.location.hostname : undefined;
   const hostnameTenant = hostname ? hostname.split('.')[0] ?? undefined : undefined;
   const isLocal = hostname ? hostname.includes('localhost') : false;
@@ -32,7 +52,9 @@ export async function login(input: { email: string; password: string }): Promise
     (typeof window !== 'undefined' ? localStorage.getItem('tenantId') ?? undefined : undefined);
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const client = options.client ?? 'salonflow_admin';
   const platformHost = isPlatformHost();
+  if (client === 'salonflow_pos') headers['x-pos-client'] = 'true';
   if (tenantId && !platformHost) headers['x-tenant-id'] = tenantId;
   if (platformHost) {
     headers['x-platform-login'] = 'true';
@@ -66,6 +88,89 @@ export async function magicLogin(token: string): Promise<LoginResponse> {
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || 'Magic login failed');
+  }
+
+  return res.json();
+}
+
+export async function fetchCurrentAccount(): Promise<CurrentAccountResponse> {
+  const res = await fetch(`${apiBase}/api/auth/me`, {
+    headers: buildHeaders({ auth: true, json: true }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to load account');
+  }
+
+  return res.json();
+}
+
+export async function changePassword(input: {
+  currentPassword: string;
+  newPassword: string;
+  confirmNewPassword: string;
+}): Promise<{ ok: true; passwordChangedAt?: string | null }> {
+  const res = await fetch(`${apiBase}/api/auth/change-password`, {
+    method: 'POST',
+    headers: buildHeaders({ auth: true, json: true }),
+    body: JSON.stringify(input),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to change password');
+  }
+
+  return res.json();
+}
+
+export async function requestPasswordReset(input: {
+  email: string;
+  tenantHint?: string | null;
+}): Promise<{ message: string }> {
+  const res = await fetch(`${apiBase}/api/auth/forgot-password`, {
+    method: 'POST',
+    headers: buildHeaders({ json: true }),
+    body: JSON.stringify(input),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to send password reset email');
+  }
+
+  return res.json();
+}
+
+export async function sendPasswordResetEmail(): Promise<{ message: string }> {
+  const res = await fetch(`${apiBase}/api/auth/send-password-reset-email`, {
+    method: 'POST',
+    headers: buildHeaders({ auth: true, json: true }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to send password reset email');
+  }
+
+  return res.json();
+}
+
+export async function resetPassword(input: {
+  token: string;
+  newPassword: string;
+  confirmNewPassword: string;
+}): Promise<{ ok: true }> {
+  const res = await fetch(`${apiBase}/api/auth/reset-password`, {
+    method: 'POST',
+    headers: buildHeaders({ json: true }),
+    body: JSON.stringify(input),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to reset password');
   }
 
   return res.json();

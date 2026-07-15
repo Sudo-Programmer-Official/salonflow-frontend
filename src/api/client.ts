@@ -14,6 +14,13 @@ const authHeader = (): Record<string, string> => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
+const clientHeader = (): Record<string, string> => {
+  if (typeof window === 'undefined') return {};
+  return localStorage.getItem('client') === 'salonflow_pos'
+    ? { 'x-pos-client': 'true' }
+    : {};
+};
+
 const tenantHeader = (): Record<string, string> => {
   const hostname = typeof window !== 'undefined' ? window.location.hostname : undefined;
   const hostnameTenant = hostname ? hostname.split('.')[0] ?? undefined : undefined;
@@ -51,6 +58,7 @@ export const buildHeaders = (opts: {
   ...(opts.json ? { 'Content-Type': 'application/json' } : {}),
   ...(opts.auth ? authHeader() : {}),
   ...(opts.tenant ? tenantHeader() : {}),
+  ...(opts.auth ? clientHeader() : {}),
 });
 
 export async function readJsonResponse<T>(res: Response, fallback: T): Promise<T> {
