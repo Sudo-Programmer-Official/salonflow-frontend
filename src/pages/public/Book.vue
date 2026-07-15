@@ -358,7 +358,7 @@ const validateNoticeWindow = (iso: string) => {
 const loadSettings = async () => {
   try {
     settings.value = await fetchPublicSettings();
-    applyThemeFromSettings(settings.value);
+    applyThemeFromSettings(settings.value, { maxScale: 1.08 });
     if (settings.value.timezone) {
       setBusinessTimezone(settings.value.timezone);
       refreshBusinessDayClock();
