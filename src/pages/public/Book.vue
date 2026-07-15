@@ -358,7 +358,7 @@ const validateNoticeWindow = (iso: string) => {
 const loadSettings = async () => {
   try {
     settings.value = await fetchPublicSettings();
-    applyThemeFromSettings(settings.value);
+    applyThemeFromSettings(settings.value, { maxScale: 1.08 });
     if (settings.value.timezone) {
       setBusinessTimezone(settings.value.timezone);
       refreshBusinessDayClock();
@@ -580,285 +580,280 @@ const selectService = (serviceId: string) => {
     v-bind="useWebsiteShell ? { header: websiteHeader, footer: websiteFooter, activePath: route.path } : {}"
   >
     <div class="booking-page sf-container sf-section space-y-4 sm:space-y-6">
-    <div class="mx-auto max-w-2xl px-3 text-center sm:px-4">
-      <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--sf-primary,#0ea5e9)]">
-        {{ compactBusinessName }}
-      </p>
-      <h1 class="mt-2 text-[1.9rem] font-semibold tracking-tight text-text sm:mt-3 sm:text-4xl">
-        Book your appointment
-      </h1>
-      <p class="mt-2 text-sm leading-6 text-muted sm:text-base">
-        Choose a service, pick a time, and we’ll confirm instantly.
-      </p>
-    </div>
+      <div class="mx-auto max-w-2xl px-3 text-center sm:px-4">
+        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--sf-primary,#0ea5e9)]">
+          {{ compactBusinessName }}
+        </p>
+        <h1 class="mt-2 text-[1.9rem] font-semibold tracking-tight text-text sm:mt-3 sm:text-4xl">
+          Book your appointment
+        </h1>
+        <p class="mt-2 text-sm leading-6 text-muted sm:text-base">
+          Choose a service, pick a time, and we’ll confirm instantly.
+        </p>
+      </div>
 
-    <ElAlert
-      v-if="settingsError"
-      type="warning"
-      :closable="false"
-      class="w-full"
-      :title="settingsError"
-    />
+      <ElAlert
+        v-if="settingsError"
+        type="warning"
+        :closable="false"
+        class="w-full"
+        :title="settingsError"
+      />
 
-    <div class="grid gap-4 xl:grid-cols-[minmax(0,1.05fr),minmax(320px,0.95fr)] xl:items-start sm:gap-5">
-      <div class="booking-form-panel glass mx-auto w-full max-w-2xl rounded-[28px] bg-surface p-4 shadow-[0_10px_28px_rgba(15,23,42,0.08)] sm:p-6">
-        <ElForm label-position="top" class="booking-form space-y-3.5" @submit.prevent="onSubmit">
-          <ElFormItem label="Name" required>
-            <ElInput v-model="form.name" placeholder="Your name" size="large" autocomplete="name" />
-          </ElFormItem>
-
-          <div class="grid gap-3 sm:grid-cols-2">
-            <ElFormItem
-              label="Mobile number"
-              required
-              :error="phoneValidationMessage || undefined"
-            >
-              <ElInput
-                v-model="form.phone"
-                placeholder="(361) 444-2937"
-                size="large"
-                autocomplete="tel-national"
-                inputmode="numeric"
-                maxlength="14"
-                clearable
-              />
-              <div
-                class="mt-1 text-xs"
-                :class="phoneLooksValid ? 'text-emerald-700' : 'text-muted'"
-              >
-                {{ phoneConfirmationText }}
-              </div>
+      <div class="grid gap-4 xl:grid-cols-[minmax(0,1.05fr),minmax(320px,0.95fr)] xl:items-start sm:gap-5">
+        <div class="booking-form-panel glass mx-auto min-w-0 w-full max-w-2xl rounded-[28px] bg-surface p-4 shadow-[0_10px_28px_rgba(15,23,42,0.08)] sm:p-6">
+          <ElForm label-position="top" class="booking-form min-w-0 space-y-3.5" @submit.prevent="onSubmit">
+            <ElFormItem label="Name" required>
+              <ElInput v-model="form.name" placeholder="Your name" size="large" autocomplete="name" />
             </ElFormItem>
-            <ElFormItem label="Email (optional)">
-              <ElInput
-                v-model="form.email"
-                placeholder="name@email.com"
-                size="large"
-                autocomplete="email"
-              />
-            </ElFormItem>
-          </div>
 
-          <ElFormItem label="Service (optional)">
-            <div class="space-y-3 md:hidden">
-              <div class="rounded-2xl border border-border bg-surface-muted p-4">
-                <div class="flex items-center justify-between gap-3">
-                  <div>
-                    <div class="text-sm font-semibold text-text">Choose a service</div>
-                    <div class="text-xs text-muted">Tap a card. We keep the booking flow easy on mobile.</div>
-                  </div>
-                  <span class="text-lg">💅</span>
-                </div>
+            <div class="grid gap-3 sm:grid-cols-2">
+              <ElFormItem label="Mobile number" required :error="phoneValidationMessage || undefined">
                 <ElInput
-                  v-model="serviceSearch"
-                  class="mt-3"
+                  v-model="form.phone"
+                  placeholder="(361) 444-2937"
                   size="large"
+                  autocomplete="tel-national"
+                  inputmode="numeric"
+                  maxlength="14"
                   clearable
-                  placeholder="Search services"
                 />
-                <div class="mt-3 flex gap-2 overflow-x-auto pb-1">
-                  <button
-                    v-for="chip in serviceCategoryChips"
-                    :key="chip.id"
-                    type="button"
-                    class="service-chip"
-                    :class="{ 'service-chip--active': activeServiceCategoryId === chip.id && !serviceSearchQuery }"
-                    @click="activeServiceCategoryId = chip.id"
-                  >
-                    <span>{{ chip.icon }}</span>
-                    <span>{{ chip.label }}</span>
-                    <span class="service-chip__count">{{ chip.count }}</span>
-                  </button>
+                <div class="mt-1 text-xs" :class="phoneLooksValid ? 'text-emerald-700' : 'text-muted'">
+                  {{ phoneConfirmationText }}
                 </div>
-              </div>
+              </ElFormItem>
+              <ElFormItem label="Email (optional)">
+                <ElInput
+                  v-model="form.email"
+                  placeholder="name@email.com"
+                  size="large"
+                  autocomplete="email"
+                />
+              </ElFormItem>
+            </div>
 
-              <div v-if="mobileServiceGroups.length" class="space-y-3">
-                <div
-                  v-for="group in mobileServiceGroups"
-                  :key="group.categoryId || group.categoryName"
-                  class="rounded-2xl border border-border bg-surface p-3"
-                >
-                  <div class="flex items-center justify-between text-sm font-semibold text-text">
-                    <span>{{ group.categoryIcon || '📋' }} {{ group.categoryName }}</span>
-                    <span class="text-xs font-medium text-muted">{{ group.services.length }} option{{ group.services.length === 1 ? '' : 's' }}</span>
+            <ElFormItem label="Service (optional)">
+              <div class="space-y-3 min-w-0 md:hidden">
+                <div class="min-w-0 rounded-2xl border border-border bg-surface-muted p-4">
+                  <div class="flex items-center justify-between gap-3">
+                    <div class="min-w-0">
+                      <div class="text-sm font-semibold text-text">Choose a service</div>
+                      <div class="text-xs text-muted">Tap a card. We keep the booking flow easy on mobile.</div>
+                    </div>
+                    <span class="text-lg">💅</span>
                   </div>
-                  <div class="mt-3 grid gap-2">
+                  <ElInput
+                    v-model="serviceSearch"
+                    class="mt-3 w-full max-w-full"
+                    size="large"
+                    clearable
+                    placeholder="Search services"
+                  />
+                  <div class="mt-3 flex flex-wrap gap-2">
                     <button
-                      v-for="service in group.services"
-                      :key="service.id"
+                      v-for="chip in serviceCategoryChips"
+                      :key="chip.id"
                       type="button"
-                      class="service-card"
-                      :class="{ 'service-card--active': form.serviceId === service.id }"
-                      @click="selectService(service.id)"
+                      class="service-chip"
+                      :class="{ 'service-chip--active': activeServiceCategoryId === chip.id && !serviceSearchQuery }"
+                      @click="activeServiceCategoryId = chip.id"
                     >
-                      <div class="min-w-0 text-left">
-                        <div class="font-semibold leading-tight text-text">{{ service.name }}</div>
-                        <div class="mt-1 flex flex-wrap gap-2 text-xs text-muted">
-                          <span v-if="service.durationMinutes">{{ service.durationMinutes }} min</span>
-                          <span v-if="service.priceCents !== undefined">
-                            {{ formatMoney(service.priceCents, service.currency || 'USD') }}
-                          </span>
-                        </div>
-                      </div>
-                      <div class="service-card__action" :class="{ 'service-card__action--active': form.serviceId === service.id }">
-                        {{ form.serviceId === service.id ? 'Selected' : 'Choose' }}
-                      </div>
+                      <span>{{ chip.icon }}</span>
+                      <span>{{ chip.label }}</span>
+                      <span class="service-chip__count">{{ chip.count }}</span>
                     </button>
                   </div>
                 </div>
-              </div>
 
-              <div v-else class="rounded-2xl border border-dashed border-border bg-surface-muted px-4 py-5 text-sm text-muted">
-                <template v-if="loadingServices">Loading services…</template>
-                <template v-else-if="groupedServices.length === 0">No services are available yet.</template>
-                <template v-else>No services match “{{ serviceSearch.trim() }}”.</template>
-              </div>
-            </div>
-
-            <ElSelect
-              v-model="form.serviceId"
-              placeholder="Select a service (optional)"
-              size="large"
-              clearable
-              filterable
-              :loading="loadingServices"
-              class="hidden w-full md:block"
-            >
-              <template v-for="group in groupedServices" :key="group.categoryId || 'uncategorized'">
-                <ElOptionGroup :label="`${group.categoryIcon || '📋'} ${group.categoryName}`">
-                  <ElOption
-                    v-for="service in group.services"
-                    :key="service.id"
-                    :label="service.name"
-                    :value="service.id"
+                <div v-if="mobileServiceGroups.length" class="space-y-3 min-w-0">
+                  <div
+                    v-for="group in mobileServiceGroups"
+                    :key="group.categoryId || group.categoryName"
+                    class="w-full max-w-full overflow-hidden rounded-2xl border border-border bg-surface p-3"
                   >
-                    <div class="flex items-center justify-between gap-2">
-                      <span>{{ service.name }}</span>
-                      <span class="text-xs text-muted">
-                        <template v-if="service.durationMinutes">
-                          {{ service.durationMinutes }} min
-                        </template>
-                        <template v-if="service.priceCents !== undefined">
-                          • {{ formatMoney(service.priceCents, service.currency || 'USD') }}
-                        </template>
+                    <div class="flex min-w-0 items-center justify-between text-sm font-semibold text-text">
+                      <span class="min-w-0">{{ group.categoryIcon || '📋' }} {{ group.categoryName }}</span>
+                      <span class="text-xs font-medium text-muted">
+                        {{ group.services.length }} option{{ group.services.length === 1 ? '' : 's' }}
                       </span>
                     </div>
-                  </ElOption>
-                </ElOptionGroup>
-              </template>
-            </ElSelect>
-          </ElFormItem>
+                    <div class="mt-3 grid gap-2">
+                      <button
+                        v-for="service in group.services"
+                        :key="service.id"
+                        type="button"
+                        class="service-card"
+                        :class="{ 'service-card--active': form.serviceId === service.id }"
+                        @click="selectService(service.id)"
+                      >
+                        <div class="min-w-0 text-left">
+                          <div class="font-semibold leading-tight text-text">{{ service.name }}</div>
+                          <div class="mt-1 flex flex-wrap gap-2 text-xs text-muted">
+                            <span v-if="service.durationMinutes">{{ service.durationMinutes }} min</span>
+                            <span v-if="service.priceCents !== undefined">
+                              {{ formatMoney(service.priceCents, service.currency || 'USD') }}
+                            </span>
+                          </div>
+                        </div>
+                        <div class="service-card__action" :class="{ 'service-card__action--active': form.serviceId === service.id }">
+                          {{ form.serviceId === service.id ? 'Selected' : 'Choose' }}
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                </div>
 
-          <ElFormItem
-            v-if="allowStaffSelection"
-            label="Preferred staff (optional)"
-            :required="requireStaffSelection"
-          >
-            <ElSelect
-              v-model="form.staffId"
-              placeholder="Any available technician"
-              size="large"
-              clearable
-              filterable
-              :loading="staffLoading"
-              class="w-full"
+                <div v-else class="w-full max-w-full overflow-hidden rounded-2xl border border-dashed border-border bg-surface-muted px-4 py-5 text-sm text-muted">
+                  <template v-if="loadingServices">Loading services…</template>
+                  <template v-else-if="groupedServices.length === 0">No services are available yet.</template>
+                  <template v-else>No services match “{{ serviceSearch.trim() }}”.</template>
+                </div>
+              </div>
+
+              <ElSelect
+                v-model="form.serviceId"
+                placeholder="Select a service (optional)"
+                size="large"
+                clearable
+                filterable
+                :loading="loadingServices"
+                class="hidden w-full md:block"
+              >
+                <template v-for="group in groupedServices" :key="group.categoryId || 'uncategorized'">
+                  <ElOptionGroup :label="`${group.categoryIcon || '📋'} ${group.categoryName}`">
+                    <ElOption
+                      v-for="service in group.services"
+                      :key="service.id"
+                      :label="service.name"
+                      :value="service.id"
+                    >
+                      <div class="flex items-center justify-between gap-2">
+                        <span>{{ service.name }}</span>
+                        <span class="text-xs text-muted">
+                          <template v-if="service.durationMinutes">
+                            {{ service.durationMinutes }} min
+                          </template>
+                          <template v-if="service.priceCents !== undefined">
+                            • {{ formatMoney(service.priceCents, service.currency || 'USD') }}
+                          </template>
+                        </span>
+                      </div>
+                    </ElOption>
+                  </ElOptionGroup>
+                </template>
+              </ElSelect>
+            </ElFormItem>
+
+            <ElFormItem
+              v-if="allowStaffSelection"
+              label="Preferred staff (optional)"
+              :required="requireStaffSelection"
             >
-              <ElOption :value="''" label="Any available technician" />
-              <ElOption
-                v-for="member in staffList"
-                :key="member.id"
-                :label="member.nickname || member.name"
-                :value="member.id"
-              />
-            </ElSelect>
-            <div v-if="staffError" class="text-xs text-amber-700 mt-1">{{ staffError }}</div>
-          </ElFormItem>
-
-          <div class="grid gap-3 sm:grid-cols-2">
-            <ElFormItem label="Date" required>
-              <ElDatePicker
-                v-model="form.date"
-                type="date"
-                placeholder="Select date"
-                format="YYYY-MM-DD"
-                value-format="YYYY-MM-DD"
-                :disabled-date="disablePastDates"
+              <ElSelect
+                v-model="form.staffId"
+                placeholder="Any available technician"
+                size="large"
+                clearable
+                filterable
+                :loading="staffLoading"
                 class="w-full"
+              >
+                <ElOption :value="''" label="Any available technician" />
+                <ElOption
+                  v-for="member in staffList"
+                  :key="member.id"
+                  :label="member.nickname || member.name"
+                  :value="member.id"
+                />
+              </ElSelect>
+              <div v-if="staffError" class="mt-1 text-xs text-amber-700">{{ staffError }}</div>
+            </ElFormItem>
+
+            <div class="grid gap-3 sm:grid-cols-2">
+              <ElFormItem label="Date" required>
+                <ElDatePicker
+                  v-model="form.date"
+                  type="date"
+                  placeholder="Select date"
+                  format="YYYY-MM-DD"
+                  value-format="YYYY-MM-DD"
+                  :disabled-date="disablePastDates"
+                  class="w-full"
+                />
+              </ElFormItem>
+
+              <ElFormItem label="Time" required>
+                <ElTimeSelect
+                  v-model="form.time"
+                  start="08:00"
+                  step="00:15"
+                  end="20:00"
+                  placeholder="Select time"
+                  class="w-full"
+                />
+              </ElFormItem>
+            </div>
+
+            <ElFormItem label="Notes (optional)">
+              <ElInput
+                v-model="form.notes"
+                type="textarea"
+                :rows="3"
+                placeholder="Preferences, requests, anything we should know."
               />
             </ElFormItem>
 
-            <ElFormItem label="Time" required>
-              <ElTimeSelect
-                v-model="form.time"
-                start="08:00"
-                step="00:15"
-                end="20:00"
-                placeholder="Select time"
+            <div class="space-y-2.5 pt-1">
+              <ElButton
+                type="primary"
+                size="large"
+                class="booking-submit h-14 w-full border-0 text-lg font-semibold"
+                :loading="submitting"
+                :disabled="
+                  submitting ||
+                  !form.name ||
+                  !form.phone ||
+                  !!phoneValidationMessage ||
+                  !form.date ||
+                  !form.time ||
+                  (requireStaffSelection && !form.staffId) ||
+                  maintenanceActive
+                "
+                @click="onSubmit"
+              >
+                Book appointment
+              </ElButton>
+
+              <ElDialog
+                v-model="successDialog"
+                title="Appointment Request Sent 🎉"
+                align-center
+                append-to-body
+                width="420px"
+              >
+                <div class="space-y-2">
+                  <p class="text-base font-semibold">{{ successTitle }}</p>
+                  <p class="text-sm text-muted">{{ successDescription }}</p>
+                </div>
+                <template #footer>
+                  <div class="flex justify-end gap-2">
+                    <ElButton @click="successDialog = false">OK</ElButton>
+                  </div>
+                </template>
+              </ElDialog>
+              <ElAlert
+                v-if="errorMessage"
+                type="error"
+                :closable="false"
+                :title="errorMessage"
                 class="w-full"
               />
-            </ElFormItem>
+            </div>
+          </ElForm>
           </div>
 
-          <ElFormItem label="Notes (optional)">
-            <ElInput
-              v-model="form.notes"
-              type="textarea"
-              :rows="3"
-              placeholder="Preferences, requests, anything we should know."
-            />
-          </ElFormItem>
-
-          <div class="space-y-2.5 pt-1">
-            <ElButton
-              type="primary"
-              size="large"
-              class="booking-submit w-full h-14 border-0 text-lg font-semibold"
-              :loading="submitting"
-              :disabled="
-                submitting ||
-                !form.name ||
-                !form.phone ||
-                !!phoneValidationMessage ||
-                !form.date ||
-                !form.time ||
-                (requireStaffSelection && !form.staffId) ||
-                maintenanceActive
-              "
-              @click="onSubmit"
-            >
-              Book appointment
-            </ElButton>
-
-    <ElDialog
-      v-model="successDialog"
-      title="Appointment Request Sent 🎉"
-      align-center
-      append-to-body
-      width="420px"
-    >
-      <div class="space-y-2">
-        <p class="text-base font-semibold">{{ successTitle }}</p>
-        <p class="text-sm text-muted">{{ successDescription }}</p>
-      </div>
-      <template #footer>
-        <div class="flex justify-end gap-2">
-          <ElButton @click="successDialog = false">OK</ElButton>
-        </div>
-      </template>
-    </ElDialog>
-            <ElAlert
-              v-if="errorMessage"
-              type="error"
-              :closable="false"
-              :title="errorMessage"
-              class="w-full"
-            />
-          </div>
-        </ElForm>
-      </div>
-
-      <div class="space-y-3.5">
-        <div class="glass-card hidden rounded-[26px] bg-surface p-4 shadow-sm sm:p-5 md:block">
+        <div class="space-y-3.5 min-w-0">
+          <div class="glass-card hidden rounded-[26px] bg-surface p-4 shadow-sm sm:p-5 md:block">
           <div class="flex items-center gap-2 text-sm font-semibold text-text">
             <span>📅</span>
             <span>Your selection</span>
@@ -916,7 +911,7 @@ const selectService = (serviceId: string) => {
             <div
               v-for="group in groupedServices"
               :key="group.categoryId || group.categoryName"
-              class="rounded-2xl border border-border bg-surface p-3"
+              class="w-full max-w-full overflow-hidden rounded-2xl border border-border bg-surface p-3"
             >
               <div class="flex items-center justify-between text-sm font-semibold text-text">
                 <span>{{ group.categoryIcon || '📋' }} {{ group.categoryName }}</span>
@@ -980,6 +975,21 @@ const selectService = (serviceId: string) => {
 </template>
 
 <style scoped>
+.booking-page {
+  min-width: 0;
+}
+
+.booking-page > .grid {
+  min-width: 0;
+}
+
+.booking-page > .grid > * {
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
 .booking-form :deep(.el-form-item) {
   margin-bottom: 0;
 }
@@ -1074,8 +1084,10 @@ const selectService = (serviceId: string) => {
 .service-chip {
   display: inline-flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 0.45rem;
-  flex-shrink: 0;
+  min-width: 0;
+  max-width: 100%;
   border: 1px solid color-mix(in srgb, var(--sf-border, #dbe4ef) 90%, transparent);
   background: color-mix(in srgb, var(--sf-surface-muted, #f8fafc) 88%, white 12%);
   color: var(--sf-text, #0f172a);
@@ -1089,6 +1101,10 @@ const selectService = (serviceId: string) => {
 
 .service-chip:hover {
   transform: translateY(-1px);
+}
+
+.service-chip > span {
+  min-width: 0;
 }
 
 .service-chip--active {
@@ -1112,6 +1128,8 @@ const selectService = (serviceId: string) => {
   justify-content: space-between;
   gap: 0.75rem;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   border-radius: 1.1rem;
   border: 1px solid color-mix(in srgb, var(--sf-border, #dbe4ef) 90%, transparent);
   background: var(--sf-surface-muted, #f8fafc);
@@ -1133,6 +1151,7 @@ const selectService = (serviceId: string) => {
 
 .service-card__action {
   flex-shrink: 0;
+  max-width: 100%;
   border-radius: 999px;
   background: rgba(15, 23, 42, 0.06);
   padding: 0.45rem 0.75rem;
@@ -1149,10 +1168,64 @@ const selectService = (serviceId: string) => {
 @media (max-width: 767px) {
   .booking-page {
     padding-inline: 0.25rem;
+    padding-top: 1rem;
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
   }
 
   .booking-form-panel {
-    border-radius: 1.75rem;
+    border-radius: 1.5rem;
+    padding: 1rem;
+  }
+
+  .booking-page > .mx-auto {
+    padding-top: 0.25rem;
+    padding-left: 0.4rem;
+    padding-right: 0.4rem;
+  }
+
+  .booking-page > .grid {
+    gap: 0.875rem;
+  }
+
+  .booking-page > .mx-auto h1 {
+    font-size: 1.7rem;
+    line-height: 1.05;
+  }
+
+  .booking-page > .mx-auto p {
+    line-height: 1.45;
+  }
+
+  .booking-form :deep(.el-form-item__label) {
+    font-size: 0.88rem;
+    margin-bottom: 0.3rem;
+  }
+
+  .booking-form :deep(.el-input__wrapper),
+  .booking-form :deep(.el-select__wrapper),
+  .booking-form :deep(.el-date-editor.el-input__wrapper),
+  .booking-form :deep(.el-date-editor .el-input__wrapper),
+  .booking-form :deep(.el-date-editor .el-select__wrapper) {
+    min-height: 3.05rem;
+    padding-inline: 0.75rem;
+    border-radius: 0.9rem;
+  }
+
+  .booking-form :deep(.el-textarea__inner) {
+    min-height: 6.5rem;
+    border-radius: 0.9rem;
+  }
+
+  .service-chip {
+    white-space: normal;
+    line-height: 1.1;
+    padding-inline: 0.7rem;
+  }
+
+  .booking-submit {
+    min-height: 3.25rem;
+    height: auto;
+    font-size: 1rem;
   }
 }
 </style>
