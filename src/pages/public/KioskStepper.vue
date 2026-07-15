@@ -20,6 +20,7 @@ import { fetchPublicAvailableStaff, type StaffMember } from "../../api/staff";
 import { startKioskIdleWatchdog } from "../../utils/kioskIdleWatchdog";
 import { applyThemeFromSettings } from "../../utils/theme";
 import { formatPhone, formatUSPhone } from "../../utils/format";
+import { formatBusinessHoursRange } from "../../utils/businessTime";
 
 type Step = "welcome" | "phone" | "name" | "services" | "staff" | "done";
 
@@ -313,7 +314,7 @@ const kioskHours = computed(() => {
       if (!slot?.open || !slot?.close) return null;
       return {
         day: label,
-        time: `${slot.open} - ${slot.close}`,
+        time: formatBusinessHoursRange(slot.open, slot.close),
       };
     })
     .filter(

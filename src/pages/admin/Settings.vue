@@ -13,6 +13,7 @@ import {
   ElSlider,
   ElButton,
   ElColorPicker,
+  ElTimePicker,
 } from 'element-plus';
 import {
   fetchSettings,
@@ -34,6 +35,12 @@ import { applyThemeFromSettings, defaultUiPreferences, fontFamilyOptions, themeB
 import { DEFAULT_WEBSITE_THEME } from '../../utils/websiteTheme';
 import type { ThemeTokens } from '../../api/settings';
 import { buildTenantKioskUrl } from '../../utils/tenantUrls';
+import {
+  BUSINESS_TIME_DISPLAY_FORMAT,
+  BUSINESS_TIME_STORAGE_FORMAT,
+  formatBusinessHoursRange,
+  parseBusinessTime,
+} from '../../utils/businessTime';
 
 const loading = ref(false);
 const saving = ref(false);
@@ -58,6 +65,33 @@ const changePasswordError = ref('');
 const currentPassword = ref('');
 const newPassword = ref('');
 const confirmNewPassword = ref('');
+type BusinessHourDayKey = keyof NonNullable<BusinessHours>;
+type BusinessHourDraftRow = {
+  enabled: boolean;
+  open: string;
+  close: string;
+};
+type BusinessHourDraft = Record<BusinessHourDayKey, BusinessHourDraftRow>;
+
+const businessHourDays: Array<{ key: BusinessHourDayKey; label: string }> = [
+  { key: 'mon', label: 'Monday' },
+  { key: 'tue', label: 'Tuesday' },
+  { key: 'wed', label: 'Wednesday' },
+  { key: 'thu', label: 'Thursday' },
+  { key: 'fri', label: 'Friday' },
+  { key: 'sat', label: 'Saturday' },
+  { key: 'sun', label: 'Sunday' },
+];
+
+const createEmptyBusinessHoursDraft = (): BusinessHourDraft =>
+  businessHourDays.reduce((acc, day) => {
+    acc[day.key] = { enabled: false, open: '', close: '' };
+    return acc;
+  }, {} as BusinessHourDraft);
+
+const businessHoursDraft = ref<BusinessHourDraft>(createEmptyBusinessHoursDraft());
+const businessHoursSaving = ref(false);
+const businessHoursError = ref('');
 
 const defaultRules: DefaultBookingRules = {
   buffer_before: 0,
@@ -84,7 +118,6 @@ const showPointsValue = computed(
   () => settings.value?.showPointsPreview ?? settings.value?.showPointsOnKiosk ?? true,
 );
 const themeTokens = computed<ThemeTokens>(() => settings.value?.themeTokens ?? DEFAULT_WEBSITE_THEME);
-const businessHours = computed<BusinessHours | null>(() => settings.value?.businessHours ?? null);
 const kioskShowStepperHeader = computed(
   () =>
     settings.value?.kiosk?.showStepperHeader ??
@@ -120,6 +153,12 @@ const lastPasswordChangedLabel = computed(() => {
   return Number.isNaN(date.getTime()) ? 'Not recorded yet' : date.toLocaleString();
 });
 
+const formatBusinessDaySummary = (day: BusinessHourDayKey) => {
+  const value = businessHoursDraft.value[day];
+  if (!value.enabled) return 'Closed';
+  return `Open ${formatBusinessHoursRange(value.open, value.close, '9:00 AM – 6:00 PM')}`;
+};
+
 const handleFontScaleChange = (value: number) => {
   const numeric = Number(value);
   const normalized = Number.isFinite(numeric) ? numeric : themeBounds.defaultScale;
@@ -138,23 +177,102 @@ const toggleLargeText = (value: boolean) => {
   handleFontScaleChange(target);
 };
 
-const dayLabels: Array<{ key: keyof BusinessHours; label: string }> = [
-  { key: 'mon', label: 'Mon' },
-  { key: 'tue', label: 'Tue' },
-  { key: 'wed', label: 'Wed' },
-  { key: 'thu', label: 'Thu' },
-  { key: 'fri', label: 'Fri' },
-  { key: 'sat', label: 'Sat' },
-  { key: 'sun', label: 'Sun' },
-];
-
-const setBusinessHour = (day: keyof BusinessHours, value: { open: string; close: string } | null) => {
-  const next: BusinessHours = { ...(businessHours.value ?? {}) };
-  (next as any)[day] = value;
-  scheduleSave({ businessHours: next });
+const hydrateBusinessHoursDraft = (source: BusinessHours | null | undefined): BusinessHourDraft => {
+  const next = createEmptyBusinessHoursDraft();
+  businessHourDays.forEach((day) => {
+    const value = source?.[day.key] ?? null;
+    next[day.key] = {
+      enabled: Boolean(value),
+      open: parseBusinessTime(value?.open) ?? '',
+      close: parseBusinessTime(value?.close) ?? '',
+    };
+  });
+  return next;
 };
 
-const markClosed = (day: keyof BusinessHours) => setBusinessHour(day, null);
+const businessHoursSnapshot = (source: BusinessHours | null | undefined) =>
+  JSON.stringify(hydrateBusinessHoursDraft(source));
+
+const businessHoursChanged = computed(
+  () => businessHoursSnapshot(settings.value?.businessHours ?? null) !== JSON.stringify(businessHoursDraft.value),
+);
+
+const setBusinessDayEnabled = (day: BusinessHourDayKey, enabled: boolean) => {
+  const current = businessHoursDraft.value[day];
+  businessHoursDraft.value[day] = {
+    ...current,
+    enabled,
+    open: enabled ? current.open || '09:00' : current.open,
+    close: enabled ? current.close || '18:00' : current.close,
+  };
+};
+
+const setBusinessDayTime = (day: BusinessHourDayKey, key: 'open' | 'close', value: string) => {
+  businessHoursDraft.value[day] = {
+    ...businessHoursDraft.value[day],
+    [key]: value,
+  };
+};
+
+const applyWeekdayHoursToMonFri = () => {
+  const source = businessHoursDraft.value.mon;
+  if (!source.enabled) return;
+  ['tue', 'wed', 'thu', 'fri'].forEach((day) => {
+    businessHoursDraft.value[day as BusinessHourDayKey] = {
+      enabled: true,
+      open: source.open,
+      close: source.close,
+    };
+  });
+};
+
+const serializeBusinessHoursDraft = (): BusinessHours => {
+  const next: BusinessHours = {};
+  businessHourDays.forEach((day) => {
+    const value = businessHoursDraft.value[day.key];
+    next[day.key] = value.enabled && value.open && value.close ? { open: value.open, close: value.close } : null;
+  });
+  return next;
+};
+
+const saveBusinessHours = async () => {
+  if (!settings.value || businessHoursSaving.value) return;
+  businessHoursSaving.value = true;
+  businessHoursError.value = '';
+  try {
+    const invalidDay = businessHourDays.find((day) => {
+      const value = businessHoursDraft.value[day.key];
+      return value.enabled && (!value.open || !value.close || value.open >= value.close);
+    });
+    if (invalidDay) {
+      throw new Error(`Check ${invalidDay.label}: open and close times are required and open must come before close.`);
+    }
+    const nextBusinessHours = serializeBusinessHoursDraft();
+    await updateSettings({ businessHours: nextBusinessHours });
+    const refreshed = await fetchSettings();
+    const refreshedBusinessHours = refreshed.businessHours ?? null;
+    const expectedSnapshot = JSON.stringify(hydrateBusinessHoursDraft(nextBusinessHours));
+    const refreshedSnapshot = businessHoursSnapshot(refreshedBusinessHours);
+    if (refreshedSnapshot !== expectedSnapshot) {
+      throw new Error('Business hours did not persist. Please try again.');
+    }
+    settings.value = mergeSettings(
+      {
+        ...refreshed,
+        defaultBookingRules: mergeRules(defaultRules, refreshed.defaultBookingRules),
+      },
+      {},
+    );
+    applyThemeFromSettings(settings.value);
+    businessHoursDraft.value = hydrateBusinessHoursDraft(refreshedBusinessHours);
+    ElMessage.success('Business hours saved');
+  } catch (err: any) {
+    businessHoursError.value = err?.message || 'Failed to save business hours';
+    ElMessage.error(businessHoursError.value);
+  } finally {
+    businessHoursSaving.value = false;
+  }
+};
 
 const setPresetScale = (value: number) => {
   handleFontScaleChange(value);
@@ -503,6 +621,7 @@ const loadSettings = async () => {
       },
       {},
     );
+    businessHoursDraft.value = hydrateBusinessHoursDraft(settings.value.businessHours ?? null);
     applyThemeFromSettings(settings.value);
     const [messagingData, onboardingStatus, accountData] = await Promise.all([
       fetchMessagingSettings(),
@@ -938,32 +1057,88 @@ onMounted(loadSettings);
         <div class="flex items-center justify-between">
           <div>
             <div class="text-lg font-semibold text-slate-900">Business Hours</div>
-            <div class="text-sm text-slate-600">Control website/footer hours. Times use 24h (e.g., 10:00).</div>
+            <div class="text-sm text-slate-600">
+              Control website/footer hours. Times display in 12h format and save as 24h values.
+            </div>
           </div>
-          <div class="text-xs text-slate-500" v-if="saving">Saving…</div>
+          <div class="flex items-center gap-2">
+            <div v-if="businessHoursChanged" class="text-xs font-semibold text-amber-600">Unsaved changes</div>
+            <div v-else class="text-xs text-emerald-600">In sync</div>
+          </div>
         </div>
         <ElDivider />
-        <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          <div
-            v-for="day in dayLabels"
-            :key="day.key"
-            class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 flex flex-col gap-2"
-          >
-            <div class="flex items-center justify-between text-sm font-semibold text-slate-900">
-              <span>{{ day.label }}</span>
-              <ElButton size="small" text type="warning" @click="markClosed(day.key)">Closed</ElButton>
-            </div>
-            <div class="grid grid-cols-2 gap-2">
-              <ElInput
-                :model-value="(businessHours || {})[day.key]?.open || ''"
-                placeholder="Open"
-                @input="(val: string) => setBusinessHour(day.key, { ...(businessHours || {})[day.key], open: val, close: (businessHours || {})[day.key]?.close || '' })"
-              />
-              <ElInput
-                :model-value="(businessHours || {})[day.key]?.close || ''"
-                placeholder="Close"
-                @input="(val: string) => setBusinessHour(day.key, { ...(businessHours || {})[day.key], open: (businessHours || {})[day.key]?.open || '', close: val })"
-              />
+        <div class="space-y-4">
+          <div class="flex flex-wrap items-center gap-2">
+            <ElButton size="small" plain :disabled="businessHoursSaving" @click="applyWeekdayHoursToMonFri">
+              Copy Monday to weekdays
+            </ElButton>
+            <ElButton
+              size="small"
+              type="primary"
+              :loading="businessHoursSaving"
+              :disabled="!businessHoursChanged || businessHoursSaving"
+              @click="saveBusinessHours"
+            >
+              Save Business Hours
+            </ElButton>
+          </div>
+
+          <ElAlert
+            v-if="businessHoursError"
+            type="error"
+            :closable="false"
+            :title="businessHoursError"
+          />
+
+          <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div
+              v-for="day in businessHourDays"
+              :key="day.key"
+              class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-4"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <div class="text-sm font-semibold text-slate-900">{{ day.label }}</div>
+                  <div class="mt-1 text-xs" :class="businessHoursDraft[day.key].enabled ? 'text-emerald-600' : 'text-slate-500'">
+                    {{ formatBusinessDaySummary(day.key) }}
+                  </div>
+                </div>
+                <ElSwitch
+                  :model-value="businessHoursDraft[day.key].enabled"
+                  inline-prompt
+                  active-text="Open"
+                  inactive-text="Closed"
+                  @change="(val) => setBusinessDayEnabled(day.key, val as boolean)"
+                />
+              </div>
+              <div class="grid grid-cols-2 gap-2" :class="!businessHoursDraft[day.key].enabled ? 'opacity-50' : ''">
+                <label class="space-y-1">
+                  <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">Open</span>
+                  <ElTimePicker
+                    :model-value="businessHoursDraft[day.key].open || null"
+                    class="business-hours-time"
+                    :disabled="!businessHoursDraft[day.key].enabled"
+                    :clearable="false"
+                  :format="BUSINESS_TIME_DISPLAY_FORMAT"
+                  :value-format="BUSINESS_TIME_STORAGE_FORMAT"
+                    placeholder="10:00 AM"
+                    @update:model-value="(value) => setBusinessDayTime(day.key, 'open', (value as string) || '')"
+                  />
+                </label>
+                <label class="space-y-1">
+                  <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">Close</span>
+                  <ElTimePicker
+                    :model-value="businessHoursDraft[day.key].close || null"
+                    class="business-hours-time"
+                    :disabled="!businessHoursDraft[day.key].enabled"
+                    :clearable="false"
+                  :format="BUSINESS_TIME_DISPLAY_FORMAT"
+                  :value-format="BUSINESS_TIME_STORAGE_FORMAT"
+                    placeholder="6:00 PM"
+                    @update:model-value="(value) => setBusinessDayTime(day.key, 'close', (value as string) || '')"
+                  />
+                </label>
+              </div>
             </div>
           </div>
         </div>
@@ -1552,5 +1727,11 @@ onMounted(loadSettings);
 }
 .settings-page :deep(.el-select__wrapper) {
   align-items: center;
+}
+.settings-page :deep(.business-hours-time) {
+  width: 100%;
+}
+.settings-page :deep(.business-hours-time .el-input__inner) {
+  font-weight: 600;
 }
 </style>
