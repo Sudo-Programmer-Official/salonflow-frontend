@@ -152,6 +152,8 @@ const form = reactive({
 
 const groupedServices = ref<ServiceGroup[]>([]);
 const loadingServices = ref(false);
+const serviceSearch = ref('');
+const activeServiceCategoryId = ref('all');
 const settings = ref<BusinessSettings | null>(null);
 const settingsError = ref('');
 const businessName = ref('Book a visit');
@@ -182,6 +184,61 @@ const serviceMap = computed(() => {
     group.services.forEach((svc) => map.set(svc.id, svc)),
   );
   return map;
+});
+
+const serviceSearchQuery = computed(() => serviceSearch.value.trim().toLowerCase());
+
+const filteredServiceGroups = computed(() => {
+  const query = serviceSearchQuery.value;
+  if (!query) return groupedServices.value;
+
+  return groupedServices.value
+    .map((group) => {
+      const matches = group.services.filter((svc) => {
+        const haystack = [svc.name, group.categoryName, group.categoryIcon]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        return haystack.includes(query);
+      });
+      return { ...group, services: matches };
+    })
+    .filter((group) => group.services.length > 0);
+});
+
+const serviceCategoryChips = computed(() => {
+  const chips = filteredServiceGroups.value.map((group) => {
+    const chipId = group.categoryId || `category:${group.categoryName}`;
+    return {
+      id: chipId,
+      label: group.categoryName,
+      icon: group.categoryIcon || '📋',
+      count: group.services.length,
+    };
+  });
+
+  return [
+    {
+      id: 'all',
+      label: 'All',
+      icon: '✨',
+      count: filteredServiceGroups.value.reduce((total, group) => total + group.services.length, 0),
+    },
+    ...chips,
+  ];
+});
+
+const mobileServiceGroups = computed(() => {
+  if (serviceSearchQuery.value) {
+    return filteredServiceGroups.value;
+  }
+  if (activeServiceCategoryId.value === 'all') {
+    return filteredServiceGroups.value;
+  }
+  return filteredServiceGroups.value.filter((group) => {
+    const chipId = group.categoryId || `category:${group.categoryName}`;
+    return chipId === activeServiceCategoryId.value;
+  });
 });
 
 const selectedService = computed(() => serviceMap.value.get(form.serviceId) || null);
@@ -396,6 +453,29 @@ watch(
 );
 
 watch(
+  filteredServiceGroups,
+  (groups) => {
+    if (serviceSearchQuery.value) {
+      activeServiceCategoryId.value = 'all';
+      return;
+    }
+
+    const hasActive = groups.some((group) => {
+      const chipId = group.categoryId || `category:${group.categoryName}`;
+      return chipId === activeServiceCategoryId.value;
+    });
+
+    if (!hasActive) {
+      const firstGroup = groups[0];
+      activeServiceCategoryId.value = firstGroup
+        ? firstGroup.categoryId || `category:${firstGroup.categoryName}`
+        : 'all';
+    }
+  },
+  { immediate: true },
+);
+
+watch(
   () => form.phone,
   (value) => {
     const formatted = formatDisplayPhone(value);
@@ -486,6 +566,11 @@ const onSubmit = async () => {
 
 const selectService = (serviceId: string) => {
   form.serviceId = serviceId;
+  const selectedGroup = groupedServices.value.find((group) =>
+    group.services.some((service) => service.id === serviceId),
+  );
+  activeServiceCategoryId.value =
+    selectedGroup?.categoryId || (selectedGroup ? `category:${selectedGroup.categoryName}` : 'all');
 };
 </script>
 
@@ -494,15 +579,15 @@ const selectService = (serviceId: string) => {
     :is="useWebsiteShell ? PublicWebsiteLayout : 'div'"
     v-bind="useWebsiteShell ? { header: websiteHeader, footer: websiteFooter, activePath: route.path } : {}"
   >
-    <div class="booking-page sf-container sf-section space-y-6">
-    <div class="mx-auto max-w-2xl px-4 text-center">
+    <div class="booking-page sf-container sf-section space-y-4 sm:space-y-6">
+    <div class="mx-auto max-w-2xl px-3 text-center sm:px-4">
       <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--sf-primary,#0ea5e9)]">
         {{ compactBusinessName }}
       </p>
-      <h1 class="mt-3 text-3xl font-semibold tracking-tight text-text sm:text-4xl">
+      <h1 class="mt-2 text-[1.9rem] font-semibold tracking-tight text-text sm:mt-3 sm:text-4xl">
         Book your appointment
       </h1>
-      <p class="mt-2 text-sm text-muted sm:text-base">
+      <p class="mt-2 text-sm leading-6 text-muted sm:text-base">
         Choose a service, pick a time, and we’ll confirm instantly.
       </p>
     </div>
@@ -515,8 +600,8 @@ const selectService = (serviceId: string) => {
       :title="settingsError"
     />
 
-    <div class="grid gap-5 xl:grid-cols-[minmax(0,1.05fr),minmax(320px,0.95fr)] xl:items-start">
-      <div class="booking-form-panel glass mx-auto w-full max-w-2xl rounded-[28px] bg-surface p-5 shadow-[0_10px_28px_rgba(15,23,42,0.08)] sm:p-6">
+    <div class="grid gap-4 xl:grid-cols-[minmax(0,1.05fr),minmax(320px,0.95fr)] xl:items-start sm:gap-5">
+      <div class="booking-form-panel glass mx-auto w-full max-w-2xl rounded-[28px] bg-surface p-4 shadow-[0_10px_28px_rgba(15,23,42,0.08)] sm:p-6">
         <ElForm label-position="top" class="booking-form space-y-3.5" @submit.prevent="onSubmit">
           <ElFormItem label="Name" required>
             <ElInput v-model="form.name" placeholder="Your name" size="large" autocomplete="name" />
@@ -555,6 +640,81 @@ const selectService = (serviceId: string) => {
           </div>
 
           <ElFormItem label="Service (optional)">
+            <div class="space-y-3 md:hidden">
+              <div class="rounded-2xl border border-border bg-surface-muted p-4">
+                <div class="flex items-center justify-between gap-3">
+                  <div>
+                    <div class="text-sm font-semibold text-text">Choose a service</div>
+                    <div class="text-xs text-muted">Tap a card. We keep the booking flow easy on mobile.</div>
+                  </div>
+                  <span class="text-lg">💅</span>
+                </div>
+                <ElInput
+                  v-model="serviceSearch"
+                  class="mt-3"
+                  size="large"
+                  clearable
+                  placeholder="Search services"
+                />
+                <div class="mt-3 flex gap-2 overflow-x-auto pb-1">
+                  <button
+                    v-for="chip in serviceCategoryChips"
+                    :key="chip.id"
+                    type="button"
+                    class="service-chip"
+                    :class="{ 'service-chip--active': activeServiceCategoryId === chip.id && !serviceSearchQuery }"
+                    @click="activeServiceCategoryId = chip.id"
+                  >
+                    <span>{{ chip.icon }}</span>
+                    <span>{{ chip.label }}</span>
+                    <span class="service-chip__count">{{ chip.count }}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div v-if="mobileServiceGroups.length" class="space-y-3">
+                <div
+                  v-for="group in mobileServiceGroups"
+                  :key="group.categoryId || group.categoryName"
+                  class="rounded-2xl border border-border bg-surface p-3"
+                >
+                  <div class="flex items-center justify-between text-sm font-semibold text-text">
+                    <span>{{ group.categoryIcon || '📋' }} {{ group.categoryName }}</span>
+                    <span class="text-xs font-medium text-muted">{{ group.services.length }} option{{ group.services.length === 1 ? '' : 's' }}</span>
+                  </div>
+                  <div class="mt-3 grid gap-2">
+                    <button
+                      v-for="service in group.services"
+                      :key="service.id"
+                      type="button"
+                      class="service-card"
+                      :class="{ 'service-card--active': form.serviceId === service.id }"
+                      @click="selectService(service.id)"
+                    >
+                      <div class="min-w-0 text-left">
+                        <div class="font-semibold leading-tight text-text">{{ service.name }}</div>
+                        <div class="mt-1 flex flex-wrap gap-2 text-xs text-muted">
+                          <span v-if="service.durationMinutes">{{ service.durationMinutes }} min</span>
+                          <span v-if="service.priceCents !== undefined">
+                            {{ formatMoney(service.priceCents, service.currency || 'USD') }}
+                          </span>
+                        </div>
+                      </div>
+                      <div class="service-card__action" :class="{ 'service-card__action--active': form.serviceId === service.id }">
+                        {{ form.serviceId === service.id ? 'Selected' : 'Choose' }}
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div v-else class="rounded-2xl border border-dashed border-border bg-surface-muted px-4 py-5 text-sm text-muted">
+                <template v-if="loadingServices">Loading services…</template>
+                <template v-else-if="groupedServices.length === 0">No services are available yet.</template>
+                <template v-else>No services match “{{ serviceSearch.trim() }}”.</template>
+              </div>
+            </div>
+
             <ElSelect
               v-model="form.serviceId"
               placeholder="Select a service (optional)"
@@ -562,7 +722,7 @@ const selectService = (serviceId: string) => {
               clearable
               filterable
               :loading="loadingServices"
-              class="w-full"
+              class="hidden w-full md:block"
             >
               <template v-for="group in groupedServices" :key="group.categoryId || 'uncategorized'">
                 <ElOptionGroup :label="`${group.categoryIcon || '📋'} ${group.categoryName}`">
@@ -698,7 +858,7 @@ const selectService = (serviceId: string) => {
       </div>
 
       <div class="space-y-3.5">
-        <div class="glass-card rounded-[26px] bg-surface p-5 shadow-sm">
+        <div class="glass-card hidden rounded-[26px] bg-surface p-4 shadow-sm sm:p-5 md:block">
           <div class="flex items-center gap-2 text-sm font-semibold text-text">
             <span>📅</span>
             <span>Your selection</span>
@@ -744,7 +904,7 @@ const selectService = (serviceId: string) => {
           </div>
         </div>
 
-        <div class="glass-card rounded-[26px] bg-surface p-5 shadow-sm">
+        <div class="glass-card rounded-[26px] bg-surface p-4 shadow-sm sm:p-5">
           <div class="flex items-center justify-between">
             <div>
               <div class="text-sm font-semibold text-text">Service lineup</div>
@@ -791,7 +951,7 @@ const selectService = (serviceId: string) => {
           </div>
         </div>
 
-        <div class="glass-card rounded-[26px] bg-surface p-5 shadow-sm">
+        <div class="glass-card rounded-[26px] bg-surface p-4 shadow-sm sm:p-5">
           <div class="flex items-center gap-2 text-sm font-semibold text-text">
             <span>⏰</span>
             <span>Need a different time?</span>
@@ -802,7 +962,7 @@ const selectService = (serviceId: string) => {
           <p class="mt-2 text-xs text-muted leading-relaxed">Same-day booking is allowed when the notice window is met.</p>
         </div>
 
-        <div class="glass-card rounded-[26px] bg-surface p-5 shadow-sm">
+        <div class="glass-card rounded-[26px] bg-surface p-4 shadow-sm sm:p-5">
           <div class="flex items-center gap-2 text-sm font-semibold text-text">
             <span>🔔</span>
             <span>What happens next</span>
@@ -909,6 +1069,81 @@ const selectService = (serviceId: string) => {
 
 .service-option__button--active {
   color: var(--sf-text, #0f172a);
+}
+
+.service-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, var(--sf-border, #dbe4ef) 90%, transparent);
+  background: color-mix(in srgb, var(--sf-surface-muted, #f8fafc) 88%, white 12%);
+  color: var(--sf-text, #0f172a);
+  border-radius: 999px;
+  padding: 0.55rem 0.8rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.service-chip:hover {
+  transform: translateY(-1px);
+}
+
+.service-chip--active {
+  border-color: color-mix(in srgb, var(--sf-primary, #0ea5e9) 28%, transparent);
+  background: color-mix(in srgb, var(--sf-primary, #0ea5e9) 8%, white 92%);
+}
+
+.service-chip__count {
+  margin-left: 0.1rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.06);
+  padding: 0.1rem 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--sf-text, #0f172a) 66%, #fff 34%);
+}
+
+.service-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  border-radius: 1.1rem;
+  border: 1px solid color-mix(in srgb, var(--sf-border, #dbe4ef) 90%, transparent);
+  background: var(--sf-surface-muted, #f8fafc);
+  padding: 0.95rem 1rem;
+  text-align: left;
+  transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.service-card:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--sf-primary, #0ea5e9) 18%, transparent);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.service-card--active {
+  border-color: color-mix(in srgb, var(--sf-primary, #0ea5e9) 30%, transparent);
+  background: color-mix(in srgb, var(--sf-primary, #0ea5e9) 7%, white 93%);
+}
+
+.service-card__action {
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.06);
+  padding: 0.45rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: color-mix(in srgb, var(--sf-text, #0f172a) 72%, #fff 28%);
+}
+
+.service-card__action--active {
+  background: color-mix(in srgb, var(--sf-primary, #0ea5e9) 14%, white 86%);
+  color: color-mix(in srgb, var(--sf-primary, #0ea5e9) 86%, #0f172a 14%);
 }
 
 @media (max-width: 767px) {
