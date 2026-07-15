@@ -315,7 +315,7 @@ onBeforeUnmount(() => {
 
 @media (max-width: 860px) {
   .sf-header__bar {
-    padding: 10px 0;
+    padding: 10px 8px;
     grid-template-columns: auto auto;
     grid-template-rows: auto auto;
     align-items: start;
@@ -367,7 +367,7 @@ onBeforeUnmount(() => {
 
 @media (max-width: 420px) {
   .sf-header__bar {
-    padding: 9px 0;
+    padding: 9px 12px;
   }
 
   .sf-header__brand-name {
