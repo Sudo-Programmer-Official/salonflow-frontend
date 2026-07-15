@@ -14,7 +14,10 @@
         </nav>
       </div>
     </header>
-    <main class="public-content mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-8 sm:px-8">
+    <main
+      class="public-content flex flex-1 flex-col"
+      :class="suppressChrome ? 'public-content--full-bleed' : 'public-content--framed'"
+    >
       <MaintenanceBanner
         v-if="maintenanceActive"
         class="mb-4"
@@ -55,5 +58,26 @@ const suppressChrome = computed(() => {
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+}
+.public-content--framed {
+  width: 100%;
+  max-width: 64rem;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 2rem 1rem;
+}
+.public-content--full-bleed {
+  width: 100%;
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+  padding: 0;
+}
+
+@media (min-width: 640px) {
+  .public-content--framed {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
 }
 </style>
