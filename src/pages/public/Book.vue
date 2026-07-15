@@ -1149,10 +1149,54 @@ const selectService = (serviceId: string) => {
 @media (max-width: 767px) {
   .booking-page {
     padding-inline: 0.25rem;
+    padding-top: 1rem;
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
   }
 
   .booking-form-panel {
-    border-radius: 1.75rem;
+    border-radius: 1.5rem;
+    padding: 1rem;
+  }
+
+  .booking-page > .mx-auto {
+    padding-top: 0.25rem;
+    padding-left: 0.4rem;
+    padding-right: 0.4rem;
+  }
+
+  .booking-page > .mx-auto h1 {
+    font-size: 1.7rem;
+    line-height: 1.05;
+  }
+
+  .booking-page > .mx-auto p {
+    line-height: 1.45;
+  }
+
+  .booking-form :deep(.el-form-item__label) {
+    font-size: 0.88rem;
+    margin-bottom: 0.3rem;
+  }
+
+  .booking-form :deep(.el-input__wrapper),
+  .booking-form :deep(.el-select__wrapper),
+  .booking-form :deep(.el-date-editor.el-input__wrapper),
+  .booking-form :deep(.el-date-editor .el-input__wrapper),
+  .booking-form :deep(.el-date-editor .el-select__wrapper) {
+    min-height: 3.05rem;
+    padding-inline: 0.75rem;
+    border-radius: 0.9rem;
+  }
+
+  .booking-form :deep(.el-textarea__inner) {
+    min-height: 6.5rem;
+    border-radius: 0.9rem;
+  }
+
+  .booking-submit {
+    min-height: 3.25rem;
+    height: auto;
+    font-size: 1rem;
   }
 }
 </style>
