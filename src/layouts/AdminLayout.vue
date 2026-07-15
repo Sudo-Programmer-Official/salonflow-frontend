@@ -9,6 +9,7 @@ import { trialExpired, trialEndedAt, trialDaysRemaining, resetTrialState } from 
 import { fetchOnboardingStatus, dismissOnboardingBanner } from '../api/onboarding';
 import { fetchSettings, fetchPublicSettings } from '../api/settings';
 import { applyThemeFromSettings } from '../utils/theme';
+import { logout } from '../utils/auth';
 import { useAppointmentAlerts } from '../composables/useAppointmentAlerts';
 import { refreshBusinessDayClock } from '../composables/useBusinessDayClock';
 import { useInboxNotifications } from '../utils/inboxNotifications';
@@ -46,6 +47,30 @@ const showHeader = computed(
 const hideSidebarRoutes = ['admin-checkout'];
 const showSidebar = computed(() => !hideSidebarRoutes.includes((route.name as string) || ''));
 const isCheckoutRoute = computed(() => (route.name as string) === 'admin-checkout');
+const accountOpen = ref(false);
+const accountButton = ref<HTMLElement | null>(null);
+const accountMenu = ref<HTMLElement | null>(null);
+const accountEmail = computed<string>(
+  () => localStorage.getItem('email') || localStorage.getItem('role') || 'Account',
+);
+const accountRoleLabel = computed(() => {
+  const roleValue = localStorage.getItem('role') || '';
+  if (!roleValue) return 'Account';
+  return roleValue
+    .toLowerCase()
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+});
+const accountInitials = computed(() => {
+  const source = accountEmail.value;
+  const parts = source.split(/[^A-Za-z0-9]+/).filter(Boolean);
+  const [first = '', second = ''] = parts;
+  if (first && second) {
+    return `${first.charAt(0)}${second.charAt(0)}`.toUpperCase();
+  }
+  return source.slice(0, 2).toUpperCase();
+});
 
 const showEndedBanner = computed(() => isOwner.value && trialExpired.value && !dismissBanner.value);
 const showCountdownBanner = computed(
@@ -86,6 +111,28 @@ const exitImpersonation = () => {
   localStorage.removeItem('impersonationOriginalTenant');
 
   window.location.href = '/platform';
+};
+
+const openAccountMenu = () => {
+  accountOpen.value = !accountOpen.value;
+  if (accountOpen.value) {
+    bellOpen.value = false;
+  }
+};
+
+const goToProfile = () => {
+  accountOpen.value = false;
+  router.push({ name: 'admin-settings' });
+};
+
+const goToAccountSecurity = () => {
+  accountOpen.value = false;
+  router.push({ name: 'admin-settings', hash: '#account-security' });
+};
+
+const handleLogout = () => {
+  accountOpen.value = false;
+  logout('/app/login');
 };
 
 const kioskEnabled = ref(false);
@@ -271,6 +318,15 @@ const handleGlobalClick = (event: MouseEvent) => {
     !bellButton.value.contains(target)
   ) {
     bellOpen.value = false;
+  }
+  if (
+    accountOpen.value &&
+    accountMenu.value &&
+    !accountMenu.value.contains(target) &&
+    accountButton.value &&
+    !accountButton.value.contains(target)
+  ) {
+    accountOpen.value = false;
   }
 };
 
@@ -646,6 +702,64 @@ const toggleSidebarCollapse = () => {
           </div>
         </div>
         <div class="flex items-center gap-3">
+          <div class="relative">
+            <button
+              ref="accountButton"
+              type="button"
+              class="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-left text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+              @click="openAccountMenu"
+              aria-label="Account menu"
+            >
+              <span class="flex h-8 w-8 items-center justify-center rounded-full bg-sky-100 text-[11px] font-bold uppercase tracking-wide text-sky-700">
+                {{ accountInitials }}
+              </span>
+              <span class="hidden min-w-0 flex-col sm:flex">
+                <span class="truncate text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500">Signed in as</span>
+                <span class="truncate text-sm font-semibold text-slate-800">{{ accountRoleLabel }}</span>
+              </span>
+              <span aria-hidden="true" class="text-xs text-slate-400">▾</span>
+            </button>
+            <Teleport to="body">
+              <div
+                v-if="accountOpen"
+                ref="accountMenu"
+                class="fixed right-4 top-16 z-[99999] w-72 rounded-xl border border-slate-200 bg-white shadow-[0_20px_40px_rgba(15,23,42,0.18)] backdrop-blur"
+              >
+                <div class="border-b border-slate-100 px-4 py-3">
+                  <div class="text-xs uppercase tracking-[0.22em] text-slate-500">Account</div>
+                  <div class="mt-1 text-sm font-semibold text-slate-900">{{ accountRoleLabel }}</div>
+                  <div class="mt-1 truncate text-sm text-slate-600">{{ accountEmail }}</div>
+                </div>
+                <div class="p-2">
+                  <button
+                    type="button"
+                    class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-900"
+                    @click="goToProfile"
+                  >
+                    <span>My Profile</span>
+                    <span class="text-slate-400">↗</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-900"
+                    @click="goToAccountSecurity"
+                  >
+                    <span>Account &amp; Security</span>
+                    <span class="text-slate-400">↗</span>
+                  </button>
+                  <div class="my-2 border-t border-slate-100"></div>
+                  <button
+                    type="button"
+                    class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-semibold text-rose-700 transition hover:bg-rose-50"
+                    @click="handleLogout"
+                  >
+                    <span>Sign Out</span>
+                    <span class="text-rose-500">⎋</span>
+                  </button>
+                </div>
+              </div>
+            </Teleport>
+          </div>
           <div class="relative">
             <button
               type="button"

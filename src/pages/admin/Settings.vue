@@ -563,7 +563,7 @@ onMounted(loadSettings);
 
         <ElDivider />
 
-        <div class="grid gap-6 lg:grid-cols-2">
+        <div id="account-security" class="grid gap-6 lg:grid-cols-2">
           <div class="space-y-4">
             <div class="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
               <div class="text-xs uppercase tracking-wide text-slate-500">Email address</div>
