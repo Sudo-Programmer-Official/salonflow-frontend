@@ -33,6 +33,7 @@ import {
   updateAppointment,
 } from '../../api/appointments';
 import { fetchPublicSettings } from '../../api/settings';
+import { searchCustomers } from '../../api/customers';
 import { fetchServices, type ServiceItem } from '../../api/services';
 import { fetchStaff, type StaffMember } from '../../api/staff';
 import { useAppointmentAlerts } from '../../composables/useAppointmentAlerts';
@@ -148,6 +149,7 @@ const editingId = ref<string | null>(null);
 const dialogAppointment = ref<Appointment | null>(null);
 const detailVisible = ref(false);
 const detailAppointment = ref<Appointment | null>(null);
+const detailActionLoading = ref(false);
 const completedPastVisibleCount = ref(COMPLETED_PAST_INCREMENT);
 const scheduler = useScheduler();
 const schedulerWorkspace = computed(() => scheduler.workspace.value);
@@ -529,6 +531,11 @@ const openView = (appointment: Appointment) => {
   detailVisible.value = true;
 };
 
+const closeDetail = () => {
+  detailVisible.value = false;
+  detailAppointment.value = null;
+};
+
 const consumeRouteAppointmentTarget = async (sourceAppointments = appointments.value) => {
   const appointmentId =
     typeof route.query.appointmentId === 'string' ? route.query.appointmentId : null;
@@ -803,7 +810,7 @@ const saveAppointment = async () => {
 
     dialogVisible.value = false;
     dialogAppointment.value = null;
-    detailVisible.value = false;
+    closeDetail();
     await loadAppointments();
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : 'Save failed');
@@ -812,13 +819,16 @@ const saveAppointment = async () => {
   }
 };
 
-const handleCancel = async (id: string) => {
+const handleCancel = async (id: string, options?: { closeDrawer?: boolean }) => {
   actionLoading.value = { ...actionLoading.value, [id]: true };
 
   try {
     await cancelAppointment(id);
     await loadAppointments();
     ElMessage.success('Appointment canceled');
+    if (options?.closeDrawer) {
+      closeDetail();
+    }
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : 'Cancel failed');
   } finally {
@@ -958,6 +968,62 @@ const openAppointmentCheckIn = (appointment: Appointment | null) => {
       appointmentStaff: appointment.staffName || '',
     },
   });
+};
+
+const handleCheckInFromDrawer = (appointment: Appointment | null) => {
+  if (!appointment) {
+    return;
+  }
+
+  openAppointmentCheckIn(appointment);
+  closeDetail();
+};
+
+const normalizeLookupPhone = (value?: string | null) => (value ? value.replace(/[^\d+]/g, '').trim() : '');
+
+const handleViewCustomer = async (appointment: Appointment | null) => {
+  if (!appointment || detailActionLoading.value) {
+    return;
+  }
+
+  detailActionLoading.value = true;
+
+  try {
+    const appointmentPhone = normalizeLookupPhone(appointment.phoneE164);
+    const appointmentName = appointment.customerName.trim().toLowerCase();
+    const queries = [
+      appointmentPhone,
+      appointment.customerName.trim(),
+    ].filter(Boolean);
+
+    for (const query of queries) {
+      const results = await searchCustomers(query);
+      if (!results.length) {
+        continue;
+      }
+
+      const exactMatch = results.find(
+        (candidate) =>
+          (appointmentPhone && normalizeLookupPhone(candidate.phoneE164) === appointmentPhone) ||
+          candidate.name.trim().toLowerCase() === appointmentName,
+      );
+
+      const target = exactMatch ?? results[0];
+      if (!target) {
+        continue;
+      }
+
+      await router.push({ name: 'admin-customer-profile', params: { customerId: target.id } });
+      closeDetail();
+      return;
+    }
+
+    ElMessage.info('No matching customer profile was found');
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'Failed to open customer profile');
+  } finally {
+    detailActionLoading.value = false;
+  }
 };
 
 const handleTimelineAppointmentClick = (appointmentId: string) => {
@@ -1365,8 +1431,10 @@ watch(
             :error="schedulerError"
             :mode="schedulerViewMode"
             :can-manage="canManageAppointments"
+            :selected-appointment-id="detailVisible ? detailAppointment?.id ?? null : null"
             @appointment-click="handleTimelineAppointmentClick"
             @appointment-move="handleTimelineAppointmentMove"
+            @empty-create="openCreate()"
             @slot-click="handleTimelineSlotClick"
           />
 
@@ -1600,7 +1668,7 @@ watch(
               {{ formatInBusinessTz(detailAppointment.scheduledAt, 'ddd, MMM D • h:mm A', businessTimezone) }}
             </p>
           </div>
-          <ElButton text class="appointment-detail-drawer__close" @click="detailVisible = false">
+          <ElButton text class="appointment-detail-drawer__close" @click="closeDetail">
             ✕
           </ElButton>
         </div>
@@ -1641,25 +1709,35 @@ watch(
             <p>{{ detailAppointment.notes || 'No notes added.' }}</p>
           </div>
 
-          <div class="appointment-detail-drawer__actions">
-            <ElButton class="sf-btn appointment-detail-drawer__button" @click="openEdit(detailAppointment)">
-              Edit
-            </ElButton>
-            <ElButton
-              v-if="canManageAppointments"
-              class="sf-btn appointment-detail-drawer__button"
-              @click="openAppointmentCheckIn(detailAppointment)"
-            >
-              Check In
-            </ElButton>
-            <ElButton
-              type="primary"
-              class="sf-btn appointment-detail-drawer__button"
-              @click="detailVisible = false"
-            >
-              Close
-            </ElButton>
-          </div>
+        <div class="appointment-detail-drawer__actions">
+          <ElButton
+            class="sf-btn appointment-detail-drawer__button"
+            :loading="detailActionLoading"
+            @click="handleViewCustomer(detailAppointment)"
+          >
+            View Customer
+          </ElButton>
+          <ElButton class="sf-btn appointment-detail-drawer__button" @click="openEdit(detailAppointment)">
+            Reschedule
+          </ElButton>
+          <ElButton
+            v-if="canManageAppointments"
+            class="sf-btn appointment-detail-drawer__button"
+            @click="handleCheckInFromDrawer(detailAppointment)"
+          >
+            Check In
+          </ElButton>
+          <ElButton
+            v-if="canManageAppointments && detailAppointment.status !== 'CANCELED' && detailAppointment.status !== 'COMPLETED'"
+            class="sf-btn appointment-detail-drawer__button appointment-detail-drawer__button--danger"
+            @click="handleCancel(detailAppointment.id, { closeDrawer: true })"
+          >
+            Cancel
+          </ElButton>
+          <ElButton type="primary" class="sf-btn appointment-detail-drawer__button" @click="closeDetail">
+            Close
+          </ElButton>
+        </div>
         </div>
       </ElDrawer>
   </div>
@@ -2175,6 +2253,17 @@ watch(
   flex: 1 1 8rem;
   min-height: 2.7rem;
   border-radius: 999px;
+}
+
+.appointment-detail-drawer__button--danger {
+  border-color: rgba(239, 68, 68, 0.24);
+  color: #b91c1c;
+  background: rgba(254, 242, 242, 0.9);
+}
+
+.appointment-detail-drawer__button--danger:hover {
+  border-color: rgba(239, 68, 68, 0.32);
+  background: rgba(254, 226, 226, 0.95);
 }
 
 @media (min-width: 720px) {

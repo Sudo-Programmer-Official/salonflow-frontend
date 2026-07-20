@@ -608,10 +608,11 @@ const toggleSidebarCollapse = () => {
   isSidebarCollapsed.value = !isSidebarCollapsed.value;
   localStorage.setItem(SIDEBAR_COLLAPSE_KEY, isSidebarCollapsed.value ? 'true' : 'false');
 };
+
 </script>
 
 <template>
-  <div class="admin-shell text-slate-900 admin-theme">
+  <div class="admin-shell text-slate-900 admin-cloud-theme">
     <aside v-if="showSidebar" :class="['sidebar', { open: sidebarOpen, collapsed: isSidebarCollapsed }]">
       <div class="sidebar__brand">
         <button
@@ -1001,7 +1002,7 @@ const toggleSidebarCollapse = () => {
   />
 </template>
 
-<style src="../themes/admin-theme.css"></style>
+<style src="../themes/admin-cloud-theme.css"></style>
 <style scoped>
 .admin-shell {
   display: flex;
@@ -1081,32 +1082,6 @@ const toggleSidebarCollapse = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-.collapse-toggle {
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  background: rgba(255, 255, 255, 0.7);
-  border-radius: 10px;
-  width: 44px;
-  height: 44px;
-  display: grid;
-  place-items: center;
-  font-weight: 800;
-  color: #0f172a;
-  cursor: pointer;
-  font-size: 16px;
-  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
-}
-.collapse-toggle:hover {
-  background: rgba(255, 255, 255, 0.85);
-}
-.collapse-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  font-size: 18px;
-  line-height: 1;
 }
 .sidebar__brand {
   min-height: 96px;
@@ -1323,6 +1298,11 @@ const toggleSidebarCollapse = () => {
   line-height: 1;
   cursor: pointer;
 }
+.sidebar-toggle--mobile {
+  display: none;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  background: rgba(255, 255, 255, 0.9);
+}
 
 .sidebar-backdrop {
   display: none;
@@ -1351,10 +1331,13 @@ const toggleSidebarCollapse = () => {
   }
   .admin-shell,
   .admin-main {
-  width: 100vw;
-}
-.notification-dropdown {
-  will-change: transform, opacity;
-}
+    width: 100vw;
+  }
+  .sidebar-toggle--mobile {
+    display: inline-flex;
+  }
+  .notification-dropdown {
+    will-change: transform, opacity;
+  }
 }
 </style>

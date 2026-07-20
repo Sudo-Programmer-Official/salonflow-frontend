@@ -26,7 +26,13 @@ import {
   type TenantOverview,
   type TenantMetrics,
 } from '../../api/superadmin';
-import { fetchPlatformLimits, updatePlatformLimits } from '../../api/platform';
+import {
+  fetchPlatformFeatures,
+  fetchPlatformLimits,
+  updatePlatformFeatures,
+  updatePlatformLimits,
+  type PlatformFeatureRow,
+} from '../../api/platform';
 import {
   fetchTenantControl,
   fetchTenantAudit,
@@ -58,6 +64,8 @@ const limitsDialog = ref(false);
 const savingLimits = ref(false);
 const savingBilling = ref(false);
 const reconciling = ref(false);
+const featureFlags = ref<PlatformFeatureRow[]>([]);
+const savingFeatureFlags = ref(false);
 
 const controls = ref<TenantControl | null>(null);
 const controlDraft = ref<Partial<TenantControl>>({});
@@ -103,7 +111,7 @@ const load = async () => {
     tenant.value = res.tenant;
     metrics.value = res.metrics;
     syncBillingDraft();
-    await Promise.all([loadLimits(), loadControls(), loadAudit()]);
+    await Promise.all([loadLimits(), loadControls(), loadFeatureFlags(), loadAudit()]);
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load tenant';
   } finally {
@@ -197,6 +205,26 @@ const loadControls = async () => {
     grantReason.value = '';
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to load controls');
+  }
+};
+
+const loadFeatureFlags = async () => {
+  if (!businessId.value) return;
+  try {
+    const rows = await fetchPlatformFeatures(businessId.value);
+    const map = new Map(rows.map((row) => [row.feature_key, row]));
+    featureFlags.value = [
+      {
+        feature_key: 'ai_receptionist',
+        enabled: false,
+        quota: null,
+        expires_at: null,
+        enabled_at: null,
+        enabled_by: null,
+      },
+    ].map((row) => map.get(row.feature_key) ?? row);
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : 'Failed to load feature flags');
   }
 };
 
@@ -356,6 +384,36 @@ const performResetUsage = async (reason: string) => {
   }
 };
 
+const aiReceptionistFlag = computed({
+  get: () => featureFlags.value.find((row) => row.feature_key === 'ai_receptionist')?.enabled ?? false,
+  set: (value: boolean) => {
+    featureFlags.value = featureFlags.value.map((row) =>
+      row.feature_key === 'ai_receptionist' ? { ...row, enabled: value } : row,
+    );
+  },
+});
+
+const saveFeatureFlags = async () => {
+  if (!businessId.value) return;
+  savingFeatureFlags.value = true;
+  try {
+    await updatePlatformFeatures(businessId.value, [
+      {
+        feature_key: 'ai_receptionist',
+        enabled: aiReceptionistFlag.value,
+        quota: null,
+        expires_at: null,
+      },
+    ]);
+    await loadFeatureFlags();
+    ElMessage.success('Feature flag saved');
+  } catch (err: any) {
+    ElMessage.error(err?.message || 'Failed to save feature flag');
+  } finally {
+    savingFeatureFlags.value = false;
+  }
+};
+
 const forceLogout = () => {
   openReasonModal('force-logout');
 };
@@ -491,6 +549,38 @@ const reconcileBilling = async () => {
             Reconcile billing
           </ElButton>
         </ElTooltip>
+      </div>
+    </ElCard>
+
+    <ElCard v-if="tenant" class="bg-white">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <div class="text-lg font-semibold">Tenant Feature Control</div>
+          <div class="text-xs text-slate-500">AI Receptionist is tenant-scoped and deny-by-default.</div>
+        </div>
+        <ElButton
+          type="primary"
+          :loading="savingFeatureFlags"
+          @click="saveFeatureFlags"
+          :disabled="savingFeatureFlags"
+        >
+          Save feature
+        </ElButton>
+      </div>
+      <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <div class="text-sm font-semibold text-slate-900">AI Receptionist</div>
+            <div class="mt-1 text-sm text-slate-600">
+              Enables the scoped Sudo AI Receptionist integration for this tenant.
+            </div>
+            <div class="mt-2 text-xs text-slate-500">
+              Current state:
+              <strong>{{ aiReceptionistFlag ? 'Enabled' : 'Disabled' }}</strong>
+            </div>
+          </div>
+          <ElSwitch v-model="aiReceptionistFlag" :disabled="savingFeatureFlags" />
+        </div>
       </div>
     </ElCard>
 
