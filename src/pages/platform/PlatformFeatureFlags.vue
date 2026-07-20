@@ -20,6 +20,7 @@ const items = ref<FeatureRow[]>([
   { feature_key: 'google_sync', enabled: false, quota: null, expires_at: null },
   { feature_key: 'social_posting', enabled: false, quota: null, expires_at: null },
   { feature_key: 'ai_assist', enabled: false, quota: null, expires_at: null },
+  { feature_key: 'ai_receptionist', enabled: false, quota: null, expires_at: null },
 ]);
 const grants = ref<any[]>([]);
 const grantForm = ref({
@@ -181,6 +182,7 @@ const revokeGrant = async (id: string) => {
             <option value="google_sync">Google Sync</option>
             <option value="social_posting">Social Posting</option>
             <option value="ai_assist">AI Assist</option>
+            <option value="ai_receptionist">AI Receptionist</option>
           </select>
           <ElInputNumber v-model="grantForm.quota" :min="0" :controls="false" placeholder="Quota (optional)" />
           <ElDatePicker v-model="grantForm.expires_at" type="date" placeholder="Expires" style="width: 140px" />

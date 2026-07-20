@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { ElCard, ElSkeleton } from 'element-plus';
 import { dayjs, nowInBusinessTz } from '../../utils/dates';
 import type { SchedulerAppointment, SchedulerWorkspace } from '@/api/scheduling';
@@ -12,6 +12,7 @@ const props = defineProps<{
   error?: string;
   mode?: TimelineMode;
   canManage?: boolean;
+  selectedAppointmentId?: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -24,21 +25,28 @@ const emit = defineEmits<{
     event: 'slot-click',
     payload: { startAt: string; staffId: string | null; staffName: string | null },
   ): void;
+  (event: 'empty-create'): void;
 }>();
 
-const timeColumnWidth = 88;
-const rowHeight = 28;
-const headerHeight = 54;
-const minLaneWidth = 180;
+const timeColumnWidth = 96;
+const rowHeight = 26;
+const headerHeight = 48;
+const minLaneWidth = 176;
 const displayMode = computed<TimelineMode>(() => props.mode ?? 'day');
 const gridWrapRef = ref<HTMLElement | null>(null);
+const liveNowTick = ref(Date.now());
+let liveNowTimer: number | null = null;
+const lastScrollSyncKey = ref('');
 
 const days = computed(() => props.workspace?.days ?? []);
 const timezone = computed(() => props.workspace?.timezone ?? 'America/Chicago');
 const slotMinutes = computed(() => props.workspace?.slotMinutes ?? 15);
+const slotsPerHour = computed(() => Math.max(1, Math.round(60 / slotMinutes.value)));
 const primaryDay = computed(() => days.value[0] ?? null);
 const slots = computed(() => primaryDay.value?.slots ?? []);
 const appointments = computed(() => props.workspace?.appointments ?? []);
+const hasAppointments = computed(() => appointments.value.length > 0);
+const gridLabel = computed(() => `${slotMinutes.value}-minute grid`);
 const appointmentsByDay = computed(() => {
   const map = new Map<string, SchedulerAppointment[]>();
   for (const appointment of appointments.value) {
@@ -103,6 +111,11 @@ const dayStart = computed(() => {
 const totalGridRows = computed(() => Math.max(slots.value.length, 1));
 
 const gridStyle = computed(() => ({
+  '--scheduler-time-column-width': `${timeColumnWidth}px`,
+  '--scheduler-row-height': `${rowHeight}px`,
+  '--scheduler-header-height': `${headerHeight}px`,
+  '--scheduler-lane-min-width': `${minLaneWidth}px`,
+  '--scheduler-slots-per-hour': `${slotsPerHour.value}`,
   gridTemplateColumns: `${timeColumnWidth}px repeat(${Math.max(lanes.value.length, 1)}, minmax(${minLaneWidth}px, 1fr))`,
   gridTemplateRows: `${headerHeight}px repeat(${totalGridRows.value}, ${rowHeight}px)`,
 }));
@@ -166,6 +179,16 @@ const initialsForAppointment = (appointment: SchedulerAppointment) =>
     .map((part) => part.charAt(0).toUpperCase())
     .join('') || 'SF';
 
+const initialsForName = (value?: string | null) =>
+  value
+    ? value
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part.charAt(0).toUpperCase())
+        .join('')
+    : '';
+
 const laneIdForAppointment = (appointment: SchedulerAppointment) =>
   appointment.staffId || (hasUnassignedAppointments.value ? 'unassigned' : lanes.value[0]?.id || 'salon');
 
@@ -183,13 +206,35 @@ const blockStyle = (appointment: SchedulerAppointment, dateKey = appointment.day
   const startRow = Math.max(2, Math.floor(startMinutes / slotMinutes.value) + 2);
   const span = Math.max(1, Math.ceil(durationMinutes / slotMinutes.value));
   const maxSpan = Math.max(1, totalGridRows.value - (startRow - 2));
+  const durationSlots = Math.min(span, maxSpan);
 
   return {
+    durationMinutes,
+    durationSlots,
+    isCompact: durationSlots <= 2,
+    isMinimal: durationSlots <= 1,
+    timeRangeLabel: `${dayjs(appointment.scheduledAt).tz(timezone.value).format('h:mm A')} - ${dayjs(appointment.endAt).tz(timezone.value).format('h:mm A')}`,
+    durationLabel: appointmentDurationLabel(appointment),
     gridColumn: laneIndexForAppointment(appointment) + 2,
-    gridRow: `${startRow} / span ${Math.min(span, maxSpan)}`,
+    gridRow: `${startRow} / span ${durationSlots}`,
     '--block-accent': statusTone(appointment.status).accent,
     '--block-soft': statusTone(appointment.status).soft,
   };
+};
+
+const appointmentDurationLabel = (appointment: SchedulerAppointment) => {
+  const durationMinutes = Math.max(
+    slotMinutes.value,
+    Math.round(dayjs(appointment.endAt).diff(dayjs(appointment.scheduledAt), 'minute', true)),
+  );
+
+  if (durationMinutes >= 60) {
+    const hours = Math.floor(durationMinutes / 60);
+    const minutes = durationMinutes % 60;
+    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+  }
+
+  return `${durationMinutes}m`;
 };
 
 const nowMarkerStyle = computed(() => {
@@ -197,6 +242,7 @@ const nowMarkerStyle = computed(() => {
     return null;
   }
 
+  liveNowTick.value;
   const now = nowInBusinessTz(timezone.value);
   if (!now.isSame(primaryDay.value.date, 'day')) {
     return null;
@@ -204,15 +250,64 @@ const nowMarkerStyle = computed(() => {
 
   const minutes = now.diff(dayStart.value, 'minute', true);
   const totalMinutes = totalGridRows.value * slotMinutes.value;
-  if (minutes < 0 || minutes > totalMinutes) {
-    return null;
-  }
+  const clampedMinutes = Math.min(Math.max(minutes, 0), totalMinutes);
 
-  const top = headerHeight + (minutes / slotMinutes.value) * rowHeight;
+  const top = headerHeight + (clampedMinutes / slotMinutes.value) * rowHeight;
   return {
     top: `${top}px`,
   };
 });
+
+const currentHourBlockStyle = computed(() => {
+  if (!primaryDay.value || !dayStart.value) {
+    return null;
+  }
+
+  liveNowTick.value;
+  const now = nowInBusinessTz(timezone.value);
+  if (!now.isSame(primaryDay.value.date, 'day')) {
+    return null;
+  }
+
+  const minutes = now.diff(dayStart.value, 'minute', true);
+  const totalMinutes = totalGridRows.value * slotMinutes.value;
+  if (minutes < 0 || minutes >= totalMinutes) {
+    return null;
+  }
+
+  const hourStartSlot = Math.floor(minutes / 60) * slotsPerHour.value;
+  const remainingSlots = totalGridRows.value - hourStartSlot;
+  const hourSlotCount = Math.min(slotsPerHour.value, remainingSlots);
+  return {
+    top: `${headerHeight + hourStartSlot * rowHeight}px`,
+    height: `${hourSlotCount * rowHeight}px`,
+  };
+});
+
+const currentHourSlotIndex = computed(() => {
+  if (!primaryDay.value || !dayStart.value) {
+    return -1;
+  }
+
+  liveNowTick.value;
+  const now = nowInBusinessTz(timezone.value);
+  if (!now.isSame(primaryDay.value.date, 'day')) {
+    return -1;
+  }
+
+  const minutes = now.diff(dayStart.value, 'minute', true);
+  const totalMinutes = totalGridRows.value * slotMinutes.value;
+  if (minutes < 0 || minutes >= totalMinutes) {
+    return -1;
+  }
+
+  return Math.floor(minutes / 60) * slotsPerHour.value;
+});
+
+const isCurrentHourSlot = (slotIndex: number) =>
+  currentHourSlotIndex.value >= 0 &&
+  slotIndex >= currentHourSlotIndex.value &&
+  slotIndex < currentHourSlotIndex.value + slotsPerHour.value;
 
 const syncWorkspaceScroll = async () => {
   await nextTick();
@@ -222,36 +317,56 @@ const syncWorkspaceScroll = async () => {
     return;
   }
 
+  const syncKey = `${displayMode.value}:${primaryDay.value?.date ?? 'none'}:${slots.value.length}:${lanes.value.length}`;
+  if (syncKey === lastScrollSyncKey.value) {
+    return;
+  }
+
   if (displayMode.value !== 'day') {
     gridWrap.scrollTop = 0;
     gridWrap.scrollLeft = 0;
+    lastScrollSyncKey.value = syncKey;
     return;
   }
 
   if (!nowMarkerStyle.value) {
     gridWrap.scrollTop = 0;
     gridWrap.scrollLeft = 0;
+    lastScrollSyncKey.value = syncKey;
     return;
   }
 
   const markerTop = Number.parseFloat(nowMarkerStyle.value.top || '0');
   if (!Number.isFinite(markerTop)) {
     gridWrap.scrollTop = 0;
+    lastScrollSyncKey.value = syncKey;
     return;
   }
 
   const targetScroll = Math.max(0, markerTop - gridWrap.clientHeight * 0.22);
   gridWrap.scrollTop = Math.min(targetScroll, Math.max(0, gridWrap.scrollHeight - gridWrap.clientHeight));
   gridWrap.scrollLeft = 0;
+  lastScrollSyncKey.value = syncKey;
 };
 
 onMounted(() => {
+  liveNowTimer = window.setInterval(() => {
+    liveNowTick.value = Date.now();
+  }, 60_000);
   void syncWorkspaceScroll();
 });
 
+onUnmounted(() => {
+  if (liveNowTimer !== null) {
+    window.clearInterval(liveNowTimer);
+    liveNowTimer = null;
+  }
+});
+
 watch(
-  () => [displayMode.value, primaryDay.value?.date, slots.value.length, appointments.value.length],
+  () => [displayMode.value, primaryDay.value?.date, slots.value.length, lanes.value.length],
   () => {
+    lastScrollSyncKey.value = '';
     void syncWorkspaceScroll();
   },
 );
@@ -259,7 +374,7 @@ watch(
 const appointmentBlocks = computed(() =>
   appointments.value.map((appointment) => ({
     appointment,
-    style: blockStyle(appointment),
+    ...blockStyle(appointment),
   })),
 );
 
@@ -312,7 +427,7 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
           {{ displayMode === 'week' ? 'Week timeline' : primaryDay ? primaryDay.label : 'Day timeline' }}
         </h3>
         <p class="appointment-timeline-card__copy">
-          {{ appointments.length }} appointments · {{ lanes.length }} lanes · 15-minute grid
+          {{ appointments.length }} appointments · {{ lanes.length }} lanes · {{ gridLabel }}
         </p>
       </div>
       <div class="appointment-timeline-card__legend">
@@ -336,97 +451,152 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
     </div>
 
     <div v-else-if="displayMode === 'day'" ref="gridWrapRef" class="appointment-timeline-card__grid-wrap">
-        <div class="appointment-timeline-card__grid" :style="gridStyle">
-        <div class="appointment-timeline-card__corner">Time</div>
+      <div class="appointment-timeline-card__grid-surface" :style="gridStyle">
         <div
-          v-for="lane in lanes"
-          :key="lane.id"
-          class="appointment-timeline-card__lane-header"
-        >
-          <div class="appointment-timeline-card__lane-name">{{ lane.name }}</div>
-          <div class="appointment-timeline-card__lane-meta">
-            {{ lane.active ? 'Active' : 'Inactive' }}
-          </div>
-        </div>
+          v-if="currentHourBlockStyle"
+          class="appointment-timeline-card__current-hour"
+          :style="currentHourBlockStyle"
+        />
 
-        <template v-for="(slot, slotIndex) in slots" :key="slot.startAt">
-          <div class="appointment-timeline-card__time">
-            <span>{{ slotIndex % 4 === 0 ? slot.label : '' }}</span>
-          </div>
+        <div class="appointment-timeline-card__grid" :style="gridStyle">
+          <div class="appointment-timeline-card__corner">Time</div>
           <div
             v-for="lane in lanes"
-            :key="`${lane.id}-${slot.startAt}`"
-            class="appointment-timeline-card__cell"
-          />
+            :key="lane.id"
+            class="appointment-timeline-card__lane-header"
+          >
+            <div class="appointment-timeline-card__lane-name">{{ lane.name }}</div>
+            <div class="appointment-timeline-card__lane-meta">
+              {{ lane.active ? 'Active' : 'Inactive' }}
+            </div>
+          </div>
+
+          <template v-for="(slot, slotIndex) in slots" :key="slot.startAt">
+            <div
+              class="appointment-timeline-card__time"
+              :class="{ 'appointment-timeline-card__time--current': isCurrentHourSlot(slotIndex) }"
+            >
+              <span>{{ slotIndex % slotsPerHour === 0 ? slot.label : '' }}</span>
+            </div>
+            <div
+              v-for="lane in lanes"
+              :key="`${lane.id}-${slot.startAt}`"
+              class="appointment-timeline-card__cell"
+            />
+            <button
+              v-for="lane in lanes"
+              :key="`${lane.id}-${slot.startAt}-slot`"
+              type="button"
+              class="appointment-timeline-card__slot"
+              :style="{
+                gridColumn: laneIndexById.get(lane.id)! + 2,
+                gridRow: `${slotIndex + 2}`,
+              }"
+              @click="handleSlotClick(slot.startAt, lane.id, lane.name)"
+              @dragover.prevent
+              @drop.prevent="handleSlotDrop($event, slot.startAt, lane.id)"
+            />
+          </template>
+
+          <div
+            v-if="nowMarkerStyle"
+            class="appointment-timeline-card__now"
+            :style="nowMarkerStyle"
+          >
+            <span>Now</span>
+          </div>
+
           <button
-            v-for="lane in lanes"
-            :key="`${lane.id}-${slot.startAt}-slot`"
+            v-for="block in appointmentBlocks"
+            :key="block.appointment.id"
             type="button"
-            class="appointment-timeline-card__slot"
-            :style="{
-              gridColumn: laneIndexById.get(lane.id)! + 2,
-              gridRow: `${slotIndex + 2}`,
+            class="appointment-timeline-card__block"
+            :class="{
+              'appointment-timeline-card__block--compact': block.isCompact,
+              'appointment-timeline-card__block--minimal': block.isMinimal,
+              'appointment-timeline-card__block--selected':
+                props.selectedAppointmentId === block.appointment.id,
+              'appointment-timeline-card__block--draggable': Boolean(props.canManage),
             }"
-            @click="handleSlotClick(slot.startAt, lane.id, lane.name)"
-            @dragover.prevent
-            @drop.prevent="handleSlotDrop($event, slot.startAt, lane.id)"
-          />
-        </template>
-
-        <div
-          v-if="nowMarkerStyle"
-          class="appointment-timeline-card__now"
-          :style="nowMarkerStyle"
-        >
-          <span>Now</span>
-        </div>
-
-        <button
-          v-for="block in appointmentBlocks"
-          :key="block.appointment.id"
-          type="button"
-          class="appointment-timeline-card__block"
-          :style="block.style"
-          :draggable="Boolean(props.canManage)"
-          @dragstart="handleBlockDragStart(block.appointment.id, $event)"
-          @click="emit('appointment-click', block.appointment.id)"
-        >
-          <div class="appointment-timeline-card__block-top">
-            <div class="appointment-timeline-card__block-identity">
-              <div class="appointment-timeline-card__block-avatar">
-                {{ initialsForAppointment(block.appointment) }}
-              </div>
-              <div class="appointment-timeline-card__block-text">
-                <strong>{{ block.appointment.customerName }}</strong>
-                <div class="appointment-timeline-card__block-copy">
-                  {{ block.appointment.serviceName }}
+            :style="{
+              gridColumn: block.gridColumn,
+              gridRow: block.gridRow,
+              '--block-accent': block['--block-accent'],
+              '--block-soft': block['--block-soft'],
+            }"
+            :draggable="Boolean(props.canManage)"
+            @dragstart="handleBlockDragStart(block.appointment.id, $event)"
+            @click="emit('appointment-click', block.appointment.id)"
+          >
+            <div class="appointment-timeline-card__block-top">
+              <div class="appointment-timeline-card__block-identity">
+                <div class="appointment-timeline-card__block-avatar">
+                  {{ initialsForAppointment(block.appointment) }}
+                </div>
+                <div class="appointment-timeline-card__block-text">
+                  <strong>{{ block.appointment.customerName }}</strong>
+                  <div
+                    v-if="!block.isMinimal"
+                    class="appointment-timeline-card__block-copy"
+                  >
+                    {{ block.appointment.serviceName }}
+                  </div>
                 </div>
               </div>
+              <span class="appointment-timeline-card__block-badges">
+                <span :class="statusChip(block.appointment.status).cls">
+                  <span
+                    class="appointment-timeline-card__status-dot"
+                    :style="{ background: statusTone(block.appointment.status).accent }"
+                  />
+                  <span v-if="!block.isMinimal">{{ statusChip(block.appointment.status).label }}</span>
+                </span>
+                <span
+                  v-if="block.appointment.staffName && !block.isCompact"
+                  class="appointment-timeline-card__block-tech"
+                >
+                  {{ initialsForName(block.appointment.staffName) }}
+                </span>
+                <span
+                  v-if="block.appointment.warningReasons.length && !block.isMinimal"
+                  :class="warningChip(block.appointment.warningReasons).cls"
+                >
+                  {{ warningChip(block.appointment.warningReasons).label }}
+                </span>
+              </span>
             </div>
-            <span class="appointment-timeline-card__block-badges">
-              <span :class="statusChip(block.appointment.status).cls">
-                {{ statusChip(block.appointment.status).label }}
-              </span>
-              <span
-                v-if="block.appointment.warningReasons.length"
-                :class="warningChip(block.appointment.warningReasons).cls"
-              >
-                {{ warningChip(block.appointment.warningReasons).label }}
-              </span>
-            </span>
+            <div class="appointment-timeline-card__block-meta">
+              <span>{{ block.timeRangeLabel }}</span>
+              <span v-if="!block.isMinimal">Duration {{ block.durationLabel }}</span>
+              <span v-if="!block.isCompact">{{ block.appointment.staffName || 'Unassigned' }}</span>
+            </div>
+            <div
+              v-if="needsConfirmation(block.appointment.status) && !block.isCompact"
+              class="appointment-timeline-card__block-note"
+            >
+              Needs confirmation
+            </div>
+          </button>
+        </div>
+
+        <div v-if="!hasAppointments" class="appointment-timeline-card__empty-overlay">
+          <div class="appointment-timeline-card__empty-overlay-copy">
+            <div class="appointment-timeline-card__empty-overlay-title">
+              Today's schedule is open.
+            </div>
+            <p class="appointment-timeline-card__empty-overlay-text">
+              No appointments scheduled for this day. The grid stays visible so you can place the next booking quickly.
+            </p>
+            <button
+              v-if="props.canManage"
+              type="button"
+              class="appointment-timeline-card__empty-overlay-button"
+              @click="emit('empty-create')"
+            >
+              New Appointment
+            </button>
           </div>
-          <div class="appointment-timeline-card__block-meta">
-            <span>
-              {{ dayjs(block.appointment.scheduledAt).tz(timezone).format('h:mm A') }}
-              -
-              {{ dayjs(block.appointment.endAt).tz(timezone).format('h:mm A') }}
-            </span>
-            <span>{{ block.appointment.staffName || 'Unassigned' }}</span>
-          </div>
-          <div v-if="needsConfirmation(block.appointment.status)" class="appointment-timeline-card__block-note">
-            Needs confirmation
-          </div>
-        </button>
+        </div>
       </div>
     </div>
 
@@ -513,7 +683,7 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
 .appointment-timeline-card__header {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem 1rem;
+  gap: 0.7rem 1rem;
   justify-content: space-between;
   align-items: flex-start;
 }
@@ -529,7 +699,7 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
 
 .appointment-timeline-card__title {
   margin: 0.15rem 0 0;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   font-weight: 700;
   color: #0f172a;
 }
@@ -550,7 +720,7 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.35rem 0.7rem;
+  padding: 0.32rem 0.72rem;
   border-radius: 999px;
   border: 1px solid rgba(226, 232, 240, 0.95);
   background: #fff;
@@ -581,10 +751,18 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
 .appointment-timeline-card__grid-wrap {
   overflow: auto;
   height: clamp(620px, calc(100vh - 360px), 920px);
-  border-radius: 20px;
-  border: 1px solid rgba(226, 232, 240, 0.92);
-  background: #fff;
+  border-radius: 22px;
+  border: 1px solid rgba(226, 232, 240, 0.82);
+  background:
+    radial-gradient(circle at top left, rgba(148, 163, 184, 0.08), transparent 28%),
+    linear-gradient(180deg, rgba(248, 250, 252, 0.9), rgba(255, 255, 255, 0.98));
   scrollbar-gutter: stable both-edges;
+}
+
+.appointment-timeline-card__grid-surface {
+  position: relative;
+  min-width: 100%;
+  min-height: 100%;
 }
 
 .appointment-timeline-card__week {
@@ -715,14 +893,33 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
   position: relative;
   display: grid;
   min-width: 100%;
-  width: 100%;
+  width: max-content;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.92)),
+    repeating-linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0) 0,
+      rgba(255, 255, 255, 0) calc(var(--scheduler-row-height) - 1px),
+      rgba(226, 232, 240, 0.24) calc(var(--scheduler-row-height) - 1px),
+      rgba(226, 232, 240, 0.24) var(--scheduler-row-height)
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0) 0,
+      rgba(255, 255, 255, 0) calc(var(--scheduler-row-height) * var(--scheduler-slots-per-hour) - 1px),
+      rgba(148, 163, 184, 0.24) calc(var(--scheduler-row-height) * var(--scheduler-slots-per-hour) - 1px),
+      rgba(148, 163, 184, 0.24) calc(var(--scheduler-row-height) * var(--scheduler-slots-per-hour))
+    );
+  background-size: auto, auto, auto;
+  border-radius: 20px;
+  overflow: clip;
 }
 
 .appointment-timeline-card__corner,
 .appointment-timeline-card__lane-header {
   position: sticky;
   top: 0;
-  z-index: 4;
+  z-index: 6;
   background: linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(255, 255, 255, 0.98));
   border-bottom: 1px solid rgba(226, 232, 240, 0.95);
 }
@@ -736,44 +933,61 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: #64748b;
+  position: sticky;
+  left: 0;
+  z-index: 7;
 }
 
 .appointment-timeline-card__lane-header {
   display: grid;
   gap: 0.08rem;
-  padding: 0.55rem 0.8rem;
+  padding: 0.45rem 0.8rem;
+  min-height: var(--scheduler-header-height);
 }
 
 .appointment-timeline-card__lane-name {
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   font-weight: 700;
   color: #0f172a;
 }
 
 .appointment-timeline-card__lane-meta {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   color: #64748b;
 }
 
 .appointment-timeline-card__time,
 .appointment-timeline-card__cell {
-  border-bottom: 1px solid rgba(241, 245, 249, 0.96);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.2);
 }
 
 .appointment-timeline-card__time {
   display: flex;
   align-items: flex-start;
   justify-content: flex-end;
-  padding: 0.35rem 0.5rem 0 0;
+  padding: 0.28rem 0.6rem 0 0;
   color: #94a3b8;
-  font-size: 0.76rem;
+  font-size: 0.74rem;
   font-weight: 600;
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.95));
+}
+
+.appointment-timeline-card__time span {
+  display: inline-flex;
+  align-items: center;
+  min-height: calc(var(--scheduler-row-height) - 0.2rem);
+}
+
+.appointment-timeline-card__time--current {
+  color: #334155;
 }
 
 .appointment-timeline-card__cell {
-  border-left: 1px solid rgba(241, 245, 249, 0.96);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
+  border-left: 1px solid rgba(226, 232, 240, 0.15);
+  background: transparent;
 }
 
 .appointment-timeline-card__slot {
@@ -791,12 +1005,12 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
 
 .appointment-timeline-card__now {
   position: absolute;
-  left: 88px;
+  left: var(--scheduler-time-column-width);
   right: 0;
   display: flex;
   align-items: center;
   pointer-events: none;
-  z-index: 3;
+  z-index: 4;
 }
 
 .appointment-timeline-card__now::before {
@@ -823,30 +1037,92 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
   letter-spacing: 0.12em;
 }
 
+.appointment-timeline-card__current-hour {
+  position: absolute;
+  left: var(--scheduler-time-column-width);
+  right: 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+  background: linear-gradient(180deg, rgba(96, 165, 250, 0.05), rgba(255, 255, 255, 0));
+  pointer-events: none;
+  z-index: 0;
+}
+
 .appointment-timeline-card__block {
   position: relative;
   z-index: 2;
-  margin: 0.2rem 0.35rem;
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  border-left: 5px solid var(--block-accent, #3b82f6);
-  border-radius: 18px;
-  background:
-    linear-gradient(90deg, var(--block-soft, rgba(59, 130, 246, 0.1)), rgba(255, 255, 255, 0.98) 28%),
-    #fff;
-  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.06);
-  padding: 0.7rem 0.8rem;
+  margin: 0.18rem 0.32rem;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-left: 3px solid var(--block-accent, #3b82f6);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(249, 250, 251, 0.96));
+  box-shadow: 0 6px 12px rgba(15, 23, 42, 0.04);
+  padding: 0.52rem 0.66rem;
   text-align: left;
   cursor: pointer;
   transition:
-    transform 0.16s ease,
-    box-shadow 0.16s ease,
-    border-color 0.16s ease;
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    filter 0.18s ease;
+}
+
+.appointment-timeline-card__block--draggable {
+  cursor: grab;
 }
 
 .appointment-timeline-card__block:hover {
   transform: translateY(-1px);
-  box-shadow: 0 14px 24px rgba(15, 23, 42, 0.1);
-  border-color: rgba(59, 130, 246, 0.28);
+  box-shadow: 0 12px 22px rgba(15, 23, 42, 0.09);
+  border-color: rgba(59, 130, 246, 0.26);
+}
+
+.appointment-timeline-card__block--selected {
+  border-color: rgba(14, 165, 233, 0.52);
+  box-shadow: 0 14px 24px rgba(14, 165, 233, 0.15);
+  background: linear-gradient(180deg, rgba(239, 246, 255, 0.98), rgba(255, 255, 255, 0.98));
+  transform: translateY(-1px);
+}
+
+.appointment-timeline-card__block--compact {
+  padding: 0.46rem 0.58rem;
+}
+
+.appointment-timeline-card__block--minimal {
+  padding: 0.42rem 0.54rem;
+}
+
+.appointment-timeline-card__block--minimal .appointment-timeline-card__block-avatar {
+  width: 1.65rem;
+  height: 1.65rem;
+  font-size: 0.64rem;
+}
+
+.appointment-timeline-card__block--minimal .appointment-timeline-card__block-copy,
+.appointment-timeline-card__block--minimal .appointment-timeline-card__block-tech,
+.appointment-timeline-card__block--minimal .appointment-timeline-card__block-note,
+.appointment-timeline-card__block--minimal .appointment-timeline-card__block-meta span:nth-child(n + 2),
+.appointment-timeline-card__block--minimal .appointment-timeline-card__block-badges > span:nth-child(n + 3) {
+  display: none;
+}
+
+.appointment-timeline-card__block--compact .appointment-timeline-card__block-tech,
+.appointment-timeline-card__block--compact .appointment-timeline-card__block-note {
+  display: none;
+}
+
+.appointment-timeline-card__block--minimal .appointment-timeline__status {
+  padding: 0.15rem 0.28rem;
+}
+
+.appointment-timeline-card__block--compact .appointment-timeline-card__block-meta span:nth-child(n + 3) {
+  display: none;
+}
+
+.appointment-timeline-card__block--minimal .appointment-timeline-card__block-meta,
+.appointment-timeline-card__block--compact .appointment-timeline-card__block-meta {
+  margin-top: 0.18rem;
 }
 
 .appointment-timeline-card__block-top {
@@ -868,12 +1144,12 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
+  width: 1.9rem;
+  height: 1.9rem;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.95);
   color: #0f172a;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 800;
   letter-spacing: 0.08em;
   box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.16);
@@ -888,23 +1164,38 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
 .appointment-timeline-card__block-badges {
   display: inline-flex;
   flex-wrap: wrap;
-  gap: 0.35rem;
+  gap: 0.3rem;
   justify-content: flex-end;
 }
 
 .appointment-timeline-card__block-top strong {
-  font-size: 0.94rem;
+  font-size: 0.92rem;
   font-weight: 700;
   color: #0f172a;
 }
 
 .appointment-timeline-card__block-copy {
   margin-top: 0;
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   color: #475569;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.appointment-timeline-card__block-tech {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.45rem;
+  height: 1.45rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.06);
+  color: #334155;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
 }
 
 .appointment-timeline-card__block-note {
@@ -915,19 +1206,34 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
 }
 
 .appointment-timeline-card__block-meta {
-  margin-top: 0.35rem;
+  margin-top: 0.3rem;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem 0.6rem;
-  font-size: 0.76rem;
+  gap: 0.3rem 0.55rem;
+  font-size: 0.75rem;
   color: #64748b;
+}
+
+.appointment-timeline-card__block-meta span + span::before {
+  content: '•';
+  margin-right: 0.55rem;
+  color: rgba(100, 116, 139, 0.5);
+}
+
+.appointment-timeline-card__status-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  flex: 0 0 auto;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.75);
 }
 
 .appointment-timeline__status {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.25rem 0.45rem;
+  gap: 0.35rem;
+  padding: 0.22rem 0.45rem;
   border-radius: 999px;
   font-size: 0.68rem;
   font-weight: 700;
@@ -982,5 +1288,54 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.appointment-timeline-card__empty-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.appointment-timeline-card__empty-overlay-copy {
+  pointer-events: auto;
+  max-width: min(29rem, calc(100% - 2rem));
+  padding: 1rem 1.1rem;
+  border-radius: 18px;
+  border: 1px solid rgba(226, 232, 240, 0.82);
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 18px 30px rgba(15, 23, 42, 0.08);
+  text-align: center;
+}
+
+.appointment-timeline-card__empty-overlay-title {
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.appointment-timeline-card__empty-overlay-text {
+  margin: 0.35rem 0 0;
+  color: #64748b;
+  font-size: 0.84rem;
+}
+
+.appointment-timeline-card__empty-overlay-button {
+  margin-top: 0.85rem;
+  border: 1px solid rgba(14, 165, 233, 0.24);
+  background: rgba(14, 165, 233, 0.08);
+  color: #0369a1;
+  border-radius: 999px;
+  padding: 0.55rem 0.9rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.appointment-timeline-card__empty-overlay-button:hover {
+  background: rgba(14, 165, 233, 0.14);
 }
 </style>

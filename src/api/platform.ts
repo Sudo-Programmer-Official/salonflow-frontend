@@ -15,6 +15,15 @@ export type PlatformTenantRow = {
   email_blocked_cap: number;
 };
 
+export type PlatformFeatureRow = {
+  feature_key: string;
+  enabled: boolean;
+  quota: number | null;
+  expires_at: string | null;
+  enabled_at: string | null;
+  enabled_by: string | null;
+};
+
 export async function fetchPlatformTenants(): Promise<PlatformTenantRow[]> {
   const res = await fetch(apiUrl('/platform/tenants'), {
     headers: buildHeaders({ auth: true, json: true }),
@@ -51,6 +60,34 @@ export async function fetchPlatformUsageOverview(month?: number) {
   });
   if (!res.ok) throw new Error('Failed to load overview');
   return res.json();
+}
+
+export async function fetchPlatformFeatures(businessId: string): Promise<PlatformFeatureRow[]> {
+  const res = await fetch(apiUrl(`/platform/features/${businessId}`), {
+    headers: buildHeaders({ auth: true, json: true }),
+  });
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.error || 'Failed to load feature flags');
+  return body.items as PlatformFeatureRow[];
+}
+
+export async function updatePlatformFeatures(
+  businessId: string,
+  items: Array<{
+    feature_key: string;
+    enabled: boolean;
+    quota?: number | null;
+    expires_at?: string | null;
+  }>,
+) {
+  const res = await fetch(apiUrl(`/platform/features/${businessId}`), {
+    method: 'PUT',
+    headers: buildHeaders({ auth: true, json: true }),
+    body: JSON.stringify({ items }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || 'Failed to update feature flags');
+  return body.items as PlatformFeatureRow[];
 }
 
 export async function fetchGrowthUsage(businessId: string, monthIsoDate: string) {
