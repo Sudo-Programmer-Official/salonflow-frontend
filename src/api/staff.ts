@@ -73,6 +73,27 @@ export async function createStaff(input: {
   return res.json();
 }
 
+export async function updateStaff(
+  staffId: string,
+  input: {
+    name?: string;
+    nickname?: string | null;
+    phoneE164?: string | null;
+    active?: boolean;
+  },
+): Promise<StaffMember> {
+  const res = await fetch(`${apiBase}/${staffId}`, {
+    method: 'PATCH',
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to update staff');
+  }
+  return res.json();
+}
+
 export async function updateStaffStatus(
   staffId: string,
   active: boolean,
