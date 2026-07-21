@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, reactive, computed } from 'vue';
 import { ElTable, ElTableColumn, ElSwitch, ElCard, ElMessage, ElButton, ElDialog, ElForm, ElFormItem, ElInput, ElSelect, ElOption, ElTabs, ElTabPane, ElTimeSelect } from 'element-plus';
-import { fetchStaff, updateStaffStatus, createStaff, fetchStaffServices, assignStaffServices, fetchAvailability, saveAvailability, type StaffMember, type AvailabilityEntry } from '../../api/staff';
+import { fetchStaff, updateStaffStatus, updateStaff, createStaff, fetchStaffServices, assignStaffServices, fetchAvailability, saveAvailability, type StaffMember, type AvailabilityEntry } from '../../api/staff';
 import { fetchServices, type ServiceItem } from '../../api/services';
 import { fetchCategories, type ServiceCategory } from '../../api/serviceCategories';
 import { formatPhone } from '../../utils/format';
@@ -30,9 +30,11 @@ const saving = ref(false);
 const servicesLoading = ref(false);
 const assignmentsSaving = ref(false);
 const services = ref<ServiceItem[]>([]);
-const selectedStaffId = ref<string | null>(null);
+const managedStaffId = ref<string | null>(null);
+const editingStaffId = ref<string | null>(null);
 const staffServices = ref<string[]>([]);
 const categories = ref<ServiceCategory[]>([]);
+const dialogMode = ref<'create' | 'edit' | 'manage'>('create');
 const dialogTab = ref<'services' | 'availability'>('services');
 const availability = ref<Record<number, AvailabilityEntry[]>>(createEmptyAvailability());
 const availabilityLoading = ref(false);
@@ -43,6 +45,20 @@ const form = reactive({
   phoneE164: '',
   active: true,
 });
+
+const resetForm = () => {
+  form.name = '';
+  form.nickname = '';
+  form.phoneE164 = '';
+  form.active = true;
+};
+
+const populateForm = (member: StaffMember) => {
+  form.name = member.name ?? '';
+  form.nickname = member.nickname ?? '';
+  form.phoneE164 = member.phoneE164 ?? '';
+  form.active = member.active ?? true;
+};
 
 const loadStaff = async () => {
   loading.value = true;
@@ -82,14 +98,22 @@ const changePage = (val: number) => {
 };
 
 const openDialog = () => {
-  form.name = '';
-  form.nickname = '';
-  form.phoneE164 = '';
-  form.active = true;
-  selectedStaffId.value = null;
+  dialogMode.value = 'create';
+  editingStaffId.value = null;
+  managedStaffId.value = null;
+  resetForm();
   staffServices.value = [];
   dialogTab.value = 'services';
   resetAvailability();
+  dialogOpen.value = true;
+};
+
+const openEditDialog = (member: StaffMember) => {
+  dialogMode.value = 'edit';
+  editingStaffId.value = member.id;
+  managedStaffId.value = null;
+  populateForm(member);
+  dialogTab.value = 'services';
   dialogOpen.value = true;
 };
 
@@ -100,17 +124,28 @@ const submit = async () => {
   }
   saving.value = true;
   try {
-    await createStaff({
-      name: form.name.trim(),
-      nickname: form.nickname.trim() || undefined,
-      phoneE164: form.phoneE164.trim() || undefined,
-      active: form.active,
-    });
+    if (dialogMode.value === 'edit') {
+      if (!editingStaffId.value) return;
+      await updateStaff(editingStaffId.value, {
+        name: form.name.trim(),
+        nickname: form.nickname.trim() || null,
+        phoneE164: form.phoneE164.trim() || null,
+        active: form.active,
+      });
+      ElMessage.success('Staff updated');
+    } else {
+      await createStaff({
+        name: form.name.trim(),
+        nickname: form.nickname.trim() || undefined,
+        phoneE164: form.phoneE164.trim() || undefined,
+        active: form.active,
+      });
+      ElMessage.success('Staff added');
+    }
     dialogOpen.value = false;
     await loadStaff();
-    ElMessage.success('Staff added');
   } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : 'Failed to add staff');
+    ElMessage.error(err instanceof Error ? err.message : (dialogMode.value === 'edit' ? 'Failed to update staff' : 'Failed to add staff'));
   } finally {
     saving.value = false;
   }
@@ -125,6 +160,22 @@ const toggleStatus = async (member: StaffMember) => {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to update staff');
     member.active = !nextActive; // revert
   }
+};
+
+const openAssignments = async (member: StaffMember) => {
+  dialogMode.value = 'manage';
+  managedStaffId.value = member.id;
+  editingStaffId.value = null;
+  assignmentsSaving.value = false;
+  dialogTab.value = 'services';
+  try {
+    staffServices.value = await fetchStaffServices(member.id);
+  } catch (err) {
+    staffServices.value = [];
+    ElMessage.error(err instanceof Error ? err.message : 'Failed to load assignments');
+  }
+  await loadAvailabilityForStaff(member.id);
+  dialogOpen.value = true;
 };
 
 const staffInitial = (name: string) => (name?.trim()?.charAt(0) || '?').toUpperCase();
@@ -153,20 +204,6 @@ const loadAvailabilityForStaff = async (staffId: string) => {
   }
 };
 
-const openAssignments = async (member: StaffMember) => {
-  selectedStaffId.value = member.id;
-  assignmentsSaving.value = false;
-  dialogTab.value = 'services';
-  try {
-    staffServices.value = await fetchStaffServices(member.id);
-  } catch (err) {
-    staffServices.value = [];
-    ElMessage.error(err instanceof Error ? err.message : 'Failed to load assignments');
-  }
-  await loadAvailabilityForStaff(member.id);
-  dialogOpen.value = true;
-};
-
 const categoryGroups = computed(() => {
   const groups: Record<string, { label: string; items: ServiceItem[] }> = {};
   services.value.forEach((svc) => {
@@ -191,10 +228,10 @@ const loadCategories = async () => {
 };
 
 const saveAssignments = async () => {
-  if (!selectedStaffId.value) return;
+  if (!managedStaffId.value) return;
   assignmentsSaving.value = true;
   try {
-    await assignStaffServices(selectedStaffId.value, staffServices.value);
+    await assignStaffServices(managedStaffId.value, staffServices.value);
     ElMessage.success('Services updated');
     dialogOpen.value = false;
   } catch (err) {
@@ -222,7 +259,7 @@ const removeAvailabilityBlock = (day: number, index: number) => {
 };
 
 const saveAvailabilityChanges = async () => {
-  if (!selectedStaffId.value) return;
+  if (!managedStaffId.value) return;
   const entries: Omit<AvailabilityEntry, 'id'>[] = [];
   let hasError = false;
   for (let day = 0; day <= 6; day += 1) {
@@ -246,9 +283,9 @@ const saveAvailabilityChanges = async () => {
   if (hasError) return;
   availabilitySaving.value = true;
   try {
-    await saveAvailability(selectedStaffId.value, entries);
+    await saveAvailability(managedStaffId.value, entries);
     ElMessage.success('Availability saved');
-    await loadAvailabilityForStaff(selectedStaffId.value);
+    await loadAvailabilityForStaff(managedStaffId.value);
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to save availability');
   } finally {
@@ -319,15 +356,25 @@ const saveAvailabilityChanges = async () => {
               </div>
             </template>
           </ElTableColumn>
-          <ElTableColumn label="Services" min-width="160">
+          <ElTableColumn label="Actions" min-width="220">
             <template #default="{ row }">
-              <ElButton
-                size="small"
-                class="action-accent sf-btn sf-btn--table sf-btn-sm"
-                @click="openAssignments(row)"
-              >
-                Assign
-              </ElButton>
+              <div class="flex items-center gap-2">
+                <ElButton
+                  size="small"
+                  plain
+                  class="sf-btn sf-btn--table sf-btn-sm"
+                  @click="openEditDialog(row)"
+                >
+                  Edit
+                </ElButton>
+                <ElButton
+                  size="small"
+                  class="action-accent sf-btn sf-btn--table sf-btn-sm"
+                  @click="openAssignments(row)"
+                >
+                  Assign
+                </ElButton>
+              </div>
             </template>
           </ElTableColumn>
         </ElTable>
@@ -347,8 +394,12 @@ const saveAvailabilityChanges = async () => {
       </div>
     </ElCard>
 
-    <ElDialog v-model="dialogOpen" :title="selectedStaffId ? 'Staff settings' : 'Add Staff'" width="760px">
-      <div v-if="selectedStaffId" class="space-y-3">
+    <ElDialog
+      v-model="dialogOpen"
+      :title="dialogMode === 'create' ? 'Add Staff' : dialogMode === 'edit' ? 'Edit Staff' : 'Staff settings'"
+      width="760px"
+    >
+      <div v-if="dialogMode === 'manage'" class="space-y-3">
         <ElTabs v-model="dialogTab" type="border-card">
           <ElTabPane label="Services" name="services">
             <div class="text-sm text-slate-700 mb-2">Select services this staff member can perform.</div>
@@ -444,24 +495,26 @@ const saveAvailabilityChanges = async () => {
       <template #footer>
         <div class="flex justify-end gap-2">
           <ElButton class="sf-btn" @click="dialogOpen = false">Cancel</ElButton>
-          <ElButton
-            v-if="selectedStaffId"
-            type="primary"
-            :loading="dialogTab === 'services' ? assignmentsSaving : availabilitySaving"
-            class="sf-btn"
-            @click="dialogTab === 'services' ? saveAssignments() : saveAvailabilityChanges()"
-          >
-            {{ dialogTab === 'services' ? 'Save services' : 'Save availability' }}
-          </ElButton>
-          <ElButton
-            v-else
-            type="primary"
-            :loading="saving"
-            class="sf-btn"
-            @click="submit"
-          >
-            Save
-          </ElButton>
+          <template v-if="dialogMode === 'manage'">
+            <ElButton
+              type="primary"
+              :loading="dialogTab === 'services' ? assignmentsSaving : availabilitySaving"
+              class="sf-btn"
+              @click="dialogTab === 'services' ? saveAssignments() : saveAvailabilityChanges()"
+            >
+              {{ dialogTab === 'services' ? 'Save services' : 'Save availability' }}
+            </ElButton>
+          </template>
+          <template v-else>
+            <ElButton
+              type="primary"
+              :loading="saving"
+              class="sf-btn"
+              @click="submit"
+            >
+              {{ dialogMode === 'edit' ? 'Update' : 'Save' }}
+            </ElButton>
+          </template>
         </div>
       </template>
     </ElDialog>
