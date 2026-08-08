@@ -65,6 +65,14 @@ type CustomersQueryState = {
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 const DEFAULT_PAGE_SIZE = 25;
+const CUSTOMER_LIST_ROUTE = 'admin-customers';
+const SORT_OPTIONS = ['lastVisit', 'loyaltyPoints', 'visits', 'name'] as const;
+const LAST_VISIT_OPTIONS = ['today', '7days', '30days', '60days', '90plus', 'never'] as const;
+const LOYALTY_OPTIONS = ['rewardAvailable', 'closeToReward'] as const;
+const CUSTOMER_TYPE_OPTIONS = ['new', 'regular', 'vip'] as const;
+const VISITS_OPTIONS = ['0', '1', '2-5', '5+'] as const;
+const CONSENT_OPTIONS = ['optedIn', 'notOptedIn'] as const;
+
 const SORT_LABELS: Record<CustomerListSort, string> = {
   lastVisit: 'Last visit',
   loyaltyPoints: 'Loyalty points',
@@ -143,7 +151,8 @@ const editForm = ref({
   reviewSmsConsent: false,
 });
 
-let loadRequestId = 0;
+let activeRequestId = 0;
+let activeAbortController: AbortController | null = null;
 
 const pageStart = computed(() => (total.value === 0 ? 0 : (page.value - 1) * pageSize.value + 1));
 const pageEnd = computed(() => Math.min(total.value, page.value * pageSize.value));
@@ -192,30 +201,27 @@ const parsePageSize = (value: unknown): number => {
 
 const normalizeStateFromQuery = (query: Record<string, unknown>): CustomersQueryState => ({
   q: readQueryValue(query.q)?.trim() ?? '',
-  lastVisit: parseEnum(query.lastVisit, ['today', '7days', '30days', '60days', '90plus', 'never'] as const),
-  loyalty: parseEnum(query.loyalty, ['rewardAvailable', 'closeToReward'] as const),
-  customerType: parseEnum(query.customerType, ['new', 'regular', 'vip'] as const),
-  visits: parseEnum(query.visits, ['0', '1', '2-5', '5+'] as const),
-  smsConsent: parseEnum(query.smsConsent, ['optedIn', 'notOptedIn'] as const),
-  sort: parseEnum(query.sort, ['lastVisit', 'loyaltyPoints', 'visits', 'name'] as const) ?? 'lastVisit',
+  lastVisit: parseEnum(query.lastVisit, LAST_VISIT_OPTIONS),
+  loyalty: parseEnum(query.loyalty, LOYALTY_OPTIONS),
+  customerType: parseEnum(query.customerType, CUSTOMER_TYPE_OPTIONS),
+  visits: parseEnum(query.visits, VISITS_OPTIONS),
+  smsConsent: parseEnum(query.smsConsent, CONSENT_OPTIONS),
+  sort: parseEnum(query.sort, SORT_OPTIONS) ?? 'lastVisit',
   page: parsePage(query.page),
   pageSize: parsePageSize(query.pageSize),
 });
 
-const buildQueryFromState = () => {
+const stateToQuery = (state: CustomersQueryState): Record<string, string> => {
   const query: Record<string, string> = {};
-  const trimmedSearch = appliedSearch.value.trim();
-
-  if (trimmedSearch) query.q = trimmedSearch;
-  if (filters.value.lastVisit) query.lastVisit = filters.value.lastVisit;
-  if (filters.value.loyalty) query.loyalty = filters.value.loyalty;
-  if (filters.value.customerType) query.customerType = filters.value.customerType;
-  if (filters.value.visits) query.visits = filters.value.visits;
-  if (filters.value.smsConsent) query.smsConsent = filters.value.smsConsent;
-  if (filters.value.sort !== 'lastVisit') query.sort = filters.value.sort;
-  if (page.value > 1) query.page = String(page.value);
-  if (pageSize.value !== DEFAULT_PAGE_SIZE) query.pageSize = String(pageSize.value);
-
+  if (state.q.trim()) query.q = state.q.trim();
+  if (state.lastVisit) query.lastVisit = state.lastVisit;
+  if (state.loyalty) query.loyalty = state.loyalty;
+  if (state.customerType) query.customerType = state.customerType;
+  if (state.visits) query.visits = state.visits;
+  if (state.smsConsent) query.smsConsent = state.smsConsent;
+  if (state.sort !== 'lastVisit') query.sort = state.sort;
+  if (state.page > 1) query.page = String(state.page);
+  if (state.pageSize !== DEFAULT_PAGE_SIZE) query.pageSize = String(state.pageSize);
   return query;
 };
 
@@ -225,7 +231,7 @@ const queryKey = (query: Record<string, string>) =>
     .map((key) => `${key}=${query[key]}`)
     .join('&');
 
-const routeQueryKey = (query: Record<string, unknown>) =>
+const rawRouteQueryKey = (query: Record<string, unknown>) =>
   queryKey(
     Object.fromEntries(
       Object.entries(query)
@@ -234,8 +240,19 @@ const routeQueryKey = (query: Record<string, unknown>) =>
     ) as Record<string, string>,
   );
 
-const applyStateFromQuery = (query: Record<string, unknown>) => {
-  const next = normalizeStateFromQuery(query);
+const currentState = (): CustomersQueryState => ({
+  q: appliedSearch.value.trim(),
+  lastVisit: filters.value.lastVisit,
+  loyalty: filters.value.loyalty,
+  customerType: filters.value.customerType,
+  visits: filters.value.visits,
+  smsConsent: filters.value.smsConsent,
+  sort: filters.value.sort,
+  page: page.value,
+  pageSize: pageSize.value,
+});
+
+const applyStateToLocal = (next: CustomersQueryState) => {
   searchInput.value = next.q;
   appliedSearch.value = next.q;
   filters.value = {
@@ -246,64 +263,65 @@ const applyStateFromQuery = (query: Record<string, unknown>) => {
     smsConsent: next.smsConsent,
     sort: next.sort,
   };
+  filterDraft.value = cloneFilters(filters.value);
   page.value = next.page;
   pageSize.value = next.pageSize;
 };
 
-const loadCustomers = async () => {
-  const requestId = ++loadRequestId;
+const loadCustomers = async (state: CustomersQueryState) => {
+  const requestId = ++activeRequestId;
+  activeAbortController?.abort();
+  const controller = new AbortController();
+  activeAbortController = controller;
   loading.value = true;
   errorMessage.value = '';
 
   try {
     const response = await fetchCustomers({
-      q: appliedSearch.value.trim() || undefined,
-      lastVisit: filters.value.lastVisit,
-      loyalty: filters.value.loyalty,
-      customerType: filters.value.customerType,
-      visits: filters.value.visits,
-      smsConsent: filters.value.smsConsent,
-      sort: filters.value.sort,
-      page: page.value,
-      pageSize: pageSize.value,
+      q: state.q.trim() || undefined,
+      lastVisit: state.lastVisit,
+      loyalty: state.loyalty,
+      customerType: state.customerType,
+      visits: state.visits,
+      smsConsent: state.smsConsent,
+      sort: state.sort,
+      page: state.page,
+      pageSize: state.pageSize,
+      signal: controller.signal,
     });
 
-    if (requestId !== loadRequestId) return;
+    if (requestId !== activeRequestId) return;
 
     if (Array.isArray(response)) {
       customers.value = response;
       total.value = response.length;
-      page.value = 1;
-      pageSize.value = DEFAULT_PAGE_SIZE;
     } else {
       const data = response as CustomerListResponse;
       customers.value = data.items ?? [];
       total.value = data.total ?? 0;
-      page.value = data.page ?? page.value;
-      pageSize.value = data.pageSize ?? pageSize.value;
-    }
-
-    if (page.value > Math.max(1, Math.ceil(total.value / pageSize.value))) {
-      page.value = Math.max(1, Math.ceil(total.value / pageSize.value));
     }
   } catch (err) {
-    if (requestId !== loadRequestId) return;
+    if (requestId !== activeRequestId) return;
+    if (err instanceof DOMException && err.name === 'AbortError') return;
     const message = err instanceof Error ? err.message : 'Failed to load customers';
     errorMessage.value = message;
-    ElMessage.error(message);
     customers.value = [];
     total.value = 0;
+    ElMessage.error(message);
   } finally {
-    if (requestId === loadRequestId) {
+    if (requestId === activeRequestId) {
       loading.value = false;
+      if (activeAbortController === controller) {
+        activeAbortController = null;
+      }
     }
   }
 };
 
-const syncRouteFromState = async (mode: 'replace' | 'push') => {
-  const nextQuery = buildQueryFromState();
-  if (queryKey(nextQuery) === routeQueryKey(route.query as Record<string, unknown>)) return;
-  await router[mode]({ name: 'admin-customers', query: nextQuery });
+const syncRouteFromState = async (mode: 'push' | 'replace', nextState = currentState()) => {
+  const nextQuery = stateToQuery(nextState);
+  if (queryKey(nextQuery) === rawRouteQueryKey(route.query as Record<string, unknown>)) return;
+  await router[mode]({ name: CUSTOMER_LIST_ROUTE, query: nextQuery });
 };
 
 const applySearch = async () => {
@@ -337,7 +355,7 @@ const clearAllFilters = async () => {
 
 const removeFilter = async (key: keyof Omit<CustomerFilters, 'sort'>) => {
   filters.value = { ...filters.value, [key]: null };
-  filterDraft.value = { ...filters.value };
+  filterDraft.value = cloneFilters(filters.value);
   page.value = 1;
   await syncRouteFromState('push');
 };
@@ -425,7 +443,7 @@ const saveCustomerEdit = async () => {
     });
     ElMessage.success('Customer updated');
     editOpen.value = false;
-    await loadCustomers();
+    await loadCustomers(currentState());
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to update customer');
   } finally {
@@ -457,7 +475,7 @@ const sendFeedbackAction = async (row: CustomerListItem) => {
   try {
     await sendCustomerFeedback(row.id);
     ElMessage.success('Feedback link sent');
-    await loadCustomers();
+    await loadCustomers(currentState());
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to send feedback');
   }
@@ -499,15 +517,15 @@ const handlePageSizeChange = async (nextSize: number) => {
 watch(
   () => route.query,
   async (query) => {
-    const normalizedQuery = buildQueryFromState();
-    if (queryKey(normalizedQuery) !== routeQueryKey(query as Record<string, unknown>)) {
-      await router.replace({ name: 'admin-customers', query: normalizedQuery });
+    const nextState = normalizeStateFromQuery(query as Record<string, unknown>);
+    const normalizedQuery = stateToQuery(nextState);
+    if (queryKey(normalizedQuery) !== rawRouteQueryKey(query as Record<string, unknown>)) {
+      await router.replace({ name: CUSTOMER_LIST_ROUTE, query: normalizedQuery });
       return;
     }
 
-    applyStateFromQuery(query as Record<string, unknown>);
-
-    await loadCustomers();
+    applyStateToLocal(nextState);
+    await loadCustomers(nextState);
   },
   { immediate: true },
 );

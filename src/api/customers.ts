@@ -81,6 +81,7 @@ export async function fetchCustomers(params?: {
   limit?: number;
   pageSize?: number;
   cursor?: string | null;
+  signal?: AbortSignal;
 }): Promise<CustomersResponse> {
   const search = new URLSearchParams();
   if (params?.segment) search.set('segment', params.segment);
@@ -99,6 +100,7 @@ export async function fetchCustomers(params?: {
   const url = query ? apiUrl(`/customers?${query}`) : apiUrl('/customers');
   const res = await fetch(url, {
     headers: buildHeaders({ auth: true, tenant: true, json: true }),
+    signal: params?.signal,
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
