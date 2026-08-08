@@ -1,31 +1,139 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
-import { ElCard, ElInput, ElTable, ElTableColumn, ElTag, ElButton, ElMessage, ElDrawer, ElTooltip, ElSwitch, ElDropdown, ElDropdownMenu, ElDropdownItem } from 'element-plus';
+import { computed, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import {
-  searchCustomers,
-  fetchCustomerTimeline,
+  ElAlert,
+  ElBadge,
+  ElButton,
+  ElCard,
+  ElDrawer,
+  ElDropdown,
+  ElDropdownItem,
+  ElDropdownMenu,
+  ElEmpty,
+  ElInput,
+  ElPagination,
+  ElSelect,
+  ElOption,
+  ElMessage,
+  ElTable,
+  ElTableColumn,
+  ElTag,
+  ElTooltip,
+  ElSwitch,
+} from 'element-plus';
+import {
   fetchCustomers,
-  updateCustomer,
-  type CustomerSearchResult,
-  type CustomerTimeline as CustomerTimelineType,
-  sendCustomerReminder,
+  fetchCustomerTimeline,
   sendCustomerFeedback,
+  sendCustomerReminder,
+  updateCustomer,
+  type CustomerListConsentFilter,
+  type CustomerListItem,
+  type CustomerListLastVisitFilter,
+  type CustomerListLoyaltyFilter,
+  type CustomerListResponse,
+  type CustomerListSort,
+  type CustomerListTypeFilter,
+  type CustomerListVisitsFilter,
+  type CustomerTimeline as CustomerTimelineType,
 } from '../../api/customers';
 import CustomerTimeline from '../../components/CustomerTimeline.vue';
 import { formatInBusinessTz, humanizeTime } from '../../utils/dates';
 import { formatPhone } from '../../utils/format';
 
-const PAGE_SIZE = 10;
-const query = ref('');
+type CustomerFilters = {
+  lastVisit: CustomerListLastVisitFilter | null;
+  loyalty: CustomerListLoyaltyFilter | null;
+  customerType: CustomerListTypeFilter | null;
+  visits: CustomerListVisitsFilter | null;
+  smsConsent: CustomerListConsentFilter | null;
+  sort: CustomerListSort;
+};
+
+type CustomersQueryState = {
+  q: string;
+  lastVisit: CustomerListLastVisitFilter | null;
+  loyalty: CustomerListLoyaltyFilter | null;
+  customerType: CustomerListTypeFilter | null;
+  visits: CustomerListVisitsFilter | null;
+  smsConsent: CustomerListConsentFilter | null;
+  sort: CustomerListSort;
+  page: number;
+  pageSize: number;
+};
+
+const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
+const DEFAULT_PAGE_SIZE = 25;
+const SORT_LABELS: Record<CustomerListSort, string> = {
+  lastVisit: 'Last visit',
+  loyaltyPoints: 'Loyalty points',
+  visits: 'Visits',
+  name: 'Name',
+};
+
+const LAST_VISIT_LABELS: Record<NonNullable<CustomerFilters['lastVisit']>, string> = {
+  today: 'Today',
+  '7days': '7 days',
+  '30days': '30 days',
+  '60days': '60 days',
+  '90plus': '90+ days',
+  never: 'Never',
+};
+
+const LOYALTY_LABELS: Record<NonNullable<CustomerFilters['loyalty']>, string> = {
+  rewardAvailable: 'Reward available',
+  closeToReward: 'Close to reward',
+};
+
+const CUSTOMER_TYPE_LABELS: Record<NonNullable<CustomerFilters['customerType']>, string> = {
+  new: 'New',
+  regular: 'Regular',
+  vip: 'VIP',
+};
+
+const VISITS_LABELS: Record<NonNullable<CustomerFilters['visits']>, string> = {
+  '0': '0',
+  '1': '1',
+  '2-5': '2-5',
+  '5+': '5+',
+};
+
+const CONSENT_LABELS: Record<NonNullable<CustomerFilters['smsConsent']>, string> = {
+  optedIn: 'Opted in',
+  notOptedIn: 'Not opted in',
+};
+
+const route = useRoute();
+const router = useRouter();
+
+const defaultFilters = (): CustomerFilters => ({
+  lastVisit: null,
+  loyalty: null,
+  customerType: null,
+  visits: null,
+  smsConsent: null,
+  sort: 'lastVisit',
+});
+
+const cloneFilters = (value: CustomerFilters): CustomerFilters => ({ ...value });
+
+const searchInput = ref('');
+const appliedSearch = ref('');
+const filters = ref<CustomerFilters>(defaultFilters());
+const filterDraft = ref<CustomerFilters>(defaultFilters());
+const filterDrawerOpen = ref(false);
 const loading = ref(false);
 const errorMessage = ref('');
-const results = ref<CustomerSearchResult[]>([]);
-const nextCursor = ref<string | null>(null);
-const hasMore = ref(false);
-const loadingMore = ref(false);
+const customers = ref<CustomerListItem[]>([]);
+const total = ref(0);
+const page = ref(1);
+const pageSize = ref(DEFAULT_PAGE_SIZE);
+
 const timelineOpen = ref(false);
 const timelineLoading = ref(false);
 const timeline = ref<CustomerTimelineType | null>(null);
+
 const editOpen = ref(false);
 const savingEdit = ref(false);
 const editingCustomerId = ref<string | null>(null);
@@ -34,39 +142,245 @@ const editForm = ref({
   phoneE164: '',
   reviewSmsConsent: false,
 });
-const page = ref(1);
 
-const totalPages = computed(() => Math.max(1, Math.ceil(results.value.length / PAGE_SIZE)));
-const totalCustomers = computed(() => results.value.length);
+let loadRequestId = 0;
 
-const displayedResults = computed(() => {
-  if (page.value > totalPages.value) page.value = totalPages.value;
-  const start = (page.value - 1) * PAGE_SIZE;
-  return results.value.slice(start, start + PAGE_SIZE);
+const pageStart = computed(() => (total.value === 0 ? 0 : (page.value - 1) * pageSize.value + 1));
+const pageEnd = computed(() => Math.min(total.value, page.value * pageSize.value));
+const activeFilterCount = computed(
+  () =>
+    [
+      filters.value.lastVisit,
+      filters.value.loyalty,
+      filters.value.customerType,
+      filters.value.visits,
+      filters.value.smsConsent,
+    ].filter(Boolean).length,
+);
+const hasActiveFilters = computed(() => activeFilterCount.value > 0);
+
+const formatDate = (value: string | null) => (value ? formatInBusinessTz(value, 'MMM D, YYYY h:mm A') : '—');
+const formatRelative = (value: string | null) => (value ? humanizeTime(value) : '—');
+const prettyPhone = (value: string | null) => formatPhone(value || undefined);
+const pointsValue = (row: CustomerListItem) => (Number.isFinite(row.pointsBalance) ? row.pointsBalance : 0);
+
+const readQueryValue = (value: unknown): string | null => {
+  if (Array.isArray(value)) {
+    return typeof value[0] === 'string' ? value[0] : null;
+  }
+  return typeof value === 'string' ? value : null;
+};
+
+const parseEnum = <T extends string>(value: unknown, allowed: readonly T[]): T | null => {
+  const raw = readQueryValue(value);
+  return raw && (allowed as readonly string[]).includes(raw) ? (raw as T) : null;
+};
+
+const parsePage = (value: unknown): number => {
+  const raw = readQueryValue(value);
+  if (!raw) return 1;
+  const parsed = Number(raw);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
+};
+
+const parsePageSize = (value: unknown): number => {
+  const raw = readQueryValue(value);
+  if (!raw) return DEFAULT_PAGE_SIZE;
+  const parsed = Number(raw);
+  return PAGE_SIZE_OPTIONS.includes(parsed as (typeof PAGE_SIZE_OPTIONS)[number]) ? parsed : DEFAULT_PAGE_SIZE;
+};
+
+const normalizeStateFromQuery = (query: Record<string, unknown>): CustomersQueryState => ({
+  q: readQueryValue(query.q)?.trim() ?? '',
+  lastVisit: parseEnum(query.lastVisit, ['today', '7days', '30days', '60days', '90plus', 'never'] as const),
+  loyalty: parseEnum(query.loyalty, ['rewardAvailable', 'closeToReward'] as const),
+  customerType: parseEnum(query.customerType, ['new', 'regular', 'vip'] as const),
+  visits: parseEnum(query.visits, ['0', '1', '2-5', '5+'] as const),
+  smsConsent: parseEnum(query.smsConsent, ['optedIn', 'notOptedIn'] as const),
+  sort: parseEnum(query.sort, ['lastVisit', 'loyaltyPoints', 'visits', 'name'] as const) ?? 'lastVisit',
+  page: parsePage(query.page),
+  pageSize: parsePageSize(query.pageSize),
 });
 
-const doSearch = async () => {
-  if (!query.value.trim()) {
-    await loadAll();
-    return;
-  }
+const buildQueryFromState = () => {
+  const query: Record<string, string> = {};
+  const trimmedSearch = appliedSearch.value.trim();
+
+  if (trimmedSearch) query.q = trimmedSearch;
+  if (filters.value.lastVisit) query.lastVisit = filters.value.lastVisit;
+  if (filters.value.loyalty) query.loyalty = filters.value.loyalty;
+  if (filters.value.customerType) query.customerType = filters.value.customerType;
+  if (filters.value.visits) query.visits = filters.value.visits;
+  if (filters.value.smsConsent) query.smsConsent = filters.value.smsConsent;
+  if (filters.value.sort !== 'lastVisit') query.sort = filters.value.sort;
+  if (page.value > 1) query.page = String(page.value);
+  if (pageSize.value !== DEFAULT_PAGE_SIZE) query.pageSize = String(pageSize.value);
+
+  return query;
+};
+
+const queryKey = (query: Record<string, string>) =>
+  Object.keys(query)
+    .sort()
+    .map((key) => `${key}=${query[key]}`)
+    .join('&');
+
+const routeQueryKey = (query: Record<string, unknown>) =>
+  queryKey(
+    Object.fromEntries(
+      Object.entries(query)
+        .map(([key, value]) => [key, readQueryValue(value) ?? ''])
+        .filter(([, value]) => value !== ''),
+    ) as Record<string, string>,
+  );
+
+const applyStateFromQuery = (query: Record<string, unknown>) => {
+  const next = normalizeStateFromQuery(query);
+  searchInput.value = next.q;
+  appliedSearch.value = next.q;
+  filters.value = {
+    lastVisit: next.lastVisit,
+    loyalty: next.loyalty,
+    customerType: next.customerType,
+    visits: next.visits,
+    smsConsent: next.smsConsent,
+    sort: next.sort,
+  };
+  page.value = next.page;
+  pageSize.value = next.pageSize;
+};
+
+const loadCustomers = async () => {
+  const requestId = ++loadRequestId;
   loading.value = true;
   errorMessage.value = '';
+
   try {
-    results.value = await searchCustomers(query.value.trim());
-    nextCursor.value = null;
-    hasMore.value = false;
+    const response = await fetchCustomers({
+      q: appliedSearch.value.trim() || undefined,
+      lastVisit: filters.value.lastVisit,
+      loyalty: filters.value.loyalty,
+      customerType: filters.value.customerType,
+      visits: filters.value.visits,
+      smsConsent: filters.value.smsConsent,
+      sort: filters.value.sort,
+      page: page.value,
+      pageSize: pageSize.value,
+    });
+
+    if (requestId !== loadRequestId) return;
+
+    if (Array.isArray(response)) {
+      customers.value = response;
+      total.value = response.length;
+      page.value = 1;
+      pageSize.value = DEFAULT_PAGE_SIZE;
+    } else {
+      const data = response as CustomerListResponse;
+      customers.value = data.items ?? [];
+      total.value = data.total ?? 0;
+      page.value = data.page ?? page.value;
+      pageSize.value = data.pageSize ?? pageSize.value;
+    }
+
+    if (page.value > Math.max(1, Math.ceil(total.value / pageSize.value))) {
+      page.value = Math.max(1, Math.ceil(total.value / pageSize.value));
+    }
   } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : 'Failed to search customers');
-    errorMessage.value = err instanceof Error ? err.message : 'Failed to search customers';
+    if (requestId !== loadRequestId) return;
+    const message = err instanceof Error ? err.message : 'Failed to load customers';
+    errorMessage.value = message;
+    ElMessage.error(message);
+    customers.value = [];
+    total.value = 0;
   } finally {
-    loading.value = false;
+    if (requestId === loadRequestId) {
+      loading.value = false;
+    }
   }
 };
 
-const formatDate = (value: string | null) => formatInBusinessTz(value, 'MMM D, YYYY');
-const relativeDate = (value: string | null) => humanizeTime(value);
-const prettyPhone = (value: string | null) => formatPhone(value || undefined);
+const syncRouteFromState = async (mode: 'replace' | 'push') => {
+  const nextQuery = buildQueryFromState();
+  if (queryKey(nextQuery) === routeQueryKey(route.query as Record<string, unknown>)) return;
+  await router[mode]({ name: 'admin-customers', query: nextQuery });
+};
+
+const applySearch = async () => {
+  appliedSearch.value = searchInput.value.trim();
+  page.value = 1;
+  await syncRouteFromState('push');
+};
+
+const openFilters = () => {
+  filterDraft.value = cloneFilters(filters.value);
+  filterDrawerOpen.value = true;
+};
+
+const applyFilters = async () => {
+  filters.value = cloneFilters(filterDraft.value);
+  filterDrawerOpen.value = false;
+  page.value = 1;
+  await syncRouteFromState('push');
+};
+
+const resetDraftFilters = () => {
+  filterDraft.value = defaultFilters();
+};
+
+const clearAllFilters = async () => {
+  filters.value = defaultFilters();
+  filterDraft.value = defaultFilters();
+  page.value = 1;
+  await syncRouteFromState('push');
+};
+
+const removeFilter = async (key: keyof Omit<CustomerFilters, 'sort'>) => {
+  filters.value = { ...filters.value, [key]: null };
+  filterDraft.value = { ...filters.value };
+  page.value = 1;
+  await syncRouteFromState('push');
+};
+
+const activeFilterChips = computed(() => {
+  const chips: Array<{ key: string; label: string; onClose: () => Promise<void> }> = [];
+  if (filters.value.lastVisit) {
+    chips.push({
+      key: 'lastVisit',
+      label: `Last visit: ${LAST_VISIT_LABELS[filters.value.lastVisit]}`,
+      onClose: () => removeFilter('lastVisit'),
+    });
+  }
+  if (filters.value.loyalty) {
+    chips.push({
+      key: 'loyalty',
+      label: `Loyalty: ${LOYALTY_LABELS[filters.value.loyalty]}`,
+      onClose: () => removeFilter('loyalty'),
+    });
+  }
+  if (filters.value.customerType) {
+    chips.push({
+      key: 'customerType',
+      label: `Type: ${CUSTOMER_TYPE_LABELS[filters.value.customerType]}`,
+      onClose: () => removeFilter('customerType'),
+    });
+  }
+  if (filters.value.visits) {
+    chips.push({
+      key: 'visits',
+      label: `Visits: ${VISITS_LABELS[filters.value.visits]}`,
+      onClose: () => removeFilter('visits'),
+    });
+  }
+  if (filters.value.smsConsent) {
+    chips.push({
+      key: 'smsConsent',
+      label: `SMS: ${CONSENT_LABELS[filters.value.smsConsent]}`,
+      onClose: () => removeFilter('smsConsent'),
+    });
+  }
+  return chips;
+});
 
 const openTimeline = async (customerId: string) => {
   timelineLoading.value = true;
@@ -82,7 +396,11 @@ const openTimeline = async (customerId: string) => {
   }
 };
 
-const openEdit = (row: CustomerSearchResult) => {
+const openProfile = async (customerId: string) => {
+  await router.push({ name: 'admin-customer-profile', params: { customerId } });
+};
+
+const openEdit = (row: CustomerListItem) => {
   editingCustomerId.value = row.id;
   editForm.value = {
     name: row.name ?? '',
@@ -105,14 +423,9 @@ const saveCustomerEdit = async () => {
       phoneE164: editForm.value.phoneE164.trim() || null,
       reviewSmsConsent: editForm.value.reviewSmsConsent,
     });
-    const target = results.value.find((item) => item.id === editingCustomerId.value);
-    if (target) {
-      target.name = editForm.value.name.trim();
-      target.phoneE164 = editForm.value.phoneE164.trim() || '';
-      target.reviewSmsConsent = editForm.value.reviewSmsConsent;
-    }
     ElMessage.success('Customer updated');
     editOpen.value = false;
+    await loadCustomers();
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to update customer');
   } finally {
@@ -120,55 +433,10 @@ const saveCustomerEdit = async () => {
   }
 };
 
-const loadAll = async () => {
-  loading.value = true;
-  errorMessage.value = '';
-  try {
-    const data = await fetchCustomers({ segment: 'all', limit: 50, cursor: null });
-    if (Array.isArray(data)) {
-      results.value = data;
-      nextCursor.value = null;
-      hasMore.value = false;
-    } else {
-      results.value = data.items ?? [];
-      nextCursor.value = data.nextCursor ?? null;
-      hasMore.value = !!data.hasMore;
-    }
-    page.value = 1;
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : 'Failed to load customers');
-    errorMessage.value = err instanceof Error ? err.message : 'Failed to load customers';
-  } finally {
-    loading.value = false;
-  }
-};
+const canSendReminder = (row: CustomerListItem) => !!row.phoneE164 && row.smsConsent;
+const canSendFeedback = (row: CustomerListItem) => !!row.phoneE164 && row.smsConsent && !row.reviewSentAt;
 
-const loadMore = async () => {
-  if (!hasMore.value || loadingMore.value || !nextCursor.value) return;
-  loadingMore.value = true;
-  try {
-    const data = await fetchCustomers({ segment: 'all', limit: 50, cursor: nextCursor.value });
-    if (!Array.isArray(data)) {
-      results.value = [...results.value, ...(data.items ?? [])];
-      nextCursor.value = data.nextCursor ?? null;
-      hasMore.value = !!data.hasMore;
-    }
-    page.value = Math.min(page.value, totalPages.value);
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : 'Failed to load more customers');
-  } finally {
-    loadingMore.value = false;
-  }
-};
-
-loadAll();
-
-const canSendReminder = (row: CustomerSearchResult) =>
-  !!row.phoneE164 && row.reviewSmsConsent;
-const canSendFeedback = (row: CustomerSearchResult) =>
-  !!row.phoneE164 && row.reviewSmsConsent && !row.reviewSentAt;
-
-const sendReminderAction = async (row: CustomerSearchResult) => {
+const sendReminderAction = async (row: CustomerListItem) => {
   if (!canSendReminder(row)) {
     ElMessage.warning('Consent required to send reminder');
     return;
@@ -181,7 +449,7 @@ const sendReminderAction = async (row: CustomerSearchResult) => {
   }
 };
 
-const sendFeedbackAction = async (row: CustomerSearchResult) => {
+const sendFeedbackAction = async (row: CustomerListItem) => {
   if (!canSendFeedback(row)) {
     ElMessage.warning('Already sent or consent missing');
     return;
@@ -189,15 +457,19 @@ const sendFeedbackAction = async (row: CustomerSearchResult) => {
   try {
     await sendCustomerFeedback(row.id);
     ElMessage.success('Feedback link sent');
-    row.reviewSentAt = new Date().toISOString();
+    await loadCustomers();
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to send feedback');
   }
 };
 
-const handleActionCommand = (command: string, row: CustomerSearchResult) => {
-  if (command === 'view') {
+const handleActionCommand = (command: string, row: CustomerListItem) => {
+  if (command === 'timeline') {
     void openTimeline(row.id);
+    return;
+  }
+  if (command === 'profile') {
+    void openProfile(row.id);
     return;
   }
   if (command === 'edit') {
@@ -213,185 +485,285 @@ const handleActionCommand = (command: string, row: CustomerSearchResult) => {
   }
 };
 
-const ensureDataForPage = async (target: number) => {
-  const needed = target * PAGE_SIZE;
-  if (needed > results.value.length && hasMore.value && nextCursor.value) {
-    await loadMore();
-  }
+const handlePageChange = async (nextPage: number) => {
+  page.value = Math.max(1, nextPage);
+  await syncRouteFromState('push');
 };
 
-const changePage = async (direction: 'prev' | 'next') => {
-  const target = direction === 'next' ? page.value + 1 : page.value - 1;
-  await goToPage(target);
+const handlePageSizeChange = async (nextSize: number) => {
+  pageSize.value = nextSize;
+  page.value = 1;
+  await syncRouteFromState('push');
 };
 
-const goToPage = async (target: number) => {
-  const clamped = Math.max(1, target);
-  await ensureDataForPage(clamped);
-  page.value = Math.min(Math.max(1, clamped), totalPages.value);
-};
+watch(
+  () => route.query,
+  async (query) => {
+    const normalizedQuery = buildQueryFromState();
+    if (queryKey(normalizedQuery) !== routeQueryKey(query as Record<string, unknown>)) {
+      await router.replace({ name: 'admin-customers', query: normalizedQuery });
+      return;
+    }
 
-const pointsValue = (row: any) => {
-  const val =
-    row?.pointsBalance ??
-    row?.points_balance ??
-    row?.points ??
-    row?.loyaltyPoints ??
-    0;
-  return typeof val === 'number' && Number.isFinite(val) ? val : 0;
-};
+    applyStateFromQuery(query as Record<string, unknown>);
 
-watch(results, () => {
-  if (page.value > totalPages.value) {
-    page.value = totalPages.value;
-  }
-});
+    await loadCustomers();
+  },
+  { immediate: true },
+);
+
+const applySearchAndReset = async () => {
+  await applySearch();
+};
 </script>
 
 <template>
   <div class="customers-page space-y-4">
-    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-      <div>
+    <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+      <div class="space-y-1">
         <h1 class="text-2xl font-semibold text-slate-900">Customers</h1>
-        <p class="text-sm text-slate-600">
-          Search by name or phone to see visit history. Customers appear after their first visit or checkout.
+        <p class="max-w-2xl text-sm text-slate-600">
+          Search by name or phone, then narrow the full customer dataset with filters and sort options.
         </p>
       </div>
-      <div class="stat-chip" aria-label="Total customers">
-        👥 Total: {{ totalCustomers }}
+      <div class="stat-chip" aria-label="Matching customers">
+        👥 Total: {{ total }}
       </div>
     </div>
 
     <ElCard class="bg-white">
-      <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 max-w-xl">
-        <ElInput
-          v-model="query"
-          placeholder="Search by name or phone"
-          clearable
-          class="sf-input flex-1"
-          @keyup.enter="doSearch"
-        />
-        <ElButton
-          type="primary"
-          class="sf-btn sf-btn-search action-accent"
-          :loading="loading"
-          @click="doSearch"
-        >
-          <span aria-hidden="true">🔍</span>
-          <span>Search</span>
-        </ElButton>
+      <div class="flex flex-col gap-3 lg:flex-row lg:items-center">
+        <div class="flex flex-1 flex-col gap-3 sm:flex-row">
+          <ElInput
+            v-model="searchInput"
+            placeholder="Search by name or phone"
+            clearable
+            class="sf-input flex-1"
+            @keyup.enter="applySearchAndReset"
+          />
+          <div class="flex gap-2 sm:flex-none">
+            <ElButton
+              type="primary"
+              class="sf-btn sf-btn-search action-accent"
+              :loading="loading"
+              @click="applySearchAndReset"
+            >
+              <span aria-hidden="true">🔍</span>
+              <span>Search</span>
+            </ElButton>
+            <ElBadge :value="activeFilterCount" :hidden="!hasActiveFilters" type="primary">
+              <ElButton plain class="sf-btn" @click="openFilters">Filters</ElButton>
+            </ElBadge>
+          </div>
+        </div>
       </div>
-      <div v-if="errorMessage" class="mt-3 text-sm text-amber-700">
-        {{ errorMessage }}
+
+      <div v-if="hasActiveFilters" class="mt-3 flex flex-wrap items-center gap-2">
+        <ElTag
+          v-for="chip in activeFilterChips"
+          :key="chip.key"
+          closable
+          effect="light"
+          class="filter-chip"
+          @close="chip.onClose"
+        >
+          {{ chip.label }}
+        </ElTag>
+        <ElButton text type="primary" class="clear-link" @click="clearAllFilters">Clear all</ElButton>
+      </div>
+
+      <div v-if="errorMessage" class="mt-3">
+        <ElAlert type="error" :title="errorMessage" :closable="false" show-icon />
       </div>
     </ElCard>
 
-    <ElCard v-if="results.length > 0" class="bg-white">
+    <ElCard v-if="loading || total > 0" class="bg-white">
       <div class="table-shell">
+        <div class="table-meta flex flex-col gap-2 border-b border-slate-200 pb-3 sm:flex-row sm:items-center sm:justify-between">
+          <div class="text-sm text-slate-600">
+            Showing {{ pageStart }}-{{ pageEnd }} of {{ total }}
+          </div>
+          <div class="text-xs text-slate-500">
+            Reward threshold is driven by the salon's active redemption rules.
+          </div>
+        </div>
+
         <div class="table-body table-scroll">
-          <ElTable :data="displayedResults" style="width: 100%">
-            <ElTableColumn label="Customer" min-width="200">
+          <ElTable
+            :data="customers"
+            :loading="loading"
+            empty-text="No customers match these filters."
+            style="width: 100%"
+          >
+            <ElTableColumn label="Customer" min-width="260">
               <template #default="{ row }">
                 <div class="flex items-center gap-3">
-                  <div class="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">
-                    {{ row.name?.charAt(0)?.toUpperCase() || '?' }}
+                  <div class="avatar-circle" aria-hidden="true">
+                    {{ row.name?.trim()?.charAt(0)?.toUpperCase() || '?' }}
                   </div>
-                  <div class="space-y-1">
-                    <div class="text-sm font-semibold text-slate-900">👤 {{ row.name }}</div>
-                    <div class="text-xs text-slate-700">📞 {{ prettyPhone(row.phoneE164) }}</div>
+                  <div class="min-w-0 space-y-1">
+                    <button class="customer-name-link block" type="button" @click="openProfile(row.id)">
+                      {{ row.name }}
+                    </button>
+                    <div class="text-sm text-slate-600">
+                      {{ prettyPhone(row.phoneE164) }}
+                    </div>
                   </div>
                 </div>
               </template>
             </ElTableColumn>
 
-            <ElTableColumn label="Activity" width="180">
+            <ElTableColumn label="Activity" min-width="170">
               <template #default="{ row }">
-                <div class="space-y-1 text-xs text-slate-700">
-                  <div class="flex flex-col gap-1">
-                    <div class="flex items-center gap-1">
-                      <span class="text-slate-500">Last visit:</span>
-                      <ElTooltip :content="formatDate(row.lastVisitAt)" placement="top">
-                        <span class="flex items-center gap-1 text-slate-500">
-                          <span aria-hidden="true">🕒</span>
-                          <span class="font-semibold text-slate-700">{{ relativeDate(row.lastVisitAt) }}</span>
-                        </span>
-                      </ElTooltip>
-                    </div>
-                    <div class="flex items-center gap-1 text-slate-600">
-                      <span aria-hidden="true">👤</span>
-                      <span>{{ row.lastServedBy || '—' }}</span>
-                    </div>
-                  </div>
-                  <div>Visits: {{ row.visitCount ?? 0 }}</div>
-                </div>
-              </template>
-            </ElTableColumn>
-
-            <ElTableColumn label="Loyalty" width="150">
-              <template #default="{ row }">
-                <div class="space-y-1 text-xs text-slate-700">
+                <div class="space-y-1 text-sm text-slate-700">
                   <div class="flex items-center gap-1">
-                    <span>⭐</span>
-                    <span :class="pointsValue(row) >= 300 ? 'text-emerald-600 font-semibold' : 'text-slate-700'">
-                      {{ pointsValue(row) }} pts
-                    </span>
+                    <span class="text-slate-500">Last visit:</span>
+                    <ElTooltip :content="formatDate(row.lastVisitAt)" placement="top">
+                      <span class="font-semibold text-slate-900">{{ formatRelative(row.lastVisitAt) }}</span>
+                    </ElTooltip>
                   </div>
-                  <ElTag effect="light">
-                    {{ row.type.toUpperCase() }}
+                  <div class="text-slate-600">Visits: {{ row.visitCount }}</div>
+                </div>
+              </template>
+            </ElTableColumn>
+
+            <ElTableColumn label="Loyalty" min-width="160">
+              <template #default="{ row }">
+                <div class="space-y-1">
+                  <div class="flex items-center gap-1 text-sm text-slate-800">
+                    <span aria-hidden="true">⭐</span>
+                    <span class="font-semibold">{{ pointsValue(row) }} pts</span>
+                  </div>
+                  <ElTag effect="light" class="capitalize">
+                    {{ row.type }}
                   </ElTag>
                 </div>
               </template>
             </ElTableColumn>
 
-            <ElTableColumn label="Consent" width="110">
+            <ElTableColumn label="Consent" width="120">
               <template #default="{ row }">
-                <ElTag :type="row.reviewSmsConsent ? 'success' : 'info'" effect="light">
-                  {{ row.reviewSmsConsent ? 'Yes' : 'No' }}
+                <ElTag :type="row.smsConsent ? 'success' : 'info'" effect="light">
+                  {{ row.smsConsent ? 'Yes' : 'No' }}
                 </ElTag>
               </template>
             </ElTableColumn>
 
-            <ElTableColumn label="Actions" min-width="90" width="100" fixed="right" align="center" header-align="center" class-name="actions-col">
+            <ElTableColumn
+              label="Actions"
+              width="100"
+              align="center"
+              header-align="center"
+              fixed="right"
+            >
               <template #default="{ row }">
-                <div class="table-actions">
-                  <ElDropdown trigger="click" @command="(command) => handleActionCommand(String(command), row)">
-                    <ElButton class="kebab-btn" plain @click.stop>
-                      ⋯
-                    </ElButton>
-                    <template #dropdown>
-                      <ElDropdownMenu>
-                        <ElDropdownItem command="view">View</ElDropdownItem>
-                        <ElDropdownItem command="edit">Edit</ElDropdownItem>
-                        <ElDropdownItem command="reminder" :disabled="!canSendReminder(row)">Send Reminder</ElDropdownItem>
-                        <ElDropdownItem command="feedback" :disabled="!canSendFeedback(row)">Send Feedback</ElDropdownItem>
-                      </ElDropdownMenu>
-                    </template>
-                  </ElDropdown>
-                </div>
+                <ElDropdown trigger="click" @command="(command) => handleActionCommand(String(command), row)">
+                  <ElButton class="kebab-btn" plain @click.stop>⋯</ElButton>
+                  <template #dropdown>
+                    <ElDropdownMenu>
+                      <ElDropdownItem command="timeline">Timeline</ElDropdownItem>
+                      <ElDropdownItem command="profile">Profile</ElDropdownItem>
+                      <ElDropdownItem command="edit">Edit</ElDropdownItem>
+                      <ElDropdownItem command="reminder" :disabled="!canSendReminder(row)">
+                        Send Reminder
+                      </ElDropdownItem>
+                      <ElDropdownItem command="feedback" :disabled="!canSendFeedback(row)">
+                        Send Feedback
+                      </ElDropdownItem>
+                    </ElDropdownMenu>
+                  </template>
+                </ElDropdown>
               </template>
             </ElTableColumn>
           </ElTable>
         </div>
+
         <div class="pagination-footer">
-          <ElButton size="small" plain :disabled="page <= 1" @click="goToPage(1)">«</ElButton>
-          <ElButton size="small" plain :disabled="page <= 1" @click="changePage('prev')">Prev</ElButton>
-          <div class="page-indicator">Page {{ page }} of {{ totalPages }}</div>
-          <ElButton
-            size="small"
-            plain
-            :disabled="page >= totalPages && !hasMore"
-            :loading="loadingMore && page >= totalPages"
-            @click="changePage('next')"
-          >
-            Next
-          </ElButton>
+          <ElPagination
+            background
+            layout="total, sizes, prev, pager, next, jumper"
+            :current-page="page"
+            :page-size="pageSize"
+            :page-sizes="[...PAGE_SIZE_OPTIONS]"
+            :total="total"
+            :disabled="loading"
+            @current-change="handlePageChange"
+            @size-change="handlePageSizeChange"
+          />
         </div>
       </div>
     </ElCard>
 
-    <div v-else class="text-sm text-slate-500">
-      Customers appear after checkout. Complete a service to see history.
-    </div>
+    <ElCard v-else class="bg-white">
+      <ElEmpty description="No customers match these filters." />
+    </ElCard>
+
+    <ElDrawer v-model="filterDrawerOpen" title="Filters" size="360px" class="customers-filter-drawer">
+      <div class="space-y-5">
+        <section class="filter-section">
+          <div class="filter-label">Last Visit</div>
+          <ElSelect v-model="filterDraft.lastVisit" clearable class="w-full" placeholder="All">
+            <ElOption label="Today" value="today" />
+            <ElOption label="7 days" value="7days" />
+            <ElOption label="30 days" value="30days" />
+            <ElOption label="60 days" value="60days" />
+            <ElOption label="90+ days" value="90plus" />
+            <ElOption label="Never" value="never" />
+          </ElSelect>
+        </section>
+
+        <section class="filter-section">
+          <div class="filter-label">Loyalty</div>
+          <ElSelect v-model="filterDraft.loyalty" clearable class="w-full" placeholder="All">
+            <ElOption label="Reward available" value="rewardAvailable" />
+            <ElOption label="Close to reward" value="closeToReward" />
+          </ElSelect>
+          <div class="filter-help">Close to reward uses the salon's configured redemption threshold.</div>
+        </section>
+
+        <section class="filter-section">
+          <div class="filter-label">Customer Type</div>
+          <ElSelect v-model="filterDraft.customerType" clearable class="w-full" placeholder="All">
+            <ElOption label="New" value="new" />
+            <ElOption label="Regular" value="regular" />
+            <ElOption label="VIP" value="vip" />
+          </ElSelect>
+        </section>
+
+        <section class="filter-section">
+          <div class="filter-label">Visits</div>
+          <ElSelect v-model="filterDraft.visits" clearable class="w-full" placeholder="All">
+            <ElOption label="0" value="0" />
+            <ElOption label="1" value="1" />
+            <ElOption label="2-5" value="2-5" />
+            <ElOption label="5+" value="5+" />
+          </ElSelect>
+        </section>
+
+        <section class="filter-section">
+          <div class="filter-label">SMS Consent</div>
+          <ElSelect v-model="filterDraft.smsConsent" clearable class="w-full" placeholder="All">
+            <ElOption label="Opted in" value="optedIn" />
+            <ElOption label="Not opted in" value="notOptedIn" />
+          </ElSelect>
+        </section>
+
+        <section class="filter-section">
+          <div class="filter-label">Sort</div>
+          <ElSelect v-model="filterDraft.sort" class="w-full">
+            <ElOption v-for="(label, key) in SORT_LABELS" :key="key" :label="label" :value="key" />
+          </ElSelect>
+        </section>
+
+        <div class="flex items-center justify-between gap-2 pt-2">
+          <ElButton text type="primary" @click="resetDraftFilters">Reset</ElButton>
+          <div class="flex gap-2">
+            <ElButton @click="filterDrawerOpen = false">Cancel</ElButton>
+            <ElButton type="primary" @click="applyFilters">Apply</ElButton>
+          </div>
+        </div>
+      </div>
+    </ElDrawer>
 
     <ElDrawer v-model="timelineOpen" title="Customer Timeline" size="30%">
       <div v-if="timelineLoading" class="text-sm text-slate-500">Loading timeline...</div>
@@ -424,69 +796,42 @@ watch(results, () => {
 .customers-page {
   font-size: var(--font-md);
 }
-.customers-page :deep(.el-table) {
-  font-size: 1rem;
-}
+
 .customers-page :deep(.el-input__wrapper) {
   padding: 12px 14px;
   min-height: 44px;
 }
+
 .customers-page :deep(.el-button) {
   font-size: 1rem;
 }
+
+.customers-page :deep(.el-pagination) {
+  flex-wrap: wrap;
+}
+
+.customers-page :deep(.el-table) {
+  font-size: 1rem;
+}
+
 .table-shell {
   display: flex;
   flex-direction: column;
-  max-height: 70vh;
+  gap: 12px;
 }
+
 .table-body {
-  flex: 1 1 auto;
-  overflow-y: auto;
-  padding-bottom: 12px;
-}
-.table-scroll {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
+
 .pagination-footer {
-  position: sticky;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: #fff;
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 4px;
   border-top: 1px solid #e5e7eb;
-  padding: 12px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 8px;
 }
-.page-indicator {
-  font-size: 13px;
-  color: #475569;
-  padding: 6px 10px;
-  border-radius: 12px;
-  background: #f1f5f9;
-}
-.table-actions {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 0;
-}
-.kebab-btn {
-  min-width: 36px;
-  width: 36px;
-  height: 30px;
-  padding: 0;
-  font-size: 20px;
-  line-height: 1;
-  color: #334155;
-}
-.actions-col {
-  min-width: 90px;
-  max-width: 100px;
-}
+
 .stat-chip {
   display: inline-flex;
   align-items: center;
@@ -497,11 +842,91 @@ watch(results, () => {
   font-weight: 600;
   color: #0f172a;
 }
+
+.avatar-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 9999px;
+  background: #e2e8f0;
+  color: #334155;
+  font-weight: 700;
+  flex: 0 0 auto;
+}
+
+.customer-name-link {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  color: #0f172a;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.customer-name-link:hover {
+  color: #2563eb;
+}
+
+.kebab-btn {
+  width: 36px;
+  height: 32px;
+  min-width: 36px;
+  padding: 0;
+  font-size: 20px;
+  line-height: 1;
+  color: #334155;
+}
+
+.filter-chip {
+  max-width: 100%;
+}
+
+.clear-link {
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+.filter-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filter-label,
 .field-label {
   display: block;
-  margin-bottom: 6px;
   font-size: 13px;
   font-weight: 600;
   color: #334155;
+}
+
+.filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.filter-help {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.customers-filter-drawer :deep(.el-drawer__body) {
+  padding-top: 0;
+}
+
+@media (max-width: 1024px) {
+  .pagination-footer {
+    justify-content: stretch;
+  }
+
+  .pagination-footer :deep(.el-pagination) {
+    width: 100%;
+    justify-content: flex-start;
+  }
 }
 </style>
