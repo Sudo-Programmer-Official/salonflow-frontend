@@ -7,14 +7,18 @@ export type QueueItem = {
   customerPhone: string;
   serviceName: string | null;
   services?: Array<{
+    id?: string;
     serviceId?: string | null;
     serviceName: string;
     priceCents?: number | null;
     durationMinutes?: number | null;
     position?: number | null;
+    staffId?: string | null;
+    staffName?: string | null;
     currency?: string | null;
   }> | null;
   staffName: string | null;
+  preferredStaffId?: string | null;
   appointmentId?: string | null;
   createdAt: string;
   status: 'WAITING' | 'CALLED' | 'IN_SERVICE' | 'COMPLETED' | 'NO_SHOW' | 'CANCELED';
@@ -116,6 +120,48 @@ export async function assignToMe(checkInId: string) {
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || 'Failed to assign');
+  }
+
+  return readJsonResponse(res, null);
+}
+
+export async function assignStaffToCheckIn(
+  checkInId: string,
+  staffId: string,
+  serviceLineId?: string | null,
+  overwriteExisting = false,
+) {
+  const res = await fetch(`${apiBase}/${checkInId}/assign`, {
+    method: 'POST',
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
+    body: JSON.stringify({
+      staffId,
+      ...(serviceLineId ? { serviceLineId } : {}),
+      ...(overwriteExisting ? { overwriteExisting: true } : {}),
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to assign staff');
+  }
+
+  return readJsonResponse(res, null);
+}
+
+export async function unassignStaffFromCheckIn(
+  checkInId: string,
+  serviceLineId?: string | null,
+) {
+  const res = await fetch(`${apiBase}/${checkInId}/unassign`, {
+    method: 'POST',
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
+    body: JSON.stringify(serviceLineId ? { serviceLineId } : {}),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to unassign staff');
   }
 
   return readJsonResponse(res, null);

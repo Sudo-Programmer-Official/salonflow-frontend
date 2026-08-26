@@ -325,8 +325,26 @@ const hasBillItems = computed(() => customTotalValid.value || selectedServiceObj
 const staffTrackingEnabled = computed(
   () => Boolean(settings.value?.enableStaffSelection ?? settings.value?.allowStaffSelection),
 );
+const assignedStaff = computed(() => {
+  const unique = new Map<string, string>();
+  (item.value?.services ?? []).forEach((service) => {
+    if (service.staffId) {
+      unique.set(service.staffId, service.staffName || service.staffId);
+    }
+  });
+  return Array.from(unique.entries()).map(([id, name]) => ({ id, name }));
+});
+const allServiceLinesAssigned = computed(() => {
+  const lines = item.value?.services ?? [];
+  if (!lines.length) return Boolean(item.value?.staffName);
+  return lines.every((service) => Boolean(service.staffId));
+});
 const staffSelectionRequired = computed(
-  () => Boolean(staffTrackingEnabled.value && settings.value?.requireStaffSelection),
+  () => Boolean(
+    staffTrackingEnabled.value &&
+    settings.value?.requireStaffSelection &&
+    !allServiceLinesAssigned.value,
+  ),
 );
 const tipsEnabled = computed(() => Boolean(settings.value?.enableTips));
 const taxEnabled = computed(() => Boolean(settings.value?.enableTax));
@@ -1360,12 +1378,25 @@ onBeforeUnmount(() => {
 
           <div v-if="staffTrackingEnabled" class="staff-block">
             <div class="payments-section-title">Staff tracking</div>
-            <select v-model="selectedStaffId" class="discount-select" @change="handleStaffChange(selectedStaffId)">
-              <option value="">Unassigned</option>
-              <option v-for="staff in staffList" :key="staff.id" :value="staff.id">
-                {{ staff.name }}
-              </option>
-            </select>
+            <div v-if="assignedStaff.length" class="checkout-assigned-staff">
+              <div class="checkout-assigned-staff-label">Assigned during service</div>
+              <div class="checkout-assigned-staff-list">
+                <span v-for="member in assignedStaff" :key="member.id" class="checkout-assigned-staff-chip">
+                  {{ member.name }}
+                </span>
+              </div>
+            </div>
+            <div v-if="!allServiceLinesAssigned" class="checkout-staff-repair">
+              <div class="checkout-assigned-staff-label">
+                {{ assignedStaff.length ? 'Assign any remaining services' : 'Choose a staff member' }}
+              </div>
+              <select v-model="selectedStaffId" class="discount-select" @change="handleStaffChange(selectedStaffId)">
+                <option value="">Unassigned</option>
+                <option v-for="staff in staffList" :key="staff.id" :value="staff.id">
+                  {{ staff.name }}
+                </option>
+              </select>
+            </div>
             <div v-if="staffSelectionRequired && !selectedStaffId" class="discount-hint">
               Please select a staff member before checkout.
             </div>
@@ -2191,6 +2222,37 @@ onBeforeUnmount(() => {
 .discount-hint {
   font-size: 12px;
   color: #64748b;
+}
+.checkout-assigned-staff,
+.checkout-staff-repair {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.checkout-assigned-staff {
+  padding: 10px 12px;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  background: #f0fdf4;
+}
+.checkout-assigned-staff-label {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+.checkout-assigned-staff-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.checkout-assigned-staff-chip {
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 13px;
+  font-weight: 750;
 }
 .redeem-row {
   display: flex;

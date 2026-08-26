@@ -1442,7 +1442,7 @@ onMounted(loadSettings);
             <div class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
               <div>
                 <div class="text-sm font-semibold text-slate-900">Staff tracking</div>
-                <div class="text-xs text-slate-600">Show the staff picker during checkout.</div>
+                <div class="text-xs text-slate-600">Choose a technician when serving a guest and carry that assignment into checkout.</div>
               </div>
               <ElSwitch
                 :model-value="currentSettings.enableStaffSelection ?? currentSettings.allowStaffSelection"
