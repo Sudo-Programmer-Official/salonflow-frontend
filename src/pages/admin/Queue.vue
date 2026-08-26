@@ -14,6 +14,7 @@ import {
   ElDropdown,
   ElDropdownMenu,
   ElDropdownItem,
+  ElDrawer,
 } from 'element-plus';
 import {
   fetchQueue,
@@ -116,6 +117,8 @@ const staffPickerOpen = ref(false);
 const staffPickerTarget = ref<QueueItem | null>(null);
 const staffPickerLineId = ref<string | null>(null);
 const staffPickerLoading = ref(false);
+const serviceStaffDrawerOpen = ref(false);
+const serviceStaffTarget = ref<QueueItem | null>(null);
 const todayAppointments = ref<TodayAppointment[]>([]);
 const todayAppointmentsLocked = ref(false);
 const loadingAppointments = ref(false);
@@ -397,6 +400,35 @@ const additionalServiceCount = (item: QueueItem) =>
 const allServicesTitle = (item: QueueItem) =>
   selectedServiceNames(item).join(', ') || 'Walk-in';
 
+const assignedStaffNames = (item: QueueItem) => {
+  const names = (item.services ?? [])
+    .map((service) => service.staffName?.trim())
+    .filter((name): name is string => Boolean(name));
+  if (!names.length && item.staffName?.trim()) {
+    names.push(item.staffName.trim());
+  }
+  return Array.from(new Set(names));
+};
+
+const unassignedServiceCount = (item: QueueItem) =>
+  Math.max(
+    (item.services ?? []).filter((service) => !service.staffId && !service.staffName?.trim()).length,
+    0,
+  );
+
+const staffAssignmentSummary = (item: QueueItem) => {
+  const lineCount = item.services?.length ?? 0;
+  const assignedNames = assignedStaffNames(item);
+  const unassigned = unassignedServiceCount(item);
+
+  if (!lineCount) return assignedNames.join(' + ') || 'Unassigned';
+  if (!assignedNames.length) {
+    return unassigned === 1 ? 'Unassigned' : `${unassigned} services unassigned`;
+  }
+  if (!unassigned) return assignedNames.join(' + ');
+  return `${assignedNames.join(' + ')} + ${unassigned} unassigned`;
+};
+
 onMounted(() => {
   refreshDayBoundary();
   loadQueue();
@@ -668,8 +700,6 @@ const loadQueueSettings = async () => {
   try {
     queueSettings.value = await fetchSettings();
   } catch {
-    // Staff users cannot read the owner-only settings endpoint. The public
-    // settings response carries the same queue behavior flags.
     try {
       queueSettings.value = await fetchPublicSettings();
     } catch {
@@ -1034,6 +1064,17 @@ const openStaffPicker = (item: QueueItem, serviceLineId: string | null = null) =
   staffPickerOpen.value = true;
 };
 
+const openServiceStaffDrawer = (item: QueueItem) => {
+  if (!staffTrackingEnabled.value) return;
+  serviceStaffTarget.value = item;
+  serviceStaffDrawerOpen.value = true;
+};
+
+const closeServiceStaffDrawer = () => {
+  serviceStaffDrawerOpen.value = false;
+  serviceStaffTarget.value = null;
+};
+
 const closeStaffPicker = () => {
   if (staffPickerLoading.value) return;
   staffPickerOpen.value = false;
@@ -1062,17 +1103,22 @@ const runServe = async (item: QueueItem) => {
 const selectStaffFromPicker = async (member: StaffMember) => {
   const target = staffPickerTarget.value;
   if (!target) return;
+  const serviceLineId = staffPickerLineId.value;
   staffPickerLoading.value = true;
   try {
     await assignStaffToCheckIn(
       target.id,
       member.id,
-      staffPickerLineId.value,
-      !staffPickerLineId.value,
+      serviceLineId,
+      !serviceLineId,
     );
-    if (staffPickerLineId.value) {
+    if (serviceLineId) {
       staffPickerOpen.value = false;
       await Promise.all([loadQueue(), loadInServiceStaffQueue()]);
+      const refreshedTarget = queue.value.find((item) => item.id === target.id);
+      if (refreshedTarget && serviceStaffDrawerOpen.value) {
+        serviceStaffTarget.value = refreshedTarget;
+      }
       ElMessage.success(`${staffDisplayName(member)} assigned to ${pickerTargetService.value?.serviceName || 'service'}`);
       return;
     }
@@ -1106,6 +1152,10 @@ const handleServiceStaffChange = (item: QueueItem, serviceLineId?: string) => {
   openStaffPicker(item, serviceLineId);
 };
 
+const handleDrawerServiceStaffChange = (serviceLineId?: string) => {
+  if (!serviceStaffTarget.value || !serviceLineId) return;
+  handleServiceStaffChange(serviceStaffTarget.value, serviceLineId);
+};
 watch(checkoutOpen, async (open) => {
   if (open) {
     await nextTick();
@@ -1318,53 +1368,63 @@ watch(completedPage, async (val) => {
                 </div>
               </div>
               <div class="flex flex-wrap items-center gap-3 text-sm text-slate-700">
-                <div
-                  class="flex items-center service-row"
-                  :class="hasSelectedService(item) ? 'service-row--selected' : 'service-row--walk-in'"
+                <button
+                  v-if="staffTrackingEnabled && item.services?.length"
+                  type="button"
+                  class="queue-service-staff-summary"
+                  :aria-label="`View services and staff for ${item.customerName || 'customer'}`"
+                  @click="openServiceStaffDrawer(item)"
                 >
-                  <span class="service-icon" aria-hidden="true" v-html="serviceStateIcon(item)" />
-                  <div class="service-lines">
-                    <span class="queue-service-name" :title="allServicesTitle(item)">
-                      {{ primaryServiceName(item) }}
-                    </span>
-                    <span
-                      v-if="additionalServiceCount(item) > 0"
-                      class="queue-service-more"
-                    >
+                  <span
+                    class="service-icon"
+                    :class="unassignedServiceCount(item) ? 'queue-service-summary-icon--attention' : 'queue-service-summary-icon--assigned'"
+                    aria-hidden="true"
+                    v-html="serviceStateIcon(item)"
+                  />
+                  <span class="queue-service-summary-service" :title="allServicesTitle(item)">
+                    <span class="queue-service-name">{{ primaryServiceName(item) }}</span>
+                    <span v-if="additionalServiceCount(item) > 0" class="queue-service-more">
                       +{{ additionalServiceCount(item) }} more
                     </span>
+                  </span>
+                  <span class="queue-service-summary-divider" aria-hidden="true">·</span>
+                  <span class="queue-service-summary-staff-icon" aria-hidden="true">
+                    {{ unassignedServiceCount(item) ? '⚠' : '👤' }}
+                  </span>
+                  <span class="queue-service-summary-staff" :title="staffAssignmentSummary(item)">
+                    {{ staffAssignmentSummary(item) }}
+                  </span>
+                  <span class="queue-service-summary-chevron" aria-hidden="true">›</span>
+                </button>
+                <template v-else>
+                  <div
+                    class="flex items-center service-row"
+                    :class="hasSelectedService(item) ? 'service-row--selected' : 'service-row--walk-in'"
+                  >
+                    <span class="service-icon" aria-hidden="true" v-html="serviceStateIcon(item)" />
+                    <div class="service-lines">
+                      <span class="queue-service-name" :title="allServicesTitle(item)">
+                        {{ primaryServiceName(item) }}
+                      </span>
+                      <span
+                        v-if="additionalServiceCount(item) > 0"
+                        class="queue-service-more"
+                      >
+                        +{{ additionalServiceCount(item) }} more
+                      </span>
+                    </div>
                   </div>
-                </div>
-                <div v-if="item.servedByName || item.staffName" class="flex items-center service-row">
-                  <span class="service-icon" aria-hidden="true">👤</span>
-                  <span>{{ item.servedByName || item.staffName }}</span>
-                </div>
+                  <div v-if="item.servedByName || item.staffName" class="flex items-center service-row">
+                    <span class="service-icon" aria-hidden="true">👤</span>
+                    <span>{{ item.servedByName || item.staffName }}</span>
+                  </div>
+                </template>
               </div>
               <div class="queue-phone">
                 <span class="flex items-center phone-row">
                   <span class="service-icon" aria-hidden="true">📞</span>
                   <span>{{ formatPhone(item.customerPhone) }}</span>
                 </span>
-              </div>
-              <div v-if="staffTrackingEnabled && item.services?.length" class="queue-assignment-list">
-                <div
-                  v-for="service in item.services"
-                  :key="service.id || `${item.id}-${service.position}-${service.serviceName}`"
-                  class="queue-assignment-row"
-                >
-                  <span class="queue-assignment-service">{{ service.serviceName }}</span>
-                  <button
-                    v-if="service.id"
-                    type="button"
-                    class="queue-assignment-button"
-                    @click="handleServiceStaffChange(item, service.id)"
-                  >
-                    {{ service.staffName || 'Assign staff' }}
-                  </button>
-                  <span v-else class="queue-assignment-button queue-assignment-button--muted">
-                    {{ service.staffName || 'Unassigned' }}
-                  </span>
-                </div>
               </div>
             </div>
           </div>
@@ -1439,6 +1499,66 @@ watch(completedPage, async (val) => {
         </ElButton>
       </div>
     </div>
+
+    <ElDrawer
+      v-model="serviceStaffDrawerOpen"
+      title="Services & Staff"
+      direction="btt"
+      size="min(82dvh, 620px)"
+      class="service-staff-drawer"
+      @closed="closeServiceStaffDrawer"
+    >
+      <div v-if="serviceStaffTarget" class="service-staff-drawer-content">
+        <div class="service-staff-drawer-context">
+          <div class="service-staff-drawer-customer">
+            {{ serviceStaffTarget.customerName || 'Customer' }}
+          </div>
+          <div class="service-staff-drawer-copy">
+            Review each service line and assign the technician performing it.
+          </div>
+        </div>
+
+        <div v-if="serviceStaffTarget.services?.length" class="service-staff-lines">
+          <div
+            v-for="service in serviceStaffTarget.services"
+            :key="service.id || `${serviceStaffTarget.id}-${service.position}-${service.serviceName}`"
+            class="service-staff-line"
+          >
+            <div class="service-staff-line-copy">
+              <div class="service-staff-line-name">{{ service.serviceName }}</div>
+              <div class="service-staff-line-status">
+                <span
+                  class="service-staff-status-dot"
+                  :class="service.staffName ? 'service-staff-status-dot--assigned' : 'service-staff-status-dot--unassigned'"
+                  aria-hidden="true"
+                />
+                {{ service.staffName || 'Unassigned' }}
+              </div>
+            </div>
+            <button
+              v-if="service.id"
+              type="button"
+              class="queue-assignment-button"
+              :disabled="staffPickerLoading"
+              @click="handleDrawerServiceStaffChange(service.id)"
+            >
+              {{ service.staffName ? 'Change' : 'Assign' }}
+            </button>
+            <span v-else class="service-staff-line-unavailable">Unavailable</span>
+          </div>
+        </div>
+
+        <div v-else class="staff-picker-empty">
+          No service lines are attached to this check-in.
+        </div>
+
+        <div class="service-staff-drawer-footer">
+          <ElButton class="sf-btn service-staff-drawer-done" @click="closeServiceStaffDrawer">
+            Done
+          </ElButton>
+        </div>
+      </div>
+    </ElDrawer>
 
     <ElDialog
       v-model="staffPickerOpen"
@@ -2100,30 +2220,74 @@ watch(completedPage, async (val) => {
   gap: 10px;
   align-items: center;
 }
-.queue-assignment-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 10px;
-  padding: 9px 10px;
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: 12px;
-  background: rgba(248, 250, 252, 0.78);
-}
-.queue-assignment-row {
+.queue-service-staff-summary {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  width: 100%;
   min-width: 0;
-  font-size: 12px;
+  gap: 8px;
+  margin: 8px 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #334155;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  touch-action: manipulation;
 }
-.queue-assignment-service {
+.queue-service-staff-summary:hover,
+.queue-service-staff-summary:focus-visible {
+  color: #0f172a;
+  outline: none;
+}
+.queue-service-summary-service {
+  display: inline-flex;
   min-width: 0;
+  align-items: baseline;
+  flex: 1 1 auto;
+  gap: 5px;
+  overflow: hidden;
+}
+.queue-service-summary-service .queue-service-name {
+  min-width: 0;
+  max-width: 170px;
+}
+.queue-service-summary-service .queue-service-more {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.queue-service-summary-icon--assigned {
+  color: var(--sf-primary, #0ea5e9);
+}
+.queue-service-summary-icon--attention {
+  color: #d97706;
+}
+.queue-service-summary-divider {
+  flex: 0 0 auto;
+  color: #94a3b8;
+  font-weight: 700;
+}
+.queue-service-summary-staff-icon {
+  flex: 0 0 auto;
+  font-size: 15px;
+  line-height: 1;
+}
+.queue-service-summary-staff {
+  min-width: 0;
+  flex: 0 1 auto;
   overflow: hidden;
   color: #475569;
+  font-size: 13px;
+  font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.queue-service-summary-chevron {
+  flex: 0 0 auto;
+  color: #94a3b8;
+  font-size: 24px;
+  line-height: 0.8;
 }
 .queue-assignment-button {
   flex: 0 0 auto;
@@ -2142,10 +2306,123 @@ watch(completedPage, async (val) => {
   border-color: var(--sf-primary, #0284c7);
   background: #f0f9ff;
 }
+.queue-assignment-button:focus-visible {
+  border-color: var(--sf-primary, #0284c7);
+  background: #f0f9ff;
+  outline: none;
+}
+.queue-assignment-button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
 .queue-assignment-button--muted {
   border-color: #e2e8f0;
   color: #64748b;
   cursor: default;
+}
+.service-staff-drawer-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 100%;
+}
+:global(.service-staff-drawer.el-drawer) {
+  width: min(760px, 100vw) !important;
+  margin: 0 auto;
+  border-radius: 22px 22px 0 0;
+}
+:global(.service-staff-drawer .el-drawer__header) {
+  margin-bottom: 0;
+  padding: 18px 20px 12px;
+  color: #0f172a;
+  font-size: 20px;
+  font-weight: 800;
+}
+:global(.service-staff-drawer .el-drawer__body) {
+  padding: 0 20px calc(20px + env(safe-area-inset-bottom));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.service-staff-drawer-context {
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+.service-staff-drawer-customer {
+  color: #0f172a;
+  font-size: 17px;
+  font-weight: 750;
+}
+.service-staff-drawer-copy {
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.service-staff-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.service-staff-line {
+  display: flex;
+  min-height: 68px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #fff;
+}
+.service-staff-line-copy {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.service-staff-line-name {
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.service-staff-line-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 650;
+}
+.service-staff-status-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+.service-staff-status-dot--assigned {
+  background: #22c55e;
+}
+.service-staff-status-dot--unassigned {
+  background: #f59e0b;
+}
+.service-staff-line-unavailable {
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 650;
+}
+.service-staff-drawer-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 2px;
+}
+.service-staff-drawer-done {
+  min-height: 46px;
+  min-width: 104px;
 }
 .staff-picker-body {
   display: flex;
