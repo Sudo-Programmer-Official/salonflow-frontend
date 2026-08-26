@@ -38,6 +38,8 @@ import { fetchServices, type ServiceOption, createPublicCheckIn, publicLookup } 
 import { useBusinessDayClock } from '../../composables/useBusinessDayClock';
 import { dayjs, getBusinessTimezone, humanizeTime } from '../../utils/dates';
 import { formatPhone } from '../../utils/format';
+import { deriveStaffWorkload } from '../../utils/staffAvailability';
+import { hasValidStaffAssignment, unassignedServiceLineCount } from '../../utils/staffAssignment';
 
 const PAGE_SIZE = 10;
 
@@ -176,39 +178,64 @@ const staffTrackingEnabled = computed(
 
 const staffDisplayName = (member: StaffMember) => member.nickname || member.name;
 
-const staffWorkload = computed(() => {
-  const counts = new Map<string, number>();
-  inServiceStaffQueue.value.forEach((item) => {
-    const lineStaffIds = (item.services ?? [])
-      .map((service) => service.staffId)
-      .filter((staffId): staffId is string => Boolean(staffId));
-    if (lineStaffIds.length) {
-      lineStaffIds.forEach((staffId) => counts.set(staffId, (counts.get(staffId) ?? 0) + 1));
-    } else if (item.preferredStaffId) {
-      counts.set(item.preferredStaffId, (counts.get(item.preferredStaffId) ?? 0) + 1);
-    }
-  });
-  return counts;
-});
+const staffWorkload = computed(() => deriveStaffWorkload(inServiceStaffQueue.value));
+
+const activeStaffIds = computed(() =>
+  new Set(staff.value.filter((member) => member.active).map((member) => member.id)),
+);
+
+const unassignedLineCount = (item: QueueItem) => {
+  return unassignedServiceLineCount(item, activeStaffIds.value);
+};
 
 const orderedPickerStaff = computed(() =>
   staff.value
     .filter((member) => member.active)
     .slice()
     .sort((a, b) => {
-      const workloadDelta = (staffWorkload.value.get(a.id) ?? 0) - (staffWorkload.value.get(b.id) ?? 0);
+      const workloadDelta = (staffWorkload.value.get(a.id)?.count ?? 0) - (staffWorkload.value.get(b.id)?.count ?? 0);
       if (workloadDelta !== 0) return workloadDelta;
       return staffDisplayName(a).localeCompare(staffDisplayName(b));
     }),
 );
 
 const availablePickerStaff = computed(() =>
-  orderedPickerStaff.value.filter((member) => !staffWorkload.value.get(member.id)),
+  orderedPickerStaff.value.filter((member) => !(staffWorkload.value.get(member.id)?.count ?? 0)),
 );
 
 const busyPickerStaff = computed(() =>
-  orderedPickerStaff.value.filter((member) => Boolean(staffWorkload.value.get(member.id))),
+  orderedPickerStaff.value.filter((member) => Boolean(staffWorkload.value.get(member.id)?.count)),
 );
+
+const inactivePickerStaff = computed(() =>
+  staff.value
+    .filter((member) => !member.active)
+    .slice()
+    .sort((a, b) => staffDisplayName(a).localeCompare(staffDisplayName(b))),
+);
+
+const staffWorkloadLabel = (member: StaffMember) => {
+  const workload = staffWorkload.value.get(member.id);
+  if (!workload?.count) return 'Available';
+  if (workload.count === 1 && workload.assignments[0]) {
+    const assignment = workload.assignments[0];
+    return `Serving ${assignment.customerName} · ${assignment.serviceName}`;
+  }
+  return `${workload.count} active services`;
+};
+
+const staffWorkloadDetails = (member: StaffMember) => {
+  const workload = staffWorkload.value.get(member.id);
+  if (!workload || workload.count <= 1) return '';
+  return workload.assignments
+    .map((assignment) => `${assignment.customerName} · ${assignment.serviceName}`)
+    .join(' • ');
+};
+
+const pickerTargetHasMultipleUnassignedLines = computed(() => {
+  const target = staffPickerTarget.value;
+  return target ? unassignedLineCount(target) > 1 : false;
+});
 
 const pickerTargetService = computed(() => {
   const target = staffPickerTarget.value;
@@ -216,18 +243,19 @@ const pickerTargetService = computed(() => {
   return target.services?.find((service) => service.id === staffPickerLineId.value) ?? null;
 });
 
-const pickerTitle = computed(() =>
-  staffPickerLineId.value ? 'Change technician' : 'Choose technician',
-);
+const pickerTitle = computed(() => {
+  if (!staffPickerLineId.value) return 'Choose technician';
+  return pickerTargetService.value?.staffId ? 'Change technician' : 'Assign technician';
+});
 
 const pickerDescription = computed(() => {
   if (pickerTargetService.value) {
     return `Choose who is performing ${pickerTargetService.value.serviceName}.`;
   }
-  if ((staffPickerTarget.value?.services?.length ?? 0) > 1) {
-    return 'This sets the initial technician for all services. You can change individual service lines after the guest starts.';
+  if (pickerTargetHasMultipleUnassignedLines.value) {
+    return 'Assign the selected technician to the remaining service lines. Existing assignments stay unchanged.';
   }
-  return 'Available technicians appear first. You can still choose someone who is already serving another guest.';
+  return 'Choose the technician for the unassigned service. Available technicians appear first.';
 });
 
 const dateRange = computed(() => {
@@ -400,9 +428,19 @@ const additionalServiceCount = (item: QueueItem) =>
 const allServicesTitle = (item: QueueItem) =>
   selectedServiceNames(item).join(', ') || 'Walk-in';
 
+type QueueServiceLine = NonNullable<QueueItem['services']>[number];
+
+const serviceStaffDisplayName = (service: QueueServiceLine) => {
+  const explicitName = service.staffName?.trim();
+  if (explicitName) return explicitName;
+  if (!service.staffId) return null;
+  const member = staff.value.find((candidate) => candidate.id === service.staffId);
+  return member ? staffDisplayName(member) : 'Assigned';
+};
+
 const assignedStaffNames = (item: QueueItem) => {
   const names = (item.services ?? [])
-    .map((service) => service.staffName?.trim())
+    .map((service) => serviceStaffDisplayName(service))
     .filter((name): name is string => Boolean(name));
   if (!names.length && item.staffName?.trim()) {
     names.push(item.staffName.trim());
@@ -411,19 +449,16 @@ const assignedStaffNames = (item: QueueItem) => {
 };
 
 const unassignedServiceCount = (item: QueueItem) =>
-  Math.max(
-    (item.services ?? []).filter((service) => !service.staffId && !service.staffName?.trim()).length,
-    0,
-  );
+  unassignedLineCount(item);
 
 const staffAssignmentSummary = (item: QueueItem) => {
   const lineCount = item.services?.length ?? 0;
   const assignedNames = assignedStaffNames(item);
   const unassigned = unassignedServiceCount(item);
 
-  if (!lineCount) return assignedNames.join(' + ') || 'Unassigned';
+  if (!lineCount) return hasValidStaffAssignment(item, activeStaffIds.value) ? assignedNames.join(' + ') : 'Assign staff';
   if (!assignedNames.length) {
-    return unassigned === 1 ? 'Unassigned' : `${unassigned} services unassigned`;
+    return unassigned === 1 ? 'Assign staff' : `${unassigned} services unassigned`;
   }
   if (!unassigned) return assignedNames.join(' + ');
   return `${assignedNames.join(' + ')} + ${unassigned} unassigned`;
@@ -1066,6 +1101,15 @@ const openStaffPicker = (item: QueueItem, serviceLineId: string | null = null) =
 
 const openServiceStaffDrawer = (item: QueueItem) => {
   if (!staffTrackingEnabled.value) return;
+  const lines = item.services ?? [];
+  if (!lines.length) {
+    openStaffPicker(item);
+    return;
+  }
+  if (lines.length === 1 && lines[0]?.id) {
+    openStaffPicker(item, lines[0].id);
+    return;
+  }
   serviceStaffTarget.value = item;
   serviceStaffDrawerOpen.value = true;
 };
@@ -1110,7 +1154,7 @@ const selectStaffFromPicker = async (member: StaffMember) => {
       target.id,
       member.id,
       serviceLineId,
-      !serviceLineId,
+      false,
     );
     if (serviceLineId) {
       staffPickerOpen.value = false;
@@ -1141,8 +1185,13 @@ const handleCallNext = async (item: QueueItem) => {
     await loadQueueSettings();
   }
   if (staffTrackingEnabled.value) {
-    openStaffPicker(item);
-    return;
+    if (!staff.value.length && !loadingStaff.value) {
+      await loadStaff();
+    }
+    if (!hasValidStaffAssignment(item, activeStaffIds.value)) {
+      openStaffPicker(item);
+      return;
+    }
   }
   await runServe(item);
 };
@@ -1369,7 +1418,7 @@ watch(completedPage, async (val) => {
               </div>
               <div class="flex flex-wrap items-center gap-3 text-sm text-slate-700">
                 <button
-                  v-if="staffTrackingEnabled && item.services?.length"
+                  v-if="staffTrackingEnabled && (item.services?.length || item.serviceName)"
                   type="button"
                   class="queue-service-staff-summary"
                   :aria-label="`View services and staff for ${item.customerName || 'customer'}`"
@@ -1529,10 +1578,10 @@ watch(completedPage, async (val) => {
               <div class="service-staff-line-status">
                 <span
                   class="service-staff-status-dot"
-                  :class="service.staffName ? 'service-staff-status-dot--assigned' : 'service-staff-status-dot--unassigned'"
+                  :class="serviceStaffDisplayName(service) ? 'service-staff-status-dot--assigned' : 'service-staff-status-dot--unassigned'"
                   aria-hidden="true"
                 />
-                {{ service.staffName || 'Unassigned' }}
+                {{ serviceStaffDisplayName(service) || 'Unassigned' }}
               </div>
             </div>
             <button
@@ -1542,7 +1591,7 @@ watch(completedPage, async (val) => {
               :disabled="staffPickerLoading"
               @click="handleDrawerServiceStaffChange(service.id)"
             >
-              {{ service.staffName ? 'Change' : 'Assign' }}
+              {{ serviceStaffDisplayName(service) ? 'Change' : 'Assign' }}
             </button>
             <span v-else class="service-staff-line-unavailable">Unavailable</span>
           </div>
@@ -1614,10 +1663,33 @@ watch(completedPage, async (val) => {
               <span class="staff-picker-avatar staff-picker-avatar--busy">{{ staffDisplayName(member).slice(0, 1).toUpperCase() }}</span>
               <span class="staff-picker-option-copy">
                 <span class="staff-picker-name">{{ staffDisplayName(member) }}</span>
-                <span class="staff-picker-status">{{ staffWorkload.get(member.id) }} active service{{ staffWorkload.get(member.id) === 1 ? '' : 's' }}</span>
+                <span class="staff-picker-status">{{ staffWorkloadLabel(member) }}</span>
+                <span v-if="staffWorkloadDetails(member)" class="staff-picker-assignment-detail">
+                  {{ staffWorkloadDetails(member) }}
+                </span>
               </span>
               <span class="staff-picker-chevron">›</span>
             </button>
+          </div>
+        </div>
+
+        <div v-if="inactivePickerStaff.length" class="staff-picker-section staff-picker-section--inactive">
+          <div class="staff-picker-section-title">
+            <span>Off / Inactive</span>
+            <span class="staff-picker-count">{{ inactivePickerStaff.length }}</span>
+          </div>
+          <div class="staff-picker-grid">
+            <div
+              v-for="member in inactivePickerStaff"
+              :key="member.id"
+              class="staff-picker-option staff-picker-option--inactive"
+            >
+              <span class="staff-picker-avatar staff-picker-avatar--inactive">{{ staffDisplayName(member).slice(0, 1).toUpperCase() }}</span>
+              <span class="staff-picker-option-copy">
+                <span class="staff-picker-name">{{ staffDisplayName(member) }}</span>
+                <span class="staff-picker-status">Inactive</span>
+              </span>
+            </div>
           </div>
         </div>
 
@@ -2535,6 +2607,14 @@ watch(completedPage, async (val) => {
   background: #fef3c7;
   color: #b45309;
 }
+.staff-picker-avatar--inactive {
+  background: #e2e8f0;
+  color: #64748b;
+}
+.staff-picker-option--inactive {
+  cursor: default;
+  opacity: 0.72;
+}
 .staff-picker-option-copy {
   display: flex;
   min-width: 0;
@@ -2552,6 +2632,13 @@ watch(completedPage, async (val) => {
 .staff-picker-status {
   color: #64748b;
   font-size: 12px;
+}
+.staff-picker-assignment-detail {
+  overflow: hidden;
+  color: #94a3b8;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .staff-picker-chevron {
   color: #94a3b8;
