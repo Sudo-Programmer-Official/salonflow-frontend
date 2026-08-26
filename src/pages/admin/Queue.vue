@@ -21,11 +21,13 @@ import {
   startCheckIn,
   checkoutCheckIn,
   callCheckIn,
+  assignStaffToCheckIn,
   cancelCheckIn,
   markNoShow,
   type QueueItem,
 } from '../../api/queue';
 import { fetchStaff, type StaffMember, fetchPublicAvailableStaff, type PublicStaffResponse } from '../../api/staff';
+import { fetchPublicSettings, fetchSettings, type BusinessSettings } from '../../api/settings';
 import {
   fetchTodayAppointments,
   type TodayAppointment,
@@ -108,6 +110,12 @@ const checkoutServiceSummary = computed(() => {
 });
 const staff = ref<StaffMember[]>([]);
 const loadingStaff = ref(false);
+const queueSettings = ref<BusinessSettings | null>(null);
+const inServiceStaffQueue = ref<QueueItem[]>([]);
+const staffPickerOpen = ref(false);
+const staffPickerTarget = ref<QueueItem | null>(null);
+const staffPickerLineId = ref<string | null>(null);
+const staffPickerLoading = ref(false);
 const todayAppointments = ref<TodayAppointment[]>([]);
 const todayAppointmentsLocked = ref(false);
 const loadingAppointments = ref(false);
@@ -158,6 +166,66 @@ const pollId = ref<number | null>(null);
 const { currentDayKey, refreshDayBoundary } = useBusinessDayClock();
 
 const getBusinessNow = () => dayjs().tz(getBusinessTimezone());
+
+const staffTrackingEnabled = computed(
+  () => Boolean(queueSettings.value?.enableStaffSelection ?? queueSettings.value?.allowStaffSelection),
+);
+
+const staffDisplayName = (member: StaffMember) => member.nickname || member.name;
+
+const staffWorkload = computed(() => {
+  const counts = new Map<string, number>();
+  inServiceStaffQueue.value.forEach((item) => {
+    const lineStaffIds = (item.services ?? [])
+      .map((service) => service.staffId)
+      .filter((staffId): staffId is string => Boolean(staffId));
+    if (lineStaffIds.length) {
+      lineStaffIds.forEach((staffId) => counts.set(staffId, (counts.get(staffId) ?? 0) + 1));
+    } else if (item.preferredStaffId) {
+      counts.set(item.preferredStaffId, (counts.get(item.preferredStaffId) ?? 0) + 1);
+    }
+  });
+  return counts;
+});
+
+const orderedPickerStaff = computed(() =>
+  staff.value
+    .filter((member) => member.active)
+    .slice()
+    .sort((a, b) => {
+      const workloadDelta = (staffWorkload.value.get(a.id) ?? 0) - (staffWorkload.value.get(b.id) ?? 0);
+      if (workloadDelta !== 0) return workloadDelta;
+      return staffDisplayName(a).localeCompare(staffDisplayName(b));
+    }),
+);
+
+const availablePickerStaff = computed(() =>
+  orderedPickerStaff.value.filter((member) => !staffWorkload.value.get(member.id)),
+);
+
+const busyPickerStaff = computed(() =>
+  orderedPickerStaff.value.filter((member) => Boolean(staffWorkload.value.get(member.id))),
+);
+
+const pickerTargetService = computed(() => {
+  const target = staffPickerTarget.value;
+  if (!target || !staffPickerLineId.value) return null;
+  return target.services?.find((service) => service.id === staffPickerLineId.value) ?? null;
+});
+
+const pickerTitle = computed(() =>
+  staffPickerLineId.value ? 'Change technician' : 'Choose technician',
+);
+
+const pickerDescription = computed(() => {
+  if (pickerTargetService.value) {
+    return `Choose who is performing ${pickerTargetService.value.serviceName}.`;
+  }
+  if ((staffPickerTarget.value?.services?.length ?? 0) > 1) {
+    return 'This sets the initial technician for all services. You can change individual service lines after the guest starts.';
+  }
+  return 'Available technicians appear first. You can still choose someone who is already serving another guest.';
+});
 
 const dateRange = computed(() => {
   const now = getBusinessNow();
@@ -270,9 +338,19 @@ const loadCounts = async () => {
   }
 };
 
+const loadInServiceStaffQueue = async () => {
+  try {
+    const res = await fetchQueue({ status: 'IN_SERVICE', limit: 100 });
+    inServiceStaffQueue.value = (res as any).locked ? [] : (((res as any).items ?? []) as QueueItem[]);
+  } catch {
+    inServiceStaffQueue.value = [];
+  }
+};
+
 const refreshQueueData = (silent = true) => {
   void loadQueue({ silent });
   void loadCounts();
+  void loadInServiceStaffQueue();
   void loadAppointments();
 };
 
@@ -323,7 +401,9 @@ onMounted(() => {
   refreshDayBoundary();
   loadQueue();
   loadCounts();
+  loadInServiceStaffQueue();
   loadStaff();
+  loadQueueSettings();
   loadAppointments();
   loadServices();
   loadManualStaff();
@@ -581,6 +661,20 @@ const loadStaff = async () => {
     staff.value = [];
   } finally {
     loadingStaff.value = false;
+  }
+};
+
+const loadQueueSettings = async () => {
+  try {
+    queueSettings.value = await fetchSettings();
+  } catch {
+    // Staff users cannot read the owner-only settings endpoint. The public
+    // settings response carries the same queue behavior flags.
+    try {
+      queueSettings.value = await fetchPublicSettings();
+    } catch {
+      queueSettings.value = null;
+    }
   }
 };
 
@@ -934,13 +1028,28 @@ const focusCard = async (id: string) => {
   }, 2000);
 };
 
-const handleCallNext = async (item: QueueItem) => {
+const openStaffPicker = (item: QueueItem, serviceLineId: string | null = null) => {
+  staffPickerTarget.value = item;
+  staffPickerLineId.value = serviceLineId;
+  staffPickerOpen.value = true;
+};
+
+const closeStaffPicker = () => {
+  if (staffPickerLoading.value) return;
+  staffPickerOpen.value = false;
+  staffPickerTarget.value = null;
+  staffPickerLineId.value = null;
+};
+
+const runServe = async (item: QueueItem) => {
   actionLoading.value = item.id;
   try {
-    await callCheckIn(item.id).catch(() => undefined);
+    if (item.status === 'WAITING') {
+      await callCheckIn(item.id);
+    }
     await startCheckIn(item.id);
     activeTab.value = 'IN_SERVICE';
-    await Promise.all([loadQueue(), loadCounts()]);
+    await Promise.all([loadQueue(), loadCounts(), loadInServiceStaffQueue()]);
     await focusCard(item.id);
     ElMessage.success(`${item.customerName || 'Customer'} moved to In Service`);
   } catch (err) {
@@ -948,6 +1057,53 @@ const handleCallNext = async (item: QueueItem) => {
   } finally {
     actionLoading.value = null;
   }
+};
+
+const selectStaffFromPicker = async (member: StaffMember) => {
+  const target = staffPickerTarget.value;
+  if (!target) return;
+  staffPickerLoading.value = true;
+  try {
+    await assignStaffToCheckIn(
+      target.id,
+      member.id,
+      staffPickerLineId.value,
+      !staffPickerLineId.value,
+    );
+    if (staffPickerLineId.value) {
+      staffPickerOpen.value = false;
+      await Promise.all([loadQueue(), loadInServiceStaffQueue()]);
+      ElMessage.success(`${staffDisplayName(member)} assigned to ${pickerTargetService.value?.serviceName || 'service'}`);
+      return;
+    }
+
+    staffPickerOpen.value = false;
+    await runServe(target);
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : 'Failed to assign staff');
+  } finally {
+    staffPickerLoading.value = false;
+    if (!staffPickerOpen.value) {
+      staffPickerTarget.value = null;
+      staffPickerLineId.value = null;
+    }
+  }
+};
+
+const handleCallNext = async (item: QueueItem) => {
+  if (!queueSettings.value) {
+    await loadQueueSettings();
+  }
+  if (staffTrackingEnabled.value) {
+    openStaffPicker(item);
+    return;
+  }
+  await runServe(item);
+};
+
+const handleServiceStaffChange = (item: QueueItem, serviceLineId?: string) => {
+  if (!staffTrackingEnabled.value || !serviceLineId) return;
+  openStaffPicker(item, serviceLineId);
 };
 
 watch(checkoutOpen, async (open) => {
@@ -1179,9 +1335,9 @@ watch(completedPage, async (val) => {
                     </span>
                   </div>
                 </div>
-                <div v-if="item.servedByName" class="flex items-center service-row">
+                <div v-if="item.servedByName || item.staffName" class="flex items-center service-row">
                   <span class="service-icon" aria-hidden="true">👤</span>
-                  <span>{{ item.servedByName }}</span>
+                  <span>{{ item.servedByName || item.staffName }}</span>
                 </div>
               </div>
               <div class="queue-phone">
@@ -1189,6 +1345,26 @@ watch(completedPage, async (val) => {
                   <span class="service-icon" aria-hidden="true">📞</span>
                   <span>{{ formatPhone(item.customerPhone) }}</span>
                 </span>
+              </div>
+              <div v-if="staffTrackingEnabled && item.services?.length" class="queue-assignment-list">
+                <div
+                  v-for="service in item.services"
+                  :key="service.id || `${item.id}-${service.position}-${service.serviceName}`"
+                  class="queue-assignment-row"
+                >
+                  <span class="queue-assignment-service">{{ service.serviceName }}</span>
+                  <button
+                    v-if="service.id"
+                    type="button"
+                    class="queue-assignment-button"
+                    @click="handleServiceStaffChange(item, service.id)"
+                  >
+                    {{ service.staffName || 'Assign staff' }}
+                  </button>
+                  <span v-else class="queue-assignment-button queue-assignment-button--muted">
+                    {{ service.staffName || 'Unassigned' }}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -1212,7 +1388,7 @@ watch(completedPage, async (val) => {
               class="sf-btn queue-action-btn"
               @click="handleCallNext(item)"
             >
-              Call Next
+              Serve
             </ElButton>
             <template v-else-if="item.status === 'CALLED'">
               <ElButton
@@ -1263,6 +1439,78 @@ watch(completedPage, async (val) => {
         </ElButton>
       </div>
     </div>
+
+    <ElDialog
+      v-model="staffPickerOpen"
+      :title="pickerTitle"
+      width="min(520px, calc(100vw - 24px))"
+      class="staff-picker-modal"
+      @closed="closeStaffPicker"
+    >
+      <div class="staff-picker-body">
+        <div class="staff-picker-context">
+          <div class="staff-picker-customer">{{ staffPickerTarget?.customerName || 'Customer' }}</div>
+          <div class="staff-picker-description">{{ pickerDescription }}</div>
+        </div>
+
+        <div v-if="availablePickerStaff.length" class="staff-picker-section">
+          <div class="staff-picker-section-title">
+            <span>Available</span>
+            <span class="staff-picker-count">{{ availablePickerStaff.length }}</span>
+          </div>
+          <div class="staff-picker-grid">
+            <button
+              v-for="member in availablePickerStaff"
+              :key="member.id"
+              type="button"
+              class="staff-picker-option"
+              :disabled="staffPickerLoading"
+              @click="selectStaffFromPicker(member)"
+            >
+              <span class="staff-picker-avatar">{{ staffDisplayName(member).slice(0, 1).toUpperCase() }}</span>
+              <span class="staff-picker-option-copy">
+                <span class="staff-picker-name">{{ staffDisplayName(member) }}</span>
+                <span class="staff-picker-status">Available</span>
+              </span>
+              <span class="staff-picker-chevron">›</span>
+            </button>
+          </div>
+        </div>
+
+        <div v-if="busyPickerStaff.length" class="staff-picker-section">
+          <div class="staff-picker-section-title">
+            <span>Busy</span>
+            <span class="staff-picker-count">{{ busyPickerStaff.length }}</span>
+          </div>
+          <div class="staff-picker-grid">
+            <button
+              v-for="member in busyPickerStaff"
+              :key="member.id"
+              type="button"
+              class="staff-picker-option"
+              :disabled="staffPickerLoading"
+              @click="selectStaffFromPicker(member)"
+            >
+              <span class="staff-picker-avatar staff-picker-avatar--busy">{{ staffDisplayName(member).slice(0, 1).toUpperCase() }}</span>
+              <span class="staff-picker-option-copy">
+                <span class="staff-picker-name">{{ staffDisplayName(member) }}</span>
+                <span class="staff-picker-status">{{ staffWorkload.get(member.id) }} active service{{ staffWorkload.get(member.id) === 1 ? '' : 's' }}</span>
+              </span>
+              <span class="staff-picker-chevron">›</span>
+            </button>
+          </div>
+        </div>
+
+        <div v-if="!orderedPickerStaff.length" class="staff-picker-empty">
+          No active technicians are available. Add staff in Settings before starting service.
+        </div>
+
+        <div class="staff-picker-footer">
+          <ElButton :disabled="staffPickerLoading" @click="closeStaffPicker">Cancel</ElButton>
+          <span v-if="staffPickerLoading" class="text-xs text-slate-500">Saving assignment…</span>
+        </div>
+      </div>
+    </ElDialog>
 
     <div
       v-if="!loading && queue.length === 0 && completedItems.length === 0"
@@ -1598,6 +1846,13 @@ watch(completedPage, async (val) => {
   display: flex;
   flex-direction: column;
 }
+@supports (height: 100dvh) {
+  .queue-page {
+    min-height: calc(100dvh - 40px);
+    height: calc(100dvh - 40px);
+    max-height: calc(100dvh - 40px);
+  }
+}
 .queue-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -1844,6 +2099,206 @@ watch(completedPage, async (val) => {
 .queue-card .phone-row {
   gap: 10px;
   align-items: center;
+}
+.queue-assignment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 9px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 12px;
+  background: rgba(248, 250, 252, 0.78);
+}
+.queue-assignment-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  font-size: 12px;
+}
+.queue-assignment-service {
+  min-width: 0;
+  overflow: hidden;
+  color: #475569;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.queue-assignment-button {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 4px 8px;
+  border: 1px solid rgba(14, 165, 233, 0.28);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--sf-primary, #0284c7);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  touch-action: manipulation;
+}
+.queue-assignment-button:hover {
+  border-color: var(--sf-primary, #0284c7);
+  background: #f0f9ff;
+}
+.queue-assignment-button--muted {
+  border-color: #e2e8f0;
+  color: #64748b;
+  cursor: default;
+}
+.staff-picker-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 4px 2px;
+}
+:global(.staff-picker-modal.el-dialog) {
+  width: min(520px, calc(100vw - 24px)) !important;
+  max-width: calc(100vw - 24px);
+  margin-top: 6vh !important;
+}
+:global(.staff-picker-modal .el-dialog__body) {
+  max-height: calc(100dvh - 170px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.staff-picker-context {
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+.staff-picker-customer {
+  color: #0f172a;
+  font-size: 17px;
+  font-weight: 750;
+}
+.staff-picker-description {
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.staff-picker-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.staff-picker-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.staff-picker-count {
+  display: inline-flex;
+  min-width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 11px;
+  letter-spacing: normal;
+}
+.staff-picker-grid {
+  display: grid;
+  gap: 8px;
+}
+.staff-picker-option {
+  display: flex;
+  width: 100%;
+  min-height: 68px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #fff;
+  color: #0f172a;
+  cursor: pointer;
+  text-align: left;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+}
+.staff-picker-option:hover:not(:disabled),
+.staff-picker-option:focus-visible {
+  border-color: var(--sf-primary, #0ea5e9);
+  box-shadow: 0 8px 18px rgba(14, 165, 233, 0.14);
+  outline: none;
+  transform: translateY(-1px);
+}
+.staff-picker-option:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+.staff-picker-avatar {
+  display: inline-flex;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: #dcfce7;
+  color: #15803d;
+  font-size: 16px;
+  font-weight: 800;
+}
+.staff-picker-avatar--busy {
+  background: #fef3c7;
+  color: #b45309;
+}
+.staff-picker-option-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+.staff-picker-name {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.staff-picker-status {
+  color: #64748b;
+  font-size: 12px;
+}
+.staff-picker-chevron {
+  color: #94a3b8;
+  font-size: 24px;
+  line-height: 1;
+}
+.staff-picker-empty {
+  padding: 14px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 14px;
+  color: #64748b;
+  font-size: 13px;
+  text-align: center;
+}
+.staff-picker-footer {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.staff-picker-footer :deep(.el-button) {
+  min-height: 44px;
+  padding: 0 18px;
 }
 .queue-card .sf-btn {
   min-height: 40px;

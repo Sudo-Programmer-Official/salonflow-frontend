@@ -963,12 +963,13 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
 
 .appointment-timeline-card__time {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: flex-end;
-  padding: 0.28rem 0.6rem 0 0;
+  padding: 0 0.6rem 0 0;
   color: #94a3b8;
   font-size: 0.74rem;
   font-weight: 600;
+  line-height: 1;
   position: sticky;
   left: 0;
   z-index: 5;
@@ -978,7 +979,7 @@ const handleSlotDrop = (event: DragEvent, slotStartAt: string, laneId: string) =
 .appointment-timeline-card__time span {
   display: inline-flex;
   align-items: center;
-  min-height: calc(var(--scheduler-row-height) - 0.2rem);
+  height: 100%;
 }
 
 .appointment-timeline-card__time--current {
