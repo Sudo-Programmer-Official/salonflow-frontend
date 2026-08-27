@@ -323,7 +323,7 @@ const loyaltyState = computed(() =>
 const redeemStatus = computed<RedeemStatus>(() => loyaltyState.value.redeemStatus);
 const hasBillItems = computed(() => customTotalValid.value || selectedServiceObjects.value.length > 0);
 const staffTrackingEnabled = computed(
-  () => Boolean(settings.value?.enableStaffSelection ?? settings.value?.allowStaffSelection),
+  () => settings.value?.enableStaffSelection === true,
 );
 const assignedStaff = computed(() => {
   const unique = new Map<string, string>();
@@ -342,7 +342,7 @@ const allServiceLinesAssigned = computed(() => {
 const staffSelectionRequired = computed(
   () => Boolean(
     staffTrackingEnabled.value &&
-    settings.value?.requireStaffSelection &&
+    settings.value?.requireStaffBeforeCheckout &&
     !allServiceLinesAssigned.value,
   ),
 );

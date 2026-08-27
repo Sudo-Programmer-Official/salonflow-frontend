@@ -1370,8 +1370,8 @@ onMounted(loadSettings);
           <div class="space-y-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
             <div class="flex items-center justify-between gap-3">
               <div>
-                <div class="text-sm font-semibold text-slate-900">Show staff preference step</div>
-                <div class="text-xs text-slate-600">Expose staff cards in kiosk/public when enabled.</div>
+                <div class="text-sm font-semibold text-slate-900">Let customers choose staff at kiosk</div>
+                <div class="text-xs text-slate-600">Show technician preference during self check-in.</div>
               </div>
               <ElSwitch
                 :model-value="settings.allowStaffSelection"
@@ -1445,8 +1445,8 @@ onMounted(loadSettings);
                 <div class="text-xs text-slate-600">Choose a technician when serving a guest and carry that assignment into checkout.</div>
               </div>
               <ElSwitch
-                :model-value="currentSettings.enableStaffSelection ?? currentSettings.allowStaffSelection"
-                @change="(val) => scheduleSave({ enableStaffSelection: val as boolean, allowStaffSelection: val as boolean })"
+                :model-value="currentSettings.enableStaffSelection === true"
+                @change="(val) => scheduleSave({ enableStaffSelection: val as boolean })"
               />
             </div>
 
@@ -1456,8 +1456,8 @@ onMounted(loadSettings);
                 <div class="text-xs text-slate-600">Force a staff pick when staff tracking is on.</div>
               </div>
               <ElSwitch
-                :model-value="currentSettings.requireStaffSelection"
-                @change="(val) => scheduleSave({ requireStaffSelection: val as boolean })"
+                :model-value="currentSettings.requireStaffBeforeCheckout === true"
+                @change="(val) => scheduleSave({ requireStaffBeforeCheckout: val as boolean })"
               />
             </div>
 

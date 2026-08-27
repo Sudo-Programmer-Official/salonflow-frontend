@@ -74,6 +74,7 @@ export type BusinessSettings = {
   allowStaffSelection: boolean;
   enableStaffSelection?: boolean;
   requireStaffSelection: boolean;
+  requireStaffBeforeCheckout?: boolean;
   enableTips: boolean;
   enableTax: boolean;
   taxMode: 'disabled' | 'manual' | 'configured_rate';
@@ -134,6 +135,7 @@ export type SettingsPatch = Partial<
   | 'allowStaffSelection'
   | 'enableStaffSelection'
   | 'requireStaffSelection'
+  | 'requireStaffBeforeCheckout'
   | 'enableTips'
   | 'enableTax'
   | 'taxMode'

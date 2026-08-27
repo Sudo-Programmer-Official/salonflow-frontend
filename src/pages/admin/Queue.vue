@@ -173,7 +173,7 @@ const { currentDayKey, refreshDayBoundary } = useBusinessDayClock();
 const getBusinessNow = () => dayjs().tz(getBusinessTimezone());
 
 const staffTrackingEnabled = computed(
-  () => Boolean(queueSettings.value?.enableStaffSelection ?? queueSettings.value?.allowStaffSelection),
+  () => queueSettings.value?.enableStaffSelection === true,
 );
 
 const staffDisplayName = (member: StaffMember) => member.nickname || member.name;
