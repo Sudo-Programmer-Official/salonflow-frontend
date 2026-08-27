@@ -118,9 +118,12 @@ const inServiceStaffQueue = ref<QueueItem[]>([]);
 const staffPickerOpen = ref(false);
 const staffPickerTarget = ref<QueueItem | null>(null);
 const staffPickerLineId = ref<string | null>(null);
+const staffPickerServeAfterAssignment = ref(false);
 const staffPickerLoading = ref(false);
 const serviceStaffDrawerOpen = ref(false);
 const serviceStaffTarget = ref<QueueItem | null>(null);
+const serviceStaffAddMode = ref(false);
+const serviceStaffServeAfterAssignment = ref(false);
 const todayAppointments = ref<TodayAppointment[]>([]);
 const todayAppointmentsLocked = ref(false);
 const loadingAppointments = ref(false);
@@ -462,6 +465,11 @@ const staffAssignmentSummary = (item: QueueItem) => {
   }
   if (!unassigned) return assignedNames.join(' + ');
   return `${assignedNames.join(' + ')} + ${unassigned} unassigned`;
+};
+
+const staffAssignmentIcon = (item: QueueItem) => {
+  if (unassignedServiceCount(item)) return '⚠';
+  return assignedStaffNames(item).length > 1 ? '👥' : '👤';
 };
 
 onMounted(() => {
@@ -1093,23 +1101,30 @@ const focusCard = async (id: string) => {
   }, 2000);
 };
 
-const openStaffPicker = (item: QueueItem, serviceLineId: string | null = null) => {
+const openStaffPicker = (
+  item: QueueItem,
+  serviceLineId: string | null = null,
+  serveAfterAssignment = false,
+) => {
   staffPickerTarget.value = item;
   staffPickerLineId.value = serviceLineId;
+  staffPickerServeAfterAssignment.value = serveAfterAssignment;
   staffPickerOpen.value = true;
 };
 
-const openServiceStaffDrawer = (item: QueueItem) => {
+const openServiceStaffDrawer = (item: QueueItem, serveAfterAssignment = false) => {
   if (!staffTrackingEnabled.value) return;
   const lines = item.services ?? [];
   if (!lines.length) {
-    openStaffPicker(item);
+    openStaffPicker(item, null, serveAfterAssignment);
     return;
   }
   if (lines.length === 1 && lines[0]?.id) {
-    openStaffPicker(item, lines[0].id);
+    openStaffPicker(item, lines[0].id, serveAfterAssignment);
     return;
   }
+  serviceStaffAddMode.value = false;
+  serviceStaffServeAfterAssignment.value = serveAfterAssignment;
   serviceStaffTarget.value = item;
   serviceStaffDrawerOpen.value = true;
 };
@@ -1117,6 +1132,32 @@ const openServiceStaffDrawer = (item: QueueItem) => {
 const closeServiceStaffDrawer = () => {
   serviceStaffDrawerOpen.value = false;
   serviceStaffTarget.value = null;
+  serviceStaffAddMode.value = false;
+  serviceStaffServeAfterAssignment.value = false;
+};
+
+const serviceStaffDrawerTitle = computed(() => {
+  const customerName = serviceStaffTarget.value?.customerName?.trim();
+  return customerName ? `Staff serving ${customerName}` : 'Staff serving customer';
+});
+
+const canAddServiceStaff = computed(() =>
+  Boolean(serviceStaffTarget.value?.services?.some((service) => service.id)),
+);
+
+const beginAddStaff = () => {
+  if (!canAddServiceStaff.value) return;
+  serviceStaffAddMode.value = true;
+};
+
+const selectServiceForAdditionalStaff = (serviceLineId?: string) => {
+  if (!serviceStaffTarget.value || !serviceLineId) return;
+  serviceStaffAddMode.value = false;
+  openStaffPicker(
+    serviceStaffTarget.value,
+    serviceLineId,
+    serviceStaffServeAfterAssignment.value,
+  );
 };
 
 const closeStaffPicker = () => {
@@ -1124,6 +1165,7 @@ const closeStaffPicker = () => {
   staffPickerOpen.value = false;
   staffPickerTarget.value = null;
   staffPickerLineId.value = null;
+  staffPickerServeAfterAssignment.value = false;
 };
 
 const runServe = async (item: QueueItem) => {
@@ -1148,6 +1190,7 @@ const selectStaffFromPicker = async (member: StaffMember) => {
   const target = staffPickerTarget.value;
   if (!target) return;
   const serviceLineId = staffPickerLineId.value;
+  const serveAfterAssignment = staffPickerServeAfterAssignment.value;
   staffPickerLoading.value = true;
   try {
     await assignStaffToCheckIn(
@@ -1163,7 +1206,17 @@ const selectStaffFromPicker = async (member: StaffMember) => {
       if (refreshedTarget && serviceStaffDrawerOpen.value) {
         serviceStaffTarget.value = refreshedTarget;
       }
-      ElMessage.success(`${staffDisplayName(member)} assigned to ${pickerTargetService.value?.serviceName || 'service'}`);
+      if (
+        serveAfterAssignment &&
+        target.status === 'WAITING' &&
+        refreshedTarget &&
+        hasValidStaffAssignment(refreshedTarget, activeStaffIds.value)
+      ) {
+        closeServiceStaffDrawer();
+        await runServe(refreshedTarget);
+      } else {
+        ElMessage.success(`${staffDisplayName(member)} assigned to ${pickerTargetService.value?.serviceName || 'service'}`);
+      }
       return;
     }
 
@@ -1176,6 +1229,7 @@ const selectStaffFromPicker = async (member: StaffMember) => {
     if (!staffPickerOpen.value) {
       staffPickerTarget.value = null;
       staffPickerLineId.value = null;
+      staffPickerServeAfterAssignment.value = false;
     }
   }
 };
@@ -1189,7 +1243,12 @@ const handleCallNext = async (item: QueueItem) => {
       await loadStaff();
     }
     if (!hasValidStaffAssignment(item, activeStaffIds.value)) {
-      openStaffPicker(item);
+      const lines = item.services ?? [];
+      if (lines.length > 1) {
+        openServiceStaffDrawer(item, true);
+      } else {
+        openStaffPicker(item, lines[0]?.id ?? null, true);
+      }
       return;
     }
   }
@@ -1198,7 +1257,7 @@ const handleCallNext = async (item: QueueItem) => {
 
 const handleServiceStaffChange = (item: QueueItem, serviceLineId?: string) => {
   if (!staffTrackingEnabled.value || !serviceLineId) return;
-  openStaffPicker(item, serviceLineId);
+  openStaffPicker(item, serviceLineId, serviceStaffServeAfterAssignment.value);
 };
 
 const handleDrawerServiceStaffChange = (serviceLineId?: string) => {
@@ -1438,7 +1497,7 @@ watch(completedPage, async (val) => {
                   </span>
                   <span class="queue-service-summary-divider" aria-hidden="true">·</span>
                   <span class="queue-service-summary-staff-icon" aria-hidden="true">
-                    {{ unassignedServiceCount(item) ? '⚠' : '👤' }}
+                    {{ staffAssignmentIcon(item) }}
                   </span>
                   <span class="queue-service-summary-staff" :title="staffAssignmentSummary(item)">
                     {{ staffAssignmentSummary(item) }}
@@ -1551,7 +1610,7 @@ watch(completedPage, async (val) => {
 
     <ElDrawer
       v-model="serviceStaffDrawerOpen"
-      title="Services & Staff"
+      :title="serviceStaffDrawerTitle"
       direction="btt"
       size="min(82dvh, 620px)"
       class="service-staff-drawer"
@@ -1567,39 +1626,93 @@ watch(completedPage, async (val) => {
           </div>
         </div>
 
-        <div v-if="serviceStaffTarget.services?.length" class="service-staff-lines">
-          <div
-            v-for="service in serviceStaffTarget.services"
-            :key="service.id || `${serviceStaffTarget.id}-${service.position}-${service.serviceName}`"
-            class="service-staff-line"
-          >
-            <div class="service-staff-line-copy">
-              <div class="service-staff-line-name">{{ service.serviceName }}</div>
-              <div class="service-staff-line-status">
-                <span
-                  class="service-staff-status-dot"
-                  :class="serviceStaffDisplayName(service) ? 'service-staff-status-dot--assigned' : 'service-staff-status-dot--unassigned'"
-                  aria-hidden="true"
-                />
-                {{ serviceStaffDisplayName(service) || 'Unassigned' }}
-              </div>
-            </div>
-            <button
-              v-if="service.id"
-              type="button"
-              class="queue-assignment-button"
-              :disabled="staffPickerLoading"
-              @click="handleDrawerServiceStaffChange(service.id)"
-            >
-              {{ serviceStaffDisplayName(service) ? 'Change' : 'Assign' }}
-            </button>
-            <span v-else class="service-staff-line-unavailable">Unavailable</span>
+        <div v-if="serviceStaffAddMode" class="service-staff-add-panel">
+          <div class="service-staff-add-title">Which service will this technician perform?</div>
+          <div class="service-staff-add-copy">
+            Choose a service line before selecting a technician.
           </div>
+          <div v-if="serviceStaffTarget.services?.length" class="service-staff-add-options">
+            <button
+              v-for="service in serviceStaffTarget.services"
+              :key="service.id || `${serviceStaffTarget.id}-${service.position}-${service.serviceName}`"
+              type="button"
+              class="service-staff-add-option"
+              :disabled="!service.id || staffPickerLoading"
+              @click="selectServiceForAdditionalStaff(service.id)"
+            >
+              <span class="service-staff-add-option-copy">
+                <span class="service-staff-line-name">{{ service.serviceName }}</span>
+                <span class="service-staff-line-status">
+                  <span
+                    class="service-staff-status-dot"
+                    :class="serviceStaffDisplayName(service) ? 'service-staff-status-dot--assigned' : 'service-staff-status-dot--unassigned'"
+                    aria-hidden="true"
+                  />
+                  {{ serviceStaffDisplayName(service) || 'Unassigned' }}
+                </span>
+              </span>
+              <span class="service-staff-add-action">
+                {{ serviceStaffDisplayName(service) ? 'Change' : 'Assign' }} ›
+              </span>
+            </button>
+          </div>
+          <div class="service-staff-add-note">
+            Each service supports one technician. Selecting an assigned service changes that line.
+          </div>
+          <button
+            type="button"
+            class="queue-assignment-button queue-assignment-button--muted"
+            @click="serviceStaffAddMode = false"
+          >
+            Back to services
+          </button>
         </div>
 
-        <div v-else class="staff-picker-empty">
-          No service lines are attached to this check-in.
-        </div>
+        <template v-else>
+          <div v-if="serviceStaffTarget.services?.length" class="service-staff-lines">
+            <div
+              v-for="service in serviceStaffTarget.services"
+              :key="service.id || `${serviceStaffTarget.id}-${service.position}-${service.serviceName}`"
+              class="service-staff-line"
+            >
+              <div class="service-staff-line-copy">
+                <div class="service-staff-line-name">{{ service.serviceName }}</div>
+                <div class="service-staff-line-status">
+                  <span
+                    class="service-staff-status-dot"
+                    :class="serviceStaffDisplayName(service) ? 'service-staff-status-dot--assigned' : 'service-staff-status-dot--unassigned'"
+                    aria-hidden="true"
+                  />
+                  {{ serviceStaffDisplayName(service) || 'Unassigned' }}
+                </div>
+              </div>
+              <button
+                v-if="service.id"
+                type="button"
+                class="queue-assignment-button"
+                :disabled="staffPickerLoading"
+                @click="handleDrawerServiceStaffChange(service.id)"
+              >
+                {{ serviceStaffDisplayName(service) ? 'Change' : 'Assign' }}
+              </button>
+              <span v-else class="service-staff-line-unavailable">Unavailable</span>
+            </div>
+          </div>
+
+          <div v-else class="staff-picker-empty">
+            No service lines are attached to this check-in.
+          </div>
+
+          <button
+            v-if="canAddServiceStaff"
+            type="button"
+            class="service-staff-add-button"
+            :disabled="staffPickerLoading"
+            @click="beginAddStaff"
+          >
+            ＋ Add staff
+          </button>
+        </template>
 
         <div class="service-staff-drawer-footer">
           <ElButton class="sf-btn service-staff-drawer-done" @click="closeServiceStaffDrawer">
@@ -2432,6 +2545,89 @@ watch(completedPage, async (val) => {
   color: #64748b;
   font-size: 13px;
   line-height: 1.45;
+}
+.service-staff-add-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #bae6fd;
+  border-radius: 14px;
+  background: #f0f9ff;
+}
+.service-staff-add-title {
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 800;
+}
+.service-staff-add-copy,
+.service-staff-add-note {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.service-staff-add-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 2px;
+}
+.service-staff-add-option {
+  display: flex;
+  min-height: 68px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.service-staff-add-option:hover,
+.service-staff-add-option:focus-visible {
+  border-color: var(--sf-primary, #0284c7);
+  outline: none;
+}
+.service-staff-add-option:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.service-staff-add-option-copy {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.service-staff-add-action {
+  flex: 0 0 auto;
+  color: var(--sf-primary, #0284c7);
+  font-size: 13px;
+  font-weight: 750;
+}
+.service-staff-add-button {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px dashed rgba(14, 165, 233, 0.45);
+  border-radius: 12px;
+  background: #f0f9ff;
+  color: var(--sf-primary, #0284c7);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 750;
+  touch-action: manipulation;
+}
+.service-staff-add-button:hover,
+.service-staff-add-button:focus-visible {
+  border-color: var(--sf-primary, #0284c7);
+  background: #e0f2fe;
+  outline: none;
+}
+.service-staff-add-button:disabled {
+  cursor: wait;
+  opacity: 0.6;
 }
 .service-staff-lines {
   display: flex;
