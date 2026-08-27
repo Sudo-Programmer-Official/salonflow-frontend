@@ -1586,7 +1586,6 @@ watch(completedPage, async (val) => {
                       <span class="queue-service-summary-staff">Assign staff</span>
                     </template>
                   </span>
-                  <span class="queue-service-summary-chevron" aria-hidden="true">›</span>
                 </button>
                 <template v-else>
                   <div
@@ -2542,19 +2541,26 @@ watch(completedPage, async (val) => {
   min-width: 0;
   gap: 4px;
   margin: 8px 0;
-  padding: 0;
-  border: 0;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 12px;
   background: transparent;
   color: #334155;
   cursor: pointer;
   font: inherit;
   text-align: left;
   touch-action: manipulation;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
 }
 .queue-service-staff-summary:hover,
 .queue-service-staff-summary:focus-visible {
+  border-color: #bae6fd;
+  background: #f0f9ff;
   color: #0f172a;
   outline: none;
+}
+.queue-service-staff-summary:focus-visible {
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.2);
 }
 .queue-service-summary-main,
 .queue-service-summary-assignment {
@@ -2617,12 +2623,6 @@ watch(completedPage, async (val) => {
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.queue-service-summary-chevron {
-  flex: 0 0 auto;
-  color: #94a3b8;
-  font-size: 24px;
-  line-height: 0.8;
 }
 .queue-assignment-button {
   flex: 0 0 auto;
