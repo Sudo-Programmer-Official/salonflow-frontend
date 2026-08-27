@@ -59,6 +59,10 @@ export async function fetchServices(): Promise<ServiceOption[]> {
       (group.services || []).map((svc: any) => ({
         id: svc.id,
         name: svc.name,
+        icon: svc.icon,
+        durationMinutes: svc.durationMinutes,
+        priceCents: svc.priceCents,
+        currency: svc.currency,
       })),
     );
   }
@@ -72,7 +76,14 @@ export async function fetchServices(): Promise<ServiceOption[]> {
   }
 
   const data = await res.json();
-  return (data as any[]).map((s) => ({ id: s.id, name: s.name }));
+  return (data as any[]).map((s) => ({
+    id: s.id,
+    name: s.name,
+    icon: s.icon,
+    durationMinutes: s.durationMinutes,
+    priceCents: s.priceCents,
+    currency: s.currency,
+  }));
 }
 
 export async function fetchGroupedServices(): Promise<

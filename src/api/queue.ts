@@ -167,6 +167,25 @@ export async function unassignStaffFromCheckIn(
   return readJsonResponse(res, null);
 }
 
+export async function addServiceToCheckIn(
+  checkInId: string,
+  serviceId: string,
+  staffId: string,
+) {
+  const res = await fetch(`${apiBase}/${checkInId}/services`, {
+    method: 'POST',
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
+    body: JSON.stringify({ serviceId, staffId }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to add service');
+  }
+
+  return readJsonResponse(res, null);
+}
+
 export async function startCheckIn(checkInId: string) {
   const res = await fetch(`${apiBase}/${checkInId}/start`, {
     method: 'POST',

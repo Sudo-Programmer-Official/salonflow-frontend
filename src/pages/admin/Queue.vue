@@ -23,6 +23,7 @@ import {
   checkoutCheckIn,
   callCheckIn,
   assignStaffToCheckIn,
+  addServiceToCheckIn,
   cancelCheckIn,
   markNoShow,
   type QueueItem,
@@ -119,10 +120,12 @@ const staffPickerOpen = ref(false);
 const staffPickerTarget = ref<QueueItem | null>(null);
 const staffPickerLineId = ref<string | null>(null);
 const staffPickerServeAfterAssignment = ref(false);
+const staffPickerServiceToAdd = ref<ServiceOption | null>(null);
 const staffPickerLoading = ref(false);
 const serviceStaffDrawerOpen = ref(false);
 const serviceStaffTarget = ref<QueueItem | null>(null);
 const serviceStaffAddMode = ref(false);
+const serviceAddMode = ref(false);
 const serviceStaffServeAfterAssignment = ref(false);
 const todayAppointments = ref<TodayAppointment[]>([]);
 const todayAppointmentsLocked = ref(false);
@@ -180,6 +183,13 @@ const staffTrackingEnabled = computed(
 );
 
 const staffDisplayName = (member: StaffMember) => member.nickname || member.name;
+
+const formatServicePrice = (service: Pick<ServiceOption, 'priceCents' | 'currency'>) =>
+  Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: service.currency || 'USD',
+    minimumFractionDigits: 2,
+  }).format((service.priceCents ?? 0) / 100);
 
 const staffWorkload = computed(() => deriveStaffWorkload(inServiceStaffQueue.value));
 
@@ -247,11 +257,15 @@ const pickerTargetService = computed(() => {
 });
 
 const pickerTitle = computed(() => {
+  if (staffPickerServiceToAdd.value) return 'Assign technician';
   if (!staffPickerLineId.value) return 'Choose technician';
   return pickerTargetService.value?.staffId ? 'Change technician' : 'Assign technician';
 });
 
 const pickerDescription = computed(() => {
+  if (staffPickerServiceToAdd.value) {
+    return `Choose who is performing ${staffPickerServiceToAdd.value.name}.`;
+  }
   if (pickerTargetService.value) {
     return `Choose who is performing ${pickerTargetService.value.serviceName}.`;
   }
@@ -468,8 +482,14 @@ const staffAssignmentSummary = (item: QueueItem) => {
 };
 
 const staffAssignmentIcon = (item: QueueItem) => {
-  if (unassignedServiceCount(item)) return '⚠';
   return assignedStaffNames(item).length > 1 ? '👥' : '👤';
+};
+
+const staffAssignmentUnassignedLabel = (item: QueueItem) => {
+  const unassigned = unassignedServiceCount(item);
+  if (!unassigned) return '';
+  if (assignedStaffNames(item).length) return `${unassigned} unassigned`;
+  return unassigned === 1 ? 'Assign staff' : `${unassigned} services unassigned`;
 };
 
 onMounted(() => {
@@ -1109,6 +1129,7 @@ const openStaffPicker = (
   staffPickerTarget.value = item;
   staffPickerLineId.value = serviceLineId;
   staffPickerServeAfterAssignment.value = serveAfterAssignment;
+  staffPickerServiceToAdd.value = null;
   staffPickerOpen.value = true;
 };
 
@@ -1119,11 +1140,12 @@ const openServiceStaffDrawer = (item: QueueItem, serveAfterAssignment = false) =
     openStaffPicker(item, null, serveAfterAssignment);
     return;
   }
-  if (lines.length === 1 && lines[0]?.id) {
+  if (lines.length === 1 && lines[0]?.id && item.status !== 'IN_SERVICE') {
     openStaffPicker(item, lines[0].id, serveAfterAssignment);
     return;
   }
   serviceStaffAddMode.value = false;
+  serviceAddMode.value = false;
   serviceStaffServeAfterAssignment.value = serveAfterAssignment;
   serviceStaffTarget.value = item;
   serviceStaffDrawerOpen.value = true;
@@ -1133,6 +1155,7 @@ const closeServiceStaffDrawer = () => {
   serviceStaffDrawerOpen.value = false;
   serviceStaffTarget.value = null;
   serviceStaffAddMode.value = false;
+  serviceAddMode.value = false;
   serviceStaffServeAfterAssignment.value = false;
 };
 
@@ -1147,7 +1170,28 @@ const canAddServiceStaff = computed(() =>
 
 const beginAddStaff = () => {
   if (!canAddServiceStaff.value) return;
+  serviceAddMode.value = false;
   serviceStaffAddMode.value = true;
+};
+
+const canAddServiceToInService = computed(
+  () => serviceStaffTarget.value?.status === 'IN_SERVICE' && services.value.length > 0,
+);
+
+const beginAddService = () => {
+  if (!canAddServiceToInService.value) return;
+  serviceStaffAddMode.value = false;
+  serviceAddMode.value = true;
+};
+
+const selectServiceToAdd = (service: ServiceOption) => {
+  if (!serviceStaffTarget.value || serviceStaffTarget.value.status !== 'IN_SERVICE') return;
+  serviceAddMode.value = false;
+  staffPickerTarget.value = serviceStaffTarget.value;
+  staffPickerLineId.value = null;
+  staffPickerServeAfterAssignment.value = false;
+  staffPickerServiceToAdd.value = service;
+  staffPickerOpen.value = true;
 };
 
 const selectServiceForAdditionalStaff = (serviceLineId?: string) => {
@@ -1166,6 +1210,7 @@ const closeStaffPicker = () => {
   staffPickerTarget.value = null;
   staffPickerLineId.value = null;
   staffPickerServeAfterAssignment.value = false;
+  staffPickerServiceToAdd.value = null;
 };
 
 const runServe = async (item: QueueItem) => {
@@ -1191,8 +1236,21 @@ const selectStaffFromPicker = async (member: StaffMember) => {
   if (!target) return;
   const serviceLineId = staffPickerLineId.value;
   const serveAfterAssignment = staffPickerServeAfterAssignment.value;
+  const serviceToAdd = staffPickerServiceToAdd.value;
   staffPickerLoading.value = true;
   try {
+    if (serviceToAdd) {
+      await addServiceToCheckIn(target.id, serviceToAdd.id, member.id);
+      staffPickerOpen.value = false;
+      await Promise.all([loadQueue(), loadInServiceStaffQueue()]);
+      const refreshedTarget = queue.value.find((item) => item.id === target.id);
+      if (refreshedTarget && serviceStaffDrawerOpen.value) {
+        serviceStaffTarget.value = refreshedTarget;
+      }
+      ElMessage.success(`${serviceToAdd.name} added for ${staffDisplayName(member)}`);
+      return;
+    }
+
     await assignStaffToCheckIn(
       target.id,
       member.id,
@@ -1230,6 +1288,7 @@ const selectStaffFromPicker = async (member: StaffMember) => {
       staffPickerTarget.value = null;
       staffPickerLineId.value = null;
       staffPickerServeAfterAssignment.value = false;
+      staffPickerServiceToAdd.value = null;
     }
   }
 };
@@ -1483,24 +1542,49 @@ watch(completedPage, async (val) => {
                   :aria-label="`View services and staff for ${item.customerName || 'customer'}`"
                   @click="openServiceStaffDrawer(item)"
                 >
-                  <span
-                    class="service-icon"
-                    :class="unassignedServiceCount(item) ? 'queue-service-summary-icon--attention' : 'queue-service-summary-icon--assigned'"
-                    aria-hidden="true"
-                    v-html="serviceStateIcon(item)"
-                  />
-                  <span class="queue-service-summary-service" :title="allServicesTitle(item)">
-                    <span class="queue-service-name">{{ primaryServiceName(item) }}</span>
-                    <span v-if="additionalServiceCount(item) > 0" class="queue-service-more">
-                      +{{ additionalServiceCount(item) }} more
+                  <span class="queue-service-summary-main">
+                    <span
+                      class="service-icon"
+                      :class="unassignedServiceCount(item) ? 'queue-service-summary-icon--attention' : 'queue-service-summary-icon--assigned'"
+                      aria-hidden="true"
+                      v-html="serviceStateIcon(item)"
+                    />
+                    <span class="queue-service-summary-service" :title="allServicesTitle(item)">
+                      <span class="queue-service-name">{{ primaryServiceName(item) }}</span>
+                      <span v-if="additionalServiceCount(item) > 0" class="queue-service-more">
+                        +{{ additionalServiceCount(item) }} more
+                      </span>
                     </span>
                   </span>
-                  <span class="queue-service-summary-divider" aria-hidden="true">·</span>
-                  <span class="queue-service-summary-staff-icon" aria-hidden="true">
-                    {{ staffAssignmentIcon(item) }}
-                  </span>
-                  <span class="queue-service-summary-staff" :title="staffAssignmentSummary(item)">
-                    {{ staffAssignmentSummary(item) }}
+                  <span class="queue-service-summary-assignment" :title="staffAssignmentSummary(item)">
+                    <template v-if="assignedStaffNames(item).length">
+                      <span class="queue-service-summary-staff-icon" aria-hidden="true">
+                        {{ staffAssignmentIcon(item) }}
+                      </span>
+                      <span class="queue-service-summary-staff">
+                        {{ assignedStaffNames(item).join(' + ') }}
+                      </span>
+                    </template>
+                    <span
+                      v-if="unassignedServiceCount(item) && assignedStaffNames(item).length"
+                      class="queue-service-summary-divider"
+                      aria-hidden="true"
+                    >·</span>
+                    <span
+                      v-if="unassignedServiceCount(item)"
+                      class="queue-service-summary-unassigned-icon"
+                      aria-hidden="true"
+                    >⚠</span>
+                    <span
+                      v-if="unassignedServiceCount(item)"
+                      class="queue-service-summary-staff"
+                    >
+                      {{ staffAssignmentUnassignedLabel(item) }}
+                    </span>
+                    <template v-else-if="!assignedStaffNames(item).length">
+                      <span class="queue-service-summary-unassigned-icon" aria-hidden="true">⚠</span>
+                      <span class="queue-service-summary-staff">Assign staff</span>
+                    </template>
                   </span>
                   <span class="queue-service-summary-chevron" aria-hidden="true">›</span>
                 </button>
@@ -1622,7 +1706,8 @@ watch(completedPage, async (val) => {
             {{ serviceStaffTarget.customerName || 'Customer' }}
           </div>
           <div class="service-staff-drawer-copy">
-            Review each service line and assign the technician performing it.
+            <template v-if="serviceAddMode">Choose an additional service and its technician.</template>
+            <template v-else>Review each service line and assign the technician performing it.</template>
           </div>
         </div>
 
@@ -1668,6 +1753,40 @@ watch(completedPage, async (val) => {
           </button>
         </div>
 
+        <div v-else-if="serviceAddMode" class="service-staff-add-panel">
+          <div class="service-staff-add-title">Which service was added?</div>
+          <div class="service-staff-add-copy">
+            Choose the new service first, then select the technician performing it.
+          </div>
+          <div v-if="loadingServices" class="staff-picker-empty">Loading services…</div>
+          <div v-else-if="services.length" class="service-staff-add-options">
+            <button
+              v-for="service in services"
+              :key="service.id"
+              type="button"
+              class="service-staff-add-option"
+              @click="selectServiceToAdd(service)"
+            >
+              <span class="service-staff-add-option-copy">
+                <span class="service-staff-line-name">{{ service.name }}</span>
+                <span class="service-staff-line-status">
+                  {{ service.durationMinutes ? `${service.durationMinutes} min` : 'Service' }}
+                  <template v-if="service.priceCents !== undefined"> · {{ formatServicePrice(service) }}</template>
+                </span>
+              </span>
+              <span class="service-staff-add-action">Choose ›</span>
+            </button>
+          </div>
+          <div v-else class="staff-picker-empty">No active services are available.</div>
+          <button
+            type="button"
+            class="queue-assignment-button queue-assignment-button--muted"
+            @click="serviceAddMode = false"
+          >
+            Back to services
+          </button>
+        </div>
+
         <template v-else>
           <div v-if="serviceStaffTarget.services?.length" class="service-staff-lines">
             <div
@@ -1702,6 +1821,16 @@ watch(completedPage, async (val) => {
           <div v-else class="staff-picker-empty">
             No service lines are attached to this check-in.
           </div>
+
+          <button
+            v-if="canAddServiceToInService"
+            type="button"
+            class="service-staff-add-button"
+            :disabled="staffPickerLoading"
+            @click="beginAddService"
+          >
+            ＋ Add service
+          </button>
 
           <button
             v-if="canAddServiceStaff"
@@ -2407,10 +2536,11 @@ watch(completedPage, async (val) => {
 }
 .queue-service-staff-summary {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   width: 100%;
   min-width: 0;
-  gap: 8px;
+  gap: 4px;
   margin: 8px 0;
   padding: 0;
   border: 0;
@@ -2426,6 +2556,16 @@ watch(completedPage, async (val) => {
   color: #0f172a;
   outline: none;
 }
+.queue-service-summary-main,
+.queue-service-summary-assignment {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+.queue-service-summary-main {
+  width: 100%;
+}
 .queue-service-summary-service {
   display: inline-flex;
   min-width: 0;
@@ -2436,7 +2576,7 @@ watch(completedPage, async (val) => {
 }
 .queue-service-summary-service .queue-service-name {
   min-width: 0;
-  max-width: 170px;
+  max-width: 100%;
 }
 .queue-service-summary-service .queue-service-more {
   flex: 0 0 auto;
@@ -2453,14 +2593,24 @@ watch(completedPage, async (val) => {
   color: #94a3b8;
   font-weight: 700;
 }
+.queue-service-summary-assignment {
+  width: 100%;
+  padding-left: 26px;
+}
 .queue-service-summary-staff-icon {
   flex: 0 0 auto;
   font-size: 15px;
   line-height: 1;
 }
+.queue-service-summary-unassigned-icon {
+  flex: 0 0 auto;
+  color: #d97706;
+  font-size: 15px;
+  line-height: 1;
+}
 .queue-service-summary-staff {
   min-width: 0;
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   overflow: hidden;
   color: #475569;
   font-size: 13px;

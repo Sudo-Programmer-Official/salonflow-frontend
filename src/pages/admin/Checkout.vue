@@ -6,8 +6,6 @@ import { Money, CreditCard, Present } from '@element-plus/icons-vue';
 import { fetchQueue, checkoutCheckIn, type QueueItem } from '@/api/queue';
 import { fetchCustomerLoyalty } from '@/api/customers';
 import { humanizeTime } from '@/utils/dates';
-import { fetchServices, type ServiceItem } from '@/api/services';
-import { fetchCategories, type ServiceCategory } from '@/api/serviceCategories';
 import { fetchGiftCard, addLegacyGiftCard, type GiftCard } from '@/api/giftCards';
 import { fetchAvailablePromotions, type AvailablePromotion } from '@/api/promotions';
 import { fetchSettings, type BusinessSettings } from '@/api/settings';
@@ -44,11 +42,6 @@ const loyalty = ref<{
   loaded: false,
   error: '',
 });
-const categories = ref<ServiceCategory[]>([]);
-const services = ref<ServiceItem[]>([]);
-const selectedCategory = ref<string>('all');
-const search = ref('');
-const draftSelections = ref<Record<string, string[]>>({});
 const paymentOptions = ref<{ cash: boolean; card: boolean; gift: boolean }>({
   cash: false,
   card: false,
@@ -83,16 +76,9 @@ const goToServicesStep = () => {
   checkoutStep.value = 'services';
 };
 
-const DRAFT_KEY = 'checkoutDraftSelections';
 const PAYMENT_KEY = 'checkoutPayments';
 
 const loadDrafts = () => {
-  try {
-    const raw = localStorage.getItem(DRAFT_KEY);
-    draftSelections.value = raw ? (JSON.parse(raw) as Record<string, string[]>) : {};
-  } catch {
-    draftSelections.value = {};
-  }
   try {
     const rawPay = localStorage.getItem(PAYMENT_KEY);
     const parsed = rawPay ? (JSON.parse(rawPay) as Record<string, any>) : {};
@@ -118,9 +104,6 @@ const loadDrafts = () => {
   }
 };
 
-const persistDrafts = () => {
-  localStorage.setItem(DRAFT_KEY, JSON.stringify(draftSelections.value));
-};
 const persistPayments = () => {
   const existing = (() => {
     try {
@@ -145,20 +128,12 @@ const persistPayments = () => {
 };
 const clearDraftForCurrent = () => {
   try {
-    const drafts = JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}');
-    delete drafts[checkinId.value];
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(drafts));
-  } catch {
-    /* ignore */
-  }
-  try {
     const pays = JSON.parse(localStorage.getItem(PAYMENT_KEY) || '{}');
     delete pays[checkinId.value];
     localStorage.setItem(PAYMENT_KEY, JSON.stringify(pays));
   } catch {
     /* ignore */
   }
-  draftSelections.value = { ...draftSelections.value, [checkinId.value]: [] };
   paymentOptions.value = { cash: false, card: false, gift: false };
   paymentAmounts.value = { cash: '', card: '' };
   customTotalMode.value = false;
@@ -171,61 +146,12 @@ const clearDraftForCurrent = () => {
   tipDraft.value = '0.00';
   availablePromotions.value = [];
   promotionsError.value = '';
+  customAddIns.value = [];
   giftCards.value = [{ id: 1, number: '', amount: '', source: 'new', legacyBalance: '' }];
   nextGiftCardId.value = 2;
   giftCardInfo.value = {};
   fetchedNumbers.value = {};
 };
-
-const selectedServiceIds = computed({
-  get: () => draftSelections.value[checkinId.value] ?? [],
-  set: (ids: string[]) => {
-    draftSelections.value = { ...draftSelections.value, [checkinId.value]: ids };
-  },
-});
-
-const filteredCategories = computed(() =>
-  categories.value.slice().sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)),
-);
-
-const categoryColors: Record<string, string> = {
-  manicure: '#34D399',
-  nails: '#F59E0B',
-  pedicure: '#38BDF8',
-  acrylic: '#A78BFA',
-  sns: '#F472B6',
-  wax: '#FB923C',
-};
-
-const getCategoryKey = (cat?: string | null) => (cat || '').toLowerCase().trim();
-const getCategoryColor = (catName?: string | null) => categoryColors[getCategoryKey(catName)] || '#e2e8f0';
-const categoryStyle = (cat: ServiceCategory) => {
-  const color = getCategoryColor(cat.name);
-  return {
-    borderLeft: `4px solid ${color}`,
-    background: `${color}14`, // light tint
-  };
-};
-const serviceStyle = (svc: ServiceItem) => {
-  const cat = categories.value.find((c) => c.id === svc.categoryId);
-  const color = getCategoryColor(cat?.name);
-  return {
-    borderLeft: `4px solid ${color}`,
-  };
-};
-
-const filteredServices = computed(() => {
-  const q = search.value.trim().toLowerCase();
-  return services.value
-    .filter((svc) => svc.isActive !== false)
-    .filter((svc) => {
-      if (selectedCategory.value === 'all') return true;
-      if (selectedCategory.value === 'uncategorized') return !svc.categoryId;
-      return svc.categoryId === selectedCategory.value;
-    })
-    .filter((svc) => (q ? svc.name.toLowerCase().includes(q) : true));
-});
-const popularServiceIds = computed(() => filteredServices.value.slice(0, 3).map((s) => s.id));
 
 type CustomAddIn = {
   id: string;
@@ -238,31 +164,34 @@ type CustomAddIn = {
 };
 const customAddIns = ref<CustomAddIn[]>([]);
 
-const selectedServiceObjects = computed(() => {
-  const map = new Map(services.value.map((s) => [s.id, s]));
-  const base = selectedServiceIds.value
-    .map((id) => map.get(id))
-    .filter((s): s is ServiceItem => Boolean(s));
-  return [...base, ...customAddIns.value];
-});
+type CheckoutServiceLine = {
+  id: string;
+  name: string;
+  durationMinutes?: number | null;
+  priceCents?: number | null;
+  currency?: string | null;
+  staffName?: string | null;
+  isCustom?: false;
+};
 
-const selectedServiceCounts = computed(() =>
-  selectedServiceIds.value.reduce<Record<string, number>>((acc, id) => {
-    acc[id] = (acc[id] ?? 0) + 1;
-    return acc;
-  }, {}),
+const persistedServiceLines = computed<CheckoutServiceLine[]>(() =>
+  (item.value?.services ?? []).map((service, index) => ({
+    id: service.id || `service-line-${index}`,
+    name: service.serviceName,
+    durationMinutes: service.durationMinutes ?? null,
+    priceCents: service.priceCents ?? null,
+    currency: service.currency ?? 'USD',
+    staffName: service.staffName ?? null,
+  })),
 );
 
+const selectedServiceObjects = computed<Array<CheckoutServiceLine | CustomAddIn>>(() => [
+  ...persistedServiceLines.value,
+  ...customAddIns.value,
+]);
+
 const selectedServiceRows = computed(() => {
-  const map = new Map(services.value.map((s) => [s.id, s]));
-  const rows: Array<{ svc: ServiceItem | CustomAddIn; quantity: number }> = [];
-  selectedServiceIds.value.forEach((id) => {
-    if (rows.some((row) => row.svc.id === id)) return;
-    const svc = map.get(id);
-    if (svc) rows.push({ svc, quantity: selectedServiceCounts.value[id] ?? 1 });
-  });
-  customAddIns.value.forEach((svc) => rows.push({ svc, quantity: 1 }));
-  return rows;
+  return selectedServiceObjects.value.map((svc) => ({ svc, quantity: 1 }));
 });
 
 const servicesSubtotal = computed(() =>
@@ -429,7 +358,7 @@ const remainingBalance = computed(() => paymentState.value.remainingBalance);
 const remainingState = computed<'due' | 'paid' | 'over'>(() => paymentState.value.remainingState);
 const canCompleteCheckout = computed(() => paymentState.value.canCompleteCheckout);
 const hasDirtyCheckout = computed(() => {
-  const hasServices = selectedServiceIds.value.length > 0;
+  const hasServices = customAddIns.value.length > 0;
   const hasPaymentOptions = paymentOptions.value.cash || paymentOptions.value.card || paymentOptions.value.gift;
   const hasPaymentAmounts =
     Boolean((paymentAmounts.value.cash || '').trim()) || Boolean((paymentAmounts.value.card || '').trim());
@@ -588,15 +517,6 @@ onMounted(() => {
     staffList.value = staffData.items ?? [];
   });
   loadCheckin();
-  Promise.all([fetchCategories(), fetchServices()])
-    .then(([cats, svcs]) => {
-      categories.value = cats;
-      services.value = svcs;
-    })
-    .catch(() => {
-      categories.value = [];
-      services.value = [];
-    });
 });
 
 watch(
@@ -607,11 +527,6 @@ watch(
   },
 );
 
-watch(
-  () => draftSelections.value,
-  () => persistDrafts(),
-  { deep: true },
-);
 watch(
   () => [
     paymentOptions.value,
@@ -670,13 +585,6 @@ watch(
   },
 );
 
-const isAddInService = (svc?: ServiceItem | CustomAddIn | null) => {
-  if (!svc) return false;
-  if ((svc as any).isAddIn) return true;
-  return (svc.name || '').trim().toLowerCase() === 'add in';
-};
-const currentAddIn = computed(() => customAddIns.value[0] ?? null);
-
 const formatCurrency = (amount: number, currency?: string | null) =>
   Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -684,31 +592,11 @@ const formatCurrency = (amount: number, currency?: string | null) =>
     minimumFractionDigits: 2,
   }).format(amount);
 
-const toggleService = (id: string) => {
-  const svc = services.value.find((s) => s.id === id);
-  if (isAddInService(svc)) {
-    pendingAddInService.value = svc ?? null;
-    const existing = customAddIns.value[0];
-    if (existing) {
-      addInTitle.value = existing.name === 'Custom Add-in' ? '' : existing.name;
-      addInAmount.value = (existing.priceCents / 100).toFixed(2);
-    } else {
-      addInTitle.value = '';
-      addInAmount.value = '';
-    }
-    showAddInModal.value = true;
-    return;
-  }
-  selectedServiceIds.value = [...selectedServiceIds.value, id];
-};
-
-const isSelected = (id: string) => selectedServiceIds.value.includes(id);
-const serviceQuantity = (id: string) => selectedServiceCounts.value[id] ?? 0;
-
-const removeServiceInstance = (id: string) => {
-  const index = selectedServiceIds.value.indexOf(id);
-  if (index === -1) return;
-  selectedServiceIds.value = selectedServiceIds.value.filter((_serviceId, idx) => idx !== index);
+const openAddInModal = () => {
+  const existing = customAddIns.value[0];
+  addInTitle.value = existing && existing.name !== 'Custom Add-in' ? existing.name : '';
+  addInAmount.value = existing ? (existing.priceCents / 100).toFixed(2) : '';
+  showAddInModal.value = true;
 };
 
 const togglePaymentOption = (key: 'cash' | 'card' | 'gift', checked: boolean) => {
@@ -736,7 +624,6 @@ const handleStaffChange = (staffId: string) => {
 
 // Add-in modal state and helpers
 const showAddInModal = ref(false);
-const pendingAddInService = ref<ServiceItem | null>(null);
 const addInTitle = ref('');
 const addInAmount = ref<string>('');
 const presetAddInAmounts = [5, 10, 15, 20];
@@ -748,20 +635,19 @@ const confirmAddIn = () => {
     return;
   }
   const id = `addin-${Date.now()}`;
-  const name = addInTitle.value.trim() || pendingAddInService.value?.name || 'Custom Add-in';
+  const name = addInTitle.value.trim() || 'Custom Add-in';
   customAddIns.value = [{
     id,
     name,
     priceCents: Math.round(amount * 100),
     durationMinutes: null,
-    currency: pendingAddInService.value?.currency || 'USD',
+    currency: 'USD',
     icon: '➕',
     isCustom: true,
   }];
   showAddInModal.value = false;
   addInAmount.value = '';
   addInTitle.value = '';
-  pendingAddInService.value = null;
 };
 
 const removeCustomAddIn = (id: string) => {
@@ -1134,47 +1020,6 @@ onBeforeUnmount(() => {
           'services-view': checkoutStep === 'services',
         }"
       >
-      <!-- Column 1: Categories -->
-      <section class="checkout-panel categories" v-if="checkoutStep === 'services'">
-        <ElCard v-if="loading" class="glass-card" shadow="never">
-          <ElSkeleton :rows="6" animated />
-        </ElCard>
-        <ElCard v-else class="glass-card" shadow="never">
-          <div class="panel-title">Categories</div>
-          <div class="panel-sub">Pick a category to filter services.</div>
-          <div class="category-list scrollable-pane">
-            <button
-              type="button"
-              class="category-pill"
-              :class="{ active: selectedCategory === 'all' }"
-              @click="selectedCategory = 'all'"
-            >
-              All
-            </button>
-            <button
-              type="button"
-              class="category-pill"
-              :class="{ active: selectedCategory === 'uncategorized' }"
-              @click="selectedCategory = 'uncategorized'"
-            >
-              Uncategorized
-            </button>
-            <button
-              v-for="cat in filteredCategories"
-              :key="cat.id"
-              type="button"
-              class="category-pill"
-              :class="{ active: selectedCategory === cat.id }"
-              :style="categoryStyle(cat)"
-              @click="selectedCategory = cat.id"
-            >
-              <span class="cat-icon">{{ cat.icon || '🗂' }}</span>
-              <span class="cat-name">{{ cat.name }}</span>
-            </button>
-          </div>
-        </ElCard>
-      </section>
-
       <!-- Add-in modal -->
       <ElDialog v-model="showAddInModal" width="360px" class="addin-dialog" :close-on-click-modal="false">
         <template #title>Add custom charge</template>
@@ -1207,65 +1052,48 @@ onBeforeUnmount(() => {
           </div>
         </template>
       </ElDialog>
-      <!-- Column 2: Services -->
+      <!-- Persisted service lines -->
       <section class="checkout-panel services" v-if="checkoutStep === 'services'">
         <ElCard v-if="loading" class="glass-card" shadow="never">
           <ElSkeleton :rows="6" animated />
         </ElCard>
         <ElCard v-else class="glass-card" shadow="never">
           <div class="services-header">
-            <div class="services-title">Services</div>
-            <ElInput
-              v-model="search"
-              size="large"
-              placeholder="Search services"
-              class="services-search"
-              clearable
-            />
+            <div>
+              <div class="services-title">Services from check-in</div>
+              <div class="panel-sub">These persisted service lines will be charged at checkout.</div>
+            </div>
+            <ElButton type="primary" plain @click="openAddInModal">+ Custom charge</ElButton>
           </div>
-          <div v-if="!filteredServices.length" class="empty-state">No services match.</div>
-          <div v-else class="service-list-scroll scrollable-pane">
-            <div class="service-grid">
-              <button
-                v-for="svc in filteredServices"
-                :key="svc.id"
-                type="button"
-                class="service-tile"
-                :class="{
-                  active: isSelected(svc.id) && !isAddInService(svc),
-                  addin: isAddInService(svc),
-                  'addin-filled': isAddInService(svc) && currentAddIn,
-                }"
-                :style="serviceStyle(svc)"
-                @click="toggleService(svc.id)"
-              >
-                <div class="svc-top">
-                  <span class="svc-icon">{{ svc.icon || '💅' }}</span>
-                  <span v-if="serviceQuantity(svc.id) > 1 && !isAddInService(svc)" class="svc-quantity">
-                    {{ serviceQuantity(svc.id) }}
-                  </span>
-                  <span v-else-if="isSelected(svc.id) && !isAddInService(svc)" class="svc-check">✓</span>
-                  <span v-else-if="popularServiceIds.includes(svc.id) && !isAddInService(svc)" class="svc-popular"
-                    >Popular</span
-                  >
-                </div>
-                <template v-if="!isAddInService(svc)">
-                  <div class="svc-name">{{ svc.name }}</div>
-                  <div v-if="svc.priceCents !== undefined && svc.priceCents !== null" class="svc-price">
-                    {{ formatCurrency((svc.priceCents ?? 0) / 100, svc.currency || 'USD') }}
-                  </div>
-                  <div v-if="svc.durationMinutes" class="svc-duration">
-                    {{ svc.durationMinutes }} min
-                  </div>
-                </template>
-                <template v-else>
-                  <div class="svc-name">{{ currentAddIn ? currentAddIn.name : 'Add custom charge' }}</div>
-                  <div v-if="currentAddIn" class="svc-addin-amount">
-                    {{ formatCurrency(currentAddIn.priceCents / 100, currentAddIn.currency) }} added · Tap to edit
-                  </div>
-                  <div v-else class="svc-addin-hint">Tap to enter amount</div>
-                </template>
-              </button>
+          <div v-if="persistedServiceLines.length" class="selected-list checkout-persisted-services">
+            <div
+              v-for="service in persistedServiceLines"
+              :key="service.id"
+              class="selected-row"
+            >
+              <div class="selected-name">
+                <span class="svc-icon">💅</span>
+                {{ service.name }}
+              </div>
+              <div class="selected-meta">
+                <span v-if="service.staffName">👤 {{ service.staffName }}</span>
+                <span v-if="service.durationMinutes">{{ service.durationMinutes }} min</span>
+                <span v-if="service.priceCents !== null && service.priceCents !== undefined">
+                  {{ formatCurrency((service.priceCents ?? 0) / 100, service.currency) }}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div v-else class="empty-state">
+            No service lines are attached to this check-in.
+          </div>
+          <div v-if="customAddIns.length" class="selected-list checkout-custom-charges">
+            <div v-for="charge in customAddIns" :key="charge.id" class="selected-row">
+              <div class="selected-name">{{ charge.name }}</div>
+              <div class="selected-meta">
+                {{ formatCurrency(charge.priceCents / 100, charge.currency) }}
+                <button class="remove-btn" type="button" @click="removeCustomAddIn(charge.id)">✕</button>
+              </div>
             </div>
           </div>
         </ElCard>
@@ -1310,7 +1138,7 @@ onBeforeUnmount(() => {
           <div v-if="!selectedServiceObjects.length && !customTotalValid" class="empty-state">
             Add services or enable a custom total to build the bill.
           </div>
-          <div v-else class="selected-list" v-if="selectedServiceRows.length">
+          <div v-else-if="selectedServiceRows.length" class="selected-list">
             <div
               v-for="row in selectedServiceRows"
               :key="row.svc.id"
@@ -1321,6 +1149,7 @@ onBeforeUnmount(() => {
                 <span v-if="row.quantity > 1" class="selected-quantity">× {{ row.quantity }}</span>
               </div>
               <div class="selected-meta">
+                <span v-if="(row.svc as any).staffName">👤 {{ (row.svc as any).staffName }}</span>
                 <span v-if="row.svc.durationMinutes">{{ row.svc.durationMinutes }} min</span>
                 <span v-if="row.svc.priceCents !== undefined && row.svc.priceCents !== null">
                   {{
@@ -1333,9 +1162,10 @@ onBeforeUnmount(() => {
                 </span>
               </div>
               <button
+                v-if="(row.svc as any).isCustom"
                 class="remove-btn"
                 type="button"
-                @click="(row.svc as any).isCustom ? removeCustomAddIn(row.svc.id) : removeServiceInstance(row.svc.id)"
+                @click="removeCustomAddIn(row.svc.id)"
               >
                 ✕
               </button>
