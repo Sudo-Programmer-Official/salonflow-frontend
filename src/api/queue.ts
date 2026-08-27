@@ -170,17 +170,34 @@ export async function unassignStaffFromCheckIn(
 export async function addServiceToCheckIn(
   checkInId: string,
   serviceId: string,
-  staffId: string,
+  staffId?: string | null,
 ) {
   const res = await fetch(`${apiBase}/${checkInId}/services`, {
     method: 'POST',
     headers: buildHeaders({ auth: true, tenant: true, json: true }),
-    body: JSON.stringify({ serviceId, staffId }),
+    body: JSON.stringify({ serviceId, staffId: staffId ?? null }),
   });
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || 'Failed to add service');
+  }
+
+  return readJsonResponse(res, null);
+}
+
+export async function removeServiceFromCheckIn(
+  checkInId: string,
+  serviceLineId: string,
+) {
+  const res = await fetch(`${apiBase}/${checkInId}/services/${serviceLineId}`, {
+    method: 'DELETE',
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to remove service');
   }
 
   return readJsonResponse(res, null);

@@ -3,7 +3,15 @@ import { onMounted, ref, computed, watch, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router';
 import { ElButton, ElCard, ElSkeleton, ElMessage, ElInput, ElMessageBox, ElIcon, ElDialog } from 'element-plus';
 import { Money, CreditCard, Present } from '@element-plus/icons-vue';
-import { fetchQueue, checkoutCheckIn, type QueueItem } from '@/api/queue';
+import {
+  fetchQueue,
+  checkoutCheckIn,
+  assignStaffToCheckIn,
+  unassignStaffFromCheckIn,
+  addServiceToCheckIn,
+  removeServiceFromCheckIn,
+  type QueueItem,
+} from '@/api/queue';
 import { fetchCustomerLoyalty } from '@/api/customers';
 import { humanizeTime } from '@/utils/dates';
 import { fetchServices, type ServiceItem } from '@/api/services';
@@ -12,6 +20,7 @@ import { fetchGiftCard, addLegacyGiftCard, type GiftCard } from '@/api/giftCards
 import { fetchAvailablePromotions, type AvailablePromotion } from '@/api/promotions';
 import { fetchSettings, type BusinessSettings } from '@/api/settings';
 import { fetchStaff, type StaffMember } from '@/api/staff';
+import { deriveStaffWorkload } from '@/utils/staffAvailability';
 import { type RedeemStatus } from '@/utils/redeemStatus';
 import { resolveCheckoutRedeemState } from '@/utils/checkoutLoyalty';
 import {
@@ -25,6 +34,7 @@ const checkinId = computed(() => route.params.checkinId as string);
 
 const loading = ref(true);
 const item = ref<QueueItem | null>(null);
+const inServiceQueue = ref<QueueItem[]>([]);
 const settings = ref<BusinessSettings | null>(null);
 const staffList = ref<StaffMember[]>([]);
 const selectedStaffId = ref('');
@@ -64,6 +74,10 @@ const nextGiftCardId = ref(2);
 const giftCardInfo = ref<Record<number, { loading: boolean; error: string; card: GiftCard | null }>>({});
 const fetchedNumbers = ref<Record<number, string>>({});
 const checkoutStep = ref<'services' | 'payment'>('services');
+const serviceMutationLoading = ref(false);
+const staffPickerOpen = ref(false);
+const staffPickerLineId = ref<string | null>(null);
+const staffPickerLoading = ref(false);
 const availablePromotions = ref<AvailablePromotion[]>([]);
 const promotionsLoading = ref(false);
 const promotionsError = ref('');
@@ -177,6 +191,7 @@ type CheckoutServiceLine = {
   durationMinutes?: number | null;
   priceCents?: number | null;
   currency?: string | null;
+  staffId?: string | null;
   staffName?: string | null;
   isCustom?: false;
 };
@@ -189,6 +204,7 @@ const persistedServiceLines = computed<CheckoutServiceLine[]>(() =>
     durationMinutes: service.durationMinutes ?? null,
     priceCents: service.priceCents ?? null,
     currency: service.currency ?? 'USD',
+    staffId: service.staffId ?? null,
     staffName: service.staffName ?? null,
   })),
 );
@@ -253,6 +269,11 @@ const isSelected = (serviceId: string) => {
 
 const serviceQuantity = (service: ServiceItem) =>
   persistedServiceLines.value.filter((line) => serviceMatchesPersistedLine(service, line)).length;
+
+const serviceLineStaffLabel = (line: CheckoutServiceLine) =>
+  line.staffName?.trim() || (line.staffId ? 'Assigned' : 'Assign later');
+const firstCatalogServiceLine = (service: ServiceItem) =>
+  persistedServiceLines.value.find((line) => serviceMatchesPersistedLine(service, line)) ?? null;
 
 const selectedServiceRows = computed(() => {
   return selectedServiceObjects.value.map((svc) => ({ svc, quantity: 1 }));
@@ -327,17 +348,62 @@ const assignedStaff = computed(() => {
   });
   return Array.from(unique.entries()).map(([id, name]) => ({ id, name }));
 });
-const allServiceLinesAssigned = computed(() => {
-  const lines = item.value?.services ?? [];
-  if (!lines.length) return Boolean(item.value?.staffName);
-  return lines.every((service) => Boolean(service.staffId));
-});
+const unassignedServiceLines = computed(() =>
+  (item.value?.services ?? []).filter(
+    (service): service is typeof service & { id: string } => Boolean(service.id) && !service.staffId,
+  ),
+);
 const staffSelectionRequired = computed(
   () => Boolean(
     staffTrackingEnabled.value &&
     settings.value?.requireStaffBeforeCheckout &&
-    !allServiceLinesAssigned.value,
+    unassignedServiceLines.value.length > 0,
   ),
+);
+const staffDisplayName = (member: StaffMember) => member.nickname || member.name;
+const staffWorkload = computed(() => deriveStaffWorkload(inServiceQueue.value));
+const orderedPickerStaff = computed(() =>
+  staffList.value
+    .filter((member) => member.active)
+    .slice()
+    .sort((a, b) => {
+      const countDelta =
+        (staffWorkload.value.get(a.id)?.count ?? 0) -
+        (staffWorkload.value.get(b.id)?.count ?? 0);
+      if (countDelta !== 0) return countDelta;
+      return staffDisplayName(a).localeCompare(staffDisplayName(b));
+    }),
+);
+const availablePickerStaff = computed(() =>
+  orderedPickerStaff.value.filter((member) => !(staffWorkload.value.get(member.id)?.count ?? 0)),
+);
+const busyPickerStaff = computed(() =>
+  orderedPickerStaff.value.filter((member) => Boolean(staffWorkload.value.get(member.id)?.count)),
+);
+const inactivePickerStaff = computed(() =>
+  staffList.value
+    .filter((member) => !member.active)
+    .slice()
+    .sort((a, b) => staffDisplayName(a).localeCompare(staffDisplayName(b))),
+);
+const staffWorkloadLabel = (member: StaffMember) => {
+  const workload = staffWorkload.value.get(member.id);
+  if (!workload?.count) return 'Available';
+  if (workload.count === 1 && workload.assignments[0]) {
+    const assignment = workload.assignments[0];
+    return `Serving ${assignment.customerName} · ${assignment.serviceName}`;
+  }
+  return `${workload.count} active services`;
+};
+const staffWorkloadDetails = (member: StaffMember) => {
+  const workload = staffWorkload.value.get(member.id);
+  if (!workload || workload.count <= 1) return '';
+  return workload.assignments
+    .map((assignment) => `${assignment.customerName} · ${assignment.serviceName}`)
+    .join(' • ');
+};
+const pickerServiceLine = computed(() =>
+  (item.value?.services ?? []).find((service) => service.id === staffPickerLineId.value) ?? null,
 );
 const tipsEnabled = computed(() => Boolean(settings.value?.enableTips));
 const taxEnabled = computed(() => Boolean(settings.value?.enableTax));
@@ -524,6 +590,7 @@ const loadCheckin = async (opts?: { silent?: boolean }) => {
     // Pull current in-service items and locate the target check-in
     const res = await fetchQueue({ status: 'IN_SERVICE', limit: 100 });
     const list = (res as any).items ?? [];
+    inServiceQueue.value = list;
     const match = list.find((q: QueueItem) => q.id === checkinId.value) as QueueItem | undefined;
     if (!match) {
       ElMessage.warning('Start service before checkout');
@@ -545,7 +612,7 @@ const confirmDiscard = async (): Promise<boolean> => {
   if (!hasDirtyCheckout.value) return true;
   try {
     await ElMessageBox.confirm(
-      'Discard checkout progress? Services and payments will be lost.',
+      'Discard payment progress? Saved service lines will remain on this visit.',
       'Discard checkout',
       {
         confirmButtonText: 'Discard',
@@ -673,14 +740,128 @@ const isAddInService = (service?: ServiceItem | null) => {
 
 const currentAddIn = computed(() => customAddIns.value[0] ?? null);
 
-const toggleService = (serviceId: string) => {
+const ensureStaffLoaded = async () => {
+  if (staffList.value.length) return;
+  try {
+    const response = await fetchStaff(1, 200);
+    staffList.value = response.items ?? [];
+  } catch {
+    staffList.value = [];
+  }
+};
+
+const openServiceStaffPicker = async (serviceLineId: string) => {
+  if (!staffTrackingEnabled.value || !serviceLineId) return;
+  await ensureStaffLoaded();
+  staffPickerLineId.value = serviceLineId;
+  staffPickerOpen.value = true;
+};
+
+const closeServiceStaffPicker = (forceOrEvent: boolean | MouseEvent = false) => {
+  const force = typeof forceOrEvent === 'boolean' ? forceOrEvent : false;
+  if (staffPickerLoading.value && !force) return;
+  staffPickerOpen.value = false;
+  staffPickerLineId.value = null;
+};
+
+const assignStaffFromCheckoutPicker = async (member: StaffMember) => {
+  const line = pickerServiceLine.value;
+  if (!item.value || !line?.id) return;
+  staffPickerLoading.value = true;
+  try {
+    await assignStaffToCheckIn(item.value.id, member.id, line.id, false);
+    await loadCheckin({ silent: true });
+    closeServiceStaffPicker(true);
+    ElMessage.success(`${staffDisplayName(member)} assigned to ${line.serviceName}`);
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : 'Failed to assign staff');
+  } finally {
+    staffPickerLoading.value = false;
+  }
+};
+
+const leaveServiceUnassigned = async () => {
+  const line = pickerServiceLine.value;
+  if (!item.value || !line?.id || !line.staffId) return;
+  staffPickerLoading.value = true;
+  try {
+    await unassignStaffFromCheckIn(item.value.id, line.id);
+    await loadCheckin({ silent: true });
+    closeServiceStaffPicker(true);
+    ElMessage.success(`${line.serviceName} is now unassigned`);
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : 'Failed to unassign staff');
+  } finally {
+    staffPickerLoading.value = false;
+  }
+};
+
+const addServiceFromCatalog = async (service: ServiceItem) => {
+  if (!item.value || serviceMutationLoading.value) return;
+  serviceMutationLoading.value = true;
+  try {
+    const result = await addServiceToCheckIn(item.value.id, service.id, null);
+    await loadCheckin({ silent: true });
+    const serviceLineId = (result as { serviceLineId?: string } | null)?.serviceLineId;
+    if (staffTrackingEnabled.value && serviceLineId) {
+      await openServiceStaffPicker(serviceLineId);
+    } else {
+      ElMessage.success(`${service.name} added to this visit`);
+    }
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : 'Failed to add service');
+  } finally {
+    serviceMutationLoading.value = false;
+  }
+};
+
+const toggleService = async (serviceId: string) => {
   const service = services.value.find((candidate) => candidate.id === serviceId);
   if (isAddInService(service)) {
     openAddInModal(service);
     return;
   }
-  if (service && !isSelected(service.id)) {
-    ElMessage.info('Services are attached to the check-in. Add or change service lines from Queue.');
+  if (!service) return;
+
+  const matchingLines = persistedServiceLines.value.filter((line) =>
+    serviceMatchesPersistedLine(service, line),
+  );
+  if (matchingLines.length === 1 && matchingLines[0]?.id && !matchingLines[0].id.startsWith('service-line-')) {
+    await openServiceStaffPicker(matchingLines[0].id);
+    return;
+  }
+  if (matchingLines.length > 1) {
+    ElMessage.info('Choose a service line below to manage its technician.');
+    return;
+  }
+  await addServiceFromCatalog(service);
+};
+
+const removePersistedServiceLine = async (line: CheckoutServiceLine) => {
+  if (!item.value || !line.id || line.id.startsWith('service-line-') || serviceMutationLoading.value) return;
+  try {
+    await ElMessageBox.confirm(
+      `Remove ${line.name} from this visit?`,
+      'Remove service',
+      {
+        confirmButtonText: 'Remove',
+        cancelButtonText: 'Keep service',
+        type: 'warning',
+      },
+    );
+  } catch {
+    return;
+  }
+
+  serviceMutationLoading.value = true;
+  try {
+    await removeServiceFromCheckIn(item.value.id, line.id);
+    await loadCheckin({ silent: true });
+    ElMessage.success(`${line.name} removed from this visit`);
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : 'Failed to remove service');
+  } finally {
+    serviceMutationLoading.value = false;
   }
 };
 
@@ -708,11 +889,6 @@ const togglePaymentOption = (key: 'cash' | 'card' | 'gift', checked: boolean) =>
       paymentAmounts.value = { ...paymentAmounts.value, [key]: '' };
     }
   }
-};
-
-const handleStaffChange = (staffId: string) => {
-  selectedStaffId.value = staffId;
-  selectedStaffName.value = staffList.value.find((staff) => staff.id === staffId)?.name || '';
 };
 
 // Add-in modal state and helpers
@@ -976,8 +1152,8 @@ const submitCheckout = async () => {
     );
     return;
   }
-  if (staffSelectionRequired.value && !selectedStaffId.value && !selectedStaffName.value) {
-    ElMessage.warning('Please select a staff member before checkout.');
+  if (staffSelectionRequired.value) {
+    ElMessage.warning('Assign a technician to each unresolved service line before checkout.');
     return;
   }
   if (!validateGiftCards()) return;
@@ -989,6 +1165,12 @@ const submitCheckout = async () => {
   }
   completing.value = true;
   try {
+    // Service-line assignments are authoritative for current visits. Keep the
+    // old ticket-level fields only as a compatibility fallback for legacy
+    // check-ins that have no durable service rows yet.
+    const hasDurableServiceLines = Boolean(item.value.services?.length);
+    const legacyStaffId = hasDurableServiceLines ? null : selectedStaffId.value || null;
+    const legacyStaffName = hasDurableServiceLines ? null : selectedStaffName.value || null;
     const giftCardNumber = paymentOptions.value.gift
       ? giftCards.value
           .map((g) => (g.number || '').trim())
@@ -1016,13 +1198,13 @@ const submitCheckout = async () => {
       amountPaid: enteredTotal.value,
       taxAmount: taxAmount.value,
       tipAmount: tipAmount.value,
-      staffId: selectedStaffId.value || null,
-      staffName: selectedStaffName.value || null,
+      staffId: legacyStaffId,
+      staffName: legacyStaffName,
       source: 'admin_checkout',
       createdFrom: 'queue',
       paymentBreakdown,
       reviewSmsConsent: true,
-      servedByName: selectedStaffName.value || null,
+      servedByName: legacyStaffName,
       redeemPoints: redeemPoints.value && redeemStatus.value.eligible,
       payments: enteredPayments.value,
       giftCardNumber,
@@ -1189,6 +1371,113 @@ onBeforeUnmount(() => {
         </template>
       </ElDialog>
 
+      <ElDialog
+        v-model="staffPickerOpen"
+        :title="pickerServiceLine ? `Assign staff · ${pickerServiceLine.serviceName}` : 'Assign staff'"
+        width="min(520px, calc(100vw - 24px))"
+        class="checkout-staff-picker-modal"
+        :close-on-click-modal="false"
+        @closed="closeServiceStaffPicker"
+      >
+        <div class="staff-picker-body">
+          <div class="staff-picker-context">
+            <div class="staff-picker-customer">{{ item?.customerName || 'Customer' }}</div>
+            <div class="staff-picker-description">
+              Choose the technician for this service line. Busy technicians can still be selected.
+            </div>
+          </div>
+
+          <div v-if="availablePickerStaff.length" class="staff-picker-section">
+            <div class="staff-picker-section-title">
+              <span>Available</span>
+              <span class="staff-picker-count">{{ availablePickerStaff.length }}</span>
+            </div>
+            <div class="staff-picker-grid">
+              <button
+                v-for="member in availablePickerStaff"
+                :key="member.id"
+                type="button"
+                class="staff-picker-option"
+                :disabled="staffPickerLoading"
+                @click="assignStaffFromCheckoutPicker(member)"
+              >
+                <span class="staff-picker-avatar">{{ staffDisplayName(member).slice(0, 1).toUpperCase() }}</span>
+                <span class="staff-picker-option-copy">
+                  <span class="staff-picker-name">{{ staffDisplayName(member) }}</span>
+                  <span class="staff-picker-status">Available</span>
+                </span>
+                <span class="staff-picker-chevron">›</span>
+              </button>
+            </div>
+          </div>
+
+          <div v-if="busyPickerStaff.length" class="staff-picker-section">
+            <div class="staff-picker-section-title">
+              <span>Busy</span>
+              <span class="staff-picker-count">{{ busyPickerStaff.length }}</span>
+            </div>
+            <div class="staff-picker-grid">
+              <button
+                v-for="member in busyPickerStaff"
+                :key="member.id"
+                type="button"
+                class="staff-picker-option"
+                :disabled="staffPickerLoading"
+                @click="assignStaffFromCheckoutPicker(member)"
+              >
+                <span class="staff-picker-avatar staff-picker-avatar--busy">{{ staffDisplayName(member).slice(0, 1).toUpperCase() }}</span>
+                <span class="staff-picker-option-copy">
+                  <span class="staff-picker-name">{{ staffDisplayName(member) }}</span>
+                  <span class="staff-picker-status">{{ staffWorkloadLabel(member) }}</span>
+                  <span v-if="staffWorkloadDetails(member)" class="staff-picker-assignment-detail">
+                    {{ staffWorkloadDetails(member) }}
+                  </span>
+                </span>
+                <span class="staff-picker-chevron">›</span>
+              </button>
+            </div>
+          </div>
+
+          <div v-if="inactivePickerStaff.length" class="staff-picker-section staff-picker-section--inactive">
+            <div class="staff-picker-section-title">
+              <span>Off / Inactive</span>
+              <span class="staff-picker-count">{{ inactivePickerStaff.length }}</span>
+            </div>
+            <div class="staff-picker-grid">
+              <div
+                v-for="member in inactivePickerStaff"
+                :key="member.id"
+                class="staff-picker-option staff-picker-option--inactive"
+              >
+                <span class="staff-picker-avatar staff-picker-avatar--inactive">{{ staffDisplayName(member).slice(0, 1).toUpperCase() }}</span>
+                <span class="staff-picker-option-copy">
+                  <span class="staff-picker-name">{{ staffDisplayName(member) }}</span>
+                  <span class="staff-picker-status">Inactive</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="!orderedPickerStaff.length" class="staff-picker-empty">
+            No active technicians are available. Add staff in Settings before assigning service.
+          </div>
+
+          <div class="staff-picker-footer">
+            <button
+              v-if="pickerServiceLine?.staffId"
+              type="button"
+              class="picker-unassign"
+              :disabled="staffPickerLoading"
+              @click="leaveServiceUnassigned"
+            >
+              Leave unassigned
+            </button>
+            <ElButton :disabled="staffPickerLoading" @click="closeServiceStaffPicker">Cancel</ElButton>
+            <span v-if="staffPickerLoading" class="staff-picker-saving">Saving assignment…</span>
+          </div>
+        </div>
+      </ElDialog>
+
       <!-- Column 2: Services -->
       <section class="checkout-panel services" v-if="checkoutStep === 'services'">
         <ElCard v-if="loading" class="glass-card" shadow="never">
@@ -1224,6 +1513,7 @@ onBeforeUnmount(() => {
                 }"
                 :style="serviceStyle(service)"
                 :aria-pressed="isSelected(service.id)"
+                :disabled="serviceMutationLoading && !isAddInService(service)"
                 @click="toggleService(service.id)"
               >
                 <div class="svc-top">
@@ -1247,7 +1537,12 @@ onBeforeUnmount(() => {
                   <div v-if="service.durationMinutes" class="svc-duration">
                     {{ service.durationMinutes }} min
                   </div>
-                  <div v-if="isSelected(service.id)" class="svc-inherited-label">From check-in</div>
+                  <div v-if="isSelected(service.id)" class="svc-inherited-label">
+                    From check-in
+                    <template v-if="serviceQuantity(service) === 1 && firstCatalogServiceLine(service)">
+                      · {{ serviceLineStaffLabel(firstCatalogServiceLine(service)!) }}
+                    </template>
+                  </div>
                 </template>
                 <template v-else>
                   <div class="svc-name">{{ currentAddIn ? currentAddIn.name : 'Add custom charge' }}</div>
@@ -1257,6 +1552,49 @@ onBeforeUnmount(() => {
                   <div v-else class="svc-addin-hint">Tap to enter amount</div>
                 </template>
               </button>
+            </div>
+          </div>
+          <div v-if="persistedServiceLines.length" class="sold-services">
+            <div class="sold-services-header">
+              <div>
+                <div class="panel-title">Sold services for this visit</div>
+                <div class="panel-sub">Saved service lines are charged at checkout.</div>
+              </div>
+              <span class="saved-badge">Saved</span>
+            </div>
+            <div class="selected-list">
+              <div v-for="line in persistedServiceLines" :key="line.id" class="selected-row">
+                <div class="selected-name">
+                  <span class="svc-icon">💅</span>
+                  <span>{{ line.name }}</span>
+                </div>
+                <div class="selected-line-actions">
+                  <button
+                    v-if="staffTrackingEnabled && !line.id.startsWith('service-line-')"
+                    type="button"
+                    class="checkout-staff-link"
+                    :disabled="serviceMutationLoading"
+                    @click="openServiceStaffPicker(line.id)"
+                  >
+                    {{ line.staffId ? `👤 ${serviceLineStaffLabel(line)}` : 'Assign later' }}
+                    <span aria-hidden="true">›</span>
+                  </button>
+                  <span v-else-if="line.staffId" class="selected-meta-staff">👤 {{ serviceLineStaffLabel(line) }}</span>
+                  <span v-if="line.durationMinutes" class="selected-meta-item">{{ line.durationMinutes }} min</span>
+                  <span v-if="line.priceCents !== undefined && line.priceCents !== null" class="selected-meta-item">
+                    {{ formatCurrency((line.priceCents ?? 0) / 100, line.currency) }}
+                  </span>
+                  <button
+                    type="button"
+                    class="remove-btn"
+                    :disabled="serviceMutationLoading || line.id.startsWith('service-line-')"
+                    :aria-label="`Remove ${line.name}`"
+                    @click="removePersistedServiceLine(line)"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </ElCard>
@@ -1270,15 +1608,20 @@ onBeforeUnmount(() => {
         <ElCard v-else class="glass-card" shadow="never">
           <div class="bill-header">
             <div class="bill-title">Bill</div>
-            <button
-              type="button"
-              class="custom-toggle"
-              :class="{ active: customTotalMode }"
-              @click="toggleCustomTotal"
-            >
-              <span class="custom-icon">✏️</span>
-              <span>Custom total</span>
-            </button>
+            <div class="bill-header-actions">
+              <button type="button" class="edit-services-link" @click="goToServicesStep">
+                Edit services
+              </button>
+              <button
+                type="button"
+                class="custom-toggle"
+                :class="{ active: customTotalMode }"
+                @click="toggleCustomTotal"
+              >
+                <span class="custom-icon">✏️</span>
+                <span>Custom total</span>
+              </button>
+            </div>
           </div>
           <div v-if="customTotalMode" class="custom-total">
             <div class="custom-total-input">
@@ -1312,7 +1655,17 @@ onBeforeUnmount(() => {
                 <span v-if="row.quantity > 1" class="selected-quantity">× {{ row.quantity }}</span>
               </div>
               <div class="selected-meta">
-                <span v-if="(row.svc as any).staffName">👤 {{ (row.svc as any).staffName }}</span>
+                <button
+                  v-if="staffTrackingEnabled && !(row.svc as any).isCustom && row.svc.id && !row.svc.id.startsWith('service-line-')"
+                  type="button"
+                  class="checkout-staff-link"
+                  :disabled="serviceMutationLoading"
+                  @click="openServiceStaffPicker(row.svc.id)"
+                >
+                  {{ (row.svc as any).staffId ? `👤 ${serviceLineStaffLabel(row.svc as CheckoutServiceLine)}` : 'Assign later' }}
+                  <span aria-hidden="true">›</span>
+                </button>
+                <span v-else-if="(row.svc as any).staffId">👤 {{ serviceLineStaffLabel(row.svc as CheckoutServiceLine) }}</span>
                 <span v-if="row.svc.durationMinutes">{{ row.svc.durationMinutes }} min</span>
                 <span v-if="row.svc.priceCents !== undefined && row.svc.priceCents !== null">
                   {{
@@ -1329,6 +1682,15 @@ onBeforeUnmount(() => {
                 class="remove-btn"
                 type="button"
                 @click="removeCustomAddIn(row.svc.id)"
+              >
+                ✕
+              </button>
+              <button
+                v-else-if="!(row.svc as any).isCustom"
+                class="remove-btn"
+                type="button"
+                :disabled="serviceMutationLoading || row.svc.id.startsWith('service-line-')"
+                @click="removePersistedServiceLine(row.svc as CheckoutServiceLine)"
               >
                 ✕
               </button>
@@ -1379,19 +1741,22 @@ onBeforeUnmount(() => {
                 </span>
               </div>
             </div>
-            <div v-if="!allServiceLinesAssigned" class="checkout-staff-repair">
-              <div class="checkout-assigned-staff-label">
-                {{ assignedStaff.length ? 'Assign any remaining services' : 'Choose a staff member' }}
+            <div v-if="unassignedServiceLines.length" class="checkout-staff-repair">
+              <div class="checkout-assigned-staff-label">Assign each service before checkout</div>
+              <div v-for="line in unassignedServiceLines" :key="line.id" class="checkout-missing-line">
+                <span>{{ line.serviceName }}</span>
+                <button
+                  type="button"
+                  class="checkout-staff-link"
+                  :disabled="serviceMutationLoading"
+                  @click="openServiceStaffPicker(line.id)"
+                >
+                  Assign ›
+                </button>
               </div>
-              <select v-model="selectedStaffId" class="discount-select" @change="handleStaffChange(selectedStaffId)">
-                <option value="">Unassigned</option>
-                <option v-for="staff in staffList" :key="staff.id" :value="staff.id">
-                  {{ staff.name }}
-                </option>
-              </select>
             </div>
-            <div v-if="staffSelectionRequired && !selectedStaffId" class="discount-hint">
-              Please select a staff member before checkout.
+            <div v-if="staffSelectionRequired" class="discount-hint">
+              Assign a technician to each unresolved service line before checkout.
             </div>
           </div>
 
@@ -1772,7 +2137,29 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   margin-bottom: 16px;
+}
+.bill-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.edit-services-link {
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid #bae6fd;
+  border-radius: 10px;
+  background: #f0f9ff;
+  color: #0369a1;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 750;
+}
+.edit-services-link:hover,
+.edit-services-link:focus-visible {
+  border-color: #38bdf8;
+  outline: none;
 }
 .bill-title {
   font-size: 18px;
@@ -2098,6 +2485,265 @@ onBeforeUnmount(() => {
   color: #475569;
   display: flex;
   gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.selected-line-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.selected-meta-item,
+.selected-meta-staff {
+  white-space: nowrap;
+}
+.checkout-staff-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 36px;
+  padding: 5px 9px;
+  border: 1px solid #bae6fd;
+  border-radius: 999px;
+  background: #f0f9ff;
+  color: #0369a1;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.checkout-staff-link:hover:not(:disabled),
+.checkout-staff-link:focus-visible {
+  border-color: #0ea5e9;
+  outline: none;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.14);
+}
+.checkout-staff-link:disabled,
+.remove-btn:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+.sold-services {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(148, 163, 184, 0.28);
+}
+.sold-services-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.saved-badge {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.picker-unassign {
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #fff7f7;
+  color: #b91c1c;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 750;
+}
+.picker-unassign:hover:not(:disabled),
+.picker-unassign:focus-visible {
+  border-color: #f87171;
+  outline: none;
+}
+.picker-unassign:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+.checkout-missing-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 650;
+}
+.checkout-staff-picker-modal :deep(.el-dialog) {
+  border-radius: 18px;
+}
+.staff-picker-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 4px 2px;
+}
+.checkout-staff-picker-modal :deep(.el-dialog__body) {
+  max-height: calc(100dvh - 170px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.staff-picker-context {
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+.staff-picker-customer {
+  color: #0f172a;
+  font-size: 17px;
+  font-weight: 750;
+}
+.staff-picker-description {
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.staff-picker-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.staff-picker-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.staff-picker-count {
+  display: inline-flex;
+  min-width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 11px;
+  letter-spacing: normal;
+}
+.staff-picker-grid {
+  display: grid;
+  gap: 8px;
+}
+.staff-picker-option {
+  display: flex;
+  width: 100%;
+  min-height: 68px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #fff;
+  color: #0f172a;
+  cursor: pointer;
+  text-align: left;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+}
+.staff-picker-option:hover:not(:disabled),
+.staff-picker-option:focus-visible {
+  border-color: #0ea5e9;
+  box-shadow: 0 8px 18px rgba(14, 165, 233, 0.14);
+  outline: none;
+  transform: translateY(-1px);
+}
+.staff-picker-option:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+.staff-picker-avatar {
+  display: inline-flex;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: #dcfce7;
+  color: #15803d;
+  font-size: 16px;
+  font-weight: 800;
+}
+.staff-picker-avatar--busy {
+  background: #fef3c7;
+  color: #b45309;
+}
+.staff-picker-avatar--inactive {
+  background: #e2e8f0;
+  color: #64748b;
+}
+.staff-picker-option--inactive {
+  cursor: default;
+  opacity: 0.72;
+}
+.staff-picker-option-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+.staff-picker-name {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.staff-picker-status {
+  color: #64748b;
+  font-size: 12px;
+}
+.staff-picker-assignment-detail {
+  overflow: hidden;
+  color: #94a3b8;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.staff-picker-chevron {
+  color: #94a3b8;
+  font-size: 24px;
+  line-height: 1;
+}
+.staff-picker-empty {
+  padding: 14px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  color: #64748b;
+  font-size: 13px;
+  text-align: center;
+}
+.staff-picker-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 2px;
+}
+.staff-picker-saving {
+  color: #64748b;
+  font-size: 12px;
 }
 .remove-btn {
   border: none;
@@ -2544,6 +3190,36 @@ onBeforeUnmount(() => {
   }
   .checkout-panel {
     min-height: auto;
+  }
+  .checkout-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .step-toggle {
+    margin-left: auto;
+  }
+  .services-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .services-search {
+    width: 100%;
+  }
+  .selected-row {
+    grid-template-columns: 1fr;
+    align-items: flex-start;
+  }
+  .selected-line-actions,
+  .selected-meta {
+    justify-content: flex-start;
+  }
+  .bill-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .bill-header-actions {
+    width: 100%;
+    justify-content: space-between;
   }
 }
 </style>
