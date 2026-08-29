@@ -19,6 +19,11 @@ export type QueueItem = {
   }> | null;
   staffName: string | null;
   preferredStaffId?: string | null;
+  visitStaff?: Array<{
+    staffId: string;
+    staffName?: string | null;
+    position?: number | null;
+  }> | null;
   appointmentId?: string | null;
   createdAt: string;
   status: 'WAITING' | 'CALLED' | 'IN_SERVICE' | 'COMPLETED' | 'NO_SHOW' | 'CANCELED';
@@ -162,6 +167,24 @@ export async function unassignStaffFromCheckIn(
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || 'Failed to unassign staff');
+  }
+
+  return readJsonResponse(res, null);
+}
+
+export async function setVisitStaffForCheckIn(
+  checkInId: string,
+  staffIds: string[],
+) {
+  const res = await fetch(`${apiBase}/${checkInId}/visit-staff`, {
+    method: 'PUT',
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
+    body: JSON.stringify({ staffIds }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to save visit staff');
   }
 
   return readJsonResponse(res, null);

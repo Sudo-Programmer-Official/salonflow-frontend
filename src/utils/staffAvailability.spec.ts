@@ -38,7 +38,7 @@ describe('deriveStaffWorkload', () => {
     });
   });
 
-  test('uses the legacy ticket assignment only when service rows are absent or unassigned', () => {
+  test('uses the legacy ticket assignment only when service rows are absent', () => {
     const workload = deriveStaffWorkload([
       item({ preferredStaffId: 'legacy-staff', services: [] }),
       item({
@@ -51,5 +51,16 @@ describe('deriveStaffWorkload', () => {
     expect(workload.get('legacy-staff')?.count).toBe(1);
     expect(workload.get('line-staff')?.count).toBe(1);
     expect(workload.has('ignored-ticket-staff')).toBe(false);
+  });
+
+  test('does not count visit-level staff as service workload when service lines are unassigned', () => {
+    const workload = deriveStaffWorkload([
+      item({
+        preferredStaffId: 'visit-staff',
+        services: [{ id: 'line-1', serviceName: 'Pedicure', staffId: null }],
+      }),
+    ]);
+
+    expect(workload.has('visit-staff')).toBe(false);
   });
 });

@@ -23,6 +23,7 @@ import {
   checkoutCheckIn,
   callCheckIn,
   assignStaffToCheckIn,
+  setVisitStaffForCheckIn,
   addServiceToCheckIn,
   cancelCheckIn,
   markNoShow,
@@ -40,7 +41,7 @@ import { useBusinessDayClock } from '../../composables/useBusinessDayClock';
 import { dayjs, getBusinessTimezone, humanizeTime } from '../../utils/dates';
 import { formatPhone } from '../../utils/format';
 import { deriveStaffWorkload } from '../../utils/staffAvailability';
-import { hasValidStaffAssignment, unassignedServiceLineCount } from '../../utils/staffAssignment';
+import { hasValidStaffAssignment } from '../../utils/staffAssignment';
 
 const PAGE_SIZE = 10;
 
@@ -121,6 +122,9 @@ const staffPickerTarget = ref<QueueItem | null>(null);
 const staffPickerLineId = ref<string | null>(null);
 const staffPickerServeAfterAssignment = ref(false);
 const staffPickerServiceToAdd = ref<ServiceOption | null>(null);
+const staffPickerMode = ref<'service' | 'visit'>('service');
+const visitStaffIds = ref<string[]>([]);
+const initialVisitStaffIds = ref<string[]>([]);
 const staffPickerLoading = ref(false);
 const serviceStaffDrawerOpen = ref(false);
 const serviceStaffTarget = ref<QueueItem | null>(null);
@@ -197,10 +201,6 @@ const activeStaffIds = computed(() =>
   new Set(staff.value.filter((member) => member.active).map((member) => member.id)),
 );
 
-const unassignedLineCount = (item: QueueItem) => {
-  return unassignedServiceLineCount(item, activeStaffIds.value);
-};
-
 const orderedPickerStaff = computed(() =>
   staff.value
     .filter((member) => member.active)
@@ -245,11 +245,6 @@ const staffWorkloadDetails = (member: StaffMember) => {
     .join(' • ');
 };
 
-const pickerTargetHasMultipleUnassignedLines = computed(() => {
-  const target = staffPickerTarget.value;
-  return target ? unassignedLineCount(target) > 1 : false;
-});
-
 const pickerTargetService = computed(() => {
   const target = staffPickerTarget.value;
   if (!target || !staffPickerLineId.value) return null;
@@ -257,23 +252,34 @@ const pickerTargetService = computed(() => {
 });
 
 const pickerTitle = computed(() => {
+  if (staffPickerMode.value === 'visit') {
+    const customerName = staffPickerTarget.value?.customerName?.trim();
+    return customerName ? `Staff serving ${customerName}` : 'Staff serving customer';
+  }
   if (staffPickerServiceToAdd.value) return 'Assign technician';
   if (!staffPickerLineId.value) return 'Choose technician';
   return pickerTargetService.value?.staffId ? 'Change technician' : 'Assign technician';
 });
 
 const pickerDescription = computed(() => {
+  if (staffPickerMode.value === 'visit') {
+    return 'Select up to 3 active technicians serving this visit. Busy staff remain selectable.';
+  }
   if (staffPickerServiceToAdd.value) {
     return `Choose who is performing ${staffPickerServiceToAdd.value.name}.`;
   }
   if (pickerTargetService.value) {
     return `Choose who is performing ${pickerTargetService.value.serviceName}.`;
   }
-  if (pickerTargetHasMultipleUnassignedLines.value) {
-    return 'Assign the selected technician to the remaining service lines. Existing assignments stay unchanged.';
-  }
   return 'Choose the technician for the unassigned service. Available technicians appear first.';
 });
+
+const isVisitStaffPicker = computed(() => staffPickerMode.value === 'visit');
+const selectedVisitStaffCount = computed(() => visitStaffIds.value.length);
+const visitStaffSelectionChanged = computed(() =>
+  visitStaffIds.value.length !== initialVisitStaffIds.value.length ||
+  visitStaffIds.value.some((staffId, index) => staffId !== initialVisitStaffIds.value[index]),
+);
 
 const dateRange = computed(() => {
   const now = getBusinessNow();
@@ -455,41 +461,31 @@ const serviceStaffDisplayName = (service: QueueServiceLine) => {
   return member ? staffDisplayName(member) : 'Assigned';
 };
 
-const assignedStaffNames = (item: QueueItem) => {
-  const names = (item.services ?? [])
-    .map((service) => serviceStaffDisplayName(service))
-    .filter((name): name is string => Boolean(name));
-  if (!names.length && item.staffName?.trim()) {
-    names.push(item.staffName.trim());
+const visitStaffNames = (item: QueueItem) => {
+  if (Array.isArray(item.visitStaff)) {
+    return item.visitStaff
+      .slice()
+      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+      .map((assignment) => {
+        const explicitName = assignment.staffName?.trim();
+        if (explicitName) return explicitName;
+        const member = staff.value.find((candidate) => candidate.id === assignment.staffId);
+        return member ? staffDisplayName(member) : 'Assigned';
+      })
+      .filter((name): name is string => Boolean(name));
   }
-  return Array.from(new Set(names));
+  // Older API responses may not include visitStaff yet; preserve their
+  // existing single-technician display until the response is upgraded.
+  return item.staffName?.trim() ? [item.staffName.trim()] : [];
 };
 
-const unassignedServiceCount = (item: QueueItem) =>
-  unassignedLineCount(item);
-
 const staffAssignmentSummary = (item: QueueItem) => {
-  const lineCount = item.services?.length ?? 0;
-  const assignedNames = assignedStaffNames(item);
-  const unassigned = unassignedServiceCount(item);
-
-  if (!lineCount) return hasValidStaffAssignment(item, activeStaffIds.value) ? assignedNames.join(' + ') : 'Assign staff';
-  if (!assignedNames.length) {
-    return unassigned === 1 ? 'Assign staff' : `${unassigned} services unassigned`;
-  }
-  if (!unassigned) return assignedNames.join(' + ');
-  return `${assignedNames.join(' + ')} + ${unassigned} unassigned`;
+  const names = visitStaffNames(item);
+  return names.length ? names.join(' + ') : 'Staff not selected';
 };
 
 const staffAssignmentIcon = (item: QueueItem) => {
-  return assignedStaffNames(item).length > 1 ? '👥' : '👤';
-};
-
-const staffAssignmentUnassignedLabel = (item: QueueItem) => {
-  const unassigned = unassignedServiceCount(item);
-  if (!unassigned) return '';
-  if (assignedStaffNames(item).length) return `${unassigned} unassigned`;
-  return unassigned === 1 ? 'Assign staff' : `${unassigned} services unassigned`;
+  return visitStaffNames(item).length > 1 ? '👥' : '👤';
 };
 
 onMounted(() => {
@@ -1130,6 +1126,33 @@ const openStaffPicker = (
   staffPickerLineId.value = serviceLineId;
   staffPickerServeAfterAssignment.value = serveAfterAssignment;
   staffPickerServiceToAdd.value = null;
+  staffPickerMode.value = 'service';
+  visitStaffIds.value = [];
+  initialVisitStaffIds.value = [];
+  staffPickerOpen.value = true;
+};
+
+const openVisitStaffPicker = async (item: QueueItem, serveAfterSelection = false) => {
+  if (!staffTrackingEnabled.value) return;
+  if (!staff.value.length && !loadingStaff.value) {
+    await loadStaff();
+  }
+
+  const selectedIds = Array.isArray(item.visitStaff)
+    ? item.visitStaff
+        .slice()
+        .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+        .map((assignment) => assignment.staffId)
+    : item.preferredStaffId
+      ? [item.preferredStaffId]
+      : [];
+  staffPickerTarget.value = item;
+  staffPickerLineId.value = null;
+  staffPickerServeAfterAssignment.value = serveAfterSelection;
+  staffPickerServiceToAdd.value = null;
+  staffPickerMode.value = 'visit';
+  visitStaffIds.value = Array.from(new Set(selectedIds)).slice(0, 3);
+  initialVisitStaffIds.value = [...visitStaffIds.value];
   staffPickerOpen.value = true;
 };
 
@@ -1191,6 +1214,9 @@ const selectServiceToAdd = (service: ServiceOption) => {
   staffPickerLineId.value = null;
   staffPickerServeAfterAssignment.value = false;
   staffPickerServiceToAdd.value = service;
+  staffPickerMode.value = 'service';
+  visitStaffIds.value = [];
+  initialVisitStaffIds.value = [];
   staffPickerOpen.value = true;
 };
 
@@ -1211,6 +1237,9 @@ const closeStaffPicker = () => {
   staffPickerLineId.value = null;
   staffPickerServeAfterAssignment.value = false;
   staffPickerServiceToAdd.value = null;
+  staffPickerMode.value = 'service';
+  visitStaffIds.value = [];
+  initialVisitStaffIds.value = [];
 };
 
 const runServe = async (item: QueueItem) => {
@@ -1231,7 +1260,65 @@ const runServe = async (item: QueueItem) => {
   }
 };
 
+const isVisitStaffSelected = (member: StaffMember) =>
+  visitStaffIds.value.includes(member.id);
+
+const toggleVisitStaff = (member: StaffMember) => {
+  if (staffPickerLoading.value) return;
+  const index = visitStaffIds.value.indexOf(member.id);
+  if (index >= 0) {
+    visitStaffIds.value.splice(index, 1);
+    return;
+  }
+  if (visitStaffIds.value.length >= 3) {
+    ElMessage.warning('Select up to three staff members for a visit');
+    return;
+  }
+  visitStaffIds.value.push(member.id);
+};
+
+const saveVisitStaffSelection = async () => {
+  const target = staffPickerTarget.value;
+  if (!target || staffPickerLoading.value) return;
+  const selectedIds = [...visitStaffIds.value];
+  const serveAfterSelection = staffPickerServeAfterAssignment.value;
+  staffPickerLoading.value = true;
+  try {
+    await setVisitStaffForCheckIn(target.id, selectedIds);
+    staffPickerOpen.value = false;
+    await Promise.all([loadQueue(), loadCounts(), loadInServiceStaffQueue()]);
+    const refreshedTarget = queue.value.find((item) => item.id === target.id);
+    if (serveAfterSelection) {
+      await runServe(refreshedTarget ?? target);
+    } else {
+      ElMessage.success(
+        selectedIds.length
+          ? 'Visit staff updated'
+          : 'Visit staff cleared',
+      );
+    }
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : 'Failed to save visit staff');
+  } finally {
+    staffPickerLoading.value = false;
+    if (!staffPickerOpen.value) {
+      closeStaffPicker();
+    }
+  }
+};
+
+const openServiceLineDrawerFromPicker = () => {
+  const target = staffPickerTarget.value;
+  if (!target || visitStaffSelectionChanged.value || staffPickerLoading.value) return;
+  closeStaffPicker();
+  openServiceStaffDrawer(target);
+};
+
 const selectStaffFromPicker = async (member: StaffMember) => {
+  if (isVisitStaffPicker.value) {
+    toggleVisitStaff(member);
+    return;
+  }
   const target = staffPickerTarget.value;
   if (!target) return;
   const serviceLineId = staffPickerLineId.value;
@@ -1301,15 +1388,8 @@ const handleCallNext = async (item: QueueItem) => {
     if (!staff.value.length && !loadingStaff.value) {
       await loadStaff();
     }
-    if (!hasValidStaffAssignment(item, activeStaffIds.value)) {
-      const lines = item.services ?? [];
-      if (lines.length > 1) {
-        openServiceStaffDrawer(item, true);
-      } else {
-        openStaffPicker(item, lines[0]?.id ?? null, true);
-      }
-      return;
-    }
+    await openVisitStaffPicker(item, true);
+    return;
   }
   await runServe(item);
 };
@@ -1536,16 +1616,15 @@ watch(completedPage, async (val) => {
               </div>
               <div class="flex flex-wrap items-center gap-3 text-sm text-slate-700">
                 <button
-                  v-if="staffTrackingEnabled && (item.services?.length || item.serviceName)"
+                  v-if="staffTrackingEnabled && ['WAITING', 'CALLED', 'IN_SERVICE'].includes(item.status) && (item.services?.length || item.serviceName)"
                   type="button"
                   class="queue-service-staff-summary"
                   :aria-label="`View services and staff for ${item.customerName || 'customer'}`"
-                  @click="openServiceStaffDrawer(item)"
+                  @click="openVisitStaffPicker(item)"
                 >
                   <span class="queue-service-summary-main">
                     <span
-                      class="service-icon"
-                      :class="unassignedServiceCount(item) ? 'queue-service-summary-icon--attention' : 'queue-service-summary-icon--assigned'"
+                      class="service-icon queue-service-summary-icon--assigned"
                       aria-hidden="true"
                       v-html="serviceStateIcon(item)"
                     />
@@ -1557,33 +1636,19 @@ watch(completedPage, async (val) => {
                     </span>
                   </span>
                   <span class="queue-service-summary-assignment" :title="staffAssignmentSummary(item)">
-                    <template v-if="assignedStaffNames(item).length">
+                    <template v-if="visitStaffNames(item).length">
                       <span class="queue-service-summary-staff-icon" aria-hidden="true">
                         {{ staffAssignmentIcon(item) }}
                       </span>
                       <span class="queue-service-summary-staff">
-                        {{ assignedStaffNames(item).join(' + ') }}
+                        {{ visitStaffNames(item).join(' + ') }}
                       </span>
                     </template>
-                    <span
-                      v-if="unassignedServiceCount(item) && assignedStaffNames(item).length"
-                      class="queue-service-summary-divider"
-                      aria-hidden="true"
-                    >·</span>
-                    <span
-                      v-if="unassignedServiceCount(item)"
-                      class="queue-service-summary-unassigned-icon"
-                      aria-hidden="true"
-                    >⚠</span>
-                    <span
-                      v-if="unassignedServiceCount(item)"
-                      class="queue-service-summary-staff"
-                    >
-                      {{ staffAssignmentUnassignedLabel(item) }}
-                    </span>
-                    <template v-else-if="!assignedStaffNames(item).length">
-                      <span class="queue-service-summary-unassigned-icon" aria-hidden="true">⚠</span>
-                      <span class="queue-service-summary-staff">Assign staff</span>
+                    <template v-else>
+                      <span class="queue-service-summary-staff-icon" aria-hidden="true">👤</span>
+                      <span class="queue-service-summary-staff queue-service-summary-staff--unselected">
+                        Staff not selected
+                      </span>
                     </template>
                   </span>
                 </button>
@@ -1874,6 +1939,8 @@ watch(completedPage, async (val) => {
               :key="member.id"
               type="button"
               class="staff-picker-option"
+              :class="{ 'staff-picker-option--selected': isVisitStaffPicker && isVisitStaffSelected(member) }"
+              :aria-pressed="isVisitStaffPicker ? isVisitStaffSelected(member) : undefined"
               :disabled="staffPickerLoading"
               @click="selectStaffFromPicker(member)"
             >
@@ -1882,7 +1949,10 @@ watch(completedPage, async (val) => {
                 <span class="staff-picker-name">{{ staffDisplayName(member) }}</span>
                 <span class="staff-picker-status">Available</span>
               </span>
-              <span class="staff-picker-chevron">›</span>
+              <span v-if="isVisitStaffPicker" class="staff-picker-check" aria-hidden="true">
+                {{ isVisitStaffSelected(member) ? '✓' : '' }}
+              </span>
+              <span v-else class="staff-picker-chevron">›</span>
             </button>
           </div>
         </div>
@@ -1898,6 +1968,8 @@ watch(completedPage, async (val) => {
               :key="member.id"
               type="button"
               class="staff-picker-option"
+              :class="{ 'staff-picker-option--selected': isVisitStaffPicker && isVisitStaffSelected(member) }"
+              :aria-pressed="isVisitStaffPicker ? isVisitStaffSelected(member) : undefined"
               :disabled="staffPickerLoading"
               @click="selectStaffFromPicker(member)"
             >
@@ -1909,7 +1981,10 @@ watch(completedPage, async (val) => {
                   {{ staffWorkloadDetails(member) }}
                 </span>
               </span>
-              <span class="staff-picker-chevron">›</span>
+              <span v-if="isVisitStaffPicker" class="staff-picker-check" aria-hidden="true">
+                {{ isVisitStaffSelected(member) ? '✓' : '' }}
+              </span>
+              <span v-else class="staff-picker-chevron">›</span>
             </button>
           </div>
         </div>
@@ -1939,7 +2014,29 @@ watch(completedPage, async (val) => {
         </div>
 
         <div class="staff-picker-footer">
-          <ElButton :disabled="staffPickerLoading" @click="closeStaffPicker">Cancel</ElButton>
+          <span v-if="isVisitStaffPicker" class="staff-picker-selection-count">
+            {{ selectedVisitStaffCount }} of 3 selected
+          </span>
+          <button
+            v-if="isVisitStaffPicker && staffPickerTarget?.status === 'IN_SERVICE'"
+            type="button"
+            class="staff-picker-manage-lines"
+            :disabled="staffPickerLoading || visitStaffSelectionChanged"
+            title="Save visit staff before managing service lines"
+            @click="openServiceLineDrawerFromPicker"
+          >
+            Manage service lines
+          </button>
+          <ElButton
+            v-if="isVisitStaffPicker"
+            type="primary"
+            class="staff-picker-done"
+            :disabled="staffPickerLoading"
+            @click="saveVisitStaffSelection"
+          >
+            Done
+          </ElButton>
+          <ElButton v-else :disabled="staffPickerLoading" @click="closeStaffPicker">Cancel</ElButton>
           <span v-if="staffPickerLoading" class="text-xs text-slate-500">Saving assignment…</span>
         </div>
       </div>
@@ -2624,6 +2721,10 @@ watch(completedPage, async (val) => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.queue-service-summary-staff--unselected {
+  color: #64748b;
+  font-weight: 650;
+}
 .queue-assignment-button {
   flex: 0 0 auto;
   min-height: 40px;
@@ -2907,6 +3008,11 @@ watch(completedPage, async (val) => {
   display: grid;
   gap: 8px;
 }
+@media (min-width: 700px) {
+  .staff-picker-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 .staff-picker-option {
   display: flex;
   width: 100%;
@@ -2931,6 +3037,11 @@ watch(completedPage, async (val) => {
   box-shadow: 0 8px 18px rgba(14, 165, 233, 0.14);
   outline: none;
   transform: translateY(-1px);
+}
+.staff-picker-option--selected {
+  border-color: var(--sf-primary, #0ea5e9);
+  background: #f0f9ff;
+  box-shadow: inset 0 0 0 1px var(--sf-primary, #0ea5e9);
 }
 .staff-picker-option:disabled {
   cursor: wait;
@@ -2991,6 +3102,23 @@ watch(completedPage, async (val) => {
   font-size: 24px;
   line-height: 1;
 }
+.staff-picker-check {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #cbd5e1;
+  border-radius: 9px;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 800;
+}
+.staff-picker-option--selected .staff-picker-check {
+  border-color: var(--sf-primary, #0ea5e9);
+  background: var(--sf-primary, #0ea5e9);
+}
 .staff-picker-empty {
   padding: 14px;
   border: 1px dashed #cbd5e1;
@@ -3001,14 +3129,51 @@ watch(completedPage, async (val) => {
 }
 .staff-picker-footer {
   display: flex;
+  flex-wrap: wrap;
   min-height: 42px;
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
+  position: sticky;
+  bottom: 0;
+  padding: 10px 0 max(10px, env(safe-area-inset-bottom));
+  border-top: 1px solid #e2e8f0;
+  background: #fff;
 }
 .staff-picker-footer :deep(.el-button) {
   min-height: 44px;
   padding: 0 18px;
+}
+.staff-picker-selection-count {
+  margin-right: auto;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 750;
+}
+.staff-picker-done {
+  min-width: 96px;
+}
+.staff-picker-manage-lines {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #fff;
+  color: #475569;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 750;
+  touch-action: manipulation;
+}
+.staff-picker-manage-lines:hover:not(:disabled),
+.staff-picker-manage-lines:focus-visible {
+  border-color: var(--sf-primary, #0ea5e9);
+  color: var(--sf-primary, #0284c7);
+  outline: none;
+}
+.staff-picker-manage-lines:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 .queue-card .sf-btn {
   min-height: 40px;

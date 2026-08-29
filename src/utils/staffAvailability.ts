@@ -38,7 +38,7 @@ export function deriveStaffWorkload(items: QueueItem[]): Map<string, StaffWorklo
       return;
     }
 
-    if (item.preferredStaffId) {
+    if (!item.services?.length && item.preferredStaffId) {
       addAssignment(item.preferredStaffId, {
         customerName: item.customerName || 'Customer',
         serviceName: item.serviceName || item.services?.[0]?.serviceName || 'Service',
