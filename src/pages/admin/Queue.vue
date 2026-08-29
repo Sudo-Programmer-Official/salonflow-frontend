@@ -42,6 +42,7 @@ import { dayjs, getBusinessTimezone, humanizeTime } from '../../utils/dates';
 import { formatPhone } from '../../utils/format';
 import { deriveStaffWorkload } from '../../utils/staffAvailability';
 import { hasValidStaffAssignment } from '../../utils/staffAssignment';
+import StaffPickerOption from '../../components/admin/StaffPickerOption.vue';
 
 const PAGE_SIZE = 10;
 
@@ -1941,26 +1942,15 @@ watch(completedPage, async (val) => {
             <span class="staff-picker-count">{{ availablePickerStaff.length }}</span>
           </div>
           <div class="staff-picker-grid">
-            <button
+            <StaffPickerOption
               v-for="member in availablePickerStaff"
               :key="member.id"
-              type="button"
-              class="staff-picker-option"
-              :class="{ 'staff-picker-option--selected': isVisitStaffPicker && isVisitStaffSelected(member) }"
-              :aria-pressed="isVisitStaffPicker ? isVisitStaffSelected(member) : undefined"
+              :name="staffDisplayName(member)"
+              status="Available"
+              :selected="isVisitStaffPicker ? isVisitStaffSelected(member) : pickerTargetService?.staffId === member.id"
               :disabled="staffPickerLoading"
-              @click="selectStaffFromPicker(member)"
-            >
-              <span class="staff-picker-avatar">{{ staffDisplayName(member).slice(0, 1).toUpperCase() }}</span>
-              <span class="staff-picker-option-copy">
-                <span class="staff-picker-name">{{ staffDisplayName(member) }}</span>
-                <span class="staff-picker-status">Available</span>
-              </span>
-              <span v-if="isVisitStaffPicker" class="staff-picker-check" aria-hidden="true">
-                {{ isVisitStaffSelected(member) ? '✓' : '' }}
-              </span>
-              <span v-else class="staff-picker-chevron">›</span>
-            </button>
+              @select="selectStaffFromPicker(member)"
+            />
           </div>
         </div>
 
@@ -1970,29 +1960,17 @@ watch(completedPage, async (val) => {
             <span class="staff-picker-count">{{ busyPickerStaff.length }}</span>
           </div>
           <div class="staff-picker-grid">
-            <button
+            <StaffPickerOption
               v-for="member in busyPickerStaff"
               :key="member.id"
-              type="button"
-              class="staff-picker-option"
-              :class="{ 'staff-picker-option--selected': isVisitStaffPicker && isVisitStaffSelected(member) }"
-              :aria-pressed="isVisitStaffPicker ? isVisitStaffSelected(member) : undefined"
+              :name="staffDisplayName(member)"
+              :status="staffWorkloadLabel(member)"
+              :detail="staffWorkloadDetails(member)"
+              variant="busy"
+              :selected="isVisitStaffPicker ? isVisitStaffSelected(member) : pickerTargetService?.staffId === member.id"
               :disabled="staffPickerLoading"
-              @click="selectStaffFromPicker(member)"
-            >
-              <span class="staff-picker-avatar staff-picker-avatar--busy">{{ staffDisplayName(member).slice(0, 1).toUpperCase() }}</span>
-              <span class="staff-picker-option-copy">
-                <span class="staff-picker-name">{{ staffDisplayName(member) }}</span>
-                <span class="staff-picker-status">{{ staffWorkloadLabel(member) }}</span>
-                <span v-if="staffWorkloadDetails(member)" class="staff-picker-assignment-detail">
-                  {{ staffWorkloadDetails(member) }}
-                </span>
-              </span>
-              <span v-if="isVisitStaffPicker" class="staff-picker-check" aria-hidden="true">
-                {{ isVisitStaffSelected(member) ? '✓' : '' }}
-              </span>
-              <span v-else class="staff-picker-chevron">›</span>
-            </button>
+              @select="selectStaffFromPicker(member)"
+            />
           </div>
         </div>
 
@@ -2002,17 +1980,14 @@ watch(completedPage, async (val) => {
             <span class="staff-picker-count">{{ inactivePickerStaff.length }}</span>
           </div>
           <div class="staff-picker-grid">
-            <div
+            <StaffPickerOption
               v-for="member in inactivePickerStaff"
               :key="member.id"
-              class="staff-picker-option staff-picker-option--inactive"
-            >
-              <span class="staff-picker-avatar staff-picker-avatar--inactive">{{ staffDisplayName(member).slice(0, 1).toUpperCase() }}</span>
-              <span class="staff-picker-option-copy">
-                <span class="staff-picker-name">{{ staffDisplayName(member) }}</span>
-                <span class="staff-picker-status">Inactive</span>
-              </span>
-            </div>
+              :name="staffDisplayName(member)"
+              status="Inactive"
+              variant="inactive"
+              :selectable="false"
+            />
           </div>
         </div>
 
@@ -3019,112 +2994,6 @@ watch(completedPage, async (val) => {
   .staff-picker-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-}
-.staff-picker-option {
-  display: flex;
-  width: 100%;
-  min-height: 68px;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  background: #fff;
-  color: #0f172a;
-  cursor: pointer;
-  text-align: left;
-  touch-action: manipulation;
-  -webkit-user-select: none;
-  user-select: none;
-  transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
-}
-.staff-picker-option:hover:not(:disabled),
-.staff-picker-option:focus-visible {
-  border-color: var(--sf-primary, #0ea5e9);
-  box-shadow: 0 8px 18px rgba(14, 165, 233, 0.14);
-  outline: none;
-  transform: translateY(-1px);
-}
-.staff-picker-option--selected {
-  border-color: var(--sf-primary, #0ea5e9);
-  background: #f0f9ff;
-  box-shadow: inset 0 0 0 1px var(--sf-primary, #0ea5e9);
-}
-.staff-picker-option:disabled {
-  cursor: wait;
-  opacity: 0.65;
-}
-.staff-picker-avatar {
-  display: inline-flex;
-  width: 38px;
-  height: 38px;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  background: #dcfce7;
-  color: #15803d;
-  font-size: 16px;
-  font-weight: 800;
-}
-.staff-picker-avatar--busy {
-  background: #fef3c7;
-  color: #b45309;
-}
-.staff-picker-avatar--inactive {
-  background: #e2e8f0;
-  color: #64748b;
-}
-.staff-picker-option--inactive {
-  cursor: default;
-  opacity: 0.72;
-}
-.staff-picker-option-copy {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  flex-direction: column;
-  gap: 2px;
-}
-.staff-picker-name {
-  overflow: hidden;
-  font-size: 15px;
-  font-weight: 750;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.staff-picker-status {
-  color: #64748b;
-  font-size: 12px;
-}
-.staff-picker-assignment-detail {
-  overflow: hidden;
-  color: #94a3b8;
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.staff-picker-chevron {
-  color: #94a3b8;
-  font-size: 24px;
-  line-height: 1;
-}
-.staff-picker-check {
-  display: inline-flex;
-  width: 30px;
-  height: 30px;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid #cbd5e1;
-  border-radius: 9px;
-  color: #fff;
-  font-size: 18px;
-  font-weight: 800;
-}
-.staff-picker-option--selected .staff-picker-check {
-  border-color: var(--sf-primary, #0ea5e9);
-  background: var(--sf-primary, #0ea5e9);
 }
 .staff-picker-empty {
   padding: 14px;
