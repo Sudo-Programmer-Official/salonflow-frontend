@@ -1282,9 +1282,16 @@ const saveVisitStaffSelection = async () => {
   if (!target || staffPickerLoading.value) return;
   const selectedIds = [...visitStaffIds.value];
   const serveAfterSelection = staffPickerServeAfterAssignment.value;
+  const selectedStaffId = selectedIds[0];
   staffPickerLoading.value = true;
   try {
     await setVisitStaffForCheckIn(target.id, selectedIds);
+    if (serveAfterSelection && selectedIds.length === 1 && selectedStaffId) {
+      for (const service of target.services ?? []) {
+        if (!service.id || service.staffId) continue;
+        await assignStaffToCheckIn(target.id, selectedStaffId, service.id, false);
+      }
+    }
     staffPickerOpen.value = false;
     await Promise.all([loadQueue(), loadCounts(), loadInServiceStaffQueue()]);
     const refreshedTarget = queue.value.find((item) => item.id === target.id);

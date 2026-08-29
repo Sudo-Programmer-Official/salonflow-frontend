@@ -271,7 +271,7 @@ const serviceQuantity = (service: ServiceItem) =>
   persistedServiceLines.value.filter((line) => serviceMatchesPersistedLine(service, line)).length;
 
 const serviceLineStaffLabel = (line: CheckoutServiceLine) =>
-  line.staffName?.trim() || (line.staffId ? 'Assigned' : 'Assign later');
+  line.staffName?.trim() || (line.staffId ? 'Assigned' : 'Assign technician');
 const firstCatalogServiceLine = (service: ServiceItem) =>
   persistedServiceLines.value.find((line) => serviceMatchesPersistedLine(service, line)) ?? null;
 
@@ -379,6 +379,21 @@ const availablePickerStaff = computed(() =>
 );
 const busyPickerStaff = computed(() =>
   orderedPickerStaff.value.filter((member) => Boolean(staffWorkload.value.get(member.id)?.count)),
+);
+const visitStaffPicker = computed(() => {
+  const staffById = new Map(orderedPickerStaff.value.map((member) => [member.id, member]));
+  return (item.value?.visitStaff ?? [])
+    .slice()
+    .sort((a, b) => (a.position ?? Number.MAX_SAFE_INTEGER) - (b.position ?? Number.MAX_SAFE_INTEGER))
+    .map((assignment) => staffById.get(assignment.staffId))
+    .filter((member): member is StaffMember => Boolean(member));
+});
+const visitStaffPickerIds = computed(() => new Set(visitStaffPicker.value.map((member) => member.id)));
+const otherAvailablePickerStaff = computed(() =>
+  availablePickerStaff.value.filter((member) => !visitStaffPickerIds.value.has(member.id)),
+);
+const otherBusyPickerStaff = computed(() =>
+  busyPickerStaff.value.filter((member) => !visitStaffPickerIds.value.has(member.id)),
 );
 const inactivePickerStaff = computed(() =>
   staffList.value
@@ -800,14 +815,9 @@ const addServiceFromCatalog = async (service: ServiceItem) => {
   if (!item.value || serviceMutationLoading.value) return;
   serviceMutationLoading.value = true;
   try {
-    const result = await addServiceToCheckIn(item.value.id, service.id, null);
+    await addServiceToCheckIn(item.value.id, service.id, null);
     await loadCheckin({ silent: true });
-    const serviceLineId = (result as { serviceLineId?: string } | null)?.serviceLineId;
-    if (staffTrackingEnabled.value && serviceLineId) {
-      await openServiceStaffPicker(serviceLineId);
-    } else {
-      ElMessage.success(`${service.name} added to this visit`);
-    }
+    ElMessage.success(`${service.name} added to this visit`);
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to add service');
   } finally {
@@ -1387,14 +1397,38 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <div v-if="availablePickerStaff.length" class="staff-picker-section">
+          <div v-if="visitStaffPicker.length" class="staff-picker-section">
             <div class="staff-picker-section-title">
-              <span>Available</span>
-              <span class="staff-picker-count">{{ availablePickerStaff.length }}</span>
+              <span>Serving this customer</span>
+              <span class="staff-picker-count">{{ visitStaffPicker.length }}</span>
             </div>
             <div class="staff-picker-grid">
               <button
-                v-for="member in availablePickerStaff"
+                v-for="member in visitStaffPicker"
+                :key="member.id"
+                type="button"
+                class="staff-picker-option"
+                :disabled="staffPickerLoading"
+                @click="assignStaffFromCheckoutPicker(member)"
+              >
+                <span class="staff-picker-avatar">{{ staffDisplayName(member).slice(0, 1).toUpperCase() }}</span>
+                <span class="staff-picker-option-copy">
+                  <span class="staff-picker-name">{{ staffDisplayName(member) }}</span>
+                  <span class="staff-picker-status">Visit staff</span>
+                </span>
+                <span class="staff-picker-chevron">›</span>
+              </button>
+            </div>
+          </div>
+
+          <div v-if="otherAvailablePickerStaff.length" class="staff-picker-section">
+            <div class="staff-picker-section-title">
+              <span>Available</span>
+              <span class="staff-picker-count">{{ otherAvailablePickerStaff.length }}</span>
+            </div>
+            <div class="staff-picker-grid">
+              <button
+                v-for="member in otherAvailablePickerStaff"
                 :key="member.id"
                 type="button"
                 class="staff-picker-option"
@@ -1411,14 +1445,14 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <div v-if="busyPickerStaff.length" class="staff-picker-section">
+          <div v-if="otherBusyPickerStaff.length" class="staff-picker-section">
             <div class="staff-picker-section-title">
               <span>Busy</span>
-              <span class="staff-picker-count">{{ busyPickerStaff.length }}</span>
+              <span class="staff-picker-count">{{ otherBusyPickerStaff.length }}</span>
             </div>
             <div class="staff-picker-grid">
               <button
-                v-for="member in busyPickerStaff"
+                v-for="member in otherBusyPickerStaff"
                 :key="member.id"
                 type="button"
                 class="staff-picker-option"
@@ -1576,7 +1610,7 @@ onBeforeUnmount(() => {
                     :disabled="serviceMutationLoading"
                     @click="openServiceStaffPicker(line.id)"
                   >
-                    {{ line.staffId ? `👤 ${serviceLineStaffLabel(line)}` : 'Assign later' }}
+                    {{ line.staffId ? `👤 ${serviceLineStaffLabel(line)}` : 'Assign technician' }}
                     <span aria-hidden="true">›</span>
                   </button>
                   <span v-else-if="line.staffId" class="selected-meta-staff">👤 {{ serviceLineStaffLabel(line) }}</span>
@@ -1662,7 +1696,7 @@ onBeforeUnmount(() => {
                   :disabled="serviceMutationLoading"
                   @click="openServiceStaffPicker(row.svc.id)"
                 >
-                  {{ (row.svc as any).staffId ? `👤 ${serviceLineStaffLabel(row.svc as CheckoutServiceLine)}` : 'Assign later' }}
+                  {{ (row.svc as any).staffId ? `👤 ${serviceLineStaffLabel(row.svc as CheckoutServiceLine)}` : 'Assign technician' }}
                   <span aria-hidden="true">›</span>
                 </button>
                 <span v-else-if="(row.svc as any).staffId">👤 {{ serviceLineStaffLabel(row.svc as CheckoutServiceLine) }}</span>
