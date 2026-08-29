@@ -43,6 +43,13 @@ import { formatPhone } from '../../utils/format';
 import { deriveStaffWorkload } from '../../utils/staffAvailability';
 import { hasValidStaffAssignment } from '../../utils/staffAssignment';
 import StaffPickerOption from '../../components/admin/StaffPickerOption.vue';
+import StaffPickerModalShell from '../../components/admin/StaffPickerModalShell.vue';
+import {
+  cancelServiceStaff,
+  commitServiceStaff,
+  createServiceStaffPickerState,
+  selectServiceStaff,
+} from '../../utils/staffPickerState';
 
 const PAGE_SIZE = 10;
 
@@ -126,6 +133,13 @@ const staffPickerServiceToAdd = ref<ServiceOption | null>(null);
 const staffPickerMode = ref<'service' | 'visit'>('service');
 const visitStaffIds = ref<string[]>([]);
 const initialVisitStaffIds = ref<string[]>([]);
+const serviceStaffPickerState = ref(createServiceStaffPickerState());
+const pendingServiceStaffId = computed({
+  get: () => serviceStaffPickerState.value.pendingStaffId,
+  set: (staffId: string | null) => {
+    serviceStaffPickerState.value = selectServiceStaff(serviceStaffPickerState.value, staffId);
+  },
+});
 const staffPickerLoading = ref(false);
 const serviceStaffDrawerOpen = ref(false);
 const serviceStaffTarget = ref<QueueItem | null>(null);
@@ -1128,6 +1142,9 @@ const openStaffPicker = (
   staffPickerServeAfterAssignment.value = serveAfterAssignment;
   staffPickerServiceToAdd.value = null;
   staffPickerMode.value = 'service';
+  serviceStaffPickerState.value = createServiceStaffPickerState(
+    item.services?.find((service) => service.id === serviceLineId)?.staffId,
+  );
   visitStaffIds.value = [];
   initialVisitStaffIds.value = [];
   staffPickerOpen.value = true;
@@ -1152,6 +1169,7 @@ const openVisitStaffPicker = async (item: QueueItem, serveAfterSelection = false
   staffPickerServeAfterAssignment.value = serveAfterSelection;
   staffPickerServiceToAdd.value = null;
   staffPickerMode.value = 'visit';
+  serviceStaffPickerState.value = createServiceStaffPickerState();
   visitStaffIds.value = Array.from(new Set(selectedIds)).slice(0, 3);
   initialVisitStaffIds.value = [...visitStaffIds.value];
   staffPickerOpen.value = true;
@@ -1216,6 +1234,7 @@ const selectServiceToAdd = (service: ServiceOption) => {
   staffPickerServeAfterAssignment.value = false;
   staffPickerServiceToAdd.value = service;
   staffPickerMode.value = 'service';
+  serviceStaffPickerState.value = createServiceStaffPickerState();
   visitStaffIds.value = [];
   initialVisitStaffIds.value = [];
   staffPickerOpen.value = true;
@@ -1239,6 +1258,7 @@ const closeStaffPicker = () => {
   staffPickerServeAfterAssignment.value = false;
   staffPickerServiceToAdd.value = null;
   staffPickerMode.value = 'service';
+  serviceStaffPickerState.value = createServiceStaffPickerState();
   visitStaffIds.value = [];
   initialVisitStaffIds.value = [];
 };
@@ -1322,36 +1342,58 @@ const openServiceLineDrawerFromPicker = () => {
   openServiceStaffDrawer(target);
 };
 
-const selectStaffFromPicker = async (member: StaffMember) => {
+const selectStaffFromPicker = (member: StaffMember) => {
   if (isVisitStaffPicker.value) {
     toggleVisitStaff(member);
     return;
   }
+  serviceStaffPickerState.value = selectServiceStaff(
+    serviceStaffPickerState.value,
+    member.id,
+  );
+};
+
+const isStaffSelectedInPicker = (member: StaffMember) =>
+  isVisitStaffPicker.value
+    ? isVisitStaffSelected(member)
+    : pendingServiceStaffId.value === member.id;
+
+const saveServiceStaffSelection = async () => {
   const target = staffPickerTarget.value;
-  if (!target) return;
+  const selectedStaffId = pendingServiceStaffId.value;
+  if (!target || staffPickerLoading.value) return;
+  if (!selectedStaffId) {
+    ElMessage.warning('Select a technician before saving');
+    return;
+  }
   const serviceLineId = staffPickerLineId.value;
   const serveAfterAssignment = staffPickerServeAfterAssignment.value;
   const serviceToAdd = staffPickerServiceToAdd.value;
   staffPickerLoading.value = true;
   try {
     if (serviceToAdd) {
-      await addServiceToCheckIn(target.id, serviceToAdd.id, member.id);
+      await addServiceToCheckIn(target.id, serviceToAdd.id, selectedStaffId);
+      serviceStaffPickerState.value = commitServiceStaff(serviceStaffPickerState.value);
       staffPickerOpen.value = false;
       await Promise.all([loadQueue(), loadInServiceStaffQueue()]);
       const refreshedTarget = queue.value.find((item) => item.id === target.id);
       if (refreshedTarget && serviceStaffDrawerOpen.value) {
         serviceStaffTarget.value = refreshedTarget;
       }
-      ElMessage.success(`${serviceToAdd.name} added for ${staffDisplayName(member)}`);
+      const selectedStaff = staff.value.find((member) => member.id === selectedStaffId);
+      ElMessage.success(
+        `${serviceToAdd.name} added for ${selectedStaff ? staffDisplayName(selectedStaff) : 'selected staff'}`,
+      );
       return;
     }
 
     await assignStaffToCheckIn(
       target.id,
-      member.id,
+      selectedStaffId,
       serviceLineId,
       false,
     );
+    serviceStaffPickerState.value = commitServiceStaff(serviceStaffPickerState.value);
     if (serviceLineId) {
       staffPickerOpen.value = false;
       await Promise.all([loadQueue(), loadInServiceStaffQueue()]);
@@ -1368,7 +1410,10 @@ const selectStaffFromPicker = async (member: StaffMember) => {
         closeServiceStaffDrawer();
         await runServe(refreshedTarget);
       } else {
-        ElMessage.success(`${staffDisplayName(member)} assigned to ${pickerTargetService.value?.serviceName || 'service'}`);
+        const selectedStaff = staff.value.find((member) => member.id === selectedStaffId);
+        ElMessage.success(
+          `${selectedStaff ? staffDisplayName(selectedStaff) : 'Staff'} assigned to ${pickerTargetService.value?.serviceName || 'service'}`,
+        );
       }
       return;
     }
@@ -1376,7 +1421,7 @@ const selectStaffFromPicker = async (member: StaffMember) => {
     staffPickerOpen.value = false;
     await runServe(target);
   } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : 'Failed to assign staff');
+    ElMessage.error(err instanceof Error ? err.message : 'Failed to save staff assignment');
   } finally {
     staffPickerLoading.value = false;
     if (!staffPickerOpen.value) {
@@ -1384,6 +1429,8 @@ const selectStaffFromPicker = async (member: StaffMember) => {
       staffPickerLineId.value = null;
       staffPickerServeAfterAssignment.value = false;
       staffPickerServiceToAdd.value = null;
+      serviceStaffPickerState.value = cancelServiceStaff(serviceStaffPickerState.value);
+      serviceStaffPickerState.value = createServiceStaffPickerState();
     }
   }
 };
@@ -1923,19 +1970,14 @@ watch(completedPage, async (val) => {
       </div>
     </ElDrawer>
 
-    <ElDialog
+    <StaffPickerModalShell
       v-model="staffPickerOpen"
       :title="pickerTitle"
-      width="min(520px, calc(100vw - 24px))"
-      class="staff-picker-modal"
+      :customer="staffPickerTarget?.customerName || 'Customer'"
+      :description="pickerDescription"
       @closed="closeStaffPicker"
     >
-      <div class="staff-picker-body">
-        <div class="staff-picker-context">
-          <div class="staff-picker-customer">{{ staffPickerTarget?.customerName || 'Customer' }}</div>
-          <div class="staff-picker-description">{{ pickerDescription }}</div>
-        </div>
-
+      <template #default>
         <div v-if="availablePickerStaff.length" class="staff-picker-section">
           <div class="staff-picker-section-title">
             <span>Available</span>
@@ -1947,7 +1989,7 @@ watch(completedPage, async (val) => {
               :key="member.id"
               :name="staffDisplayName(member)"
               status="Available"
-              :selected="isVisitStaffPicker ? isVisitStaffSelected(member) : pickerTargetService?.staffId === member.id"
+              :selected="isStaffSelectedInPicker(member)"
               :disabled="staffPickerLoading"
               @select="selectStaffFromPicker(member)"
             />
@@ -1967,7 +2009,7 @@ watch(completedPage, async (val) => {
               :status="staffWorkloadLabel(member)"
               :detail="staffWorkloadDetails(member)"
               variant="busy"
-              :selected="isVisitStaffPicker ? isVisitStaffSelected(member) : pickerTargetService?.staffId === member.id"
+              :selected="isStaffSelectedInPicker(member)"
               :disabled="staffPickerLoading"
               @select="selectStaffFromPicker(member)"
             />
@@ -1986,6 +2028,7 @@ watch(completedPage, async (val) => {
               :name="staffDisplayName(member)"
               status="Inactive"
               variant="inactive"
+              :selected="isStaffSelectedInPicker(member)"
               :selectable="false"
             />
           </div>
@@ -1994,8 +2037,9 @@ watch(completedPage, async (val) => {
         <div v-if="!orderedPickerStaff.length" class="staff-picker-empty">
           No active technicians are available. Add staff in Settings before starting service.
         </div>
+      </template>
 
-        <div class="staff-picker-footer">
+      <template #footer>
           <span v-if="isVisitStaffPicker" class="staff-picker-selection-count">
             {{ selectedVisitStaffCount }} of 3 selected
           </span>
@@ -2018,11 +2062,19 @@ watch(completedPage, async (val) => {
           >
             Done
           </ElButton>
-          <ElButton v-else :disabled="staffPickerLoading" @click="closeStaffPicker">Cancel</ElButton>
+          <template v-else>
+            <ElButton :disabled="staffPickerLoading" @click="closeStaffPicker">Cancel</ElButton>
+            <ElButton
+              type="primary"
+              :disabled="staffPickerLoading || !pendingServiceStaffId"
+              @click="saveServiceStaffSelection"
+            >
+              Done
+            </ElButton>
+          </template>
           <span v-if="staffPickerLoading" class="text-xs text-slate-500">Saving assignment…</span>
-        </div>
-      </div>
-    </ElDialog>
+      </template>
+    </StaffPickerModalShell>
 
     <div
       v-if="!loading && queue.length === 0 && completedItems.length === 0"
@@ -2925,40 +2977,6 @@ watch(completedPage, async (val) => {
   min-height: 46px;
   min-width: 104px;
 }
-.staff-picker-body {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  padding: 4px 2px;
-}
-:global(.staff-picker-modal.el-dialog) {
-  width: min(520px, calc(100vw - 24px)) !important;
-  max-width: calc(100vw - 24px);
-  margin-top: 6vh !important;
-}
-:global(.staff-picker-modal .el-dialog__body) {
-  max-height: calc(100dvh - 170px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-}
-.staff-picker-context {
-  padding: 12px 14px;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  background: #f8fafc;
-}
-.staff-picker-customer {
-  color: #0f172a;
-  font-size: 17px;
-  font-weight: 750;
-}
-.staff-picker-description {
-  margin-top: 3px;
-  color: #64748b;
-  font-size: 13px;
-  line-height: 1.45;
-}
 .staff-picker-section {
   display: flex;
   flex-direction: column;
@@ -3002,23 +3020,6 @@ watch(completedPage, async (val) => {
   color: #64748b;
   font-size: 13px;
   text-align: center;
-}
-.staff-picker-footer {
-  display: flex;
-  flex-wrap: wrap;
-  min-height: 42px;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  position: sticky;
-  bottom: 0;
-  padding: 10px 0 max(10px, env(safe-area-inset-bottom));
-  border-top: 1px solid #e2e8f0;
-  background: #fff;
-}
-.staff-picker-footer :deep(.el-button) {
-  min-height: 44px;
-  padding: 0 18px;
 }
 .staff-picker-selection-count {
   margin-right: auto;

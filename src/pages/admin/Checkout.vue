@@ -27,7 +27,14 @@ import {
   resolveCheckoutPaymentState,
   shouldClearRedeemSelection,
 } from '@/utils/checkoutPaymentState';
+import {
+  cancelServiceStaff,
+  commitServiceStaff,
+  createServiceStaffPickerState,
+  selectServiceStaff,
+} from '@/utils/staffPickerState';
 import StaffPickerOption from '@/components/admin/StaffPickerOption.vue';
+import StaffPickerModalShell from '@/components/admin/StaffPickerModalShell.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -78,6 +85,13 @@ const checkoutStep = ref<'services' | 'payment'>('services');
 const serviceMutationLoading = ref(false);
 const staffPickerOpen = ref(false);
 const staffPickerLineId = ref<string | null>(null);
+const serviceStaffPickerState = ref(createServiceStaffPickerState());
+const pendingStaffId = computed({
+  get: () => serviceStaffPickerState.value.pendingStaffId,
+  set: (staffId: string | null) => {
+    serviceStaffPickerState.value = selectServiceStaff(serviceStaffPickerState.value, staffId);
+  },
+});
 const staffPickerLoading = ref(false);
 const availablePromotions = ref<AvailablePromotion[]>([]);
 const promotionsLoading = ref(false);
@@ -770,6 +784,9 @@ const openServiceStaffPicker = async (serviceLineId: string) => {
   if (!staffTrackingEnabled.value || !serviceLineId) return;
   await ensureStaffLoaded();
   staffPickerLineId.value = serviceLineId;
+  serviceStaffPickerState.value = createServiceStaffPickerState(
+    item.value?.services?.find((service) => service.id === serviceLineId)?.staffId,
+  );
   staffPickerOpen.value = true;
 };
 
@@ -778,38 +795,56 @@ const closeServiceStaffPicker = (forceOrEvent: boolean | MouseEvent = false) => 
   if (staffPickerLoading.value && !force) return;
   staffPickerOpen.value = false;
   staffPickerLineId.value = null;
+  serviceStaffPickerState.value = cancelServiceStaff(serviceStaffPickerState.value);
+  serviceStaffPickerState.value = createServiceStaffPickerState();
 };
 
-const assignStaffFromCheckoutPicker = async (member: StaffMember) => {
+const selectStaffFromCheckoutPicker = (member: StaffMember) => {
+  serviceStaffPickerState.value = selectServiceStaff(
+    serviceStaffPickerState.value,
+    member.id,
+  );
+};
+
+const serviceStaffSelectionReady = computed(() =>
+  Boolean(pendingStaffId.value || pickerServiceLine.value?.staffId),
+);
+
+const saveCheckoutStaffAssignment = async () => {
   const line = pickerServiceLine.value;
   if (!item.value || !line?.id) return;
+  const selectedStaffId = pendingStaffId.value;
+  if (!selectedStaffId && !line.staffId) {
+    ElMessage.warning('Select a technician before saving');
+    return;
+  }
   staffPickerLoading.value = true;
   try {
-    await assignStaffToCheckIn(item.value.id, member.id, line.id, false);
+    if (selectedStaffId) {
+      await assignStaffToCheckIn(item.value.id, selectedStaffId, line.id, false);
+    } else {
+      await unassignStaffFromCheckIn(item.value.id, line.id);
+    }
+    serviceStaffPickerState.value = commitServiceStaff(serviceStaffPickerState.value);
     await loadCheckin({ silent: true });
     closeServiceStaffPicker(true);
-    ElMessage.success(`${staffDisplayName(member)} assigned to ${line.serviceName}`);
+    if (selectedStaffId) {
+      const selectedStaff = staffList.value.find((member) => member.id === selectedStaffId);
+      ElMessage.success(
+        `${selectedStaff ? staffDisplayName(selectedStaff) : 'Staff'} assigned to ${line.serviceName}`,
+      );
+    } else {
+      ElMessage.success(`${line.serviceName} is now unassigned`);
+    }
   } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : 'Failed to assign staff');
+    ElMessage.error(err instanceof Error ? err.message : 'Failed to save staff assignment');
   } finally {
     staffPickerLoading.value = false;
   }
 };
 
-const leaveServiceUnassigned = async () => {
-  const line = pickerServiceLine.value;
-  if (!item.value || !line?.id || !line.staffId) return;
-  staffPickerLoading.value = true;
-  try {
-    await unassignStaffFromCheckIn(item.value.id, line.id);
-    await loadCheckin({ silent: true });
-    closeServiceStaffPicker(true);
-    ElMessage.success(`${line.serviceName} is now unassigned`);
-  } catch (err) {
-    ElMessage.error(err instanceof Error ? err.message : 'Failed to unassign staff');
-  } finally {
-    staffPickerLoading.value = false;
-  }
+const leaveServiceUnassigned = () => {
+  pendingStaffId.value = null;
 };
 
 const addServiceFromCatalog = async (service: ServiceItem) => {
@@ -1382,22 +1417,14 @@ onBeforeUnmount(() => {
         </template>
       </ElDialog>
 
-      <ElDialog
+      <StaffPickerModalShell
         v-model="staffPickerOpen"
         :title="pickerServiceLine ? `Assign staff · ${pickerServiceLine.serviceName}` : 'Assign staff'"
-        width="min(520px, calc(100vw - 24px))"
-        class="checkout-staff-picker-modal"
-        :close-on-click-modal="false"
+        :customer="item?.customerName || 'Customer'"
+        description="Choose the technician for this service line. Busy technicians can still be selected."
         @closed="closeServiceStaffPicker"
       >
-        <div class="staff-picker-body">
-          <div class="staff-picker-context">
-            <div class="staff-picker-customer">{{ item?.customerName || 'Customer' }}</div>
-            <div class="staff-picker-description">
-              Choose the technician for this service line. Busy technicians can still be selected.
-            </div>
-          </div>
-
+        <template #default>
           <div v-if="visitStaffPicker.length" class="staff-picker-section">
             <div class="staff-picker-section-title">
               <span>Serving this customer</span>
@@ -1409,9 +1436,9 @@ onBeforeUnmount(() => {
                 :key="member.id"
                 :name="staffDisplayName(member)"
                 status="Visit staff"
-                :selected="pickerServiceLine?.staffId === member.id"
+                :selected="pendingStaffId === member.id"
                 :disabled="staffPickerLoading"
-                @select="assignStaffFromCheckoutPicker(member)"
+                @select="selectStaffFromCheckoutPicker(member)"
               />
             </div>
           </div>
@@ -1427,9 +1454,9 @@ onBeforeUnmount(() => {
                 :key="member.id"
                 :name="staffDisplayName(member)"
                 status="Available"
-                :selected="pickerServiceLine?.staffId === member.id"
+                :selected="pendingStaffId === member.id"
                 :disabled="staffPickerLoading"
-                @select="assignStaffFromCheckoutPicker(member)"
+                @select="selectStaffFromCheckoutPicker(member)"
               />
             </div>
           </div>
@@ -1447,9 +1474,9 @@ onBeforeUnmount(() => {
                 :status="staffWorkloadLabel(member)"
                 :detail="staffWorkloadDetails(member)"
                 variant="busy"
-                :selected="pickerServiceLine?.staffId === member.id"
+                :selected="pendingStaffId === member.id"
                 :disabled="staffPickerLoading"
-                @select="assignStaffFromCheckoutPicker(member)"
+                @select="selectStaffFromCheckoutPicker(member)"
               />
             </div>
           </div>
@@ -1466,6 +1493,7 @@ onBeforeUnmount(() => {
                 :name="staffDisplayName(member)"
                 status="Inactive"
                 variant="inactive"
+                :selected="pendingStaffId === member.id"
                 :selectable="false"
               />
             </div>
@@ -1474,10 +1502,11 @@ onBeforeUnmount(() => {
           <div v-if="!orderedPickerStaff.length" class="staff-picker-empty">
             No active technicians are available. Add staff in Settings before assigning service.
           </div>
+        </template>
 
-          <div class="staff-picker-footer">
+        <template #footer>
             <button
-              v-if="pickerServiceLine?.staffId"
+              v-if="pendingStaffId || pickerServiceLine?.staffId"
               type="button"
               class="picker-unassign"
               :disabled="staffPickerLoading"
@@ -1486,10 +1515,16 @@ onBeforeUnmount(() => {
               Leave unassigned
             </button>
             <ElButton :disabled="staffPickerLoading" @click="closeServiceStaffPicker">Cancel</ElButton>
+            <ElButton
+              type="primary"
+              :disabled="staffPickerLoading || !serviceStaffSelectionReady"
+              @click="saveCheckoutStaffAssignment"
+            >
+              Done
+            </ElButton>
             <span v-if="staffPickerLoading" class="staff-picker-saving">Saving assignment…</span>
-          </div>
-        </div>
-      </ElDialog>
+        </template>
+      </StaffPickerModalShell>
 
       <!-- Column 2: Services -->
       <section class="checkout-panel services" v-if="checkoutStep === 'services'">
@@ -2591,38 +2626,6 @@ onBeforeUnmount(() => {
   font-size: 13px;
   font-weight: 650;
 }
-.checkout-staff-picker-modal :deep(.el-dialog) {
-  border-radius: 18px;
-}
-.staff-picker-body {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  padding: 4px 2px;
-}
-.checkout-staff-picker-modal :deep(.el-dialog__body) {
-  max-height: calc(100dvh - 170px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-}
-.staff-picker-context {
-  padding: 12px 14px;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  background: #f8fafc;
-}
-.staff-picker-customer {
-  color: #0f172a;
-  font-size: 17px;
-  font-weight: 750;
-}
-.staff-picker-description {
-  margin-top: 3px;
-  color: #64748b;
-  font-size: 13px;
-  line-height: 1.45;
-}
 .staff-picker-section {
   display: flex;
   flex-direction: column;
@@ -2661,14 +2664,6 @@ onBeforeUnmount(() => {
   color: #64748b;
   font-size: 13px;
   text-align: center;
-}
-.staff-picker-footer {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  flex-wrap: wrap;
-  padding-top: 2px;
 }
 .staff-picker-saving {
   color: #64748b;

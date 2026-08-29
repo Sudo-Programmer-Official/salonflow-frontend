@@ -53,6 +53,7 @@ const emit = defineEmits<{
   <div
     v-else
     class="staff-picker-option staff-picker-option--inactive"
+    :class="{ 'staff-picker-option--selected': selected }"
   >
     <span class="staff-picker-avatar staff-picker-avatar--inactive">
       {{ name.slice(0, 1).toUpperCase() }}
@@ -62,6 +63,7 @@ const emit = defineEmits<{
       <span class="staff-picker-status">{{ status }}</span>
       <span v-if="detail" class="staff-picker-assignment-detail">{{ detail }}</span>
     </span>
+    <span v-if="selected" class="staff-picker-check" aria-hidden="true">✓</span>
   </div>
 </template>
 
