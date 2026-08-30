@@ -230,6 +230,12 @@ const persistedServiceLines = computed<CheckoutServiceLine[]>(() =>
 );
 
 const requestedServices = computed(() => item.value?.requestedServices ?? []);
+const actionableRequestedServices = computed(() =>
+  requestedServices.value.filter((requested) => requested.status !== 'FULFILLED'),
+);
+const fulfilledRequestedServiceCount = computed(
+  () => requestedServices.value.filter((requested) => requested.status === 'FULFILLED').length,
+);
 
 const selectedServiceObjects = computed<Array<CheckoutServiceLine | CustomAddIn>>(() => [
   ...persistedServiceLines.value,
@@ -361,15 +367,6 @@ const hasBillItems = computed(() => customTotalValid.value || selectedServiceObj
 const staffTrackingEnabled = computed(
   () => settings.value?.enableStaffSelection === true,
 );
-const assignedStaff = computed(() => {
-  const unique = new Map<string, string>();
-  (item.value?.services ?? []).forEach((service) => {
-    if (service.staffId) {
-      unique.set(service.staffId, service.staffName || service.staffId);
-    }
-  });
-  return Array.from(unique.entries()).map(([id, name]) => ({ id, name }));
-});
 const unassignedServiceLines = computed(() =>
   (item.value?.services ?? []).filter(
     (service): service is typeof service & { id: string } => Boolean(service.id) && !service.staffId,
@@ -1587,90 +1584,69 @@ onBeforeUnmount(() => {
               <div class="services-title">Services</div>
               <div class="panel-sub">Review customer requests, then add performed services to the bill.</div>
             </div>
-            <ElInput
-              v-model="search"
-              size="large"
-              placeholder="Search services"
-              class="services-search"
-              clearable
-            />
           </div>
-          <div v-if="!filteredServices.length" class="empty-state">No services match.</div>
-          <div v-else class="service-list-scroll scrollable-pane">
-            <div class="service-grid">
-              <button
-                v-for="service in filteredServices"
-                :key="service.id"
-                type="button"
-                class="service-tile"
-                :class="{
-                  active: isSelected(service.id) && !isAddInService(service),
-                  inherited: isSelected(service.id) && !isAddInService(service),
-                  addin: isAddInService(service),
-                  'addin-filled': isAddInService(service) && currentAddIn,
-                }"
-                :style="serviceStyle(service)"
-                :aria-pressed="isSelected(service.id)"
-                :disabled="serviceMutationLoading && !isAddInService(service)"
-                @click="toggleService(service.id)"
-              >
-                <div class="svc-top">
-                  <span class="svc-icon">{{ service.icon || '💅' }}</span>
-                  <span v-if="serviceQuantity(service) > 1 && !isAddInService(service)" class="svc-quantity">
-                    {{ serviceQuantity(service) }}
-                  </span>
-                  <span v-else-if="isSelected(service.id) && !isAddInService(service)" class="svc-check">✓</span>
-                  <span
-                    v-else-if="popularServiceIds.includes(service.id) && !isAddInService(service)"
-                    class="svc-popular"
-                  >
-                    Popular
-                  </span>
+          <div class="sold-services">
+            <div class="sold-services-header">
+              <div>
+                <div class="panel-title">Sold services for this visit</div>
+                <div class="panel-sub">Saved service lines are charged at checkout.</div>
+              </div>
+              <span class="saved-badge">Saved</span>
+            </div>
+            <div v-if="persistedServiceLines.length" class="selected-list">
+              <div v-for="line in persistedServiceLines" :key="line.id" class="selected-row sold-service-row">
+                <div class="selected-name">
+                  <span class="svc-icon">💅</span>
+                  <span>{{ line.name }}</span>
                 </div>
-                <template v-if="!isAddInService(service)">
-                  <div class="svc-name">{{ service.name }}</div>
-                  <div v-if="service.priceCents !== undefined && service.priceCents !== null" class="svc-price">
-                    {{ formatCurrency((service.priceCents ?? 0) / 100, service.currency || 'USD') }}
-                  </div>
-                  <div v-if="service.durationMinutes" class="svc-duration">
-                    {{ service.durationMinutes }} min
-                  </div>
-                  <div v-if="isSelected(service.id)" class="svc-inherited-label">
-                    From check-in
-                    <template v-if="serviceQuantity(service) === 1 && firstCatalogServiceLine(service)">
-                      · {{ serviceLineStaffLabel(firstCatalogServiceLine(service)!) }}
-                    </template>
-                  </div>
-                </template>
-                <template v-else>
-                  <div class="svc-name">{{ currentAddIn ? currentAddIn.name : 'Add custom charge' }}</div>
-                  <div v-if="currentAddIn" class="svc-addin-amount">
-                    {{ formatCurrency(currentAddIn.priceCents / 100, currentAddIn.currency) }} added · Tap to edit
-                  </div>
-                  <div v-else class="svc-addin-hint">Tap to enter amount</div>
-                </template>
-              </button>
+                <div class="selected-line-actions">
+                  <button
+                    v-if="staffTrackingEnabled && !line.id.startsWith('service-line-')"
+                    type="button"
+                    class="checkout-staff-link"
+                    :disabled="serviceMutationLoading"
+                    @click="openServiceStaffPicker(line.id)"
+                  >
+                    {{ line.staffId ? `👤 ${serviceLineStaffLabel(line)}` : 'Assign technician' }}
+                    <span aria-hidden="true">›</span>
+                  </button>
+                  <span v-else-if="line.staffId" class="selected-meta-staff">👤 {{ serviceLineStaffLabel(line) }}</span>
+                  <span v-if="line.durationMinutes" class="selected-meta-item">{{ line.durationMinutes }} min</span>
+                  <span v-if="line.priceCents !== undefined && line.priceCents !== null" class="selected-meta-item">
+                    {{ formatCurrency((line.priceCents ?? 0) / 100, line.currency) }}
+                  </span>
+                  <button
+                    type="button"
+                    class="remove-btn"
+                    :disabled="serviceMutationLoading || line.id.startsWith('service-line-')"
+                    :aria-label="`Remove ${line.name}`"
+                    @click="removePersistedServiceLine(line)"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div v-else class="sold-services-empty">
+              No sold services yet. Add a performed service below or promote a request.
             </div>
           </div>
           <div v-if="requestedServices.length" class="requested-services">
             <div class="requested-services-header">
               <div>
-                <div class="panel-title">Requested services</div>
+                <div class="panel-title">Requested at check-in</div>
                 <div class="panel-sub">Customer intent only. Nothing here is billed until added to sold services.</div>
               </div>
               <span class="request-badge">Context</span>
             </div>
-            <div class="selected-list">
-              <div v-for="requested in requestedServices" :key="requested.id" class="requested-row">
+            <div v-if="actionableRequestedServices.length" class="selected-list">
+              <div v-for="requested in actionableRequestedServices" :key="requested.id" class="requested-row">
                 <div class="selected-name">
                   <span class="svc-icon">💅</span>
                   <span>{{ requested.serviceName }}</span>
                 </div>
                 <div class="requested-actions">
-                  <span v-if="requested.status === 'FULFILLED'" class="requested-status requested-status--fulfilled">
-                    Added to sold services
-                  </span>
-                  <span v-else-if="requested.status === 'DISMISSED'" class="requested-status requested-status--dismissed">
+                  <span v-if="requested.status === 'DISMISSED'" class="requested-status requested-status--dismissed">
                     Dismissed
                   </span>
                   <template v-else>
@@ -1703,47 +1679,79 @@ onBeforeUnmount(() => {
                 </div>
               </div>
             </div>
-          </div>
-          <div v-if="persistedServiceLines.length" class="sold-services">
-            <div class="sold-services-header">
-              <div>
-                <div class="panel-title">Sold services for this visit</div>
-                <div class="panel-sub">Saved service lines are charged at checkout.</div>
-              </div>
-              <span class="saved-badge">Saved</span>
+            <div v-if="fulfilledRequestedServiceCount" class="requested-fulfilled-summary">
+              ✓ {{ fulfilledRequestedServiceCount }} request{{ fulfilledRequestedServiceCount === 1 ? '' : 's' }} added to sold services
             </div>
-            <div class="selected-list">
-              <div v-for="line in persistedServiceLines" :key="line.id" class="selected-row">
-                <div class="selected-name">
-                  <span class="svc-icon">💅</span>
-                  <span>{{ line.name }}</span>
-                </div>
-                <div class="selected-line-actions">
-                  <button
-                    v-if="staffTrackingEnabled && !line.id.startsWith('service-line-')"
-                    type="button"
-                    class="checkout-staff-link"
-                    :disabled="serviceMutationLoading"
-                    @click="openServiceStaffPicker(line.id)"
-                  >
-                    {{ line.staffId ? `👤 ${serviceLineStaffLabel(line)}` : 'Assign technician' }}
-                    <span aria-hidden="true">›</span>
-                  </button>
-                  <span v-else-if="line.staffId" class="selected-meta-staff">👤 {{ serviceLineStaffLabel(line) }}</span>
-                  <span v-if="line.durationMinutes" class="selected-meta-item">{{ line.durationMinutes }} min</span>
-                  <span v-if="line.priceCents !== undefined && line.priceCents !== null" class="selected-meta-item">
-                    {{ formatCurrency((line.priceCents ?? 0) / 100, line.currency) }}
-                  </span>
-                  <button
-                    type="button"
-                    class="remove-btn"
-                    :disabled="serviceMutationLoading || line.id.startsWith('service-line-')"
-                    :aria-label="`Remove ${line.name}`"
-                    @click="removePersistedServiceLine(line)"
-                  >
-                    ✕
-                  </button>
-                </div>
+          </div>
+          <div class="add-services-section">
+            <div class="add-services-header">
+              <div>
+                <div class="panel-title">Add services</div>
+                <div class="panel-sub">Choose performed services to add to the bill.</div>
+              </div>
+              <ElInput
+                v-model="search"
+                size="large"
+                placeholder="Search services"
+                class="services-search"
+                clearable
+              />
+            </div>
+            <div v-if="!filteredServices.length" class="empty-state">No services match.</div>
+            <div v-else class="service-list-scroll scrollable-pane">
+              <div class="service-grid">
+                <button
+                  v-for="service in filteredServices"
+                  :key="service.id"
+                  type="button"
+                  class="service-tile"
+                  :class="{
+                    active: isSelected(service.id) && !isAddInService(service),
+                    inherited: isSelected(service.id) && !isAddInService(service),
+                    addin: isAddInService(service),
+                    'addin-filled': isAddInService(service) && currentAddIn,
+                  }"
+                  :style="serviceStyle(service)"
+                  :aria-pressed="isSelected(service.id)"
+                  :disabled="serviceMutationLoading && !isAddInService(service)"
+                  @click="toggleService(service.id)"
+                >
+                  <div class="svc-top">
+                    <span class="svc-icon">{{ service.icon || '💅' }}</span>
+                    <span v-if="serviceQuantity(service) > 1 && !isAddInService(service)" class="svc-quantity">
+                      {{ serviceQuantity(service) }}
+                    </span>
+                    <span v-else-if="isSelected(service.id) && !isAddInService(service)" class="svc-check">✓</span>
+                    <span
+                      v-else-if="popularServiceIds.includes(service.id) && !isAddInService(service)"
+                      class="svc-popular"
+                    >
+                      Popular
+                    </span>
+                  </div>
+                  <template v-if="!isAddInService(service)">
+                    <div class="svc-name">{{ service.name }}</div>
+                    <div v-if="service.priceCents !== undefined && service.priceCents !== null" class="svc-price">
+                      {{ formatCurrency((service.priceCents ?? 0) / 100, service.currency || 'USD') }}
+                    </div>
+                    <div v-if="service.durationMinutes" class="svc-duration">
+                      {{ service.durationMinutes }} min
+                    </div>
+                    <div v-if="isSelected(service.id)" class="svc-inherited-label">
+                      From check-in
+                      <template v-if="serviceQuantity(service) === 1 && firstCatalogServiceLine(service)">
+                        · {{ serviceLineStaffLabel(firstCatalogServiceLine(service)!) }}
+                      </template>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <div class="svc-name">{{ currentAddIn ? currentAddIn.name : 'Add custom charge' }}</div>
+                    <div v-if="currentAddIn" class="svc-addin-amount">
+                      {{ formatCurrency(currentAddIn.priceCents / 100, currentAddIn.currency) }} added · Tap to edit
+                    </div>
+                    <div v-else class="svc-addin-hint">Tap to enter amount</div>
+                  </template>
+                </button>
               </div>
             </div>
           </div>
@@ -1878,35 +1886,6 @@ onBeforeUnmount(() => {
             <div class="bill-row total">
               <span>Total</span>
               <span>{{ Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(totalDue) }}</span>
-            </div>
-          </div>
-
-          <div v-if="staffTrackingEnabled" class="staff-block">
-            <div class="payments-section-title">Staff tracking</div>
-            <div v-if="assignedStaff.length" class="checkout-assigned-staff">
-              <div class="checkout-assigned-staff-label">Assigned during service</div>
-              <div class="checkout-assigned-staff-list">
-                <span v-for="member in assignedStaff" :key="member.id" class="checkout-assigned-staff-chip">
-                  {{ member.name }}
-                </span>
-              </div>
-            </div>
-            <div v-if="unassignedServiceLines.length" class="checkout-staff-repair">
-              <div class="checkout-assigned-staff-label">Assign each service before checkout</div>
-              <div v-for="line in unassignedServiceLines" :key="line.id" class="checkout-missing-line">
-                <span>{{ line.serviceName }}</span>
-                <button
-                  type="button"
-                  class="checkout-staff-link"
-                  :disabled="serviceMutationLoading"
-                  @click="openServiceStaffPicker(line.id)"
-                >
-                  Assign ›
-                </button>
-              </div>
-            </div>
-            <div v-if="staffSelectionRequired" class="discount-hint">
-              Assign a technician to each unresolved service line before checkout.
             </div>
           </div>
 
@@ -2605,7 +2584,7 @@ onBeforeUnmount(() => {
 }
 .selected-row {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
@@ -2614,11 +2593,19 @@ onBeforeUnmount(() => {
   background: #f8fafc;
 }
 .selected-name {
+  min-width: 0;
   font-weight: 600;
   color: #0f172a;
   display: flex;
   align-items: center;
   gap: 8px;
+}
+.selected-name > span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.sold-service-row {
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 .selected-quantity {
   display: inline-flex;
@@ -2677,9 +2664,19 @@ onBeforeUnmount(() => {
   opacity: 0.55;
 }
 .sold-services {
-  margin-top: 18px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(148, 163, 184, 0.28);
+  margin-top: 0;
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 14px;
+  background: #fff;
+}
+.sold-services-empty {
+  margin-top: 12px;
+  padding: 16px 12px;
+  border: 1px dashed rgba(148, 163, 184, 0.45);
+  border-radius: 10px;
+  color: #64748b;
+  font-size: 14px;
 }
 .requested-services {
   margin-top: 18px;
@@ -2759,6 +2756,27 @@ onBeforeUnmount(() => {
 .requested-status--dismissed {
   color: #64748b;
 }
+.requested-fulfilled-summary {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 13px;
+  font-weight: 700;
+}
+.add-services-section {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(148, 163, 184, 0.28);
+}
+.add-services-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
 .sold-services-header {
   display: flex;
   align-items: flex-start;
@@ -2795,16 +2813,6 @@ onBeforeUnmount(() => {
 .picker-unassign:disabled {
   cursor: wait;
   opacity: 0.55;
-}
-.checkout-missing-line {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px 0;
-  color: #334155;
-  font-size: 13px;
-  font-weight: 650;
 }
 .staff-picker-section {
   display: flex;
@@ -2977,37 +2985,6 @@ onBeforeUnmount(() => {
 .discount-hint {
   font-size: 12px;
   color: #64748b;
-}
-.checkout-assigned-staff,
-.checkout-staff-repair {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-.checkout-assigned-staff {
-  padding: 10px 12px;
-  border: 1px solid #bbf7d0;
-  border-radius: 12px;
-  background: #f0fdf4;
-}
-.checkout-assigned-staff-label {
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 700;
-}
-.checkout-assigned-staff-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.checkout-assigned-staff-chip {
-  padding: 5px 9px;
-  border-radius: 999px;
-  background: #dcfce7;
-  color: #166534;
-  font-size: 13px;
-  font-weight: 750;
 }
 .redeem-row {
   display: flex;
@@ -3303,6 +3280,10 @@ onBeforeUnmount(() => {
     margin-left: auto;
   }
   .services-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .add-services-header {
     align-items: stretch;
     flex-direction: column;
   }
