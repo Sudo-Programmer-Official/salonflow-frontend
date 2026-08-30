@@ -146,11 +146,16 @@ const emit = defineEmits<{
   font-size: 12px;
 }
 .staff-picker-assignment-detail {
-  overflow: hidden;
-  color: #94a3b8;
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 5px 10px;
+  overflow-wrap: anywhere;
+  border-radius: 999px;
+  background: #0369a1;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.25;
 }
 .staff-picker-check {
   display: inline-flex;
