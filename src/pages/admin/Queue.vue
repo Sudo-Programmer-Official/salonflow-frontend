@@ -51,6 +51,7 @@ import {
   selectServiceStaff,
 } from '../../utils/staffPickerState';
 import { mergeQueueItemsPreservingVisitStaff } from '../../utils/queueHydration';
+import { serviceLineStaffContext } from '../../utils/serviceLineStaffContext';
 
 const PAGE_SIZE = 10;
 
@@ -297,6 +298,30 @@ const visitStaffSelectionChanged = computed(() =>
   visitStaffIds.value.length !== initialVisitStaffIds.value.length ||
   visitStaffIds.value.some((staffId, index) => staffId !== initialVisitStaffIds.value[index]),
 );
+const servicePickerVisitStaff = computed(() => {
+  const staffById = new Map(orderedPickerStaff.value.map((member) => [member.id, member]));
+  return (staffPickerTarget.value?.visitStaff ?? [])
+    .slice()
+    .sort((a, b) => (a.position ?? Number.MAX_SAFE_INTEGER) - (b.position ?? Number.MAX_SAFE_INTEGER))
+    .map((assignment) => staffById.get(assignment.staffId))
+    .filter((member): member is StaffMember => Boolean(member));
+});
+const servicePickerVisitStaffIds = computed(() =>
+  new Set(servicePickerVisitStaff.value.map((member) => member.id)),
+);
+const servicePickerAvailableStaff = computed(() =>
+  isVisitStaffPicker.value
+    ? availablePickerStaff.value
+    : availablePickerStaff.value.filter((member) => !servicePickerVisitStaffIds.value.has(member.id)),
+);
+const servicePickerBusyStaff = computed(() =>
+  isVisitStaffPicker.value
+    ? busyPickerStaff.value
+    : busyPickerStaff.value.filter((member) => !servicePickerVisitStaffIds.value.has(member.id)),
+);
+const serviceLineAssignmentDetail = (staffId: string) => {
+  return serviceLineStaffContext(staffPickerTarget.value?.services, staffPickerLineId.value, staffId);
+};
 
 const dateRange = computed(() => {
   const now = getBusinessNow();
@@ -2000,14 +2025,33 @@ watch(completedPage, async (val) => {
       @closed="closeStaffPicker"
     >
       <template #default>
-        <div v-if="availablePickerStaff.length" class="staff-picker-section">
+        <div v-if="!isVisitStaffPicker && servicePickerVisitStaff.length" class="staff-picker-section">
           <div class="staff-picker-section-title">
-            <span>Available</span>
-            <span class="staff-picker-count">{{ availablePickerStaff.length }}</span>
+            <span>Serving this customer</span>
+            <span class="staff-picker-count">{{ servicePickerVisitStaff.length }}</span>
           </div>
           <div class="staff-picker-grid">
             <StaffPickerOption
-              v-for="member in availablePickerStaff"
+              v-for="member in servicePickerVisitStaff"
+              :key="member.id"
+              :name="staffDisplayName(member)"
+              status="Visit staff"
+              :detail="serviceLineAssignmentDetail(member.id)"
+              :selected="isStaffSelectedInPicker(member)"
+              :disabled="staffPickerLoading"
+              @select="selectStaffFromPicker(member)"
+            />
+          </div>
+        </div>
+
+        <div v-if="servicePickerAvailableStaff.length" class="staff-picker-section">
+          <div class="staff-picker-section-title">
+            <span>Available</span>
+            <span class="staff-picker-count">{{ servicePickerAvailableStaff.length }}</span>
+          </div>
+          <div class="staff-picker-grid">
+            <StaffPickerOption
+              v-for="member in servicePickerAvailableStaff"
               :key="member.id"
               :name="staffDisplayName(member)"
               status="Available"
@@ -2018,14 +2062,14 @@ watch(completedPage, async (val) => {
           </div>
         </div>
 
-        <div v-if="busyPickerStaff.length" class="staff-picker-section">
+        <div v-if="servicePickerBusyStaff.length" class="staff-picker-section">
           <div class="staff-picker-section-title">
             <span>Busy</span>
-            <span class="staff-picker-count">{{ busyPickerStaff.length }}</span>
+            <span class="staff-picker-count">{{ servicePickerBusyStaff.length }}</span>
           </div>
           <div class="staff-picker-grid">
             <StaffPickerOption
-              v-for="member in busyPickerStaff"
+              v-for="member in servicePickerBusyStaff"
               :key="member.id"
               :name="staffDisplayName(member)"
               :status="staffWorkloadLabel(member)"

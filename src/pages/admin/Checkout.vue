@@ -27,6 +27,7 @@ import { deriveStaffWorkload } from '@/utils/staffAvailability';
 import { type RedeemStatus } from '@/utils/redeemStatus';
 import { resolveCheckoutRedeemState } from '@/utils/checkoutLoyalty';
 import { checkoutServiceLines } from '@/utils/checkoutServices';
+import { serviceLineStaffContext } from '@/utils/serviceLineStaffContext';
 import {
   resolveCheckoutPaymentState,
   shouldClearRedeemSelection,
@@ -439,6 +440,8 @@ const staffWorkloadDetails = (member: StaffMember) => {
 const pickerServiceLine = computed(() =>
   (item.value?.services ?? []).find((service) => service.id === staffPickerLineId.value) ?? null,
 );
+const serviceLineAssignmentDetail = (staffId: string) =>
+  serviceLineStaffContext(item.value?.services, staffPickerLineId.value, staffId);
 const tipsEnabled = computed(() => Boolean(settings.value?.enableTips));
 const taxEnabled = computed(() => Boolean(settings.value?.enableTax));
 const taxMode = computed(() => settings.value?.taxMode ?? 'disabled');
@@ -1483,6 +1486,7 @@ onBeforeUnmount(() => {
                 :key="member.id"
                 :name="staffDisplayName(member)"
                 status="Visit staff"
+                :detail="serviceLineAssignmentDetail(member.id)"
                 :selected="pendingStaffId === member.id"
                 :disabled="staffPickerLoading"
                 @select="selectStaffFromCheckoutPicker(member)"
