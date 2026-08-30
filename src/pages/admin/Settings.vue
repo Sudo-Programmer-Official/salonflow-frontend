@@ -1379,6 +1379,19 @@ onMounted(loadSettings);
               />
             </div>
 
+            <div class="flex items-center justify-between gap-4 rounded-md border border-cyan-200 bg-cyan-50 px-3 py-2">
+              <div>
+                <div class="text-sm font-semibold text-slate-900">Keep kiosk services as requests</div>
+                <div class="text-xs text-slate-600">
+                  Store customer selections as context; Admin adds performed services to the bill.
+                </div>
+              </div>
+              <ElSwitch
+                :model-value="settings.kioskRequestedServicesEnabled === true"
+                @change="(val) => handleToggle('kioskRequestedServicesEnabled', val)"
+              />
+            </div>
+
             <div class="grid gap-3 sm:grid-cols-2" v-if="settings.allowStaffSelection">
               <div class="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-3 py-2">
                 <div>

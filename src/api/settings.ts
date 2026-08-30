@@ -72,6 +72,7 @@ export type BusinessSettings = {
   allowMultiService: boolean;
   requireService: boolean;
   allowStaffSelection: boolean;
+  kioskRequestedServicesEnabled?: boolean;
   enableStaffSelection?: boolean;
   requireStaffSelection: boolean;
   requireStaffBeforeCheckout?: boolean;
@@ -130,21 +131,22 @@ export type SettingsPatch = Partial<
     | 'requirePhone'
     | 'showPointsOnKiosk'
     | 'showPointsPreview'
-  | 'allowMultiService'
-  | 'requireService'
-  | 'allowStaffSelection'
-  | 'enableStaffSelection'
-  | 'requireStaffSelection'
-  | 'requireStaffBeforeCheckout'
-  | 'enableTips'
-  | 'enableTax'
-  | 'taxMode'
-  | 'taxRatePercent'
-  | 'paymentMethods'
-  | 'enableGiftCards'
-  | 'enableLoyaltyRedemption'
-  | 'enablePromotions'
-  | 'kioskWelcomeStyle'
+    | 'allowMultiService'
+    | 'requireService'
+    | 'allowStaffSelection'
+    | 'kioskRequestedServicesEnabled'
+    | 'enableStaffSelection'
+    | 'requireStaffSelection'
+    | 'requireStaffBeforeCheckout'
+    | 'enableTips'
+    | 'enableTax'
+    | 'taxMode'
+    | 'taxRatePercent'
+    | 'paymentMethods'
+    | 'enableGiftCards'
+    | 'enableLoyaltyRedemption'
+    | 'enablePromotions'
+    | 'kioskWelcomeStyle'
     | 'kioskShowRewardsCard'
     | 'kioskAllowSkipService'
     | 'kioskAllowSkipStaff'

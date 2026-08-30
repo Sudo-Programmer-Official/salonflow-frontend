@@ -89,6 +89,7 @@ const defaultSettings: BusinessSettings = {
   allowMultiService: false,
   requireService: false,
   allowStaffSelection: false,
+  kioskRequestedServicesEnabled: false,
   enableStaffSelection: false,
   requireStaffSelection: false,
   enableTips: false,
@@ -792,6 +793,7 @@ const confirmCheckIn = async () => {
       serviceName,
       services: servicesPayload,
       staffId: selectedStaffId.value,
+      serviceIntentOnly: true,
       email: email.value.trim() || null,
     });
     name.value = personName;

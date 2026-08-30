@@ -10,6 +10,9 @@ import {
   unassignStaffFromCheckIn,
   addServiceToCheckIn,
   removeServiceFromCheckIn,
+  fulfillRequestedService,
+  dismissRequestedService,
+  restoreRequestedService,
   type QueueItem,
 } from '@/api/queue';
 import { fetchCustomerLoyalty } from '@/api/customers';
@@ -23,6 +26,7 @@ import { fetchStaff, type StaffMember } from '@/api/staff';
 import { deriveStaffWorkload } from '@/utils/staffAvailability';
 import { type RedeemStatus } from '@/utils/redeemStatus';
 import { resolveCheckoutRedeemState } from '@/utils/checkoutLoyalty';
+import { checkoutServiceLines } from '@/utils/checkoutServices';
 import {
   resolveCheckoutPaymentState,
   shouldClearRedeemSelection,
@@ -83,6 +87,7 @@ const giftCardInfo = ref<Record<number, { loading: boolean; error: string; card:
 const fetchedNumbers = ref<Record<number, string>>({});
 const checkoutStep = ref<'services' | 'payment'>('services');
 const serviceMutationLoading = ref(false);
+const requestedServiceMutationLoading = ref(false);
 const staffPickerOpen = ref(false);
 const staffPickerLineId = ref<string | null>(null);
 const serviceStaffPickerState = ref(createServiceStaffPickerState());
@@ -212,7 +217,7 @@ type CheckoutServiceLine = {
 };
 
 const persistedServiceLines = computed<CheckoutServiceLine[]>(() =>
-  (item.value?.services ?? []).map((service, index) => ({
+  checkoutServiceLines(item.value).map((service, index) => ({
     id: service.id || `service-line-${index}`,
     serviceId: service.serviceId ?? null,
     name: service.serviceName,
@@ -223,6 +228,8 @@ const persistedServiceLines = computed<CheckoutServiceLine[]>(() =>
     staffName: service.staffName ?? null,
   })),
 );
+
+const requestedServices = computed(() => item.value?.requestedServices ?? []);
 
 const selectedServiceObjects = computed<Array<CheckoutServiceLine | CustomAddIn>>(() => [
   ...persistedServiceLines.value,
@@ -861,6 +868,48 @@ const addServiceFromCatalog = async (service: ServiceItem) => {
   }
 };
 
+const promoteRequested = async (requested: NonNullable<QueueItem['requestedServices']>[number]) => {
+  if (!item.value || requestedServiceMutationLoading.value || requested.status !== 'REQUESTED') return;
+  requestedServiceMutationLoading.value = true;
+  try {
+    await fulfillRequestedService(item.value.id, requested.id);
+    await loadCheckin({ silent: true });
+    ElMessage.success(`${requested.serviceName} added to sold services`);
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : 'Failed to add requested service');
+  } finally {
+    requestedServiceMutationLoading.value = false;
+  }
+};
+
+const dismissRequested = async (requested: NonNullable<QueueItem['requestedServices']>[number]) => {
+  if (!item.value || requestedServiceMutationLoading.value || requested.status !== 'REQUESTED') return;
+  requestedServiceMutationLoading.value = true;
+  try {
+    await dismissRequestedService(item.value.id, requested.id);
+    await loadCheckin({ silent: true });
+    ElMessage.success(`${requested.serviceName} kept as a request only`);
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : 'Failed to dismiss requested service');
+  } finally {
+    requestedServiceMutationLoading.value = false;
+  }
+};
+
+const restoreRequested = async (requested: NonNullable<QueueItem['requestedServices']>[number]) => {
+  if (!item.value || requestedServiceMutationLoading.value || requested.status !== 'DISMISSED') return;
+  requestedServiceMutationLoading.value = true;
+  try {
+    await restoreRequestedService(item.value.id, requested.id);
+    await loadCheckin({ silent: true });
+    ElMessage.success(`${requested.serviceName} is ready to add to sold services`);
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : 'Failed to restore requested service');
+  } finally {
+    requestedServiceMutationLoading.value = false;
+  }
+};
+
 const toggleService = async (serviceId: string) => {
   const service = services.value.find((candidate) => candidate.id === serviceId);
   if (isAddInService(service)) {
@@ -1215,8 +1264,9 @@ const submitCheckout = async () => {
     // old ticket-level fields only as a compatibility fallback for legacy
     // check-ins that have no durable service rows yet.
     const hasDurableServiceLines = Boolean(item.value.services?.length);
-    const legacyStaffId = hasDurableServiceLines ? null : selectedStaffId.value || null;
-    const legacyStaffName = hasDurableServiceLines ? null : selectedStaffName.value || null;
+    const requestOnlyContext = !hasDurableServiceLines && Boolean(item.value.requestedServices?.length);
+    const legacyStaffId = hasDurableServiceLines || requestOnlyContext ? null : selectedStaffId.value || null;
+    const legacyStaffName = hasDurableServiceLines || requestOnlyContext ? null : selectedStaffName.value || null;
     const giftCardNumber = paymentOptions.value.gift
       ? giftCards.value
           .map((g) => (g.number || '').trim())
@@ -1535,7 +1585,7 @@ onBeforeUnmount(() => {
           <div class="services-header">
             <div>
               <div class="services-title">Services</div>
-              <div class="panel-sub">Services selected during check-in are already selected.</div>
+              <div class="panel-sub">Review customer requests, then add performed services to the bill.</div>
             </div>
             <ElInput
               v-model="search"
@@ -1600,6 +1650,58 @@ onBeforeUnmount(() => {
                   <div v-else class="svc-addin-hint">Tap to enter amount</div>
                 </template>
               </button>
+            </div>
+          </div>
+          <div v-if="requestedServices.length" class="requested-services">
+            <div class="requested-services-header">
+              <div>
+                <div class="panel-title">Requested services</div>
+                <div class="panel-sub">Customer intent only. Nothing here is billed until added to sold services.</div>
+              </div>
+              <span class="request-badge">Context</span>
+            </div>
+            <div class="selected-list">
+              <div v-for="requested in requestedServices" :key="requested.id" class="requested-row">
+                <div class="selected-name">
+                  <span class="svc-icon">💅</span>
+                  <span>{{ requested.serviceName }}</span>
+                </div>
+                <div class="requested-actions">
+                  <span v-if="requested.status === 'FULFILLED'" class="requested-status requested-status--fulfilled">
+                    Added to sold services
+                  </span>
+                  <span v-else-if="requested.status === 'DISMISSED'" class="requested-status requested-status--dismissed">
+                    Dismissed
+                  </span>
+                  <template v-else>
+                    <button
+                      type="button"
+                      class="requested-action requested-action--primary"
+                      :disabled="requestedServiceMutationLoading"
+                      @click="promoteRequested(requested)"
+                    >
+                      Add to sold services
+                    </button>
+                    <button
+                      type="button"
+                      class="requested-action"
+                      :disabled="requestedServiceMutationLoading"
+                      @click="dismissRequested(requested)"
+                    >
+                      Keep as request
+                    </button>
+                  </template>
+                  <button
+                    v-if="requested.status === 'DISMISSED'"
+                    type="button"
+                    class="requested-action"
+                    :disabled="requestedServiceMutationLoading"
+                    @click="restoreRequested(requested)"
+                  >
+                    Restore
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
           <div v-if="persistedServiceLines.length" class="sold-services">
@@ -2578,6 +2680,84 @@ onBeforeUnmount(() => {
   margin-top: 18px;
   padding-top: 16px;
   border-top: 1px solid rgba(148, 163, 184, 0.28);
+}
+.requested-services {
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid #bae6fd;
+  border-radius: 14px;
+  background: #f0f9ff;
+}
+.requested-services-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.request-badge {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.requested-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(14, 165, 233, 0.16);
+}
+.requested-row:last-child {
+  border-bottom: 0;
+}
+.requested-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.requested-action {
+  min-height: 36px;
+  padding: 5px 10px;
+  border: 1px solid #bae6fd;
+  border-radius: 999px;
+  background: #fff;
+  color: #0369a1;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 750;
+}
+.requested-action--primary {
+  background: #0ea5e9;
+  border-color: #0ea5e9;
+  color: #fff;
+}
+.requested-action:hover:not(:disabled),
+.requested-action:focus-visible {
+  border-color: #0284c7;
+  outline: none;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.14);
+}
+.requested-action:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+.requested-status {
+  font-size: 12px;
+  font-weight: 750;
+}
+.requested-status--fulfilled {
+  color: #15803d;
+}
+.requested-status--dismissed {
+  color: #64748b;
 }
 .sold-services-header {
   display: flex;

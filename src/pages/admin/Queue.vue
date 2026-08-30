@@ -50,6 +50,7 @@ import {
   createServiceStaffPickerState,
   selectServiceStaff,
 } from '../../utils/staffPickerState';
+import { mergeQueueItemsPreservingVisitStaff } from '../../utils/queueHydration';
 
 const PAGE_SIZE = 10;
 
@@ -193,6 +194,7 @@ const formattedCheckinPhone = computed(() =>
 const isOnline = ref(typeof navigator !== 'undefined' ? navigator.onLine : true);
 const activeCheckinAppt = ref<TodayAppointment | null>(null);
 const pollId = ref<number | null>(null);
+let queueRequestVersion = 0;
 const { currentDayKey, refreshDayBoundary } = useBusinessDayClock();
 
 const getBusinessNow = () => dayjs().tz(getBusinessTimezone());
@@ -325,6 +327,7 @@ const dateRange = computed(() => {
 });
 
 const loadQueue = async (opts?: { loadMoreCompleted?: boolean; silent?: boolean }) => {
+  const requestVersion = ++queueRequestVersion;
   const silent = opts?.silent === true;
   if (!silent) {
     loading.value = !opts?.loadMoreCompleted;
@@ -350,6 +353,7 @@ const loadQueue = async (opts?: { loadMoreCompleted?: boolean; silent?: boolean 
       params.to = dateRange.value.to;
     }
     const res = await fetchQueue(params);
+    if (requestVersion !== queueRequestVersion) return;
     queueLocked.value = (res as any).locked === true;
     if (queueLocked.value) {
       queue.value = [];
@@ -382,11 +386,13 @@ const loadQueue = async (opts?: { loadMoreCompleted?: boolean; silent?: boolean 
           ? Boolean(hasMoreFromResponse)
           : Boolean(next && items.length >= PAGE_SIZE);
     } else {
-      queue.value = items;
+      queue.value = mergeQueueItemsPreservingVisitStaff(queue.value, items);
     }
   } catch (err) {
+    if (requestVersion !== queueRequestVersion) return;
     ElMessage.error(err instanceof Error ? err.message : 'Failed to load queue');
   } finally {
+    if (requestVersion !== queueRequestVersion) return;
     if (!silent) {
       loading.value = false;
       completedLoading.value = false;
@@ -448,9 +454,21 @@ const selectedServiceNames = (item: QueueItem) => {
       ?.map((service) => service.serviceName?.trim())
       .filter((name): name is string => Boolean(name)) ?? [];
   if (names.length) return names;
+  const requestedNames =
+    item.requestedServices
+      ?.filter((service) => service.status === 'REQUESTED')
+      .map((service) => service.serviceName?.trim())
+      .filter((name): name is string => Boolean(name)) ?? [];
+  if (requestedNames.length) return requestedNames;
   const fallback = item.serviceName?.trim();
   return fallback ? [fallback] : [];
 };
+
+const requestedServiceNames = (item: QueueItem) =>
+  item.requestedServices
+    ?.filter((service) => service.status === 'REQUESTED')
+    .map((service) => service.serviceName?.trim())
+    .filter((name): name is string => Boolean(name)) ?? [];
 
 const hasSelectedService = (item: QueueItem) => selectedServiceNames(item).length > 0;
 
@@ -489,9 +507,7 @@ const visitStaffNames = (item: QueueItem) => {
       })
       .filter((name): name is string => Boolean(name));
   }
-  // Older API responses may not include visitStaff yet; preserve their
-  // existing single-technician display until the response is upgraded.
-  return item.staffName?.trim() ? [item.staffName.trim()] : [];
+  return [];
 };
 
 const staffAssignmentSummary = (item: QueueItem) => {
@@ -939,6 +955,7 @@ const submitCheckin = async (appt?: TodayAppointment) => {
       phoneE164: normalizedPhone,
       serviceId: checkinServiceId.value || undefined,
       staffId: checkinStaffId.value || undefined,
+      serviceIntentOnly: false,
       appointmentId: appt?.id ?? activeCheckinAppt.value?.id,
     });
     checkinOpen.value = false;
@@ -1670,8 +1687,8 @@ watch(completedPage, async (val) => {
                 </div>
               </div>
               <div class="flex flex-wrap items-center gap-3 text-sm text-slate-700">
+                <template v-if="staffTrackingEnabled && ['WAITING', 'CALLED', 'IN_SERVICE'].includes(item.status) && (item.services?.length || item.requestedServices?.length || item.serviceName)">
                 <button
-                  v-if="staffTrackingEnabled && ['WAITING', 'CALLED', 'IN_SERVICE'].includes(item.status) && (item.services?.length || item.serviceName)"
                   type="button"
                   class="queue-service-staff-summary"
                   :aria-label="`View services and staff for ${item.customerName || 'customer'}`"
@@ -1707,6 +1724,7 @@ watch(completedPage, async (val) => {
                     </template>
                   </span>
                 </button>
+                </template>
                 <template v-else>
                   <div
                     class="flex items-center service-row"
@@ -1730,6 +1748,10 @@ watch(completedPage, async (val) => {
                     <span>{{ item.servedByName || item.staffName }}</span>
                   </div>
                 </template>
+                <div v-if="requestedServiceNames(item).length" class="queue-requested-context">
+                  <span aria-hidden="true">📝</span>
+                  <span>Requested · not yet sold</span>
+                </div>
               </div>
               <div class="queue-phone">
                 <span class="flex items-center phone-row">
@@ -2692,6 +2714,17 @@ watch(completedPage, async (val) => {
 }
 .queue-service-staff-summary:focus-visible {
   box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.2);
+}
+.queue-requested-context {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: -2px 0 8px;
+  padding: 0 8px;
+  color: #0369a1;
+  font-size: 12px;
+  font-weight: 700;
 }
 .queue-service-summary-main,
 .queue-service-summary-assignment {

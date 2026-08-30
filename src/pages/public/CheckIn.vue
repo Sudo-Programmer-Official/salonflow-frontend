@@ -269,6 +269,7 @@ const onSubmit = async () => {
       serviceId: form.serviceId || undefined,
       serviceName,
       staffId: allowStaffSelection.value ? form.staffId || undefined : undefined,
+      serviceIntentOnly: true,
     });
     success.value = true;
     successName.value = nameToUse;

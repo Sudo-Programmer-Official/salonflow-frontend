@@ -15,7 +15,21 @@ export type QueueItem = {
     position?: number | null;
     staffId?: string | null;
     staffName?: string | null;
+    requestedServiceId?: string | null;
     currency?: string | null;
+  }> | null;
+  requestedServices?: Array<{
+    id: string;
+    serviceId?: string | null;
+    serviceName: string;
+    position?: number | null;
+    status: 'REQUESTED' | 'FULFILLED' | 'DISMISSED';
+    requestedAt?: string;
+    fulfilledAt?: string | null;
+    fulfilledBy?: string | null;
+    dismissedAt?: string | null;
+    dismissedBy?: string | null;
+    fulfilledServiceLineId?: string | null;
   }> | null;
   staffName: string | null;
   preferredStaffId?: string | null;
@@ -208,6 +222,34 @@ export async function addServiceToCheckIn(
 
   return readJsonResponse(res, null);
 }
+
+async function mutateRequestedService(
+  checkInId: string,
+  requestedServiceId: string,
+  action: 'fulfill' | 'dismiss' | 'restore',
+) {
+  const res = await fetch(
+    `${apiBase}/${checkInId}/requested-services/${requestedServiceId}/${action}`,
+    {
+      method: 'POST',
+      headers: buildHeaders({ auth: true, tenant: true, json: true }),
+    },
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Failed to ${action} requested service`);
+  }
+  return readJsonResponse(res, null);
+}
+
+export const fulfillRequestedService = (checkInId: string, requestedServiceId: string) =>
+  mutateRequestedService(checkInId, requestedServiceId, 'fulfill');
+
+export const dismissRequestedService = (checkInId: string, requestedServiceId: string) =>
+  mutateRequestedService(checkInId, requestedServiceId, 'dismiss');
+
+export const restoreRequestedService = (checkInId: string, requestedServiceId: string) =>
+  mutateRequestedService(checkInId, requestedServiceId, 'restore');
 
 export async function removeServiceFromCheckIn(
   checkInId: string,
