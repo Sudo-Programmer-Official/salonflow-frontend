@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { QueueItem } from '../api/queue';
 import { mergeQueueItemsPreservingVisitStaff } from './queueHydration';
+import { shouldRenderVisitStaffSummary } from './queuePresentation';
 
 const item = (id: string, visitStaff?: QueueItem['visitStaff']): QueueItem => ({
   id,
@@ -39,5 +40,17 @@ describe('Queue visit-staff hydration', () => {
     const refreshed = mergeQueueItemsPreservingVisitStaff(existing, [item('checkin-a', [])]);
 
     expect(refreshed[0]?.visitStaff).toEqual([]);
+  });
+
+  it('renders visit staff for a no-service walk-in with zero requested and sold services', () => {
+    const noServiceWalkIn: QueueItem = {
+      ...item('checkin-no-service', [{ staffId: 'staff-calvin', staffName: 'Calvin', position: 0 }]),
+      serviceName: null,
+      services: [],
+      requestedServices: [],
+      status: 'IN_SERVICE',
+    };
+
+    expect(shouldRenderVisitStaffSummary(noServiceWalkIn, true)).toBe(true);
   });
 });

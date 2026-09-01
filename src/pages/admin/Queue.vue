@@ -51,6 +51,7 @@ import {
   selectServiceStaff,
 } from '../../utils/staffPickerState';
 import { mergeQueueItemsPreservingVisitStaff } from '../../utils/queueHydration';
+import { shouldRenderVisitStaffSummary } from '../../utils/queuePresentation';
 import { serviceLineStaffContext } from '../../utils/serviceLineStaffContext';
 
 const PAGE_SIZE = 10;
@@ -1712,7 +1713,7 @@ watch(completedPage, async (val) => {
                 </div>
               </div>
               <div class="flex flex-wrap items-center gap-3 text-sm text-slate-700">
-                <template v-if="staffTrackingEnabled && ['WAITING', 'CALLED', 'IN_SERVICE'].includes(item.status) && (item.services?.length || item.requestedServices?.length || item.serviceName)">
+                <template v-if="shouldRenderVisitStaffSummary(item, staffTrackingEnabled)">
                 <button
                   type="button"
                   class="queue-service-staff-summary"
