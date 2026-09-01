@@ -51,7 +51,13 @@ import {
   selectServiceStaff,
 } from '../../utils/staffPickerState';
 import { mergeQueueItemsPreservingVisitStaff } from '../../utils/queueHydration';
-import { shouldRenderVisitStaffSummary } from '../../utils/queuePresentation';
+import {
+  hasQueueServiceContext,
+  queueAdditionalServiceCount,
+  queuePrimaryServiceName,
+  queueServicesTitle,
+  shouldRenderVisitStaffSummary,
+} from '../../utils/queuePresentation';
 import { serviceLineStaffContext } from '../../utils/serviceLineStaffContext';
 
 const PAGE_SIZE = 10;
@@ -455,16 +461,6 @@ const refreshQueueData = (silent = true) => {
   void loadAppointments();
 };
 
-const WALK_IN_ICON_SVG = [
-  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">',
-  '<circle cx="12" cy="4.75" r="1.9"/>',
-  '<path d="M12 7.8v5.2"/>',
-  '<path d="M8.85 10.15l3.15-2.25 3.15 2.25"/>',
-  '<path d="M10.2 20.5l1.8-7.5"/>',
-  '<path d="M13.8 20.5L12 13"/>',
-  '</svg>',
-].join('');
-
 const SERVICE_SELECTED_ICON_SVG = [
   '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">',
   '<circle cx="6.5" cy="6.5" r="2.5"/>',
@@ -474,41 +470,13 @@ const SERVICE_SELECTED_ICON_SVG = [
   '</svg>',
 ].join('');
 
-const selectedServiceNames = (item: QueueItem) => {
-  const names =
-    item.services
-      ?.map((service) => service.serviceName?.trim())
-      .filter((name): name is string => Boolean(name)) ?? [];
-  if (names.length) return names;
-  const requestedNames =
-    item.requestedServices
-      ?.filter((service) => service.status === 'REQUESTED')
-      .map((service) => service.serviceName?.trim())
-      .filter((name): name is string => Boolean(name)) ?? [];
-  if (requestedNames.length) return requestedNames;
-  const fallback = item.serviceName?.trim();
-  return fallback ? [fallback] : [];
-};
-
 const requestedServiceNames = (item: QueueItem) =>
   item.requestedServices
     ?.filter((service) => service.status === 'REQUESTED')
     .map((service) => service.serviceName?.trim())
     .filter((name): name is string => Boolean(name)) ?? [];
 
-const hasSelectedService = (item: QueueItem) => selectedServiceNames(item).length > 0;
-
-const serviceStateIcon = (item: QueueItem) =>
-  hasSelectedService(item) ? SERVICE_SELECTED_ICON_SVG : WALK_IN_ICON_SVG;
-
-const primaryServiceName = (item: QueueItem) =>
-  selectedServiceNames(item)[0] || 'Walk-in';
-
-const additionalServiceCount = (item: QueueItem) =>
-  Math.max(selectedServiceNames(item).length - 1, 0);
-
-const allServicesTitle = (item: QueueItem) =>
-  selectedServiceNames(item).join(', ') || 'Walk-in';
+const serviceStateIcon = (_item: QueueItem) => SERVICE_SELECTED_ICON_SVG;
 
 type QueueServiceLine = NonNullable<QueueItem['services']>[number];
 
@@ -1720,52 +1688,48 @@ watch(completedPage, async (val) => {
                   :aria-label="`View services and staff for ${item.customerName || 'customer'}`"
                   @click="openVisitStaffPicker(item)"
                 >
-                  <span class="queue-service-summary-main">
+                  <span v-if="hasQueueServiceContext(item)" class="queue-service-summary-main">
                     <span
                       class="service-icon queue-service-summary-icon--assigned"
                       aria-hidden="true"
                       v-html="serviceStateIcon(item)"
                     />
-                    <span class="queue-service-summary-service" :title="allServicesTitle(item)">
-                      <span class="queue-service-name">{{ primaryServiceName(item) }}</span>
-                      <span v-if="additionalServiceCount(item) > 0" class="queue-service-more">
-                        +{{ additionalServiceCount(item) }} more
+                    <span class="queue-service-summary-service" :title="queueServicesTitle(item)">
+                      <span class="queue-service-name">{{ queuePrimaryServiceName(item) }}</span>
+                      <span v-if="queueAdditionalServiceCount(item) > 0" class="queue-service-more">
+                        +{{ queueAdditionalServiceCount(item) }} more
                       </span>
                     </span>
                   </span>
-                  <span class="queue-service-summary-assignment" :title="staffAssignmentSummary(item)">
-                    <template v-if="visitStaffNames(item).length">
-                      <span class="queue-service-summary-staff-icon" aria-hidden="true">
-                        {{ staffAssignmentIcon(item) }}
-                      </span>
-                      <span class="queue-service-summary-staff">
-                        {{ visitStaffNames(item).join(' + ') }}
-                      </span>
-                    </template>
-                    <template v-else>
-                      <span class="queue-service-summary-staff-icon" aria-hidden="true">👤</span>
-                      <span class="queue-service-summary-staff queue-service-summary-staff--unselected">
-                        Staff not selected
-                      </span>
-                    </template>
+                  <span
+                    v-if="visitStaffNames(item).length"
+                    class="queue-service-summary-assignment"
+                    :class="{ 'queue-service-summary-assignment--standalone': !hasQueueServiceContext(item) }"
+                    :title="staffAssignmentSummary(item)"
+                  >
+                    <span class="queue-service-summary-staff-icon" aria-hidden="true">
+                      {{ staffAssignmentIcon(item) }}
+                    </span>
+                    <span class="queue-service-summary-staff">
+                      {{ visitStaffNames(item).join(' + ') }}
+                    </span>
                   </span>
                 </button>
                 </template>
-                <template v-else>
+                <template v-else-if="hasQueueServiceContext(item)">
                   <div
-                    class="flex items-center service-row"
-                    :class="hasSelectedService(item) ? 'service-row--selected' : 'service-row--walk-in'"
+                    class="flex items-center service-row service-row--selected"
                   >
                     <span class="service-icon" aria-hidden="true" v-html="serviceStateIcon(item)" />
                     <div class="service-lines">
-                      <span class="queue-service-name" :title="allServicesTitle(item)">
-                        {{ primaryServiceName(item) }}
+                      <span class="queue-service-name" :title="queueServicesTitle(item)">
+                        {{ queuePrimaryServiceName(item) }}
                       </span>
                       <span
-                        v-if="additionalServiceCount(item) > 0"
+                        v-if="queueAdditionalServiceCount(item) > 0"
                         class="queue-service-more"
                       >
-                        +{{ additionalServiceCount(item) }} more
+                        +{{ queueAdditionalServiceCount(item) }} more
                       </span>
                     </div>
                   </div>
@@ -2698,9 +2662,6 @@ watch(completedPage, async (val) => {
 .queue-card .service-row--selected .service-icon {
   color: var(--sf-primary, #0ea5e9);
 }
-.queue-card .service-row--walk-in .service-icon {
-  color: #64748b;
-}
 .queue-card .service-lines {
   display: flex;
   flex-direction: column;
@@ -2811,6 +2772,9 @@ watch(completedPage, async (val) => {
 .queue-service-summary-assignment {
   width: 100%;
   padding-left: 26px;
+}
+.queue-service-summary-assignment--standalone {
+  padding-left: 0;
 }
 .queue-service-summary-staff-icon {
   flex: 0 0 auto;

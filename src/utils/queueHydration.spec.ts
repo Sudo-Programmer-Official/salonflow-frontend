@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { QueueItem } from '../api/queue';
 import { mergeQueueItemsPreservingVisitStaff } from './queueHydration';
-import { shouldRenderVisitStaffSummary } from './queuePresentation';
+import {
+  hasQueueServiceContext,
+  queueAdditionalServiceCount,
+  queueDisplayServiceNames,
+  queuePrimaryServiceName,
+  shouldRenderVisitStaffSummary,
+} from './queuePresentation';
 
 const item = (id: string, visitStaff?: QueueItem['visitStaff']): QueueItem => ({
   id,
@@ -42,7 +48,7 @@ describe('Queue visit-staff hydration', () => {
     expect(refreshed[0]?.visitStaff).toEqual([]);
   });
 
-  it('renders visit staff for a no-service walk-in with zero requested and sold services', () => {
+  it('renders only visit staff for a no-service walk-in with zero requested and sold services', () => {
     const noServiceWalkIn: QueueItem = {
       ...item('checkin-no-service', [{ staffId: 'staff-calvin', staffName: 'Calvin', position: 0 }]),
       serviceName: null,
@@ -51,6 +57,60 @@ describe('Queue visit-staff hydration', () => {
       status: 'IN_SERVICE',
     };
 
+    expect(queueDisplayServiceNames(noServiceWalkIn)).toEqual([]);
+    expect(hasQueueServiceContext(noServiceWalkIn)).toBe(false);
     expect(shouldRenderVisitStaffSummary(noServiceWalkIn, true)).toBe(true);
+  });
+
+  it('renders neither context row when no service or visit staff exists', () => {
+    const noContext: QueueItem = {
+      ...item('checkin-no-context'),
+      serviceName: null,
+      services: [],
+      requestedServices: [],
+      visitStaff: [],
+    };
+
+    expect(hasQueueServiceContext(noContext)).toBe(false);
+    expect(shouldRenderVisitStaffSummary(noContext, true)).toBe(false);
+  });
+
+  it('keeps the compact service summary without a Walk-in fallback', () => {
+    const serviceVisit: QueueItem = {
+      ...item('checkin-service'),
+      serviceName: null,
+      services: [
+        { id: 'service-1', serviceName: 'Acrylic Remove Only' },
+        { id: 'service-2', serviceName: 'Gel Polish' },
+      ],
+      requestedServices: [],
+      visitStaff: [],
+    };
+
+    expect(queueDisplayServiceNames(serviceVisit)).toEqual([
+      'Acrylic Remove Only',
+      'Gel Polish',
+    ]);
+    expect(queuePrimaryServiceName(serviceVisit)).toBe('Acrylic Remove Only');
+    expect(queueAdditionalServiceCount(serviceVisit)).toBe(1);
+  });
+
+  it('uses requested service context when no sold service line exists', () => {
+    const requestedServiceVisit: QueueItem = {
+      ...item('checkin-requested-service'),
+      serviceName: null,
+      services: [],
+      requestedServices: [
+        {
+          id: 'request-1',
+          serviceName: 'Acrylic Remove Only',
+          status: 'REQUESTED',
+        },
+      ],
+      visitStaff: [],
+    };
+
+    expect(queueDisplayServiceNames(requestedServiceVisit)).toEqual(['Acrylic Remove Only']);
+    expect(hasQueueServiceContext(requestedServiceVisit)).toBe(true);
   });
 });
