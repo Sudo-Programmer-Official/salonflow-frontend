@@ -1381,15 +1381,19 @@ onMounted(loadSettings);
 
             <div class="flex items-center justify-between gap-4 rounded-md border border-cyan-200 bg-cyan-50 px-3 py-2">
               <div>
-                <div class="text-sm font-semibold text-slate-900">Keep kiosk services as requests</div>
+                <div class="text-sm font-semibold text-slate-900">Customer-selected kiosk services</div>
                 <div class="text-xs text-slate-600">
-                  Store customer selections as context; Admin adds performed services to the bill.
+                  Choose whether new kiosk selections stay as requests or enter sold services.
                 </div>
               </div>
-              <ElSwitch
-                :model-value="settings.kioskRequestedServicesEnabled === true"
-                @change="(val) => handleToggle('kioskRequestedServicesEnabled', val)"
-              />
+              <ElSelect
+                class="w-64"
+                :model-value="settings.kioskRequestedServicesEnabled === true ? 'request-only' : 'sold-services'"
+                @change="(val: 'request-only' | 'sold-services') => scheduleSave({ kioskRequestedServicesEnabled: val === 'request-only' })"
+              >
+                <ElOption label="Request only — recommended" value="request-only" />
+                <ElOption label="Automatically add to sold services" value="sold-services" />
+              </ElSelect>
             </div>
 
             <div class="grid gap-3 sm:grid-cols-2" v-if="settings.allowStaffSelection">
