@@ -1,4 +1,4 @@
-import { computeRedeemStatus, type RedeemStatus } from './redeemStatus';
+import { type RedeemStatus } from './redeemStatus';
 
 type PaymentMethod = 'cash' | 'card' | 'gift';
 
@@ -17,26 +17,6 @@ const roundMoney = (value: unknown): number => {
   const parsed = Number(value ?? 0);
   if (!Number.isFinite(parsed)) return 0;
   return Number(parsed.toFixed(2));
-};
-
-const resolveEffectiveRedeemStatus = (params: {
-  redeemSelected: boolean;
-  redeemStatus: RedeemStatus;
-  preservedRedeemPoints: unknown;
-  requiredPoints: number;
-  preserveRedeemWhileLoading: boolean;
-}): RedeemStatus => {
-  if (!params.redeemSelected) return params.redeemStatus;
-  if (params.redeemStatus.eligible) return params.redeemStatus;
-  if (params.redeemStatus.reason !== 'loading' || !params.preserveRedeemWhileLoading) {
-    return params.redeemStatus;
-  }
-
-  return computeRedeemStatus({
-    points: params.preservedRedeemPoints,
-    required: params.requiredPoints,
-    isLoaded: true,
-  });
 };
 
 export function shouldClearRedeemSelection(params: {
@@ -58,10 +38,7 @@ export function resolveCheckoutPaymentState(params: {
   hasBillItems: boolean;
   redeemSelected: boolean;
   redeemStatus: RedeemStatus;
-  preservedRedeemPoints: unknown;
-  requiredPoints: number;
   redeemDollarValue: number;
-  preserveRedeemWhileLoading: boolean;
   paymentOptions: PaymentOptions;
   paymentAmounts: PaymentAmounts;
   giftCardsTotal: unknown;
@@ -79,13 +56,9 @@ export function resolveCheckoutPaymentState(params: {
   const discountValue = Math.min(subtotal, Math.max(0, roundMoney(params.discountValue)));
   const taxValue = Math.max(0, roundMoney(params.taxValue));
   const tipValue = Math.max(0, roundMoney(params.tipValue));
-  const redeemStatus = resolveEffectiveRedeemStatus({
-    redeemSelected: params.redeemSelected,
-    redeemStatus: params.redeemStatus,
-    preservedRedeemPoints: params.preservedRedeemPoints,
-    requiredPoints: params.requiredPoints,
-    preserveRedeemWhileLoading: params.preserveRedeemWhileLoading,
-  });
+  // The customer loyalty endpoint is authoritative. Do not reconstruct a
+  // redeemable balance from queue or cached customer data.
+  const redeemStatus = params.redeemStatus;
   const redeemValue =
     params.redeemSelected && redeemStatus.eligible
       ? Math.max(0, roundMoney(params.redeemDollarValue))

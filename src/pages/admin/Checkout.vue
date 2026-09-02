@@ -33,6 +33,14 @@ import {
   shouldClearRedeemSelection,
 } from '@/utils/checkoutPaymentState';
 import {
+  checkoutRouteResetState,
+  createEmptyCheckoutDraftState,
+  createEmptyCheckoutLoyaltyState,
+  isCurrentCheckoutResponse,
+  type CheckoutDraftState,
+  type CheckoutLoyaltyState,
+} from '@/utils/checkoutRouteState';
+import {
   cancelServiceStaff,
   commitServiceStaff,
   createServiceStaffPickerState,
@@ -54,19 +62,7 @@ const selectedStaffId = ref('');
 const selectedStaffName = ref('');
 const taxDraft = ref('0.00');
 const tipDraft = ref('0.00');
-const loyalty = ref<{
-  customerId: string | null;
-  pointsBalance: number | null;
-  loading: boolean;
-  loaded: boolean;
-  error: string;
-}>({
-  customerId: null,
-  pointsBalance: null,
-  loading: false,
-  loaded: false,
-  error: '',
-});
+const loyalty = ref<CheckoutLoyaltyState>(createEmptyCheckoutLoyaltyState());
 const categories = ref<ServiceCategory[]>([]);
 const services = ref<ServiceItem[]>([]);
 const selectedCategory = ref<string>('all');
@@ -107,10 +103,15 @@ const manualDiscountValue = ref('');
 const REDEEM_REQUIRED_POINTS = 300;
 const REDEEM_DOLLAR_VALUE = 5;
 let loyaltyRequestId = 0;
+let checkinRequestId = 0;
+let promotionsRequestId = 0;
 
 const goToPaymentStep = async () => {
+  const requestedCheckinId = checkinId.value;
   await loadCheckin({ silent: true });
-  checkoutStep.value = 'payment';
+  if (requestedCheckinId === checkinId.value && item.value?.id === requestedCheckinId) {
+    checkoutStep.value = 'payment';
+  }
 };
 
 const goToServicesStep = () => {
@@ -119,7 +120,49 @@ const goToServicesStep = () => {
 
 const PAYMENT_KEY = 'checkoutPayments';
 
+const applyCheckoutDraftState = (draft: CheckoutDraftState) => {
+  paymentOptions.value = { ...draft.paymentOptions };
+  paymentAmounts.value = { ...draft.paymentAmounts };
+  customTotalMode.value = draft.customTotalMode;
+  customTotalValue.value = draft.customTotalValue;
+  selectedPromotionId.value = draft.selectedPromotionId;
+  manualDiscountValue.value = draft.manualDiscountValue;
+  selectedStaffId.value = draft.selectedStaffId;
+  selectedStaffName.value = draft.selectedStaffName;
+  taxDraft.value = draft.taxDraft;
+  tipDraft.value = draft.tipDraft;
+  availablePromotions.value = [];
+  promotionsLoading.value = draft.promotionsLoading;
+  promotionsError.value = draft.promotionsError;
+  customAddIns.value = [];
+  giftCards.value = draft.giftCards.map((giftCard) => ({ ...giftCard, legacyBalance: '' }));
+  nextGiftCardId.value = draft.nextGiftCardId;
+  giftCardInfo.value = {};
+  fetchedNumbers.value = {};
+  staffPickerOpen.value = draft.staffPickerOpen;
+  staffPickerLineId.value = draft.staffPickerLineId;
+  serviceStaffPickerState.value = createServiceStaffPickerState();
+};
+
+const resetCheckoutDraftState = () => applyCheckoutDraftState(createEmptyCheckoutDraftState());
+
+const resetCheckoutForRouteChange = () => {
+  const reset = checkoutRouteResetState();
+  item.value = reset.item;
+  loyaltyRequestId += 1;
+  checkinRequestId += 1;
+  promotionsRequestId += 1;
+  loyalty.value = reset.loyalty;
+  redeemPoints.value = reset.redeemPoints;
+  checkoutCompleted.value = reset.checkoutCompleted;
+  checkoutStep.value = reset.checkoutStep;
+  applyCheckoutDraftState(reset.draft);
+};
+
 const loadDrafts = () => {
+  // A missing draft is a valid state. Always clear the previous check-in's
+  // customer/payment fields before applying this route's saved draft.
+  resetCheckoutDraftState();
   try {
     const rawPay = localStorage.getItem(PAYMENT_KEY);
     const parsed = rawPay ? (JSON.parse(rawPay) as Record<string, any>) : {};
@@ -175,23 +218,7 @@ const clearDraftForCurrent = () => {
   } catch {
     /* ignore */
   }
-  paymentOptions.value = { cash: false, card: false, gift: false };
-  paymentAmounts.value = { cash: '', card: '' };
-  customTotalMode.value = false;
-  customTotalValue.value = '';
-  selectedPromotionId.value = '';
-  manualDiscountValue.value = '';
-  selectedStaffId.value = '';
-  selectedStaffName.value = '';
-  taxDraft.value = '0.00';
-  tipDraft.value = '0.00';
-  availablePromotions.value = [];
-  promotionsError.value = '';
-  customAddIns.value = [];
-  giftCards.value = [{ id: 1, number: '', amount: '', source: 'new', legacyBalance: '' }];
-  nextGiftCardId.value = 2;
-  giftCardInfo.value = {};
-  fetchedNumbers.value = {};
+  resetCheckoutDraftState();
 };
 
 type CustomAddIn = {
@@ -356,7 +383,6 @@ const loyaltyUnavailable = computed(
 );
 const loyaltyState = computed(() =>
   resolveCheckoutRedeemState({
-    fallbackPoints: item.value?.pointsBalance,
     authoritativePoints: loyalty.value.pointsBalance,
     required: REDEEM_REQUIRED_POINTS,
     isAuthoritativeLoaded: loyaltyReady.value,
@@ -500,13 +526,7 @@ const paymentState = computed(() =>
     hasBillItems: hasBillItems.value,
     redeemSelected: redeemPoints.value,
     redeemStatus: redeemStatus.value,
-    preservedRedeemPoints: loyalty.value.pointsBalance,
-    requiredPoints: REDEEM_REQUIRED_POINTS,
     redeemDollarValue: REDEEM_DOLLAR_VALUE,
-    preserveRedeemWhileLoading:
-      loyalty.value.loading &&
-      loyalty.value.customerId !== null &&
-      loyalty.value.customerId === item.value?.customerId,
     paymentOptions: paymentOptions.value,
     paymentAmounts: paymentAmounts.value,
     giftCardsTotal: giftCardsTotal.value,
@@ -600,6 +620,9 @@ const loadCustomerLoyalty = async (customerId: string | null | undefined) => {
 };
 
 const loadAvailablePromotions = async (customerId: string | null | undefined) => {
+  promotionsRequestId += 1;
+  const requestId = promotionsRequestId;
+  const requestedCheckinId = checkinId.value;
   const currentSelection = selectedPromotionId.value;
   availablePromotions.value = [];
   promotionsError.value = '';
@@ -611,24 +634,33 @@ const loadAvailablePromotions = async (customerId: string | null | undefined) =>
   promotionsLoading.value = true;
   try {
     const promos = await fetchAvailablePromotions(customerId);
+    if (requestId !== promotionsRequestId || requestedCheckinId !== checkinId.value) return;
     availablePromotions.value = promos;
     selectedPromotionId.value = promos.some((promo) => promo.id === currentSelection) ? currentSelection : '';
   } catch (err) {
+    if (requestId !== promotionsRequestId || requestedCheckinId !== checkinId.value) return;
     selectedPromotionId.value = '';
     promotionsError.value = err instanceof Error ? err.message : 'Failed to load promotions';
   } finally {
-    promotionsLoading.value = false;
+    if (requestId === promotionsRequestId) promotionsLoading.value = false;
   }
 };
 
 const loadCheckin = async (opts?: { silent?: boolean }) => {
+  const requestedCheckinId = checkinId.value;
+  checkinRequestId += 1;
+  const requestId = checkinRequestId;
   if (!opts?.silent) loading.value = true;
   try {
     // Pull current in-service items and locate the target check-in
     const res = await fetchQueue({ status: 'IN_SERVICE', limit: 100 });
+    if (
+      requestId !== checkinRequestId ||
+      !isCurrentCheckoutResponse(requestedCheckinId, checkinId.value, requestedCheckinId)
+    ) return;
     const list = (res as any).items ?? [];
     inServiceQueue.value = list;
-    const match = list.find((q: QueueItem) => q.id === checkinId.value) as QueueItem | undefined;
+    const match = list.find((q: QueueItem) => q.id === requestedCheckinId) as QueueItem | undefined;
     if (!match) {
       ElMessage.warning('Start service before checkout');
       router.replace({ name: 'admin-queue' });
@@ -636,12 +668,14 @@ const loadCheckin = async (opts?: { silent?: boolean }) => {
     }
     item.value = match;
     await loadCustomerLoyalty(match.customerId ?? null);
+    if (requestId !== checkinRequestId || requestedCheckinId !== checkinId.value) return;
     await loadAvailablePromotions(match.customerId ?? null);
   } catch (err) {
+    if (requestId !== checkinRequestId || requestedCheckinId !== checkinId.value) return;
     ElMessage.error(err instanceof Error ? err.message : 'Failed to load checkout');
     router.replace({ name: 'admin-queue' });
   } finally {
-    if (!opts?.silent) loading.value = false;
+    if (!opts?.silent && requestId === checkinRequestId) loading.value = false;
   }
 };
 
@@ -699,8 +733,9 @@ onMounted(() => {
 watch(
   () => checkinId.value,
   () => {
+    resetCheckoutForRouteChange();
     loadDrafts();
-    loadCheckin();
+    void loadCheckin();
   },
 );
 
@@ -1226,6 +1261,7 @@ const validateGiftCards = () => {
 };
 
 const submitCheckout = async () => {
+  if (completing.value) return;
   if (!item.value) return;
   if (!settings.value) {
     settings.value = await fetchSettings().catch(() => null);
@@ -1289,7 +1325,6 @@ const submitCheckout = async () => {
       return acc;
     }, {});
 
-    checkoutCompleted.value = true;
     await checkoutCheckIn(checkinId.value, {
       amountPaid: enteredTotal.value,
       taxAmount: taxAmount.value,
@@ -1308,6 +1343,7 @@ const submitCheckout = async () => {
       giftCards: giftCardSummaries,
       promotionId: selectedPromotion.value?.id ?? null,
     });
+    checkoutCompleted.value = true;
     clearDraftForCurrent();
     ElMessage.success('Checkout completed');
     router.push({ name: 'admin-queue' });

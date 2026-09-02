@@ -1,7 +1,6 @@
 import { computeRedeemStatus, type RedeemStatus } from './redeemStatus';
 
 export function resolveCheckoutRedeemState(params: {
-  fallbackPoints: unknown;
   authoritativePoints: unknown;
   required: number;
   isAuthoritativeLoaded: boolean;
@@ -9,7 +8,7 @@ export function resolveCheckoutRedeemState(params: {
 }): { points: number; redeemStatus: RedeemStatus } {
   const points = params.isAuthoritativeLoaded
     ? params.authoritativePoints
-    : params.fallbackPoints;
+    : undefined;
 
   const redeemStatus = computeRedeemStatus({
     points,

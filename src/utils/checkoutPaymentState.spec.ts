@@ -16,10 +16,7 @@ describe('resolveCheckoutPaymentState', () => {
       hasBillItems: true,
       redeemSelected: true,
       redeemStatus: readyStatus,
-      preservedRedeemPoints: 587,
-      requiredPoints: 300,
       redeemDollarValue: 5,
-      preserveRedeemWhileLoading: false,
       paymentOptions: { cash: true, card: false, gift: false },
       paymentAmounts: { cash: '95.00', card: '' },
       giftCardsTotal: 0,
@@ -35,10 +32,7 @@ describe('resolveCheckoutPaymentState', () => {
       hasBillItems: true,
       redeemSelected: true,
       redeemStatus: readyStatus,
-      preservedRedeemPoints: 587,
-      requiredPoints: 300,
       redeemDollarValue: 5,
-      preserveRedeemWhileLoading: false,
       paymentOptions: { cash: true, card: true, gift: false },
       paymentAmounts: { cash: '90.00', card: '5.00' },
       giftCardsTotal: 0,
@@ -48,10 +42,7 @@ describe('resolveCheckoutPaymentState', () => {
       hasBillItems: true,
       redeemSelected: true,
       redeemStatus: readyStatus,
-      preservedRedeemPoints: 587,
-      requiredPoints: 300,
       redeemDollarValue: 5,
-      preserveRedeemWhileLoading: false,
       paymentOptions: { cash: true, card: true, gift: false },
       paymentAmounts: { cash: '95.00', card: '5.00' },
       giftCardsTotal: 0,
@@ -63,7 +54,7 @@ describe('resolveCheckoutPaymentState', () => {
     expect(invalid.canCompleteCheckout).toBe(false);
   });
 
-  it('keeps redeem applied through the first-attempt loyalty refresh in custom total mode', () => {
+  it('does not apply a stale redeem balance while the loyalty API is loading', () => {
     const state = resolveCheckoutPaymentState({
       subtotal: 100,
       hasBillItems: true,
@@ -74,19 +65,17 @@ describe('resolveCheckoutPaymentState', () => {
         points: 587,
         required: 300,
       },
-      preservedRedeemPoints: 587,
-      requiredPoints: 300,
       redeemDollarValue: 5,
-      preserveRedeemWhileLoading: true,
       paymentOptions: { cash: true, card: true, gift: false },
       paymentAmounts: { cash: '90.00', card: '5.00' },
       giftCardsTotal: 0,
     });
 
-    expect(state.redeemStatus).toEqual(readyStatus);
-    expect(state.totalDue).toBe(95);
-    expect(state.remainingBalance).toBe(0);
-    expect(state.canCompleteCheckout).toBe(true);
+    expect(state.redeemStatus.reason).toBe('loading');
+    expect(state.redeemValue).toBe(0);
+    expect(state.totalDue).toBe(100);
+    expect(state.remainingBalance).toBe(5);
+    expect(state.canCompleteCheckout).toBe(false);
   });
 });
 
