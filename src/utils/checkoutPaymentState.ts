@@ -1,14 +1,14 @@
 import { type RedeemStatus } from './redeemStatus';
 
-type PaymentMethod = 'cash' | 'card' | 'gift';
+export type PaymentMethod = 'cash' | 'card' | 'gift';
 
-type PaymentOptions = {
+export type PaymentOptions = {
   cash: boolean;
   card: boolean;
   gift: boolean;
 };
 
-type PaymentAmounts = {
+export type PaymentAmounts = {
   cash: string;
   card: string;
 };
@@ -18,6 +18,30 @@ const roundMoney = (value: unknown): number => {
   if (!Number.isFinite(parsed)) return 0;
   return Number(parsed.toFixed(2));
 };
+
+/**
+ * Resolve the amount for a newly activated payment method from the canonical
+ * payable total. The method being activated is deliberately excluded from
+ * existing allocations so a stale draft amount cannot be subtracted twice.
+ */
+export function resolvePaymentMethodAmount(params: {
+  totalDue: unknown;
+  method: Exclude<PaymentMethod, 'gift'>;
+  paymentOptions: PaymentOptions;
+  paymentAmounts: PaymentAmounts;
+  giftCardsTotal: unknown;
+}): string {
+  const totalDue = Math.max(0, roundMoney(params.totalDue));
+  const otherPaymentTotal = (['cash', 'card'] as const).reduce((sum, method) => {
+    if (method === params.method || !params.paymentOptions[method]) return sum;
+    return sum + roundMoney(params.paymentAmounts[method]);
+  }, 0);
+  const giftCardTotal = params.paymentOptions.gift
+    ? roundMoney(params.giftCardsTotal)
+    : 0;
+  const remaining = Math.max(0, roundMoney(totalDue - otherPaymentTotal - giftCardTotal));
+  return remaining > 0 ? remaining.toFixed(2) : '';
+}
 
 export function shouldClearRedeemSelection(params: {
   redeemSelected: boolean;

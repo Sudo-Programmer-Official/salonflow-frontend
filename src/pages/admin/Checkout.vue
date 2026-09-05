@@ -30,6 +30,7 @@ import { checkoutServiceLines } from '@/utils/checkoutServices';
 import { serviceLineStaffContext } from '@/utils/serviceLineStaffContext';
 import {
   resolveCheckoutPaymentState,
+  resolvePaymentMethodAmount,
   shouldClearRedeemSelection,
 } from '@/utils/checkoutPaymentState';
 import {
@@ -1006,8 +1007,16 @@ const openAddInModal = (service?: ServiceItem) => {
 const togglePaymentOption = (key: 'cash' | 'card' | 'gift', checked: boolean) => {
   paymentOptions.value = { ...paymentOptions.value, [key]: checked };
   if (key !== 'gift' && checked) {
-    const rem = Math.max(0, totalDue.value - enteredTotal.value);
-    paymentAmounts.value = { ...paymentAmounts.value, [key]: rem ? rem.toFixed(2) : '' };
+    paymentAmounts.value = {
+      ...paymentAmounts.value,
+      [key]: resolvePaymentMethodAmount({
+        totalDue: totalDue.value,
+        method: key,
+        paymentOptions: paymentOptions.value,
+        paymentAmounts: paymentAmounts.value,
+        giftCardsTotal: giftCardsTotal.value,
+      }),
+    };
   }
   if (!checked) {
     if (key === 'gift') {
