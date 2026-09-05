@@ -29,6 +29,7 @@ import { resolveCheckoutRedeemState } from '@/utils/checkoutLoyalty';
 import { checkoutServiceLines } from '@/utils/checkoutServices';
 import { serviceLineStaffContext } from '@/utils/serviceLineStaffContext';
 import {
+  reconcileSinglePaymentMethodAmount,
   resolveCheckoutPaymentState,
   resolvePaymentMethodAmount,
   shouldClearRedeemSelection,
@@ -770,31 +771,14 @@ watch(
 );
 
 watch(
-  () => totalDue.value,
+  () => [totalDue.value, giftCardsTotal.value],
   () => {
-    const remaining = totalDue.value - enteredTotal.value;
-    // If underpaid, prefill first active payment option
-    if (remaining > 0.009) {
-      const active = (['cash', 'card'] as const).find((k) => paymentOptions.value[k]);
-      if (active) {
-        paymentAmounts.value = {
-          ...paymentAmounts.value,
-          [active]: remaining.toFixed(2),
-        };
-      }
-    }
-    // If overpaid, trim the first active payment option to remove overage
-    if (remaining < -0.009) {
-      const active = (['cash', 'card'] as const).find((k) => paymentOptions.value[k]);
-      if (active) {
-        const current = Number(paymentAmounts.value[active]) || 0;
-        const adjusted = Math.max(0, current + remaining); // remaining is negative
-        paymentAmounts.value = {
-          ...paymentAmounts.value,
-          [active]: adjusted ? adjusted.toFixed(2) : '',
-        };
-      }
-    }
+    paymentAmounts.value = reconcileSinglePaymentMethodAmount({
+      totalDue: totalDue.value,
+      paymentOptions: paymentOptions.value,
+      paymentAmounts: paymentAmounts.value,
+      giftCardsTotal: giftCardsTotal.value,
+    });
   },
 );
 
@@ -1028,6 +1012,12 @@ const togglePaymentOption = (key: 'cash' | 'card' | 'gift', checked: boolean) =>
       paymentAmounts.value = { ...paymentAmounts.value, [key]: '' };
     }
   }
+  paymentAmounts.value = reconcileSinglePaymentMethodAmount({
+    totalDue: totalDue.value,
+    paymentOptions: paymentOptions.value,
+    paymentAmounts: paymentAmounts.value,
+    giftCardsTotal: giftCardsTotal.value,
+  });
 };
 
 // Add-in modal state and helpers

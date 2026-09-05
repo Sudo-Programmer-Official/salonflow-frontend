@@ -43,6 +43,35 @@ export function resolvePaymentMethodAmount(params: {
   return remaining > 0 ? remaining.toFixed(2) : '';
 }
 
+/**
+ * Keep a single active cash/card method aligned with the canonical payable
+ * total. When both methods are active, their amounts may be an intentional
+ * split and must remain untouched.
+ */
+export function reconcileSinglePaymentMethodAmount(params: {
+  totalDue: unknown;
+  paymentOptions: PaymentOptions;
+  paymentAmounts: PaymentAmounts;
+  giftCardsTotal: unknown;
+}): PaymentAmounts {
+  const activeMethods = (['cash', 'card'] as const).filter(
+    (method) => params.paymentOptions[method],
+  );
+  if (activeMethods.length !== 1) return params.paymentAmounts;
+
+  const method = activeMethods[0];
+  if (!method) return params.paymentAmounts;
+  const amount = resolvePaymentMethodAmount({
+    totalDue: params.totalDue,
+    method,
+    paymentOptions: params.paymentOptions,
+    paymentAmounts: params.paymentAmounts,
+    giftCardsTotal: params.giftCardsTotal,
+  });
+  if (params.paymentAmounts[method] === amount) return params.paymentAmounts;
+  return { ...params.paymentAmounts, [method]: amount };
+}
+
 export function shouldClearRedeemSelection(params: {
   redeemSelected: boolean;
   redeemStatus: RedeemStatus;

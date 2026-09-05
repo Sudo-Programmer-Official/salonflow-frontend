@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  reconcileSinglePaymentMethodAmount,
   resolveCheckoutPaymentState,
   resolvePaymentMethodAmount,
   shouldClearRedeemSelection,
@@ -14,6 +15,104 @@ const readyStatus: RedeemStatus = {
 };
 
 describe('resolveCheckoutPaymentState', () => {
+  it('reconciles an active cash allocation to 63 after redeeming 5 from a 68 bill', () => {
+    const paymentOptions = { cash: true, card: false, gift: false };
+    const beforeRedemption = reconcileSinglePaymentMethodAmount({
+      totalDue: 68,
+      paymentOptions,
+      paymentAmounts: { cash: '', card: '' },
+      giftCardsTotal: 0,
+    });
+    const afterRedemption = reconcileSinglePaymentMethodAmount({
+      totalDue: 63,
+      paymentOptions,
+      paymentAmounts: beforeRedemption,
+      giftCardsTotal: 0,
+    });
+    const state = resolveCheckoutPaymentState({
+      subtotal: 68,
+      hasBillItems: true,
+      redeemSelected: true,
+      redeemStatus: readyStatus,
+      redeemDollarValue: 5,
+      paymentOptions,
+      paymentAmounts: afterRedemption,
+      giftCardsTotal: 0,
+    });
+
+    expect(beforeRedemption.cash).toBe('68.00');
+    expect(afterRedemption.cash).toBe('63.00');
+    expect(state.totalDue).toBe(63);
+    expect(state.enteredTotal).toBe(63);
+    expect(state.remainingBalance).toBe(0);
+    expect(state.canCompleteCheckout).toBe(true);
+  });
+
+  it('does not turn a redeemed 63 total into 58 from a stale 5 cash draft', () => {
+    const paymentAmounts = reconcileSinglePaymentMethodAmount({
+      totalDue: 63,
+      paymentOptions: { cash: true, card: false, gift: false },
+      paymentAmounts: { cash: '5.00', card: '' },
+      giftCardsTotal: 0,
+    });
+    const state = resolveCheckoutPaymentState({
+      subtotal: 68,
+      hasBillItems: true,
+      redeemSelected: true,
+      redeemStatus: readyStatus,
+      redeemDollarValue: 5,
+      paymentOptions: { cash: true, card: false, gift: false },
+      paymentAmounts,
+      giftCardsTotal: 0,
+    });
+
+    expect(paymentAmounts.cash).toBe('63.00');
+    expect(state.totalDue).toBe(63);
+    expect(state.enteredTotal).toBe(63);
+    expect(state.remainingBalance).toBe(0);
+    expect(state.canCompleteCheckout).toBe(true);
+  });
+
+  it('keeps redemption toggles deterministic and preserves intentional splits', () => {
+    const options = { cash: true, card: false, gift: false };
+    const fullAmount = reconcileSinglePaymentMethodAmount({
+      totalDue: 68,
+      paymentOptions: options,
+      paymentAmounts: { cash: '', card: '' },
+      giftCardsTotal: 0,
+    });
+    const redeemedAmount = reconcileSinglePaymentMethodAmount({
+      totalDue: 63,
+      paymentOptions: options,
+      paymentAmounts: fullAmount,
+      giftCardsTotal: 0,
+    });
+    const restoredAmount = reconcileSinglePaymentMethodAmount({
+      totalDue: 68,
+      paymentOptions: options,
+      paymentAmounts: redeemedAmount,
+      giftCardsTotal: 0,
+    });
+    const redeemedAgain = reconcileSinglePaymentMethodAmount({
+      totalDue: 63,
+      paymentOptions: options,
+      paymentAmounts: restoredAmount,
+      giftCardsTotal: 0,
+    });
+    const split = reconcileSinglePaymentMethodAmount({
+      totalDue: 63,
+      paymentOptions: { cash: true, card: true, gift: false },
+      paymentAmounts: { cash: '30.00', card: '33.00' },
+      giftCardsTotal: 0,
+    });
+
+    expect(fullAmount.cash).toBe('68.00');
+    expect(redeemedAmount.cash).toBe('63.00');
+    expect(restoredAmount.cash).toBe('68.00');
+    expect(redeemedAgain.cash).toBe('63.00');
+    expect(split).toEqual({ cash: '30.00', card: '33.00' });
+  });
+
   it('allocates the full redeemed payable total instead of subtracting a stale method amount', () => {
     const cashAmount = resolvePaymentMethodAmount({
       totalDue: 198,
