@@ -95,7 +95,7 @@ export async function magicLogin(token: string): Promise<LoginResponse> {
 
 export async function fetchCurrentAccount(): Promise<CurrentAccountResponse> {
   const res = await fetch(`${apiBase}/api/auth/me`, {
-    headers: buildHeaders({ auth: true, json: true }),
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
   });
 
   if (!res.ok) {

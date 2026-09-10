@@ -1,14 +1,12 @@
 <script setup lang="ts">
-import { nextTick, onMounted, ref, watch } from 'vue';
-import { RouterLink, useRoute } from 'vue-router';
-import LeadAssistant from '../components/marketing/LeadAssistant.vue';
+import { onMounted, ref, watch } from 'vue';
+import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { trackMarketingEvent } from '@/api/marketing';
 
 const route = useRoute();
-const assistantSection = ref<HTMLElement | null>(null);
+const router = useRouter();
 const firstWeekSection = ref<HTMLElement | null>(null);
 const firstWeekPulse = ref(false);
-const leadAssistant = ref<InstanceType<typeof LeadAssistant> | null>(null);
 
 const trackHomeEvent = (eventType: 'page_view' | 'cta_click' | 'request_start', payload: Record<string, any> = {}) =>
   trackMarketingEvent({
@@ -19,10 +17,9 @@ const trackHomeEvent = (eventType: 'page_view' | 'cta_click' | 'request_start', 
     payload,
   });
 
-const jumpToAssistant = () => {
-  void trackHomeEvent('cta_click', { placement: 'hero-see-demo-flow', target: '#assistant' });
-  assistantSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  leadAssistant.value?.openFullscreen();
+const goToDemo = (placement = 'guided-demo-funnel') => {
+  void trackHomeEvent('cta_click', { placement, target: '/start' });
+  void router.push('/start');
 };
 
 const jumpToFirstWeek = () => {
@@ -40,8 +37,7 @@ const handleDemoRequestClick = (placement: string) => {
 
 const openDemoFromRoute = async () => {
   if (route.query.demo !== '1') return;
-  await nextTick();
-  jumpToAssistant();
+  goToDemo('query-demo');
 };
 
 onMounted(() => {
@@ -867,7 +863,7 @@ const faqItems = [
               <button
                 type="button"
                 class="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white/75 px-6 py-3.5 text-sm font-semibold text-slate-800 transition hover:-translate-y-0.5 hover:border-slate-400 hover:bg-white"
-                @click="jumpToAssistant"
+                @click="goToDemo('client-proof-cta')"
               >
                 Get My SalonFlow Plan
               </button>
@@ -985,38 +981,6 @@ const faqItems = [
       </div>
     </section>
 
-    <section ref="assistantSection" class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-      <div class="space-y-10">
-        <div class="grid gap-8 lg:grid-cols-[0.9fr,1.1fr] lg:items-center">
-          <div>
-            <div class="text-[11px] font-semibold uppercase tracking-[0.32em] text-slate-500">Request a tailored demo</div>
-            <h2 class="sf-display mt-3 max-w-3xl text-3xl font-semibold leading-tight text-slate-950 sm:text-4xl">
-              Let serious leads ask for the right demo without a generic contact form.
-            </h2>
-            <p class="mt-5 max-w-3xl text-base leading-8 text-slate-600">
-              The request flow should qualify the salon, collect the useful context, and create a clean handoff for the admin team before anyone reaches pricing.
-            </p>
-          </div>
-
-          <div class="overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_20px_70px_rgba(15,23,42,0.08)]">
-            <img
-              src="/images/landing/marketing-assistant.jpg"
-              alt="SalonFlow lead assistant"
-              class="h-[360px] w-full object-cover object-center"
-            />
-          </div>
-        </div>
-
-        <LeadAssistant
-          ref="leadAssistant"
-          source="marketing-home-assistant"
-          title="See how SalonFlow fits your salon in one guided conversation"
-          subtitle="Tell us your salon type, team size, current software, and contact details. We capture the request quickly and save progress automatically."
-          cta-label="Request Demo"
-        />
-      </div>
-    </section>
-
     <section class="border-t border-black/5 bg-[linear-gradient(180deg,#fffdf9_0%,#eef6f1_100%)]">
       <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
         <div class="mx-auto max-w-3xl text-center">
@@ -1081,7 +1045,7 @@ const faqItems = [
             <button
               type="button"
               :class="plan.buttonClass"
-              @click="jumpToAssistant"
+              @click="goToDemo('pricing-cta')"
             >
               {{ plan.ctaLabel }}
             </button>
@@ -1125,7 +1089,7 @@ const faqItems = [
               <button
                 type="button"
                 class="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white/75 px-6 py-3.5 text-sm font-semibold text-slate-800 transition hover:-translate-y-0.5 hover:border-slate-400 hover:bg-white"
-                @click="jumpToAssistant"
+                @click="goToDemo('qualify-salon-cta')"
               >
                 Qualify my salon
               </button>
@@ -1174,7 +1138,7 @@ const faqItems = [
             <button
               type="button"
               class="mt-7 inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_16px_40px_rgba(15,23,42,0.16)] transition hover:-translate-y-0.5 hover:bg-slate-800"
-              @click="jumpToAssistant"
+              @click="goToDemo('faq-cta')"
             >
               Ask About My Salon
             </button>

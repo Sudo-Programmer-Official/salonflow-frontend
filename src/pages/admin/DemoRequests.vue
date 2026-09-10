@@ -35,14 +35,6 @@ const magicLink = ref<string | null>(null);
 const magicLinkTarget = ref<DemoRequest | null>(null);
 const isProd = import.meta.env.PROD;
 const statusDraft = ref('NEW');
-const templateDraft = ref('nail-salon');
-
-const templateOptions = [
-  { key: 'nail-salon', label: 'Nail Salon', summary: 'Flagship salon demo with bookings, loyalty, reminders, and POS depth.' },
-  { key: 'hair-salon', label: 'Hair Salon', summary: 'Color, cuts, styling, and rebooking.' },
-  { key: 'spa', label: 'Spa', summary: 'Massage, facial, waxing, packages, and gift cards.' },
-  { key: 'beauty-studio', label: 'Beauty Studio', summary: 'Brows, lashes, PMU, and premium specialty services.' },
-] as const;
 
 const statusOptions = [
   'NEW',
@@ -55,19 +47,6 @@ const statusOptions = [
   'DISQUALIFIED',
   'CLOSED',
 ] as const;
-
-const templateLabel = (key?: string | null) =>
-  templateOptions.find((option) => option.key === key)?.label ?? 'Nail Salon';
-
-const inferTemplateKey = (row: DemoRequest) => {
-  const explicit = row.demo_template_key?.trim().toLowerCase();
-  if (explicit && templateOptions.some((option) => option.key === explicit)) return explicit;
-  const businessType = typeof row.details?.businessType === 'string' ? row.details.businessType.toLowerCase() : '';
-  if (businessType.includes('hair')) return 'hair-salon';
-  if (businessType.includes('spa')) return 'spa';
-  if (businessType.includes('beauty') || businessType.includes('lash') || businessType.includes('brow')) return 'beauty-studio';
-  return 'nail-salon';
-};
 
 const loadRequests = async () => {
   loading.value = true;
@@ -124,7 +103,6 @@ const notesText = computed(
 const openDetails = (row: DemoRequest) => {
   selected.value = row;
   statusDraft.value = row.status?.toUpperCase() || 'NEW';
-  templateDraft.value = inferTemplateKey(row);
   detailsOpen.value = true;
 };
 
@@ -243,22 +221,15 @@ const sendDemo = async (row: DemoRequest) => {
   if (!canSendDemo(row)) return;
   sendLoadingId.value = row.id;
   try {
-    const result = await sendDemoRequest(row.id, templateDraft.value);
-    row.status = result.request.status;
-    row.demo_template_key = result.request.demoTemplateKey;
-    row.assigned_business_id = result.request.assignedBusinessId;
-    row.assigned_subdomain = result.request.assignedSubdomain;
-    row.assigned_username = result.request.assignedUsername;
-    row.assigned_temp_password = result.request.assignedTempPassword;
-    row.login_url = result.request.loginUrl;
-    row.approved_at = result.request.approvedAt;
-    row.sent_at = result.request.sentAt;
-    row.activated_at = result.request.activatedAt;
+    const result = await sendDemoRequest(row.id);
+    row.status = result.lifecycleStatus;
+    row.assigned_business_id = result.summary.businessId;
+    row.assigned_subdomain = result.summary.subdomain;
     if (selected.value?.id === row.id) {
       Object.assign(selected.value, row);
       statusDraft.value = row.status.toUpperCase();
     }
-    ElMessage.success(`Demo sent for ${result.template.label}`);
+    ElMessage.success('Demo access link sent');
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : 'Failed to send demo');
   } finally {
@@ -385,18 +356,12 @@ const sendDemo = async (row: DemoRequest) => {
 
         <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
           <div class="grid gap-3 sm:grid-cols-2">
-            <label class="block">
-              <span class="text-sm font-medium text-slate-700">Demo template</span>
-              <select
-                v-model="templateDraft"
-                class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-500"
-              >
-                <option v-for="template in templateOptions" :key="template.key" :value="template.key">
-                  {{ template.label }}
-                </option>
-              </select>
-            </label>
-
+            <div>
+              <div class="text-sm font-medium text-slate-700">Demo environment</div>
+              <div class="mt-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900">
+                SalonFlow Demo · mtvnailsdemo
+              </div>
+            </div>
             <label class="block">
               <span class="text-sm font-medium text-slate-700">Status</span>
               <select
@@ -430,7 +395,7 @@ const sendDemo = async (row: DemoRequest) => {
           </div>
 
           <p class="mt-3 text-xs leading-5 text-slate-500">
-            Send Demo assigns the chosen template, creates credentials, and emails the login details in one step.
+            Send Demo issues a private expiring access link for the canonical reusable demo environment. No demo password is created or displayed here.
           </p>
         </div>
 
@@ -440,25 +405,9 @@ const sendDemo = async (row: DemoRequest) => {
             <div class="text-base text-slate-900">{{ selected.details?.businessName || selected.assigned_subdomain || '—' }}</div>
           </div>
           <div>
-            <div class="text-sm text-slate-600">Template</div>
-            <div class="text-base text-slate-900">{{ templateLabel(selected.demo_template_key || templateDraft) }}</div>
-          </div>
-          <div>
-            <div class="text-sm text-slate-600">Login URL</div>
-            <div class="break-words rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-800">
-              {{ selected.login_url || '—' }}
-            </div>
-          </div>
-          <div>
-            <div class="text-sm text-slate-600">Username</div>
+            <div class="text-sm text-slate-600">Access</div>
             <div class="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-800">
-              {{ selected.assigned_username || selected.email || '—' }}
-            </div>
-          </div>
-          <div>
-            <div class="text-sm text-slate-600">Temporary password</div>
-            <div class="rounded-md bg-slate-50 px-3 py-2 font-mono text-sm text-slate-800">
-              {{ selected.assigned_temp_password || '—' }}
+              Private link delivery is handled by the isolated demo-access flow.
             </div>
           </div>
           <div>

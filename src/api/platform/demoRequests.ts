@@ -25,6 +25,26 @@ export type DemoRequest = {
   approvedAt?: string | null;
   sentAt?: string | null;
   activatedAt?: string | null;
+  demoAccess?: DemoAccessSummary | null;
+};
+
+export type DemoAccessSummary = {
+  id: string;
+  status: 'ACTIVE' | 'EXPIRED' | 'REVOKED';
+  businessId: string;
+  subdomain: string;
+  expiresAt: string;
+  revokedAt: string | null;
+  firstOpenedAt: string | null;
+  lastOpenedAt: string | null;
+  openCount: number;
+};
+
+export type DemoAccessEvent = {
+  id: string;
+  event_type: string;
+  occurred_at: string;
+  metadata: Record<string, unknown> | null;
 };
 
 export type DemoRequestPagination = {
@@ -104,41 +124,54 @@ export async function generateMagicLink(id: string): Promise<MagicLinkResponse> 
   return body as MagicLinkResponse;
 }
 
-export type DemoDeliveryResponse = {
-  status: string;
-  request: {
-    id: string;
-    status: string;
-    demoTemplateKey: string | null;
-    assignedBusinessId: string | null;
-    assignedSubdomain: string | null;
-    assignedUsername: string | null;
-    assignedTempPassword: string | null;
-    loginUrl: string | null;
-    approvedAt: string | null;
-    sentAt: string | null;
-    activatedAt: string | null;
-  };
-  template: {
-    key: string;
-    label: string;
-    summary: string;
-  };
-  loginUrl: string;
-  username: string;
-  tempPassword: string;
-  emailStatus: { status: string; error?: string | null; errorCode?: string | null };
-};
-
-export async function sendDemoRequest(id: string, templateKey?: string | null): Promise<DemoDeliveryResponse> {
+export async function sendDemoRequest(id: string, _templateKey?: string | null): Promise<DemoAccessIssueResponse> {
   const res = await fetch(apiUrl(`/platform/demo-requests/${id}/send`), {
     method: 'POST',
     headers: buildHeaders({ auth: true, json: true }),
-    body: JSON.stringify({ templateKey }),
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
     throw new Error(body.error || 'Failed to send demo');
   }
-  return body as DemoDeliveryResponse;
+  return body as DemoAccessIssueResponse;
+}
+
+export type DemoAccessIssueResponse = {
+  accessId: string;
+  accessUrl: string;
+  demoUrl: string;
+  expiresAt: string;
+  lifecycleStatus: 'APPROVED' | 'SENT';
+  emailStatus: { status: string; error?: string };
+  smsStatus: { status: string; error?: string };
+  summary: DemoAccessSummary;
+};
+
+export async function issueDemoAccess(id: string): Promise<DemoAccessIssueResponse> {
+  const res = await fetch(apiUrl(`/platform/demo-requests/${id}/access`), {
+    method: 'POST',
+    headers: buildHeaders({ auth: true, json: true }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || 'Failed to issue demo access');
+  return body as DemoAccessIssueResponse;
+}
+
+export async function revokeDemoAccess(id: string): Promise<{ revoked: boolean }> {
+  const res = await fetch(apiUrl(`/platform/demo-requests/${id}/access/revoke`), {
+    method: 'POST',
+    headers: buildHeaders({ auth: true, json: true }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || 'Failed to revoke demo access');
+  return body as { revoked: boolean };
+}
+
+export async function fetchDemoAccessEvents(id: string): Promise<{ events: DemoAccessEvent[] }> {
+  const res = await fetch(apiUrl(`/platform/demo-requests/${id}/access/events`), {
+    headers: buildHeaders({ auth: true }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || 'Failed to load demo access events');
+  return body as { events: DemoAccessEvent[] };
 }

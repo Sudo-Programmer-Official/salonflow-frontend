@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router';
 import { apiUrl, buildHeaders } from '@/api/client';
 import { trackMarketingEvent } from '@/api/marketing';
+import { validateDemoLeadContact } from '@/utils/demoLeadValidation';
 
 type StepId =
   | 'name'
@@ -61,6 +62,7 @@ const props = withDefaults(
     subtitle?: string;
     ctaLabel?: string;
     defaultFullscreen?: boolean;
+    persistDrafts?: boolean;
   }>(),
   {
     source: 'marketing-lead-assistant',
@@ -68,6 +70,7 @@ const props = withDefaults(
     subtitle: 'Answer a few quick questions. Your progress saves automatically, and we will tailor the right setup for your salon.',
     ctaLabel: 'Get My Demo Plan',
     defaultFullscreen: false,
+    persistDrafts: true,
   },
 );
 
@@ -285,8 +288,6 @@ const completedConversation = computed<TranscriptEntry[]>(() => {
   return transcript;
 });
 
-const emailValid = (value: string) => /\S+@\S+\.\S+/.test(value);
-
 const clampStepIndex = (value: number) => Math.max(0, Math.min(TOTAL_STEPS - 1, Math.trunc(value)));
 
 const normalizeSnapshot = (): StoredDraftSnapshot => ({
@@ -297,7 +298,7 @@ const normalizeSnapshot = (): StoredDraftSnapshot => ({
 });
 
 const restoreLocalDraft = () => {
-  if (typeof window === 'undefined') return;
+  if (!props.persistDrafts || typeof window === 'undefined') return;
   const raw = window.localStorage.getItem(storageKey.value);
   if (!raw) return;
   try {
@@ -318,7 +319,7 @@ const restoreLocalDraft = () => {
 };
 
 const persistLocalDraft = () => {
-  if (typeof window === 'undefined') return;
+  if (!props.persistDrafts || typeof window === 'undefined') return;
   if (!hasAnyProgress.value || success.value) {
     window.localStorage.removeItem(storageKey.value);
     return;
@@ -327,7 +328,7 @@ const persistLocalDraft = () => {
 };
 
 const clearLocalDraft = () => {
-  if (typeof window !== 'undefined') {
+  if (props.persistDrafts && typeof window !== 'undefined') {
     window.localStorage.removeItem(storageKey.value);
   }
 };
@@ -533,16 +534,9 @@ const validateStep = (): boolean => {
   }
 
   if (id === 'contact') {
-    if (!answers.email.trim()) {
-      error.value = 'Email is required.';
-      return false;
-    }
-    if (!emailValid(answers.email.trim())) {
-      error.value = 'Enter a valid email address.';
-      return false;
-    }
-    if (phoneDigits.value && phoneDigits.value.length !== 10) {
-      error.value = 'Enter a valid 10-digit phone number or leave it blank.';
+    const contactError = validateDemoLeadContact(answers.email, answers.phone);
+    if (contactError) {
+      error.value = contactError;
       return false;
     }
   }
@@ -664,16 +658,9 @@ const submitQuickLead = async () => {
     error.value = 'Add your name in the message or the name field below.';
     return;
   }
-  if (!answers.email.trim()) {
-    error.value = 'Add an email so we can send the demo plan.';
-    return;
-  }
-  if (!emailValid(answers.email.trim())) {
-    error.value = 'Enter a valid email address.';
-    return;
-  }
-  if (phoneDigits.value && phoneDigits.value.length !== 10) {
-    error.value = 'Enter a valid 10-digit phone number or remove it.';
+  const contactError = validateDemoLeadContact(answers.email, answers.phone);
+  if (contactError) {
+    error.value = contactError;
     return;
   }
 
@@ -772,7 +759,7 @@ watch(
 onMounted(() => {
   restoreLocalDraft();
   hydrating = false;
-  persistLocalDraft();
+  if (props.persistDrafts) persistLocalDraft();
   if (canPersistRemotely.value && !draftId.value) {
     queueDraftSave(150);
   }

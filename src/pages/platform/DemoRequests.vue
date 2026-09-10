@@ -24,9 +24,12 @@ import dayjs from 'dayjs';
 import {
   fetchDemoRequests,
   convertDemoRequest,
+  fetchDemoAccessEvents,
   generateMagicLink as generateRequestMagicLink,
-  sendDemoRequest,
+  issueDemoAccess,
+  revokeDemoAccess,
   updateDemoRequestStatus,
+  type DemoAccessEvent,
   type DemoRequest,
 } from '../../api/platform/demoRequests';
 import {
@@ -106,6 +109,8 @@ const saveLoading = ref(false);
 const sendLoading = ref(false);
 const convertLoading = ref(false);
 const requestLinkLoading = ref(false);
+const demoAccessLoading = ref(false);
+const demoAccessEvents = ref<DemoAccessEvent[]>([]);
 
 const activeTab = ref<'catalog' | 'requests'>('catalog');
 const catalog = ref<DemoTenantCatalogResponse | null>(null);
@@ -128,11 +133,11 @@ const tenantSmokeDraft = reactive({
   }, {}),
 });
 const requestStatusDraft = ref('NEW');
-const requestTemplateDraft = ref('nail-salon');
 const tenantMagicLink = ref<string | null>(null);
 const tenantMagicLinkLabel = ref<string>('Magic link');
 const requestMagicLink = ref<string | null>(null);
 const requestMagicLinkLabel = ref<string>('Magic link');
+const requestAccessLink = ref<string | null>(null);
 
 const fetchCatalog = async () => {
   catalogLoading.value = true;
@@ -211,9 +216,19 @@ const openTenant = (tenant: DemoTenantCatalogItem) => {
 const openRequest = (row: DemoRequest) => {
   selectedRequest.value = row;
   requestStatusDraft.value = row.status?.toUpperCase() || 'NEW';
-  requestTemplateDraft.value = row.demoTemplateKey?.trim().toLowerCase() || 'nail-salon';
   requestMagicLink.value = null;
+  requestAccessLink.value = null;
+  demoAccessEvents.value = [];
   requestDrawerOpen.value = true;
+  void loadDemoAccessEvents(row.id);
+};
+
+const loadDemoAccessEvents = async (id: string) => {
+  try {
+    demoAccessEvents.value = (await fetchDemoAccessEvents(id)).events;
+  } catch {
+    demoAccessEvents.value = [];
+  }
 };
 
 const openTenantDetails = (tenant: DemoTenantCatalogItem) => {
@@ -352,23 +367,61 @@ const sendRequest = async () => {
   if (!selectedRequest.value) return;
   sendLoading.value = true;
   try {
-    const result = await sendDemoRequest(selectedRequest.value.id, requestTemplateDraft.value);
-    selectedRequest.value.status = result.request.status;
-    selectedRequest.value.demoTemplateKey = result.request.demoTemplateKey;
-    selectedRequest.value.assignedBusinessId = result.request.assignedBusinessId;
-    selectedRequest.value.assignedSubdomain = result.request.assignedSubdomain;
-    selectedRequest.value.assignedUsername = result.request.assignedUsername;
-    selectedRequest.value.assignedTempPassword = result.request.assignedTempPassword;
-    selectedRequest.value.loginUrl = result.request.loginUrl;
-    selectedRequest.value.approvedAt = result.request.approvedAt;
-    selectedRequest.value.sentAt = result.request.sentAt;
-    selectedRequest.value.activatedAt = result.request.activatedAt;
-    ElMessage.success('Demo sent');
+    const result = await issueDemoAccess(selectedRequest.value.id);
+    selectedRequest.value.status = result.lifecycleStatus;
+    selectedRequest.value.demoTemplateKey = 'nail-salon';
+    selectedRequest.value.assignedBusinessId = result.summary.businessId;
+    selectedRequest.value.assignedSubdomain = result.summary.subdomain;
+    selectedRequest.value.demoAccess = result.summary;
+    requestAccessLink.value = result.accessUrl;
+    await copyText(result.accessUrl, 'Demo access link copied');
+    ElMessage.success('Demo access issued');
+    await loadDemoAccessEvents(selectedRequest.value.id);
     await reloadAll();
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : 'Failed to send demo');
   } finally {
     sendLoading.value = false;
+  }
+};
+
+const copyDemoAccessLink = async () => {
+  if (!selectedRequest.value) return;
+  sendLoading.value = true;
+  try {
+    const result = await issueDemoAccess(selectedRequest.value.id);
+    selectedRequest.value.status = result.lifecycleStatus;
+    selectedRequest.value.assignedBusinessId = result.summary.businessId;
+    selectedRequest.value.assignedSubdomain = result.summary.subdomain;
+    selectedRequest.value.demoAccess = result.summary;
+    requestAccessLink.value = result.accessUrl;
+    await copyText(result.accessUrl, 'Demo access link copied');
+    await loadDemoAccessEvents(selectedRequest.value.id);
+    await reloadAll();
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'Failed to copy demo access link');
+  } finally {
+    sendLoading.value = false;
+  }
+};
+
+const revokeRequestAccess = async () => {
+  if (!selectedRequest.value) return;
+  demoAccessLoading.value = true;
+  try {
+    await revokeDemoAccess(selectedRequest.value.id);
+    if (selectedRequest.value.demoAccess) {
+      selectedRequest.value.demoAccess.status = 'REVOKED';
+      selectedRequest.value.demoAccess.revokedAt = new Date().toISOString();
+    }
+    requestAccessLink.value = null;
+    await loadDemoAccessEvents(selectedRequest.value.id);
+    ElMessage.success('Demo access revoked');
+    await reloadAll();
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'Failed to revoke demo access');
+  } finally {
+    demoAccessLoading.value = false;
   }
 };
 
@@ -418,12 +471,6 @@ const saveRequestStatus = async () => {
     await reloadAll();
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : 'Failed to update request status');
-  }
-};
-
-const openRequestLogin = () => {
-  if (selectedRequest.value?.loginUrl) {
-    window.open(selectedRequest.value.loginUrl, '_blank', 'noopener,noreferrer');
   }
 };
 
@@ -621,6 +668,26 @@ const requestTotals = computed(() => ({
                 {{ templateLabel(row.demoTemplateKey) }}
               </template>
             </ElTableColumn>
+            <ElTableColumn label="Engagement" min-width="170">
+              <template #default="{ row }">
+                <div v-if="row.demoAccess" class="space-y-1 text-xs text-slate-500">
+                  <div>{{ row.demoAccess.openCount }} opens</div>
+                  <div>Last: {{ formatDate(row.demoAccess.lastOpenedAt) }}</div>
+                </div>
+                <span v-else class="text-sm text-slate-400">—</span>
+              </template>
+            </ElTableColumn>
+            <ElTableColumn label="Access" min-width="160">
+              <template #default="{ row }">
+                <div v-if="row.demoAccess" class="space-y-1">
+                  <ElTag size="small" :type="row.demoAccess.status === 'ACTIVE' ? 'success' : 'warning'">
+                    {{ row.demoAccess.status }}
+                  </ElTag>
+                  <div class="text-xs text-slate-500">Expires {{ formatDate(row.demoAccess.expiresAt) }}</div>
+                </div>
+                <span v-else class="text-sm text-slate-400">Not issued</span>
+              </template>
+            </ElTableColumn>
             <ElTableColumn label="Actions" min-width="160">
               <template #default="{ row }">
                 <ElButton size="small" @click="openRequest(row)">Open</ElButton>
@@ -805,16 +872,10 @@ const requestTotals = computed(() => ({
           <ElDescriptionsItem label="Submitted">{{ formatDate(selectedRequest.createdAt) }}</ElDescriptionsItem>
         </ElDescriptions>
 
-        <div>
-          <div class="mb-2 text-sm font-semibold text-slate-900">Template</div>
-          <ElSelect v-model="requestTemplateDraft" class="w-full">
-            <ElOption
-              v-for="template in templateOptions"
-              :key="template.key"
-              :label="`${template.label} - ${template.summary}`"
-              :value="template.key"
-            />
-          </ElSelect>
+        <div class="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-slate-700">
+          <div class="font-semibold text-slate-900">Canonical demo environment</div>
+          <div class="mt-1">SalonFlow Demo · mtvnailsdemo</div>
+          <div class="mt-1 text-xs text-slate-500">Prospect access always stays on this reusable demo tenant.</div>
         </div>
 
         <div>
@@ -834,14 +895,31 @@ const requestTotals = computed(() => ({
 
         <div class="flex flex-wrap gap-2">
           <ElButton :loading="sendLoading" type="primary" @click="sendRequest">Send Demo</ElButton>
-          <ElButton :loading="requestLinkLoading" @click="generateRequestLink">Generate Magic Link</ElButton>
+          <ElButton v-if="selectedRequest.demoAccess" :loading="sendLoading" @click="copyDemoAccessLink">Copy Demo Link</ElButton>
+          <ElButton :loading="requestLinkLoading" @click="generateRequestLink">Generate Conversion Link</ElButton>
+          <ElButton
+            v-if="selectedRequest.demoAccess?.status === 'ACTIVE'"
+            :loading="demoAccessLoading"
+            type="danger"
+            @click="revokeRequestAccess"
+          >
+            Revoke Access
+          </ElButton>
           <ElButton :loading="convertLoading" @click="convertRequest">Convert</ElButton>
           <ElButton @click="saveRequestStatus">Save Status</ElButton>
-          <ElButton v-if="selectedRequest.loginUrl" @click="openRequestLogin">Open Demo</ElButton>
         </div>
 
         <ElAlert
-          v-if="requestMagicLink"
+          v-if="requestAccessLink"
+          type="success"
+          show-icon
+          :closable="false"
+          title="Private demo access link copied"
+          :description="requestAccessLink"
+        />
+
+        <ElAlert
+          v-else-if="requestMagicLink"
           type="success"
           show-icon
           :closable="false"
@@ -854,10 +932,27 @@ const requestTotals = computed(() => ({
           <div class="mt-3 grid gap-2 text-sm text-slate-700">
             <div>Assigned business: {{ selectedRequest.assignedBusinessId || '—' }}</div>
             <div>Assigned subdomain: {{ selectedRequest.assignedSubdomain || '—' }}</div>
-            <div>Assigned username: {{ selectedRequest.assignedUsername || '—' }}</div>
-            <div>Demo login URL: {{ selectedRequest.loginUrl || '—' }}</div>
-            <div>Temporary password: {{ selectedRequest.assignedTempPassword || '—' }}</div>
+            <div>Access status: {{ selectedRequest.demoAccess?.status || 'NOT ISSUED' }}</div>
+            <div>Access expires: {{ formatDate(selectedRequest.demoAccess?.expiresAt) }}</div>
+            <div>First opened: {{ formatDate(selectedRequest.demoAccess?.firstOpenedAt) }}</div>
+            <div>Last opened: {{ formatDate(selectedRequest.demoAccess?.lastOpenedAt) }}</div>
+            <div>Opens: {{ selectedRequest.demoAccess?.openCount ?? 0 }}</div>
           </div>
+        </ElCard>
+
+        <ElCard>
+          <div class="text-sm font-semibold text-slate-900">Access timeline</div>
+          <div v-if="demoAccessEvents.length" class="mt-3 space-y-3">
+            <div v-for="event in demoAccessEvents" :key="event.id" class="flex items-start justify-between gap-3 border-l-2 border-blue-200 pl-3">
+              <div>
+                <div class="text-sm font-medium text-slate-800">
+                  {{ event.event_type === 'CREATED' ? 'REQUEST RECEIVED' : event.event_type.replace(/_/g, ' ') }}
+                </div>
+                <div class="text-xs text-slate-500">{{ formatDate(event.occurred_at) }}</div>
+              </div>
+            </div>
+          </div>
+          <div v-else class="mt-3 text-sm text-slate-500">No access events recorded.</div>
         </ElCard>
       </div>
     </ElDrawer>

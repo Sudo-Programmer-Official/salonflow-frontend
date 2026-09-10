@@ -13,9 +13,6 @@ export type DemoRequest = {
   demo_template_key?: string | null;
   assigned_business_id?: string | null;
   assigned_subdomain?: string | null;
-  assigned_username?: string | null;
-  assigned_temp_password?: string | null;
-  login_url?: string | null;
   approved_at?: string | null;
   sent_at?: string | null;
   activated_at?: string | null;
@@ -105,36 +102,30 @@ export async function generateMagicLink(id: string): Promise<MagicLinkResponse> 
 }
 
 export type DemoDeliveryResponse = {
-  status: string;
-  request: {
-    id: string;
-    status: string;
-    demoTemplateKey: string | null;
-    assignedBusinessId: string | null;
-    assignedSubdomain: string | null;
-    assignedUsername: string | null;
-    assignedTempPassword: string | null;
-    loginUrl: string | null;
-    approvedAt: string | null;
-    sentAt: string | null;
-    activatedAt: string | null;
-  };
-  template: {
-    key: string;
-    label: string;
-    summary: string;
-  };
-  loginUrl: string;
-  username: string;
-  tempPassword: string;
+  status: 'ok';
+  accessUrl: string;
+  demoUrl: string;
+  expiresAt: string;
+  lifecycleStatus: 'APPROVED' | 'SENT';
   emailStatus: { status: string; error?: string | null; errorCode?: string | null };
+  smsStatus: { status: string; error?: string | null; errorCode?: string | null };
+  summary: {
+    id: string;
+    status: 'ACTIVE' | 'EXPIRED' | 'REVOKED';
+    businessId: string;
+    subdomain: string;
+    expiresAt: string;
+    revokedAt: string | null;
+    firstOpenedAt: string | null;
+    lastOpenedAt: string | null;
+    openCount: number;
+  };
 };
 
-export async function sendDemoRequest(id: string, templateKey?: string | null): Promise<DemoDeliveryResponse> {
+export async function sendDemoRequest(id: string, _templateKey?: string | null): Promise<DemoDeliveryResponse> {
   const res = await fetch(`${apiBase}/${id}/send`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
-    body: JSON.stringify({ templateKey }),
   });
 
   if (!res.ok) {

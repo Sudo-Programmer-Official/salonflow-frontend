@@ -70,6 +70,7 @@ import PasswordResetPage from "../pages/PasswordReset.vue";
 import PrivacyPage from "../pages/Privacy.vue";
 import TermsPage from "../pages/Terms.vue";
 import DataDeletionPage from "../pages/DataDeletion.vue";
+import DemoAccessPage from "../pages/DemoAccess.vue";
 import { clearAuthState } from "../utils/auth";
 import { defaultRouteForRole } from "../utils/navigation";
 import { isPlatformHost } from "../api/client";
@@ -147,6 +148,8 @@ const isWebsiteHost = (() => {
 })();
 
 const websiteRoutes = [
+  { path: "/demo/access/:token", name: "demo-access-website", component: DemoAccessPage },
+  { path: "/demo/access", name: "demo-access-website-empty", component: DemoAccessPage },
   { path: "/", name: "website-home", component: WebsitePage },
   { path: "/services", name: "website-services", component: WebsitePage },
   { path: "/about", name: "website-about", component: WebsitePage },
@@ -158,6 +161,16 @@ const websiteRoutes = [
 ];
 
 const appRoutes = [
+  {
+    path: "/demo/access",
+    name: "demo-access-empty",
+    component: DemoAccessPage,
+  },
+  {
+    path: "/demo/access/:token",
+    name: "demo-access",
+    component: DemoAccessPage,
+  },
   {
     path: "/",
     component: MarketingLayout,
