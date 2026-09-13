@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { checkTenantExists } from '../api/tenantsPublic';
+import { buildTenantLoginUrl, buildTenantUrl } from '../utils/tenantUrls';
 
 const tenantInput = ref('');
 const error = ref('');
@@ -37,15 +38,13 @@ const getTenantLoginUrl = (tenant: string) => {
     const portPart = port ? `:${port}` : '';
     return `${protocol}//${hostname}${portPart}/app/login`;
   }
-  const parts = hostname.split('.');
-  const baseDomain = parts.length >= 2 ? parts.slice(-2).join('.') : hostname;
-  return `${protocol}//${tenant}.${baseDomain}/app/login`;
+  return buildTenantLoginUrl(tenant);
 };
 
 const setTenantAndGo = (tenant: string, name?: string | null, city?: string | null) => {
   localStorage.setItem(storageKeys.lastTenant, tenant);
   localStorage.setItem(storageKeys.lastLoginAt, String(Date.now()));
-  localStorage.setItem(storageKeys.lastTenantUrl, `${tenant}.salonflow.studio`);
+  localStorage.setItem(storageKeys.lastTenantUrl, buildTenantUrl(tenant));
   if (name) localStorage.setItem(storageKeys.lastTenantName, name);
   if (city) localStorage.setItem(storageKeys.lastTenantCity, city);
   localStorage.setItem('tenantSubdomain', tenant);

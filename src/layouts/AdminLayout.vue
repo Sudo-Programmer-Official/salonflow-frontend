@@ -23,6 +23,7 @@ import {
 import { getAttentionCount } from '../api/appointments';
 import { playInboxChime } from '../utils/sound';
 import { DEFAULT_TIMEZONE, setBusinessTimezone } from '../utils/dates';
+import StagingBanner from '../components/StagingBanner.vue';
 
 dayjs.extend(relativeTime);
 
@@ -701,6 +702,7 @@ const toggleSidebarCollapse = () => {
     <div v-if="sidebarOpen && showSidebar" class="sidebar-backdrop" @click="closeSidebar"></div>
 
     <div class="admin-main">
+      <StagingBanner />
       <header v-if="showHeader" class="admin-header">
         <div class="flex items-center gap-3">
           <div class="text-sm font-semibold text-slate-900">

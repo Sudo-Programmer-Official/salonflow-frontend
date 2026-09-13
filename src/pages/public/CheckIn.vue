@@ -10,6 +10,7 @@ import { startKioskIdleWatchdog } from '../../utils/kioskIdleWatchdog';
 import { fetchPublicSettings, type BusinessSettings } from '../../api/settings';
 import { applyThemeFromSettings } from '../../utils/theme';
 import { maintenanceActive } from '../../api/maintenance';
+import { tenantFromHost } from '../../utils/tenantDomains';
 
 const form = reactive({
   name: '',
@@ -50,6 +51,7 @@ const route = useRoute();
 const tenant = computed(
   () =>
     (route.query.tenant as string | undefined) ||
+    (typeof window !== 'undefined' ? tenantFromHost(window.location.host) ?? undefined : undefined) ||
     (import.meta.env.VITE_TENANT_ID as string | undefined) ||
     (typeof window !== 'undefined' ? localStorage.getItem('tenantSubdomain') ?? undefined : undefined) ||
     (typeof window !== 'undefined' ? localStorage.getItem('tenantId') ?? undefined : undefined) ||

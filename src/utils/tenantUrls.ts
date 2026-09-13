@@ -1,3 +1,5 @@
+import { getTenantDomainConfig } from './tenantDomains';
+
 const DEFAULT_LIVE_DOMAIN = 'salonflow.studio';
 
 type TenantUrlOptions = {
@@ -26,10 +28,11 @@ const resolveRuntimeConfig = () => {
   const hostname = window.location.hostname.toLowerCase();
   const host = window.location.host;
   const isLocal = hostname.includes('localhost') || hostname.startsWith('127.');
+  const configured = getTenantDomainConfig(host);
 
   return {
     protocol: isLocal ? window.location.protocol : 'https:',
-    baseDomain: deriveBaseDomain(host, hostname) || DEFAULT_LIVE_DOMAIN,
+    baseDomain: configured.tenantBaseDomain || deriveBaseDomain(host, hostname) || DEFAULT_LIVE_DOMAIN,
   };
 };
 
@@ -55,4 +58,3 @@ export const buildTenantCheckInUrl = (subdomain: string, options?: TenantUrlOpti
 
 export const buildTenantKioskUrl = (subdomain: string, options?: TenantUrlOptions) =>
   buildTenantUrl(subdomain, `kiosk/checkin/${subdomain.trim()}`, options);
-

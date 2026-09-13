@@ -1,4 +1,5 @@
 import { buildHeaders } from './client';
+import { isPlatformHost, tenantFromHost } from '../utils/tenantDomains';
 
 type LoginResponse = {
   token: string;
@@ -29,18 +30,13 @@ const apiBase =
   (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/+$/, '') ||
   '';
 
-const isPlatformHost = () => {
-  if (typeof window === 'undefined') return false;
-  const host = window.location.hostname.toLowerCase();
-  return host === 'platform.localhost' || host.startsWith('platform.');
-};
-
 export async function login(
   input: { email: string; password: string },
   options: { client?: 'salonflow_admin' | 'salonflow_pos' } = {},
 ): Promise<LoginResponse> {
+  const host = typeof window !== 'undefined' ? window.location.host : undefined;
   const hostname = typeof window !== 'undefined' ? window.location.hostname : undefined;
-  const hostnameTenant = hostname ? hostname.split('.')[0] ?? undefined : undefined;
+  const hostnameTenant = tenantFromHost(host);
   const isLocal = hostname ? hostname.includes('localhost') : false;
   const tenantId =
     (isLocal ? (import.meta.env.VITE_TENANT_ID as string | undefined) : undefined) ||
@@ -53,7 +49,7 @@ export async function login(
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   const client = options.client ?? 'salonflow_admin';
-  const platformHost = isPlatformHost();
+  const platformHost = isPlatformHost(host);
   if (client === 'salonflow_pos') headers['x-pos-client'] = 'true';
   if (tenantId && !platformHost) headers['x-tenant-id'] = tenantId;
   if (platformHost) {

@@ -21,6 +21,7 @@ import { startKioskIdleWatchdog } from "../../utils/kioskIdleWatchdog";
 import { applyThemeFromSettings } from "../../utils/theme";
 import { formatPhone, formatUSPhone } from "../../utils/format";
 import { formatBusinessHoursRange } from "../../utils/businessTime";
+import { tenantFromHost } from "../../utils/tenantDomains";
 
 type Step = "welcome" | "phone" | "name" | "services" | "staff" | "done";
 
@@ -137,6 +138,7 @@ const tenant = computed(
   () =>
     (route.params.salonId as string | undefined) ||
     (route.query.tenant as string | undefined) ||
+    (typeof window !== "undefined" ? tenantFromHost(window.location.host) ?? undefined : undefined) ||
     (import.meta.env.VITE_TENANT_ID as string | undefined) ||
     (typeof window !== "undefined"
       ? (localStorage.getItem("tenantSubdomain") ?? undefined)

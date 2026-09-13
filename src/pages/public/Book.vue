@@ -20,6 +20,7 @@ import { fetchPublicSettings, type BusinessSettings } from '../../api/settings';
 import { refreshBusinessDayClock } from '../../composables/useBusinessDayClock';
 import { applyThemeFromSettings } from '../../utils/theme';
 import { isPlatformHost } from '../../api/client';
+import { tenantFromHost } from '../../utils/tenantDomains';
 import { dayjs, formatInBusinessTz, getBusinessTimezone, setBusinessTimezone } from '../../utils/dates';
 import { maintenanceActive } from '../../api/maintenance';
 import { useWebsite } from '../../composables/useWebsite';
@@ -124,10 +125,9 @@ const websiteFooter = computed(() => {
 });
 
 const initialTenant = () => {
-  const host = typeof window !== 'undefined' ? window.location.hostname : undefined;
-  if (host && host.split('.').length >= 3 && host.endsWith('salonflow.studio')) {
-    return host.split('.')[0];
-  }
+  const host = typeof window !== 'undefined' ? window.location.host : undefined;
+  const hostTenant = tenantFromHost(host);
+  if (hostTenant) return hostTenant;
   return (
     (route.query.tenant as string | undefined) ||
     (import.meta.env.VITE_TENANT_ID as string | undefined) ||

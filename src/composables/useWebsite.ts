@@ -1,6 +1,7 @@
 import { ref } from 'vue';
 import { apiUrl, buildHeaders } from '../api/client';
 import { applyWebsiteTheme } from '../utils/websiteTheme';
+import { tenantFromHost } from '../utils/tenantDomains';
 
 type MediaVariant = {
   url: string;
@@ -92,10 +93,7 @@ export function useWebsite(locale: 'en' | 'es') {
       // Persist tenant subdomain so public API calls (services v2, etc.) work even on custom domains
       if (typeof window !== 'undefined') {
         const defaultDomain = body?.site?.default_domain as string | undefined;
-        const hostSub =
-          window.location.hostname.includes('.salonflow.studio') && window.location.hostname.split('.').length >= 3
-            ? window.location.hostname.split('.')[0]
-            : undefined;
+        const hostSub = tenantFromHost(window.location.host) ?? undefined;
         const subdomain =
           hostSub ||
           defaultDomain

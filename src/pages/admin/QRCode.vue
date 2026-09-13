@@ -6,6 +6,7 @@ import { markQrPrinted, fetchOnboardingStatus } from '../../api/onboarding';
 import { fetchReviewQr } from '../../api/reviewSms';
 import { fetchWebsiteSite } from '../../api/website';
 import { generateQrPoster } from '../../utils/qrPoster';
+import { buildTenantUrl } from '../../utils/tenantUrls';
 
 type QrItem = {
   key: 'booking' | 'checkin' | 'kiosk' | 'review' | 'facebook';
@@ -44,13 +45,8 @@ const updateItem = (key: QrItem['key'], partial: Partial<QrItem>) => {
 
 const buildBaseOrigin = (subdomain: string | null) => {
   if (typeof window === 'undefined') return '';
-  const host = window.location.hostname;
-  const parts = host.split('.');
-  const root = parts.length >= 2 ? parts.slice(1).join('.') : host;
-  const tenant = subdomain || parts[0] || '';
-  // Strip leading www from root if present.
-  const cleanRoot = root.replace(/^www\./i, '');
-  return `https://${tenant}.${cleanRoot}`;
+  const tenant = subdomain || '';
+  return tenant ? buildTenantUrl(tenant) : '';
 };
 
 const generateQr = async (link: string, caption: string) => {

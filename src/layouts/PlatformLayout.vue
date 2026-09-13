@@ -1,5 +1,6 @@
 <template>
   <div class="platform-shell flex flex-col bg-white text-slate-900">
+    <StagingBanner />
     <div class="platform-body flex flex-1">
       <aside class="hidden w-64 border-r border-slate-200 bg-slate-50/70 p-4 sm:block">
         <div class="mb-6 text-sm font-semibold text-slate-700">Platform</div>
@@ -105,6 +106,7 @@
 import { logout } from '../utils/auth';
 import { onMounted, onUnmounted, ref } from 'vue';
 import { fetchUpgradeRequestCount } from '../api/upgradeRequestsCount';
+import StagingBanner from '../components/StagingBanner.vue';
 
 const handleLogout = () => logout('/app/login');
 

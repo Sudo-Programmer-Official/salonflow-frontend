@@ -1,13 +1,7 @@
 const resolvedApiBase =
   (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/+$/, '') || '';
 
-const PLATFORM_HOSTS = ['salonflow.studio', 'www.salonflow.studio', 'app.salonflow.studio', 'api.salonflow.studio'];
-const isPlatformHost = () => {
-  if (typeof window === 'undefined') return false;
-  const host = window.location.hostname.toLowerCase();
-  if (PLATFORM_HOSTS.includes(host)) return true;
-  return host === 'platform.localhost' || host.startsWith('platform.');
-};
+import { isDemoGatewayHost, isPlatformHost, tenantFromHost } from '../utils/tenantDomains';
 
 const authHeader = (): Record<string, string> => {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -21,9 +15,15 @@ const clientHeader = (): Record<string, string> => {
     : {};
 };
 
+const websiteHostHeader = (): Record<string, string> => {
+  if (typeof window === 'undefined' || !window.location.host) return {};
+  return { 'x-website-host': window.location.host };
+};
+
 const tenantHeader = (): Record<string, string> => {
+  const host = typeof window !== 'undefined' ? window.location.host : undefined;
   const hostname = typeof window !== 'undefined' ? window.location.hostname : undefined;
-  const hostnameTenant = hostname ? hostname.split('.')[0] ?? undefined : undefined;
+  const hostnameTenant = tenantFromHost(host) ?? undefined;
   const envTenant = import.meta.env.VITE_TENANT_ID as string | undefined;
   const storedTenant =
     (typeof window !== 'undefined' ? localStorage.getItem('tenantSubdomain') ?? undefined : undefined) ||
@@ -41,7 +41,9 @@ const tenantHeader = (): Record<string, string> => {
 
   const tenantId = candidate && !isUuid(candidate) ? candidate : undefined;
 
-  if (tenantId && !isPlatformHost()) {
+  // Demo gateway requests still need the canonical tenant context for the API
+  // tenant resolver, even though the gateway itself is a reserved app host.
+  if (tenantId && (!isPlatformHost(host) || isDemoGatewayHost(host))) {
     return { 'x-tenant-id': tenantId };
   }
   return {};
@@ -55,6 +57,7 @@ export const buildHeaders = (opts: {
   tenant?: boolean;
   json?: boolean;
 } = {}) => ({
+  ...websiteHostHeader(),
   ...(opts.json ? { 'Content-Type': 'application/json' } : {}),
   ...(opts.auth ? authHeader() : {}),
   ...(opts.tenant ? tenantHeader() : {}),

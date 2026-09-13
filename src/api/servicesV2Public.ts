@@ -1,4 +1,5 @@
 import { apiUrl } from './client';
+import { tenantFromHost } from '../utils/tenantDomains';
 
 export type PublicCategory = {
   id: string;
@@ -74,18 +75,6 @@ export async function fetchServiceV2(categorySlug: string, serviceSlug: string) 
   return body as { category: PublicCategory; service: PublicService };
 }
 
-// ---- helpers ----
-function normalizeHost(host?: string | null): string {
-  if (!host) return '';
-  return host.replace(/^https?:\/\//, '').replace(/:\d+$/, '').replace(/^www\./, '').toLowerCase();
-}
-
-function extractSubdomainFromHost(host: string): string | undefined {
-  const parts = host.split('.');
-  if (parts.length < 3) return undefined;
-  return parts[0];
-}
-
 function getStoredTenant(): string | undefined {
   if (typeof window === 'undefined') return undefined;
   const stored =
@@ -99,8 +88,7 @@ function getStoredTenant(): string | undefined {
 
 export function getTenantId(): string | undefined {
   if (typeof window === 'undefined') return undefined;
-  const host = normalizeHost(window.location.hostname);
-  const sub = extractSubdomainFromHost(host);
+  const sub = tenantFromHost(window.location.host) ?? undefined;
   // Prefer host-derived tenant first (prevents stale localStorage like "demo")
   if (sub) {
     localStorage.setItem('tenantSubdomain', sub);
