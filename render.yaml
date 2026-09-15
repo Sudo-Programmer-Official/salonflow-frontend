@@ -1,0 +1,24 @@
+services:
+  - type: web
+    runtime: static
+    name: salonflow-frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    domains:
+      - staging.salonflow.studio
+      - platform.staging.salonflow.studio
+      - demo.staging.salonflow.studio
+      - '*.staging.salonflow.studio'
+    envVars:
+      - key: VITE_APP_ENV
+        value: staging
+      - key: VITE_TENANT_BASE_DOMAIN
+        value: staging.salonflow.studio
+      - key: VITE_PLATFORM_HOST
+        value: platform.staging.salonflow.studio
+      - key: VITE_DEMO_PUBLIC_HOST
+        value: demo.staging.salonflow.studio
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
