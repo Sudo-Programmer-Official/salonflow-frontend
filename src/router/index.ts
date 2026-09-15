@@ -103,6 +103,9 @@ const isTokenExpired = (token: string | null) => {
 
 const getStoredRole = () => (isBrowser ? localStorage.getItem("role") : null);
 
+const isBackofficeRole = (role: string | null): boolean =>
+  role === "SUPER_ADMIN" || role === "OWNER" || role === "STAFF";
+
 const rememberKioskLaunch = (path: string) => {
   if (!isBrowser) return;
   const safePath = path.startsWith("/kiosk") ? path : "/kiosk/checkin";
@@ -687,7 +690,7 @@ router.beforeEach(async (to, _from, next) => {
     rememberKioskLaunch(to.fullPath || to.path);
   }
 
-  if (to.name === "login" && authed && storedRole) {
+  if (to.name === "login" && authed && isBackofficeRole(storedRole)) {
     return next(defaultRouteForRole(storedRole));
   }
 

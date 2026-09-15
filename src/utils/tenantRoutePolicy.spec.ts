@@ -13,6 +13,11 @@ describe('tenant route policy', () => {
     expect(isExplicitTenantAppRoute('/services')).toBe(false);
   });
 
+  it('does not classify unrelated website paths as application routes', () => {
+    expect(isExplicitTenantAppRoute('/booking')).toBe(false);
+    expect(isExplicitTenantAppRoute('/administer')).toBe(false);
+  });
+
   it('keeps application routes ahead of tenant website fallbacks', () => {
     const websiteRoutes = [
       { path: '/', name: 'website-home', component },
