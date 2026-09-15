@@ -3,6 +3,7 @@ import {
   getTenantDomainConfig,
   isDemoGatewayHost,
   isRenderHost,
+  isPlatformAdminHost,
   isPlatformHost,
   isStagingEnvironment,
   tenantFromHost,
@@ -48,6 +49,11 @@ describe('tenantDomains', () => {
     expect(tenantFromHost('one.two.staging.salonflow.studio', staging)).toBeNull();
     expect(isPlatformHost('staging.salonflow.studio', staging)).toBe(true);
     expect(isPlatformHost('platform.staging.salonflow.studio', staging)).toBe(true);
+    expect(isPlatformAdminHost('platform.staging.salonflow.studio', staging)).toBe(true);
+    expect(isPlatformAdminHost('demo.staging.salonflow.studio', staging)).toBe(false);
+    expect(isPlatformAdminHost('staging.salonflow.studio', staging)).toBe(false);
+    expect(isPlatformAdminHost('api-staging.salonflow.studio', staging)).toBe(false);
+    expect(isPlatformAdminHost('mtvnailsdemo.staging.salonflow.studio', staging)).toBe(false);
   });
 
   it('keeps the staging marker hidden in production and visible in staging', () => {
@@ -63,5 +69,12 @@ describe('tenantDomains', () => {
     expect(tenantFromHost(renderHost, production)).toBeNull();
     expect(isRenderHost('preview.onrender.com.attacker.example')).toBe(false);
     expect(isRenderHost('preview.child.onrender.com')).toBe(false);
+  });
+
+  it('fails closed for malformed or deeper staging hosts', () => {
+    expect(tenantFromHost('one.two.staging.salonflow.studio', staging)).toBeNull();
+    expect(tenantFromHost('platform.staging.salonflow.studio.attacker.example', staging)).toBeNull();
+    expect(tenantFromHost('mtvnailsdemo.staging.salonflow.studio.attacker.example', staging)).toBeNull();
+    expect(isPlatformAdminHost('platform.staging.salonflow.studio.attacker.example', staging)).toBe(false);
   });
 });

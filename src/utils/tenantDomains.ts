@@ -156,6 +156,30 @@ export const isPlatformHost = (
   );
 };
 
+/**
+ * Identify the host that owns the platform-admin surface. This is narrower
+ * than isPlatformHost(), which also covers reserved generic, API, demo, and
+ * Render service hosts that must not be treated as tenant websites.
+ */
+export const isPlatformAdminHost = (
+  host?: string,
+  config: TenantDomainConfig = getTenantDomainConfig(host),
+): boolean => {
+  const actual = normalizeHost(host || (typeof window !== 'undefined' ? window.location.host : ''));
+  if (!actual) return false;
+
+  const baseDomain = normalizeHost(config.tenantBaseDomain);
+  const hostname = hostnameOnly(actual);
+  return (
+    hostsMatch(actual, config.platformHost) ||
+    hostsMatch(actual, DEFAULT_PLATFORM_HOST) ||
+    hostsMatch(actual, DEFAULT_STAGING_PLATFORM_HOST) ||
+    hostname === `platform.${hostnameOnly(baseDomain)}` ||
+    hostname === `app.${hostnameOnly(baseDomain)}` ||
+    hostname === 'platform.localhost'
+  );
+};
+
 export const tenantFromHost = (
   host?: string,
   config: TenantDomainConfig = getTenantDomainConfig(host),

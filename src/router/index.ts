@@ -73,7 +73,7 @@ import DataDeletionPage from "../pages/DataDeletion.vue";
 import DemoAccessPage from "../pages/DemoAccess.vue";
 import { clearAuthState } from "../utils/auth";
 import { defaultRouteForRole } from "../utils/navigation";
-import { isPlatformHost } from "../api/client";
+import { isDemoGatewayHost, isPlatformAdminHost, isPlatformHost, isStagingEnvironment } from "../utils/tenantDomains";
 
 const LOGIN_ROUTE: RouteLocationRaw = { name: "login" };
 
@@ -146,6 +146,24 @@ const isWebsiteHost = (() => {
   if (host.includes("localhost")) return false;
   return !isPlatformHost();
 })();
+
+const isStagingRuntime = isStagingEnvironment();
+const isStagingPlatformAdminHost = isStagingRuntime && isPlatformAdminHost();
+const isStagingDemoGatewayHost = isStagingRuntime && isDemoGatewayHost();
+const isStagingReservedNonTenantHost =
+  isStagingRuntime && isPlatformHost() && !isStagingPlatformAdminHost && !isStagingDemoGatewayHost;
+
+const isTenantSurfacePath = (path: string) =>
+  path === '/check-in' ||
+  path.startsWith('/check-in/') ||
+  path === '/book' ||
+  path.startsWith('/book/') ||
+  path === '/kiosk' ||
+  path.startsWith('/kiosk/') ||
+  path === '/staff' ||
+  path.startsWith('/staff/') ||
+  path === '/admin' ||
+  path.startsWith('/admin/');
 
 const websiteRoutes = [
   { path: "/demo/access/:token", name: "demo-access-website", component: DemoAccessPage },
@@ -635,6 +653,30 @@ const router = createRouter({
 router.beforeEach(async (to, _from, next) => {
   const authed = hasValidSession();
   const storedRole = getStoredRole();
+
+  // Reserved staging hosts must never fall through to tenant website/public
+  // surfaces. Keep this policy staging-only so production routing remains
+  // unchanged.
+  if (isStagingPlatformAdminHost && !to.path.startsWith('/platform')) {
+    const authRoute =
+      to.name === 'login' ||
+      to.name === 'reset-password' ||
+      to.name === 'magic-login' ||
+      to.name === 'privacy' ||
+      to.name === 'terms' ||
+      to.name === 'data-deletion';
+    if (!authRoute) {
+      return next(authed && storedRole === 'SUPER_ADMIN' ? { name: 'platform-dashboard' } : LOGIN_ROUTE);
+    }
+  }
+
+  if (isStagingDemoGatewayHost && !to.path.startsWith('/demo/access')) {
+    return next({ path: '/demo/access' });
+  }
+
+  if (isStagingReservedNonTenantHost && isTenantSurfacePath(to.path)) {
+    return next({ path: '/' });
+  }
 
   // Reserved app routes should always hit the app, even on tenant hosts
   const APP_ROUTE_PREFIXES = ["/login", "/check-in", "/kiosk", "/staff", "/admin", "/platform"];
