@@ -24,7 +24,18 @@ onMounted(async () => {
 
 <template>
   <DemoFunnel v-if="configLoaded && demoAccessEnabled" />
-  <main v-else class="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
+  <main v-else-if="configLoaded" class="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
     <LeadAssistant source="marketing-lead-assistant" :persist-drafts="false" />
+  </main>
+  <main
+    v-else
+    class="flex min-h-[60vh] items-center justify-center bg-slate-50 px-6 py-16"
+    aria-live="polite"
+    aria-busy="true"
+  >
+    <div class="flex items-center gap-3 rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 shadow-sm">
+      <span class="h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-400" aria-hidden="true"></span>
+      Loading your demo…
+    </div>
   </main>
 </template>
