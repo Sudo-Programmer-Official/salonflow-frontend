@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { login } from '../api/auth';
 import { defaultRouteForRole } from '../utils/navigation';
+import { isStagingEnvironment, tenantFromHost } from '../utils/tenantDomains';
 import logo from '../assets/images/salonflow-logo.png';
 
 const email = ref('');
@@ -21,7 +22,12 @@ const forgotPasswordTo = computed(() => {
 });
 
 const redirectByRole = (role: string) => {
-  router.push(defaultRouteForRole(role));
+  const isStagingDemoTenant =
+    typeof window !== 'undefined' &&
+    isStagingEnvironment() &&
+    tenantFromHost(window.location.host) === 'mtvnailsdemo';
+
+  router.push(defaultRouteForRole(role, { preferAdminQueue: isStagingDemoTenant }));
 };
 
 const handleSubmit = async () => {

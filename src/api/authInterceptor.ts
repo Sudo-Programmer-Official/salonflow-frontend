@@ -11,7 +11,9 @@ export const setupAuthInterceptor = () => {
     const response = await originalFetch(input, init);
 
     if (response.status === 401) {
-      const isLoginPage = window.location.pathname.startsWith("/login");
+      const isLoginPage =
+        window.location.pathname === "/app/login" ||
+        window.location.pathname.startsWith("/login");
       if (isLoginPage) {
         return response;
       }

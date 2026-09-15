@@ -73,6 +73,7 @@ import DataDeletionPage from "../pages/DataDeletion.vue";
 import DemoAccessPage from "../pages/DemoAccess.vue";
 import { clearAuthState } from "../utils/auth";
 import { defaultRouteForRole } from "../utils/navigation";
+import { orderTenantHostRoutes } from "../utils/tenantRoutePolicy";
 import { isDemoGatewayHost, isPlatformAdminHost, isPlatformHost, isStagingEnvironment } from "../utils/tenantDomains";
 
 const LOGIN_ROUTE: RouteLocationRaw = { name: "login" };
@@ -647,7 +648,11 @@ const appRoutes = [
 
 const router = createRouter({
   history: createWebHistory(),
-  routes: isWebsiteHost ? [...websiteRoutes, ...appRoutes] : appRoutes,
+  routes: isWebsiteHost
+    ? isStagingRuntime
+      ? orderTenantHostRoutes(websiteRoutes, appRoutes)
+      : [...websiteRoutes, ...appRoutes]
+    : appRoutes,
 });
 
 router.beforeEach(async (to, _from, next) => {
@@ -676,17 +681,6 @@ router.beforeEach(async (to, _from, next) => {
 
   if (isStagingReservedNonTenantHost && isTenantSurfacePath(to.path)) {
     return next({ path: '/' });
-  }
-
-  // Reserved app routes should always hit the app, even on tenant hosts
-  const APP_ROUTE_PREFIXES = ["/login", "/check-in", "/kiosk", "/staff", "/admin", "/platform"];
-  if (isWebsiteHost && APP_ROUTE_PREFIXES.some((p) => to.path.startsWith(p))) {
-    if (to.path.startsWith("/kiosk")) {
-      rememberKioskLaunch(to.fullPath || to.path);
-    } else if (to.meta.requiresAuth && authed) {
-      rememberAppLaunch();
-    }
-    return next();
   }
 
   if (to.path.startsWith("/kiosk")) {
