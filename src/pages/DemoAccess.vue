@@ -3,9 +3,7 @@ import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { exchangeDemoAccess } from '../api/demoAccess';
 import { defaultRouteForRole } from '../utils/navigation';
-import { buildDemoTenantAccessPath, CANONICAL_DEMO_TENANT_SUBDOMAIN, scrubDemoAccessUrl } from '../utils/demoAccess';
-import { isDemoGatewayHost } from '../utils/tenantDomains';
-import { buildTenantUrl } from '../utils/tenantUrls';
+import { scrubDemoAccessUrl } from '../utils/demoAccess';
 
 const route = useRoute();
 const router = useRouter();
@@ -21,18 +19,10 @@ onMounted(async () => {
   }
 
   try {
-    // The gateway and tenant hosts do not share localStorage. Forward the
-    // private access token to the canonical tenant host so the exchange creates
-    // the session in the browser storage used by the tenant app.
-    if (typeof window !== 'undefined' && isDemoGatewayHost(window.location.host)) {
-      window.location.replace(
-        buildTenantUrl(CANONICAL_DEMO_TENANT_SUBDOMAIN, buildDemoTenantAccessPath(rawToken)),
-      );
-      return;
-    }
-
     // Keep the raw token only in this local call and remove it from browser
-    // history before the exchange request starts. It is never persisted.
+    // history before the exchange request starts. It is never persisted. The
+    // exchange is performed on the gateway host so the internal tenant slug
+    // never appears in the prospect-facing URL.
     if (typeof window !== 'undefined') {
       window.history.replaceState(window.history.state, document.title, scrubDemoAccessUrl(window.location.href));
     }

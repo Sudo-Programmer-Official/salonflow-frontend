@@ -1,5 +1,3 @@
-export const CANONICAL_DEMO_TENANT_SUBDOMAIN = 'mtvnailsdemo';
-
 export const buildDemoTenantAccessPath = (rawToken: string): string =>
   `demo/access/${encodeURIComponent(rawToken)}`;
 

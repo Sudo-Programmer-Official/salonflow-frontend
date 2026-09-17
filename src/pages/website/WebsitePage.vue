@@ -142,7 +142,7 @@ const page = computed(() => {
 
 const hero = computed(() => page.value?.content?.hero || {});
 const services = computed(() => page.value?.content?.services || []);
-const placeholderContactValues = new Set(['123 Demo St, Corpus Christi, TX', '(361) 555-0123', 'Mon-Sat 9am-7pm', 'Lun-Sáb 9am-7pm']);
+const placeholderContactValues = new Set<string>();
 const isMeaningfulContactValue = (val: any) => {
   if (val === null || val === undefined) return false;
   if (typeof val === 'string') {
@@ -226,8 +226,7 @@ const servicesMode = computed(() => {
 const servicesIntro = computed(() => {
   const intro = (page.value?.content as any)?.servicesIntro || (page.value?.content as any)?.services_intro;
   if (intro) return String(intro);
-  return (page.value?.content as any)?.servicesIntroDefault ||
-    'At MTV Nails, we offer a full range of nail, spa, and beauty services designed to help you look polished and feel confident.';
+  return (page.value?.content as any)?.servicesIntroDefault || '';
 });
 const valueProps = computed(() => {
   const raw = (page.value?.content as any)?.valueProps || (page.value?.content as any)?.value_props;
@@ -277,19 +276,13 @@ const contactPolicies = computed(() => {
 });
 const contactHoursLines = computed(() => {
   const h = contact.value?.hours;
-  if (!h) {
-    return [
-      'Mon – Thu 10:00 AM – 8:00 PM',
-      'Fri – Sat 10:00 AM – 9:00 PM',
-      'Sun 10:00 AM – 6:00 PM',
-    ];
-  }
+  if (!h) return [];
   return String(h)
     .split(/\n+/)
     .map((line) => line.trim())
     .filter(Boolean);
 });
-const contactEmail = computed(() => contact.value?.email || 'hautespotofmtvnails2015@gmail.com');
+const contactEmail = computed(() => contact.value?.email || null);
 const mapEmbedSrc = computed(() => {
   const c = contact.value || {};
   const explicit =
@@ -304,7 +297,7 @@ const mapEmbedSrc = computed(() => {
     if (/\/embed/i.test(url)) return url;
     return `${url}${url.includes('?') ? '&' : '?'}output=embed`;
   }
-  const fallback = c.address || 'Corpus Christi, TX';
+  const fallback = c.address;
   if (fallback) {
     const q = encodeURIComponent(fallback);
     return `https://www.google.com/maps?&q=${q}&output=embed`;
@@ -769,14 +762,14 @@ const heroAddress = computed(() => {
   if (explicit) return String(explicit).trim();
   const contactAddress = contact.value?.address;
   if (contactAddress) return String(contactAddress).trim();
-  return '5488 South Padre Island Dr, Corpus Christi, TX';
+  return '';
 });
 
 const heroPhone = computed(() => {
   const explicit = hero.value?.phone;
   if (explicit) return String(explicit).trim();
   if (contact.value?.phone) return String(contact.value.phone).trim();
-  return '(361) 986-1555';
+  return '';
 });
 
 const heroPhoneHref = computed(() => {
@@ -1562,7 +1555,7 @@ const footerView = computed(() => {
                 </div>
                 <div class="rounded-xl border border-border bg-surface p-4 shadow-sm">
                   <div class="text-sm uppercase tracking-wide text-muted">Phone</div>
-                  <div class="text-base text-text">{{ contact.phone || '(361) 000-0000' }}</div>
+                  <div class="text-base text-text">{{ contact.phone || 'Add your phone' }}</div>
                 </div>
                 <div class="rounded-xl border border-border bg-surface p-4 shadow-sm">
                   <div class="text-sm uppercase tracking-wide text-muted">Email</div>

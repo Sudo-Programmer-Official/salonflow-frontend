@@ -45,14 +45,6 @@ import {
   type DemoTenantMetadataPatch,
 } from '../../api/platformDemoTenants';
 
-const templateOptions = [
-  { key: 'nail-salon', label: 'Nail Salon', summary: 'Flagship demo with the strongest proof story.' },
-  { key: 'hair-salon', label: 'Hair Salon', summary: 'Color, rebooking, and a busier schedule.' },
-  { key: 'spa', label: 'Spa', summary: 'Packages, gift cards, and longer sessions.' },
-  { key: 'beauty-studio', label: 'Beauty Studio', summary: 'Brows, lashes, PMU, and specialty services.' },
-  { key: 'barbershop', label: 'Barbershop', summary: 'Fast booking, chair turnover, and clean flow.' },
-] as const;
-
 const smokeChecks = [
   { key: 'website', label: 'Website loads' },
   { key: 'login', label: 'Login works' },
@@ -114,6 +106,7 @@ const demoAccessEvents = ref<DemoAccessEvent[]>([]);
 
 const activeTab = ref<'catalog' | 'requests'>('catalog');
 const catalog = ref<DemoTenantCatalogResponse | null>(null);
+const templateOptions = computed(() => catalog.value?.templates ?? []);
 const requests = ref<DemoRequest[]>([]);
 const page = ref(1);
 const pageSize = ref(10);
@@ -176,7 +169,7 @@ onMounted(() => {
 const formatDate = (value: string | null | undefined) => (value ? dayjs(value).format('MMM D, YYYY HH:mm') : '—');
 
 const templateLabel = (templateId: string | null | undefined) =>
-  templateOptions.find((option) => option.key === templateId)?.label ?? '—';
+  templateOptions.value.find((option) => option.templateId === templateId)?.displayName ?? '—';
 
 const statusTagType = (status: string) => {
   const normalized = status.toUpperCase();
@@ -369,7 +362,7 @@ const sendRequest = async () => {
   try {
     const result = await issueDemoAccess(selectedRequest.value.id);
     selectedRequest.value.status = result.lifecycleStatus;
-    selectedRequest.value.demoTemplateKey = 'nail-salon';
+    selectedRequest.value.demoTemplateKey = result.templateKey;
     selectedRequest.value.assignedBusinessId = result.summary.businessId;
     selectedRequest.value.assignedSubdomain = result.summary.subdomain;
     selectedRequest.value.demoAccess = result.summary;
@@ -391,6 +384,7 @@ const copyDemoAccessLink = async () => {
   try {
     const result = await issueDemoAccess(selectedRequest.value.id);
     selectedRequest.value.status = result.lifecycleStatus;
+    selectedRequest.value.demoTemplateKey = result.templateKey;
     selectedRequest.value.assignedBusinessId = result.summary.businessId;
     selectedRequest.value.assignedSubdomain = result.summary.subdomain;
     selectedRequest.value.demoAccess = result.summary;

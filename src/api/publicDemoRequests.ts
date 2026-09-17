@@ -1,10 +1,11 @@
 import { apiUrl, buildHeaders, readJsonResponse } from './client';
 
 export type PublicDemoRequestInput = {
-  draftId?: string | null;
+  draftToken?: string | null;
   mode: 'draft' | 'final';
   name: string;
   businessName: string;
+  businessType: string;
   email?: string;
   phone?: string;
   interests?: string[];
@@ -14,6 +15,8 @@ export type PublicDemoRequestInput = {
 export type PublicDemoLeadResponse = {
   status: 'ok' | 'skipped';
   leadId?: string;
+  draftToken?: string;
+  deliveryToken?: string;
   isDraft?: boolean;
   progressStep?: number | null;
 };
@@ -25,6 +28,14 @@ export type PublicDemoAccess = {
   lifecycleStatus?: 'APPROVED' | 'SENT';
   emailStatus?: { status: string; error?: string };
   smsStatus?: { status: string; error?: string };
+};
+
+export type PublicDemoTemplateOption = {
+  templateKey: string;
+  businessTypes: string[];
+  label: string;
+  detail: string;
+  enabled: true;
 };
 
 const requestJson = async <T>(path: string, body: unknown): Promise<T> => {
@@ -40,9 +51,18 @@ const requestJson = async <T>(path: string, body: unknown): Promise<T> => {
   return payload;
 };
 
+export const fetchDemoTemplateCatalog = async (): Promise<PublicDemoTemplateOption[]> => {
+  const response = await fetch(apiUrl('/demo/templates'));
+  const payload = await readJsonResponse<{ templates?: PublicDemoTemplateOption[]; error?: string }>(response, {});
+  if (!response.ok || !Array.isArray(payload.templates)) {
+    throw new Error(payload.error || 'Demo options are temporarily unavailable.');
+  }
+  return payload.templates.filter((template) => template.enabled === true);
+};
+
 export const savePublicDemoLead = (input: PublicDemoRequestInput) =>
   requestJson<PublicDemoLeadResponse>('/demo-requests', {
-    draftId: input.draftId ?? undefined,
+    draftToken: input.draftToken ?? undefined,
     mode: input.mode,
     name: input.name,
     email: input.email,
@@ -51,14 +71,15 @@ export const savePublicDemoLead = (input: PublicDemoRequestInput) =>
     progressStep: input.progressStep,
     details: {
       businessName: input.businessName,
+      businessType: input.businessType,
       interests: input.interests ?? [],
       sourcePath: '/start',
       progressStep: input.progressStep,
     },
   });
 
-export const preparePublicDemo = (leadId: string) =>
+export const preparePublicDemo = (deliveryToken: string) =>
   requestJson<PublicDemoAccess & { leadId: string; lifecycleStatus: string }>(
-    `/demo-requests/${encodeURIComponent(leadId)}/delivery`,
-    {},
+    '/demo-requests/delivery',
+    { capability: deliveryToken },
   );

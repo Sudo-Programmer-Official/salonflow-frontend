@@ -1,7 +1,13 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
-import { preparePublicDemo, savePublicDemoLead, type PublicDemoAccess } from '@/api/publicDemoRequests';
+import {
+  fetchDemoTemplateCatalog,
+  preparePublicDemo,
+  savePublicDemoLead,
+  type PublicDemoAccess,
+  type PublicDemoTemplateOption,
+} from '@/api/publicDemoRequests';
 import { validateDemoFunnelStep, validateDemoFunnelSubmission } from '@/utils/demoFunnelValidation';
 
 const steps = [
@@ -22,19 +28,24 @@ const interestOptions = [
 const step = ref(1);
 const name = ref('');
 const businessName = ref('');
+const businessType = ref('');
 const email = ref('');
 const phone = ref('');
 const interests = ref<string[]>([]);
-const draftId = ref<string | null>(null);
+const draftToken = ref<string | null>(null);
 const errorMessage = ref('');
 const submitted = ref(false);
 const submitting = ref(false);
 const access = ref<PublicDemoAccess | null>(null);
+const businessTypeOptions = ref<PublicDemoTemplateOption[]>([]);
+const templateCatalogLoading = ref(true);
+const templateCatalogError = ref('');
 let draftTimer: ReturnType<typeof setTimeout> | null = null;
 
 const answers = computed(() => ({
   name: name.value,
   businessName: businessName.value,
+  businessType: businessType.value,
   email: email.value,
   phone: phone.value,
 }));
@@ -45,16 +56,17 @@ const saveDraft = async () => {
   if (submitted.value || !name.value.trim() || submitting.value) return;
   try {
     const result = await savePublicDemoLead({
-      draftId: draftId.value,
+      draftToken: draftToken.value,
       mode: 'draft',
       name: name.value,
       businessName: businessName.value,
+      businessType: businessType.value,
       email: email.value || undefined,
       phone: phone.value || undefined,
       interests: interests.value,
       progressStep: step.value,
     });
-    if (result.leadId) draftId.value = result.leadId;
+    if (result.draftToken) draftToken.value = result.draftToken;
   } catch {
     // Draft persistence is best effort; it must never turn into a submitted request.
   }
@@ -84,6 +96,10 @@ const goToStep = (nextStep: number) => {
 };
 
 const next = () => {
+  if (step.value === 1 && (templateCatalogLoading.value || templateCatalogError.value)) {
+    errorMessage.value = templateCatalogError.value || 'Loading demo options…';
+    return;
+  }
   const validationError = validateDemoFunnelStep(step.value, answers.value);
   if (validationError) {
     errorMessage.value = validationError;
@@ -108,10 +124,11 @@ const submit = async () => {
   submitting.value = true;
   try {
     const lead = await savePublicDemoLead({
-      draftId: draftId.value,
+      draftToken: draftToken.value,
       mode: 'final',
       name: name.value,
       businessName: businessName.value,
+      businessType: businessType.value,
       email: email.value,
       phone: phone.value,
       interests: interests.value,
@@ -119,7 +136,8 @@ const submit = async () => {
     });
     if (!lead.leadId) throw new Error('We could not create your demo request. Please try again.');
 
-    const demoAccess = await preparePublicDemo(lead.leadId);
+    if (!lead.deliveryToken) throw new Error('We could not create a secure demo handoff. Please try again.');
+    const demoAccess = await preparePublicDemo(lead.deliveryToken);
     access.value = demoAccess;
     submitted.value = true;
   } catch (error) {
@@ -145,7 +163,20 @@ onBeforeUnmount(() => {
   if (draftTimer) clearTimeout(draftTimer);
 });
 
-watch([step, name, businessName, email, phone, interests], queueDraftSave, { deep: true });
+onMounted(async () => {
+  try {
+    businessTypeOptions.value = await fetchDemoTemplateCatalog();
+    if (businessTypeOptions.value.length === 0) {
+      throw new Error('No demo experiences are currently enabled.');
+    }
+  } catch (error) {
+    templateCatalogError.value = error instanceof Error ? error.message : 'Demo options are temporarily unavailable.';
+  } finally {
+    templateCatalogLoading.value = false;
+  }
+});
+
+watch([step, name, businessName, businessType, email, phone, interests], queueDraftSave, { deep: true });
 </script>
 
 <template>
@@ -222,6 +253,17 @@ watch([step, name, businessName, email, phone, interests], queueDraftSave, { dee
               <label class="block">
                 <span class="text-sm font-semibold text-slate-900">Salon or business name <span class="text-pink-500">*</span></span>
                 <input v-model="businessName" autocomplete="organization" type="text" placeholder="e.g. Glow House Salon" class="demo-input mt-2" />
+              </label>
+              <label class="block">
+                <span class="text-sm font-semibold text-slate-900">What kind of business do you run? <span class="text-pink-500">*</span></span>
+                <select v-model="businessType" class="demo-input mt-2" :disabled="templateCatalogLoading || Boolean(templateCatalogError)">
+                  <option value="" disabled>{{ templateCatalogLoading ? 'Loading demo options…' : 'Select a business type' }}</option>
+                  <option v-for="option in businessTypeOptions" :key="option.templateKey" :value="option.businessTypes[0]">{{ option.label }}</option>
+                </select>
+                <span v-if="businessType" class="mt-2 block text-xs text-slate-500">
+                  {{ businessTypeOptions.find((option) => option.businessTypes.includes(businessType))?.detail }}
+                </span>
+                <span v-if="templateCatalogError" class="mt-2 block text-xs text-rose-600">{{ templateCatalogError }}</span>
               </label>
             </div>
 

@@ -49,7 +49,7 @@ type SaveMode = 'draft' | 'final';
 type DraftSaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 type StoredDraftSnapshot = {
-  draftId: string | null;
+  draftToken: string | null;
   stepIndex: number;
   answers: AssistantAnswers;
   quickLeadText?: string;
@@ -163,7 +163,7 @@ const busy = ref(false);
 const success = ref(false);
 const error = ref('');
 const isFullscreen = ref(props.defaultFullscreen);
-const draftId = ref<string | null>(null);
+const draftToken = ref<string | null>(null);
 const draftSaveState = ref<DraftSaveState>('idle');
 const quickLeadText = ref('');
 const quickLeadNotice = ref('');
@@ -291,7 +291,7 @@ const completedConversation = computed<TranscriptEntry[]>(() => {
 const clampStepIndex = (value: number) => Math.max(0, Math.min(TOTAL_STEPS - 1, Math.trunc(value)));
 
 const normalizeSnapshot = (): StoredDraftSnapshot => ({
-  draftId: draftId.value,
+  draftToken: draftToken.value,
   stepIndex: clampStepIndex(stepIndex.value),
   answers: { ...answers },
   quickLeadText: quickLeadText.value,
@@ -312,7 +312,7 @@ const restoreLocalDraft = () => {
     if (typeof parsed.quickLeadText === 'string') {
       quickLeadText.value = parsed.quickLeadText;
     }
-    draftId.value = typeof parsed.draftId === 'string' ? parsed.draftId : null;
+    draftToken.value = typeof parsed.draftToken === 'string' ? parsed.draftToken : null;
   } catch {
     window.localStorage.removeItem(storageKey.value);
   }
@@ -396,7 +396,7 @@ const buildDetails = (mode: SaveMode) => ({
 });
 
 const buildPayload = (mode: SaveMode) => ({
-  draftId: draftId.value ?? undefined,
+  draftToken: draftToken.value ?? undefined,
   mode,
   name: answers.name.trim(),
   email: answers.email.trim() || undefined,
@@ -478,8 +478,8 @@ const persistLead = async (
     throw new Error(response.error || 'Failed to save your progress.');
   }
 
-  if (response.leadId) {
-    draftId.value = String(response.leadId);
+  if (response.draftToken) {
+    draftToken.value = String(response.draftToken);
   }
 
   if (mode === 'draft') {
@@ -760,7 +760,7 @@ onMounted(() => {
   restoreLocalDraft();
   hydrating = false;
   if (props.persistDrafts) persistLocalDraft();
-  if (canPersistRemotely.value && !draftId.value) {
+  if (canPersistRemotely.value && !draftToken.value) {
     queueDraftSave(150);
   }
   if (typeof document !== 'undefined') {

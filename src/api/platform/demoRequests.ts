@@ -32,6 +32,7 @@ export type DemoAccessSummary = {
   id: string;
   status: 'ACTIVE' | 'EXPIRED' | 'REVOKED';
   businessId: string;
+  templateKey: string;
   subdomain: string;
   expiresAt: string;
   revokedAt: string | null;
@@ -124,10 +125,11 @@ export async function generateMagicLink(id: string): Promise<MagicLinkResponse> 
   return body as MagicLinkResponse;
 }
 
-export async function sendDemoRequest(id: string, _templateKey?: string | null): Promise<DemoAccessIssueResponse> {
+export async function sendDemoRequest(id: string, templateKey?: string | null): Promise<DemoAccessIssueResponse> {
   const res = await fetch(apiUrl(`/platform/demo-requests/${id}/send`), {
     method: 'POST',
     headers: buildHeaders({ auth: true, json: true }),
+    body: JSON.stringify(templateKey ? { templateKey } : {}),
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -138,6 +140,7 @@ export async function sendDemoRequest(id: string, _templateKey?: string | null):
 
 export type DemoAccessIssueResponse = {
   accessId: string;
+  templateKey: string;
   accessUrl: string;
   demoUrl: string;
   expiresAt: string;
@@ -147,10 +150,11 @@ export type DemoAccessIssueResponse = {
   summary: DemoAccessSummary;
 };
 
-export async function issueDemoAccess(id: string): Promise<DemoAccessIssueResponse> {
+export async function issueDemoAccess(id: string, templateKey?: string | null): Promise<DemoAccessIssueResponse> {
   const res = await fetch(apiUrl(`/platform/demo-requests/${id}/access`), {
     method: 'POST',
     headers: buildHeaders({ auth: true, json: true }),
+    body: JSON.stringify(templateKey ? { templateKey } : {}),
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error || 'Failed to issue demo access');

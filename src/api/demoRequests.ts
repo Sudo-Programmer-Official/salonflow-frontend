@@ -103,6 +103,7 @@ export async function generateMagicLink(id: string): Promise<MagicLinkResponse> 
 
 export type DemoDeliveryResponse = {
   status: 'ok';
+  templateKey: string;
   accessUrl: string;
   demoUrl: string;
   expiresAt: string;
@@ -113,6 +114,7 @@ export type DemoDeliveryResponse = {
     id: string;
     status: 'ACTIVE' | 'EXPIRED' | 'REVOKED';
     businessId: string;
+    templateKey: string;
     subdomain: string;
     expiresAt: string;
     revokedAt: string | null;
@@ -122,10 +124,11 @@ export type DemoDeliveryResponse = {
   };
 };
 
-export async function sendDemoRequest(id: string, _templateKey?: string | null): Promise<DemoDeliveryResponse> {
+export async function sendDemoRequest(id: string, templateKey?: string | null): Promise<DemoDeliveryResponse> {
   const res = await fetch(`${apiBase}/${id}/send`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(templateKey ? { templateKey } : {}),
   });
 
   if (!res.ok) {

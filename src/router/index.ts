@@ -95,6 +95,22 @@ const decodeJwtExpiry = (token: string): number | null => {
   }
 };
 
+const isDemoSession = () => {
+  if (!isBrowser) return false;
+  const token = localStorage.getItem("token");
+  if (!token) return false;
+  try {
+    const base64 = token.split(".")[1];
+    if (!base64) return false;
+    const normalized = base64.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), "=");
+    const payload = JSON.parse(atob(padded));
+    return payload.accessType === "DEMO";
+  } catch (_err) {
+    return false;
+  }
+};
+
 const isTokenExpired = (token: string | null) => {
   const exp = token ? decodeJwtExpiry(token) : null;
   if (!exp) return false;
@@ -678,7 +694,11 @@ router.beforeEach(async (to, _from, next) => {
     }
   }
 
-  if (isStagingDemoGatewayHost && !to.path.startsWith('/demo/access')) {
+  if (
+    isStagingDemoGatewayHost &&
+    !to.path.startsWith('/demo/access') &&
+    !(authed && isDemoSession() && isBackofficeRole(storedRole))
+  ) {
     return next({ path: '/demo/access' });
   }
 

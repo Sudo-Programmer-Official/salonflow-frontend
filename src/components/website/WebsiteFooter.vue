@@ -37,11 +37,7 @@ const props = withDefaults(
 
 const dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-const fallbackLocation = [
-  'MTV NAILS SPA – LA PALMERA MALL',
-  '5488 South Padre Island Dr',
-  'Corpus Christi, TX',
-];
+const fallbackLocation: string[] = [];
 
 const locationLines = computed(() => {
   const loc = props.footer?.location;
@@ -56,10 +52,7 @@ const locationLines = computed(() => {
 });
 
 const contact = computed(() => {
-  const fallback = { phone: '361-986-1555', email: null as string | null };
-  return props.footer?.contact
-    ? { ...fallback, ...props.footer.contact }
-    : fallback;
+  return props.footer?.contact || { phone: null, email: null };
 });
 
 const hours = computed<GroupedHour[]>(() => {
@@ -95,11 +88,7 @@ const hours = computed<GroupedHour[]>(() => {
     return groups;
   }
 
-  return [
-    { label: 'Mon – Thu', open: '10:00 AM', close: '8:00 PM', days: ['Mon', 'Tue', 'Wed', 'Thu'] },
-    { label: 'Fri – Sat', open: '10:00 AM', close: '9:00 PM', days: ['Fri', 'Sat'] },
-    { label: 'Sun', open: '10:00 AM', close: '6:00 PM', days: ['Sun'] },
-  ];
+  return [];
 });
 
 const social = computed(() => props.footer?.social || {});
@@ -158,7 +147,7 @@ function formatRange(days: string[]) {
         >
           {{ line }}
         </p>
-        <p class="sf-footer__text">Phone: {{ contact?.phone || '361-986-1555' }}</p>
+        <p v-if="contact?.phone" class="sf-footer__text">Phone: {{ contact.phone }}</p>
       </div>
 
       <div v-if="hasHours" class="sf-footer__card">

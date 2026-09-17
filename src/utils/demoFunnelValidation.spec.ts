@@ -4,6 +4,7 @@ import { validateDemoFunnelStep, validateDemoFunnelSubmission } from './demoFunn
 const completeAnswers = {
   name: 'Natalie',
   businessName: 'Glow House Salon',
+  businessType: 'Nail Salon',
   email: 'natalie@example.com',
   phone: '(361) 555-0184',
 };
