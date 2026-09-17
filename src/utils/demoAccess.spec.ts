@@ -1,8 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import { getDemoAccessConfig } from '@/api/demoAccess';
-import { scrubDemoAccessUrl } from './demoAccess';
+import { buildDemoTenantAccessPath, scrubDemoAccessUrl } from './demoAccess';
 
 describe('demo access URL handling', () => {
+  it('builds the tenant handoff path without changing the token', () => {
+    expect(buildDemoTenantAccessPath('token/with spaces')).toBe('demo/access/token%2Fwith%20spaces');
+  });
+
   it('removes the token, query, and fragment after exchange', () => {
     expect(scrubDemoAccessUrl('https://mtvnailsdemo.salonflow.studio/demo/access/secret-token?x=1#token'))
       .toBe('https://mtvnailsdemo.salonflow.studio/demo/access');

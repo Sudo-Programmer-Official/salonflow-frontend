@@ -3,7 +3,9 @@ import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { exchangeDemoAccess } from '../api/demoAccess';
 import { defaultRouteForRole } from '../utils/navigation';
-import { scrubDemoAccessUrl } from '../utils/demoAccess';
+import { buildDemoTenantAccessPath, CANONICAL_DEMO_TENANT_SUBDOMAIN, scrubDemoAccessUrl } from '../utils/demoAccess';
+import { isDemoGatewayHost } from '../utils/tenantDomains';
+import { buildTenantUrl } from '../utils/tenantUrls';
 
 const route = useRoute();
 const router = useRouter();
@@ -19,6 +21,16 @@ onMounted(async () => {
   }
 
   try {
+    // The gateway and tenant hosts do not share localStorage. Forward the
+    // private access token to the canonical tenant host so the exchange creates
+    // the session in the browser storage used by the tenant app.
+    if (typeof window !== 'undefined' && isDemoGatewayHost(window.location.host)) {
+      window.location.replace(
+        buildTenantUrl(CANONICAL_DEMO_TENANT_SUBDOMAIN, buildDemoTenantAccessPath(rawToken)),
+      );
+      return;
+    }
+
     // Keep the raw token only in this local call and remove it from browser
     // history before the exchange request starts. It is never persisted.
     if (typeof window !== 'undefined') {
@@ -30,7 +42,7 @@ onMounted(async () => {
     localStorage.setItem('tenantId', result.user.businessId);
     localStorage.setItem('tenantSubdomain', result.tenantSubdomain);
     localStorage.setItem('client', result.user.client || 'salonflow_admin');
-    await router.replace(defaultRouteForRole(result.user.role));
+    await router.replace(defaultRouteForRole(result.user.role, { preferAdminQueue: true }));
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : 'This demo access link is no longer available.';
   } finally {
