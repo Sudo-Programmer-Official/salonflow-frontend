@@ -6,6 +6,7 @@ export type PublicDemoRequestInput = {
   name: string;
   businessName: string;
   businessType: string;
+  templateKey?: string | null;
   email?: string;
   phone?: string;
   interests?: string[];
@@ -57,13 +58,16 @@ export const fetchDemoTemplateCatalog = async (): Promise<PublicDemoTemplateOpti
   if (!response.ok || !Array.isArray(payload.templates)) {
     throw new Error(payload.error || 'Demo options are temporarily unavailable.');
   }
-  return payload.templates.filter((template) => template.enabled === true);
+  return payload.templates.filter(
+    (template) => template.enabled === true && Boolean(template.templateKey) && template.businessTypes.length > 0,
+  );
 };
 
 export const savePublicDemoLead = (input: PublicDemoRequestInput) =>
   requestJson<PublicDemoLeadResponse>('/demo-requests', {
     draftToken: input.draftToken ?? undefined,
     mode: input.mode,
+    templateKey: input.templateKey,
     name: input.name,
     email: input.email,
     phone: input.phone,
@@ -72,6 +76,7 @@ export const savePublicDemoLead = (input: PublicDemoRequestInput) =>
     details: {
       businessName: input.businessName,
       businessType: input.businessType,
+      templateKey: input.templateKey,
       interests: input.interests ?? [],
       sourcePath: '/start',
       progressStep: input.progressStep,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { validateDemoFunnelStep, validateDemoFunnelSubmission } from './demoFunnelValidation';
+import { demoDeliveryMessage, validateDemoFunnelStep, validateDemoFunnelSubmission } from './demoFunnelValidation';
 
 const completeAnswers = {
   name: 'Natalie',
@@ -29,7 +29,21 @@ describe('demo funnel validation', () => {
     );
   });
 
-  it('allows the optional what-to-see step', () => {
+  it('requires a business type on the final step', () => {
+    expect(validateDemoFunnelStep(3, { ...completeAnswers, businessType: '' })).toBe(
+      'Choose the type of business you run.',
+    );
     expect(validateDemoFunnelStep(3, completeAnswers)).toBeNull();
+  });
+
+  it('does not claim email or SMS delivery when both providers fail or are disabled', () => {
+    expect(
+      demoDeliveryMessage({ status: 'disabled' }, { status: 'failed' }),
+    ).toBe('Your private demo link is ready.');
+  });
+
+  it('reports only the channels that actually delivered the link', () => {
+    expect(demoDeliveryMessage({ status: 'sent' }, { status: 'disabled' })).toContain('email');
+    expect(demoDeliveryMessage({ status: 'failed' }, { status: 'simulated' })).toContain('text message');
   });
 });

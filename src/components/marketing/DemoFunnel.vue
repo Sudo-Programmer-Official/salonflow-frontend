@@ -8,12 +8,16 @@ import {
   type PublicDemoAccess,
   type PublicDemoTemplateOption,
 } from '@/api/publicDemoRequests';
-import { validateDemoFunnelStep, validateDemoFunnelSubmission } from '@/utils/demoFunnelValidation';
+import {
+  demoDeliveryMessage,
+  validateDemoFunnelStep,
+  validateDemoFunnelSubmission,
+} from '@/utils/demoFunnelValidation';
 
 const steps = [
   { number: 1, label: 'About you' },
   { number: 2, label: 'Contact details' },
-  { number: 3, label: 'What to see' },
+  { number: 3, label: 'Business type' },
 ];
 
 const interestOptions = [
@@ -29,6 +33,7 @@ const step = ref(1);
 const name = ref('');
 const businessName = ref('');
 const businessType = ref('');
+const templateKey = ref('');
 const email = ref('');
 const phone = ref('');
 const interests = ref<string[]>([]);
@@ -50,6 +55,16 @@ const answers = computed(() => ({
   phone: phone.value,
 }));
 
+const selectedTemplate = computed(() =>
+  businessTypeOptions.value.find(
+    (option) => option.templateKey === templateKey.value || option.businessTypes.includes(businessType.value),
+  ) ?? null,
+);
+
+const deliveryMessage = computed(() =>
+  demoDeliveryMessage(access.value?.emailStatus, access.value?.smsStatus),
+);
+
 const progressWidth = computed(() => `${((step.value - 1) / 2) * 67}%`);
 
 const saveDraft = async () => {
@@ -61,6 +76,7 @@ const saveDraft = async () => {
       name: name.value,
       businessName: businessName.value,
       businessType: businessType.value,
+      templateKey: templateKey.value || undefined,
       email: email.value || undefined,
       phone: phone.value || undefined,
       interests: interests.value,
@@ -89,6 +105,12 @@ const toggleInterest = (value: string) => {
     : [...interests.value, value];
 };
 
+const selectTemplate = (option: PublicDemoTemplateOption) => {
+  templateKey.value = option.templateKey;
+  businessType.value = option.businessTypes[0] ?? '';
+  errorMessage.value = '';
+};
+
 const goToStep = (nextStep: number) => {
   errorMessage.value = '';
   step.value = nextStep;
@@ -96,7 +118,7 @@ const goToStep = (nextStep: number) => {
 };
 
 const next = () => {
-  if (step.value === 1 && (templateCatalogLoading.value || templateCatalogError.value)) {
+  if (step.value === 2 && (templateCatalogLoading.value || templateCatalogError.value)) {
     errorMessage.value = templateCatalogError.value || 'Loading demo options…';
     return;
   }
@@ -117,6 +139,19 @@ const submit = async () => {
   errorMessage.value = validateDemoFunnelSubmission(answers.value) || '';
   if (errorMessage.value || submitting.value) return;
 
+  if (templateCatalogLoading.value) {
+    errorMessage.value = 'Loading demo options…';
+    return;
+  }
+  if (templateCatalogError.value) {
+    errorMessage.value = templateCatalogError.value;
+    return;
+  }
+  if (!selectedTemplate.value) {
+    errorMessage.value = 'Choose an available business type.';
+    return;
+  }
+
   if (draftTimer) {
     clearTimeout(draftTimer);
     draftTimer = null;
@@ -129,6 +164,7 @@ const submit = async () => {
       name: name.value,
       businessName: businessName.value,
       businessType: businessType.value,
+      templateKey: selectedTemplate.value.templateKey,
       email: email.value,
       phone: phone.value,
       interests: interests.value,
@@ -152,11 +188,9 @@ const copyText = async (value: string) => {
   await navigator.clipboard?.writeText(value);
 };
 
-const copyDetails = async () => {
+const copyLink = async () => {
   if (!access.value) return;
-  await copyText(
-    `SalonFlow demo\n${access.value.accessUrl}\nExpires: ${access.value.expiresAt}`,
-  );
+  await copyText(access.value.accessUrl);
 };
 
 onBeforeUnmount(() => {
@@ -176,7 +210,7 @@ onMounted(async () => {
   }
 });
 
-watch([step, name, businessName, businessType, email, phone, interests], queueDraftSave, { deep: true });
+watch([step, name, businessName, businessType, templateKey, email, phone, interests], queueDraftSave, { deep: true });
 </script>
 
 <template>
@@ -238,9 +272,9 @@ watch([step, name, businessName, businessType, email, phone, interests], queueDr
           </div>
 
           <div v-else>
-            <h1 class="text-4xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-5xl">What would you like to see in the demo?</h1>
+            <h1 class="text-4xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-5xl">What kind of business do you run?</h1>
             <p class="mt-4 max-w-2xl text-base leading-7 text-slate-600">
-              Select all that apply. This is optional—we’ll still show you the full SalonFlow experience.
+              We’ll tailor your demo so it feels familiar to your business.
             </p>
           </div>
 
@@ -253,17 +287,6 @@ watch([step, name, businessName, businessType, email, phone, interests], queueDr
               <label class="block">
                 <span class="text-sm font-semibold text-slate-900">Salon or business name <span class="text-pink-500">*</span></span>
                 <input v-model="businessName" autocomplete="organization" type="text" placeholder="e.g. Glow House Salon" class="demo-input mt-2" />
-              </label>
-              <label class="block">
-                <span class="text-sm font-semibold text-slate-900">What kind of business do you run? <span class="text-pink-500">*</span></span>
-                <select v-model="businessType" class="demo-input mt-2" :disabled="templateCatalogLoading || Boolean(templateCatalogError)">
-                  <option value="" disabled>{{ templateCatalogLoading ? 'Loading demo options…' : 'Select a business type' }}</option>
-                  <option v-for="option in businessTypeOptions" :key="option.templateKey" :value="option.businessTypes[0]">{{ option.label }}</option>
-                </select>
-                <span v-if="businessType" class="mt-2 block text-xs text-slate-500">
-                  {{ businessTypeOptions.find((option) => option.businessTypes.includes(businessType))?.detail }}
-                </span>
-                <span v-if="templateCatalogError" class="mt-2 block text-xs text-rose-600">{{ templateCatalogError }}</span>
               </label>
             </div>
 
@@ -280,7 +303,34 @@ watch([step, name, businessName, businessType, email, phone, interests], queueDr
               </label>
             </div>
 
-            <div v-else class="grid gap-3 sm:grid-cols-2">
+            <div v-else>
+              <div class="mt-8 grid gap-3 sm:grid-cols-2">
+              <button
+                v-for="option in businessTypeOptions"
+                :key="option.templateKey"
+                type="button"
+                class="flex min-h-24 items-center justify-between gap-4 rounded-2xl border px-5 py-4 text-left transition"
+                :class="selectedTemplate?.templateKey === option.templateKey ? 'border-blue-500 bg-blue-50 text-slate-950 ring-2 ring-blue-100' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'"
+                :aria-pressed="selectedTemplate?.templateKey === option.templateKey"
+                @click="selectTemplate(option)"
+              >
+                <span>
+                  <span class="block text-base font-semibold">{{ option.label }}</span>
+                  <span class="mt-1 block text-sm text-slate-500">{{ option.detail }}</span>
+                </span>
+                <span class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border" :class="selectedTemplate?.templateKey === option.templateKey ? 'border-blue-600 bg-blue-600 text-xs text-white' : 'border-slate-300'">{{ selectedTemplate?.templateKey === option.templateKey ? '✓' : '' }}</span>
+              </button>
+              <div v-if="!templateCatalogLoading && businessTypeOptions.length <= 1" class="flex min-h-24 items-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-500">
+                More business types coming soon.
+              </div>
+              </div>
+
+              <div class="mt-10">
+                <h2 class="text-lg font-semibold text-slate-950">Anything you especially want to explore?</h2>
+                <p class="mt-1 text-sm text-slate-500">Optional—we’ll show you the full SalonFlow experience either way.</p>
+              </div>
+
+              <div class="mt-4 grid gap-3 sm:grid-cols-2">
               <button
                 v-for="option in interestOptions"
                 :key="option.value"
@@ -292,6 +342,9 @@ watch([step, name, businessName, businessType, email, phone, interests], queueDr
                 <span class="flex items-center gap-3 text-sm font-semibold"><span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-lg text-blue-600">{{ option.icon }}</span>{{ option.label }}</span>
                 <span class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border" :class="interests.includes(option.value) ? 'border-blue-600 bg-blue-600 text-xs text-white' : 'border-slate-300'">{{ interests.includes(option.value) ? '✓' : '' }}</span>
               </button>
+              </div>
+              <p v-if="templateCatalogLoading" class="mt-4 text-sm text-slate-500">Loading available business types…</p>
+              <p v-if="templateCatalogError" class="mt-4 text-sm text-rose-600">{{ templateCatalogError }}</p>
             </div>
 
             <p v-if="errorMessage" class="mt-5 rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
@@ -315,18 +368,14 @@ watch([step, name, businessName, businessType, email, phone, interests], queueDr
         <div class="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-3xl text-emerald-600">✓</div>
         <h1 class="mt-6 text-4xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-5xl">Your SalonFlow demo is ready 🎉</h1>
         <p class="mx-auto mt-4 max-w-xl text-base leading-7 text-slate-600">
-          We’ve prepared a private link to the shared SalonFlow Demo environment. You can open it now, and the same link is being sent to your email and phone.
+          {{ deliveryMessage }}
         </p>
 
         <div class="mt-10 overflow-hidden rounded-3xl border border-slate-200 bg-white text-left shadow-[0_20px_70px_rgba(15,23,42,0.08)]">
           <div class="divide-y divide-slate-100">
             <div class="flex items-center justify-between gap-4 px-5 py-5 sm:px-7">
-              <div><div class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Demo URL</div><a :href="access.accessUrl" target="_blank" rel="noreferrer" class="mt-1 block break-all text-sm font-semibold text-blue-600">{{ access.demoUrl }}</a></div>
-              <button type="button" class="copy-button" @click="copyText(access.demoUrl)">Copy</button>
-            </div>
-            <div class="flex items-center justify-between gap-4 px-5 py-5 sm:px-7">
-              <div><div class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Private access link</div><div class="mt-1 break-all text-sm font-semibold text-slate-900">{{ access.accessUrl }}</div></div>
-              <button type="button" class="copy-button" @click="copyText(access.accessUrl)">Copy</button>
+              <div><div class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Your private demo link</div><a :href="access.accessUrl" target="_blank" rel="noreferrer" class="mt-1 block break-all text-sm font-semibold text-blue-600">{{ access.accessUrl }}</a></div>
+              <button type="button" class="copy-button" @click="copyLink">Copy Link</button>
             </div>
             <div class="flex items-center justify-between gap-4 px-5 py-5 sm:px-7">
               <div><div class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Access expires</div><div class="mt-1 text-sm font-semibold text-slate-900">{{ new Date(access.expiresAt).toLocaleString() }}</div></div>
@@ -335,7 +384,7 @@ watch([step, name, businessName, businessType, email, phone, interests], queueDr
         </div>
 
         <div class="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center">
-          <button type="button" class="demo-primary-button" @click="copyDetails">Copy details</button>
+          <button type="button" class="demo-primary-button" @click="copyLink">Copy Link</button>
           <a :href="access.accessUrl" target="_blank" rel="noreferrer" class="demo-secondary-button">Open My Demo →</a>
         </div>
         <p class="mt-6 text-sm text-slate-500">Explore check-in, staff management, checkout, loyalty, and more. We’ll follow up soon to see how it’s going.</p>
