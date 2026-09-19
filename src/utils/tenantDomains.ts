@@ -119,7 +119,16 @@ export const isDemoGatewayHost = (
   config: TenantDomainConfig = getTenantDomainConfig(host),
 ): boolean => {
   const actual = normalizeHost(host || (typeof window !== 'undefined' ? window.location.host : ''));
-  return Boolean(actual && config.demoPublicHost && hostsMatch(actual, config.demoPublicHost));
+  return Boolean(
+    actual && (
+      (config.demoPublicHost && hostsMatch(actual, config.demoPublicHost)) ||
+      // These are reserved public gateway hosts in both environments. Keep
+      // them reserved even if a frontend build has incomplete environment
+      // variables, so they can never fall through to tenant parsing.
+      hostsMatch(actual, 'demo.salonflow.studio') ||
+      hostsMatch(actual, DEFAULT_STAGING_DEMO_HOST)
+    ),
+  );
 };
 
 export const isPlatformHost = (

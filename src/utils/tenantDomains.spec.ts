@@ -34,6 +34,7 @@ describe('tenantDomains', () => {
     expect(tenantFromHost('salonflow.studio', production)).toBeNull();
     expect(tenantFromHost('app.salonflow.studio', production)).toBeNull();
     expect(tenantFromHost('demo.salonflow.studio', production)).toBeNull();
+    expect(isDemoGatewayHost('demo.salonflow.studio', production)).toBe(true);
     expect(isPlatformHost('api.salonflow.studio', production)).toBe(true);
   });
 
@@ -44,7 +45,7 @@ describe('tenantDomains', () => {
     expect(tenantFromHost('api-staging.salonflow.studio', staging)).toBeNull();
     expect(tenantFromHost('demo.staging.salonflow.studio', staging)).toBeNull();
     expect(isDemoGatewayHost('demo.staging.salonflow.studio', staging)).toBe(true);
-    expect(isDemoGatewayHost('demo.salonflow.studio', staging)).toBe(false);
+    expect(isDemoGatewayHost('demo.salonflow.studio', staging)).toBe(true);
     expect(isPlatformHost('demo.staging.salonflow.studio', staging)).toBe(true);
     expect(tenantFromHost('one.two.staging.salonflow.studio', staging)).toBeNull();
     expect(isPlatformHost('staging.salonflow.studio', staging)).toBe(true);
