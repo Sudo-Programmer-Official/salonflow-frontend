@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
+import { ElMessage } from 'element-plus';
 import {
   fetchDemoTemplateCatalog,
   preparePublicDemo,
@@ -184,13 +185,25 @@ const submit = async () => {
 };
 
 const copyText = async (value: string) => {
-  if (!value || typeof navigator === 'undefined') return;
-  await navigator.clipboard?.writeText(value);
+  if (!value || typeof navigator === 'undefined' || !navigator.clipboard) {
+    ElMessage.error('Unable to copy link');
+    return false;
+  }
+
+  try {
+    await navigator.clipboard.writeText(value);
+    return true;
+  } catch {
+    ElMessage.error('Unable to copy link');
+    return false;
+  }
 };
 
 const copyLink = async () => {
   if (!access.value) return;
-  await copyText(access.value.accessUrl);
+  if (await copyText(access.value.accessUrl)) {
+    ElMessage.success('Link copied');
+  }
 };
 
 onBeforeUnmount(() => {
