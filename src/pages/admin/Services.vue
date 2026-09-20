@@ -43,7 +43,7 @@ const loading = ref(false);
 const creating = ref(false);
 const saving = ref(false);
 const dialogVisible = ref(false);
-const dialogMode = ref<'edit'>('edit');
+const dialogMode = ref<'create' | 'edit'>('create');
 const editingId = ref<string | null>(null);
 
 const iconOptions = ['💅', '✂️', '🪮', '💇', '🧖', '💆', '💄', '🪒', '🧴'];
@@ -177,6 +177,7 @@ const handleCreate = async () => {
     });
     services.value = [created, ...services.value];
     resetForm();
+    dialogVisible.value = false;
     ElMessage.success('Service added');
     await loadStaffCounts();
   } catch (err) {
@@ -184,6 +185,12 @@ const handleCreate = async () => {
   } finally {
     creating.value = false;
   }
+};
+
+const openCreate = () => {
+  dialogMode.value = 'create';
+  resetForm();
+  dialogVisible.value = true;
 };
 
 const openEdit = (service: ServiceItem) => {
@@ -368,72 +375,13 @@ const handleCategorySelect = (val: string | null) => {
     </div>
 
     <ElCard class="bg-white">
-      <div class="mb-4 text-base font-semibold text-slate-900">Add Service</div>
-      <ElForm label-position="top" class="grid gap-3 sm:grid-cols-4 sm:items-end text-sm service-form">
-        <ElFormItem label="Name" class="sm:col-span-2">
-          <ElInput v-model="form.name" placeholder="e.g., Gel Manicure" size="small" />
-        </ElFormItem>
-        <ElFormItem label="Icon" class="sm:col-span-1">
-          <ElSelect v-model="form.icon" placeholder="Select icon" size="small">
-            <ElOption v-for="icon in iconOptions" :key="icon" :label="icon" :value="icon">
-              <span class="text-lg">{{ icon }}</span>
-            </ElOption>
-          </ElSelect>
-        </ElFormItem>
-        <ElFormItem label="Category" class="sm:col-span-2">
-          <ElSelect
-            v-model="form.categoryId"
-            placeholder="Select category"
-            filterable
-            size="small"
-            @change="(val) => handleCategorySelect(val as string)"
-          >
-            <ElOption
-              v-for="cat in categoryOptions"
-              :key="cat.id"
-              :label="`${cat.icon} ${cat.name}`"
-              :value="cat.id"
-            />
-            <ElOption label="+ Add category" value="__add__" />
-          </ElSelect>
-        </ElFormItem>
-        <ElFormItem label="Duration (minutes)" class="sm:col-span-1">
-          <ElInputNumber v-model="form.durationMinutes" :min="1" :step="5" class="w-full" size="small" />
-        </ElFormItem>
-        <ElFormItem label="Points" class="sm:col-span-1">
-          <ElInputNumber v-model="form.points" :min="0" :step="1" class="w-full" size="small" />
-        </ElFormItem>
-        <ElFormItem label="Price ($)" class="sm:col-span-1">
-          <ElInputNumber v-model="form.price" :min="0" :step="1" class="w-full" size="small" />
-        </ElFormItem>
-        <ElFormItem label="Requires staff" class="sm:col-span-1">
-          <ElSwitch v-model="form.requiresStaff" />
-        </ElFormItem>
-        <ElFormItem label="Allow walk-in" class="sm:col-span-1">
-          <ElSwitch v-model="form.allowWalkin" />
-        </ElFormItem>
-        <ElFormItem label="Buffer before (min)" class="sm:col-span-1">
-          <ElInputNumber v-model="form.bufferBefore" :min="0" :max="240" :step="5" class="w-full" size="small" />
-        </ElFormItem>
-        <ElFormItem label="Buffer after (min)" class="sm:col-span-1">
-          <ElInputNumber v-model="form.bufferAfter" :min="0" :max="240" :step="5" class="w-full" size="small" />
-        </ElFormItem>
-        <ElFormItem label="Min notice (min)" class="sm:col-span-1">
-          <ElInputNumber v-model="form.minNotice" :min="0" :max="10080" :step="30" class="w-full" size="small" />
-        </ElFormItem>
-        <div class="sm:col-span-4 flex justify-end">
-          <ElButton type="primary" :loading="creating" size="small" class="sf-btn sf-btn--table sf-btn--icon" @click="handleCreate">
-            <span class="text-white" aria-hidden="true">+</span>
-            <span>Add Service</span>
-          </ElButton>
-        </div>
-      </ElForm>
-    </ElCard>
-
-    <ElCard class="bg-white">
-      <div class="mb-4 flex items-center justify-between">
+      <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div class="text-base font-semibold text-slate-900">All Services</div>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center justify-end gap-2">
+          <ElButton type="primary" size="small" class="sf-btn sf-btn--table sf-btn--icon" @click="openCreate">
+            <span aria-hidden="true">+</span>
+            <span>Add service</span>
+          </ElButton>
           <ElSelect
             v-model="selectedCategoryFilter"
             placeholder="Filter by category"
@@ -532,57 +480,82 @@ const handleCategorySelect = (val: string | null) => {
       </div>
     </ElCard>
 
-    <ElDialog v-model="dialogVisible" title="Edit Service" width="480px">
-      <div class="space-y-3">
-        <ElForm label-position="top" class="grid gap-3 sm:grid-cols-2 sm:items-end text-sm service-form">
-          <ElFormItem label="Name" class="sm:col-span-2">
-            <ElInput v-model="form.name" placeholder="Service name" size="small" />
-          </ElFormItem>
-          <ElFormItem label="Category" class="sm:col-span-2">
-            <ElSelect v-model="form.categoryId" placeholder="Select category" clearable filterable size="small">
-              <ElOption v-for="cat in sortedCategories" :key="cat.id" :label="`${cat.icon} ${cat.name}`" :value="cat.id" />
-            </ElSelect>
-          </ElFormItem>
-          <ElFormItem label="Icon">
-            <ElSelect v-model="form.icon" placeholder="Select icon" size="small">
-              <ElOption v-for="icon in iconOptions" :key="icon" :label="icon" :value="icon">
-                <span class="text-lg">{{ icon }}</span>
-              </ElOption>
-            </ElSelect>
-          </ElFormItem>
-          <ElFormItem label="Duration (minutes)">
-            <ElInputNumber v-model="form.durationMinutes" :min="1" :step="5" class="w-full" size="small" />
-          </ElFormItem>
-          <ElFormItem label="Points">
-            <ElInputNumber v-model="form.points" :min="0" :step="1" class="w-full" size="small" />
-          </ElFormItem>
-          <ElFormItem label="Price ($)">
-            <ElInputNumber v-model="form.price" :min="0" :step="1" class="w-full" size="small" />
-          </ElFormItem>
-          <ElFormItem label="Requires staff">
-            <ElSwitch v-model="form.requiresStaff" />
-          </ElFormItem>
-          <ElFormItem label="Allow walk-in">
-            <ElSwitch v-model="form.allowWalkin" />
-          </ElFormItem>
-          <ElFormItem label="Buffer before (min)">
-            <ElInputNumber v-model="form.bufferBefore" :min="0" :max="240" :step="5" class="w-full" size="small" />
-          </ElFormItem>
-          <ElFormItem label="Buffer after (min)">
-            <ElInputNumber v-model="form.bufferAfter" :min="0" :max="240" :step="5" class="w-full" size="small" />
-          </ElFormItem>
-          <ElFormItem label="Min notice (min)">
-            <ElInputNumber v-model="form.minNotice" :min="0" :max="10080" :step="30" class="w-full" size="small" />
-          </ElFormItem>
-          <ElFormItem label="Active">
-            <ElSwitch v-model="form.isActive" />
-          </ElFormItem>
-        </ElForm>
-      </div>
+    <ElDialog
+      v-model="dialogVisible"
+      :title="dialogMode === 'create' ? 'Add service' : 'Edit service'"
+      width="min(640px, calc(100vw - 24px))"
+      top="4vh"
+      class="service-dialog"
+      destroy-on-close
+    >
+      <ElForm label-position="top" class="grid gap-x-4 gap-y-2 text-sm service-form sm:grid-cols-2">
+        <ElFormItem label="Service name" required class="sm:col-span-2">
+          <ElInput v-model="form.name" placeholder="e.g., Gel Manicure" size="large" autofocus />
+        </ElFormItem>
+        <ElFormItem label="Category" required class="sm:col-span-2">
+          <ElSelect
+            v-model="form.categoryId"
+            placeholder="Choose a category"
+            filterable
+            size="large"
+            class="w-full"
+            @change="(val) => handleCategorySelect(val as string)"
+          >
+            <ElOption
+              v-for="cat in categoryOptions"
+              :key="cat.id"
+              :label="`${cat.icon} ${cat.name}`"
+              :value="cat.id"
+            />
+            <ElOption label="+ Add category" value="__add__" />
+          </ElSelect>
+        </ElFormItem>
+        <ElFormItem label="Icon">
+          <ElSelect v-model="form.icon" placeholder="Choose an icon" size="large" class="w-full">
+            <ElOption v-for="icon in iconOptions" :key="icon" :label="icon" :value="icon">
+              <span class="text-lg">{{ icon }}</span>
+            </ElOption>
+          </ElSelect>
+        </ElFormItem>
+        <ElFormItem label="Duration (minutes)" required>
+          <ElInputNumber v-model="form.durationMinutes" :min="1" :step="5" class="w-full" size="large" />
+        </ElFormItem>
+        <ElFormItem label="Price ($)">
+          <ElInputNumber v-model="form.price" :min="0" :step="1" class="w-full" size="large" />
+        </ElFormItem>
+        <ElFormItem label="Loyalty points">
+          <ElInputNumber v-model="form.points" :min="0" :step="1" class="w-full" size="large" />
+        </ElFormItem>
+        <ElFormItem label="Requires staff">
+          <ElSwitch v-model="form.requiresStaff" />
+        </ElFormItem>
+        <ElFormItem label="Allow walk-ins">
+          <ElSwitch v-model="form.allowWalkin" />
+        </ElFormItem>
+        <ElFormItem label="Buffer before (minutes)">
+          <ElInputNumber v-model="form.bufferBefore" :min="0" :max="240" :step="5" class="w-full" size="large" />
+        </ElFormItem>
+        <ElFormItem label="Buffer after (minutes)">
+          <ElInputNumber v-model="form.bufferAfter" :min="0" :max="240" :step="5" class="w-full" size="large" />
+        </ElFormItem>
+        <ElFormItem label="Minimum notice (minutes)">
+          <ElInputNumber v-model="form.minNotice" :min="0" :max="10080" :step="30" class="w-full" size="large" />
+        </ElFormItem>
+        <ElFormItem v-if="dialogMode === 'edit'" label="Active">
+          <ElSwitch v-model="form.isActive" />
+        </ElFormItem>
+      </ElForm>
       <template #footer>
-        <div class="flex justify-end gap-2">
+        <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <ElButton class="sf-btn" @click="dialogVisible = false">Cancel</ElButton>
-          <ElButton type="primary" class="sf-btn" :loading="saving" @click="handleSaveEdit">Save</ElButton>
+          <ElButton
+            type="primary"
+            class="sf-btn"
+            :loading="dialogMode === 'create' ? creating : saving"
+            @click="dialogMode === 'create' ? handleCreate() : handleSaveEdit()"
+          >
+            {{ dialogMode === 'create' ? 'Add service' : 'Save changes' }}
+          </ElButton>
         </div>
       </template>
     </ElDialog>
@@ -639,5 +612,54 @@ const handleCategorySelect = (val: string | null) => {
 }
 .service-form :deep(.el-switch__core) {
   height: 22px;
+}
+
+:global(.service-dialog.el-dialog) {
+  max-width: calc(100vw - 24px);
+  margin: 12px auto;
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+:global(.service-dialog .el-dialog__header) {
+  margin-right: 0;
+  padding: 20px 24px 12px;
+  border-bottom: 1px solid #eef2f7;
+}
+
+:global(.service-dialog .el-dialog__body) {
+  max-height: calc(100vh - 190px);
+  overflow-y: auto;
+  padding: 18px 24px 8px;
+}
+
+:global(.service-dialog .el-dialog__footer) {
+  padding: 12px 24px 20px;
+  border-top: 1px solid #eef2f7;
+}
+
+@media (max-width: 640px) {
+  :global(.service-dialog.el-dialog) {
+    max-width: calc(100vw - 16px);
+    margin: 8px auto;
+  }
+
+  :global(.service-dialog .el-dialog__header) {
+    padding: 16px 16px 10px;
+  }
+
+  :global(.service-dialog .el-dialog__body) {
+    max-height: calc(100vh - 150px);
+    padding: 14px 16px 4px;
+  }
+
+  :global(.service-dialog .el-dialog__footer) {
+    padding: 10px 16px 16px;
+  }
+
+  :global(.service-dialog .el-dialog__footer .el-button) {
+    width: 100%;
+    min-height: 44px;
+  }
 }
 </style>

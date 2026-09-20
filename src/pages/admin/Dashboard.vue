@@ -274,26 +274,6 @@ const attentionToneClass = (tone: 'danger' | 'warning' | 'info') => {
           </ElButton>
         </div>
       </div>
-      <div class="mt-4 grid gap-2 text-xs text-slate-500 md:grid-cols-2">
-        <a
-          v-if="demoWebsiteUrl"
-          :href="demoWebsiteUrl"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="break-all rounded-lg bg-slate-50 px-3 py-2 hover:text-blue-600"
-        >
-          Website: {{ demoWebsiteUrl }}
-        </a>
-        <a
-          v-if="demoKioskUrl"
-          :href="demoKioskUrl"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="break-all rounded-lg bg-slate-50 px-3 py-2 hover:text-blue-600"
-        >
-          Kiosk: {{ demoKioskUrl }}
-        </a>
-      </div>
     </ElCard>
 
     <div v-if="loading" class="space-y-3">
