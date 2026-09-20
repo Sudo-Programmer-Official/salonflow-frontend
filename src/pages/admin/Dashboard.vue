@@ -130,6 +130,16 @@ const demoKioskUrl = computed(() => {
   return subdomain ? buildTenantKioskUrl(subdomain) : '';
 });
 
+const exploreCardTitle = computed(() =>
+  isDemoSession ? 'Explore the SalonFlow demo' : 'Open your customer experience',
+);
+
+const exploreCardDescription = computed(() =>
+  isDemoSession
+    ? 'See the customer website and tablet kiosk flow without hunting through the menu.'
+    : 'Open the public website or tablet kiosk for this business without leaving the dashboard.',
+);
+
 const openExternal = (url: string) => {
   if (!url) return;
   window.open(url, '_blank', 'noopener,noreferrer');
@@ -238,13 +248,11 @@ const attentionToneClass = (tone: 'danger' | 'warning' | 'info') => {
 
     <ElAlert v-if="error" :title="error" type="error" :closable="false" />
 
-    <ElCard v-if="isDemoSession" class="dashboard-surface-card dashboard-explore-card">
+    <ElCard class="dashboard-surface-card dashboard-explore-card">
       <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <div class="text-base font-semibold text-slate-900">Explore the SalonFlow demo</div>
-          <p class="mt-1 text-sm text-slate-600">
-            See the customer website and tablet kiosk flow without hunting through the menu.
-          </p>
+          <div class="text-base font-semibold text-slate-900">{{ exploreCardTitle }}</div>
+          <p class="mt-1 text-sm text-slate-600">{{ exploreCardDescription }}</p>
         </div>
         <div class="flex flex-wrap gap-2">
           <ElButton
