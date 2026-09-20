@@ -653,6 +653,23 @@ const stepServiceModal = (direction: -1 | 1) => {
 const onImageError = (event: Event) => {
   const target = event.target;
   if (!(target instanceof HTMLImageElement)) return;
+  const candidates = (() => {
+    try {
+      return JSON.parse(target.dataset.fallbackCandidates || '[]') as string[];
+    } catch {
+      return [];
+    }
+  })();
+  const tried = new Set((target.dataset.fallbackTried || '').split('|').filter(Boolean));
+  const failedSource = target.currentSrc || target.src;
+  if (failedSource && failedSource !== FALLBACK_IMAGE) tried.add(failedSource);
+  const next = candidates.find((candidate) => !tried.has(candidate));
+  if (next) {
+    target.closest('picture')?.querySelectorAll('source').forEach((source) => source.remove());
+    target.dataset.fallbackTried = [...tried, next].join('|');
+    target.src = next;
+    return;
+  }
   if (target.dataset.fallbackApplied === '1') return;
   target.dataset.fallbackApplied = '1';
   console.warn('Image failed:', {
@@ -661,6 +678,9 @@ const onImageError = (event: Event) => {
   });
   target.src = FALLBACK_IMAGE;
 };
+
+const fallbackCandidatesAttr = (image: WebsiteImage | null | undefined) =>
+  JSON.stringify(image?.candidates || []);
 
 const resetCategoriesState = () => {
   categories.value = [];
@@ -1094,6 +1114,7 @@ const footerView = computed(() => {
             <img
               :src="currentServicesHero.src"
               :alt="hero.headline || 'Services hero image'"
+              :data-fallback-candidates="fallbackCandidatesAttr(currentServicesHero)"
               class="h-full w-full object-cover"
               loading="lazy"
               @error="onImageError"
@@ -1140,6 +1161,7 @@ const footerView = computed(() => {
                     <img
                       :src="currentServicesHero.src"
                       :alt="hero.headline || 'Services hero image'"
+                      :data-fallback-candidates="fallbackCandidatesAttr(currentServicesHero)"
                       class="w-full h-full object-cover services-hero__img"
                       loading="lazy"
                       @error="onImageError"
@@ -1267,6 +1289,7 @@ const footerView = computed(() => {
                 :key="heroSlideIndex"
                 :src="currentHeroSlide?.src || heroMedia?.src"
                 :alt="hero.headline || 'Salon hero image'"
+                :data-fallback-candidates="fallbackCandidatesAttr(currentHeroSlide || heroMedia)"
                 class="w-full h-full object-cover aspect-[5/4] md:min-h-[360px] hero-slide"
                 loading="lazy"
                 @error="onImageError"
@@ -1339,6 +1362,7 @@ const footerView = computed(() => {
               <img
                 :src="aboutImage.src"
                 :alt="hero.headline || 'About image'"
+                :data-fallback-candidates="fallbackCandidatesAttr(aboutImage)"
                 class="w-full h-full object-cover aspect-[5/4]"
                 loading="lazy"
                 @error="onImageError"
@@ -1445,6 +1469,7 @@ const footerView = computed(() => {
                 <img
                   :src="card.image.src"
                   :alt="card.name"
+                  :data-fallback-candidates="fallbackCandidatesAttr(card.image)"
                   class="w-full h-36 object-cover"
                   loading="lazy"
                   @error="onImageError"
@@ -1659,6 +1684,7 @@ const footerView = computed(() => {
                 class="w-full rounded-xl border border-border object-cover aspect-[4/3]"
                 loading="lazy"
                 :alt="img.alt || ''"
+                :data-fallback-candidates="fallbackCandidatesAttr(img)"
                 @error="onImageError"
               />
             </picture>

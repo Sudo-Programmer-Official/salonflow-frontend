@@ -51,27 +51,19 @@ type WebsitePayload = {
   };
 };
 
-const cache: Record<string, WebsitePayload | null> = {};
-
 export function useWebsite(locale: 'en' | 'es') {
   const loading = ref(false);
   const error = ref<string | null>(null);
   const data = ref<WebsitePayload | null>(null);
 
   const fetchSite = async () => {
-    if (cache[locale] && !(typeof window !== 'undefined' && window.location.search.includes('websitePreview=1'))) {
-      data.value = cache[locale];
-      applyWebsiteTheme(cache[locale]?.themeTokens || null);
-      return;
-    }
+    const isPreview =
+      typeof window !== 'undefined' &&
+      window.location.search.includes('websitePreview=1') &&
+      localStorage.getItem('token');
     loading.value = true;
     error.value = null;
     try {
-      const isPreview =
-        typeof window !== 'undefined' &&
-        window.location.search.includes('websitePreview=1') &&
-        localStorage.getItem('token');
-
       const url = isPreview
         ? apiUrl(`/website/site?locale=${locale}`)
         : apiUrl(`/public/website?locale=${locale}`);
@@ -85,7 +77,10 @@ export function useWebsite(locale: 'en' | 'es') {
         headers: isPreview
           ? { ...buildHeaders({ auth: true, tenant: true }), ...(websiteHostHeader || {}) }
           : websiteHostHeader,
-        cache: isPreview ? 'no-store' : 'default',
+        // Published media/page changes must be visible without requiring a
+        // hard refresh. Image objects remain cacheable because their keys are
+        // immutable, while this small JSON payload is revalidated every time.
+        cache: 'no-store',
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || 'Website not found');
@@ -106,9 +101,6 @@ export function useWebsite(locale: 'en' | 'es') {
         }
       }
       applyWebsiteTheme(body.themeTokens || null);
-      if (!isPreview) {
-        cache[locale] = body;
-      }
     } catch (err: any) {
       error.value = err?.message || 'Failed to load website';
     } finally {
@@ -120,9 +112,7 @@ export function useWebsite(locale: 'en' | 'es') {
 }
 
 export function clearWebsiteCache(locale?: 'en' | 'es') {
-  if (locale) {
-    delete cache[locale];
-  } else {
-    Object.keys(cache).forEach((k) => delete cache[k]);
-  }
+  // Kept as a compatibility hook for admin publish flows. Public website
+  // metadata is intentionally fetched fresh instead of held in module cache.
+  void locale;
 }

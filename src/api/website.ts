@@ -51,6 +51,7 @@ export type WebsiteMedia = {
   id: string;
   business_id: string;
   original_url: string;
+  original_key?: string | null;
   width?: number | null;
   height?: number | null;
   mime_type?: string | null;
@@ -63,6 +64,7 @@ export type WebsiteMedia = {
       mimeType: string;
     }
   >;
+  archived_at?: string | null;
   created_at: string;
 };
 
@@ -207,6 +209,16 @@ export async function deleteWebsiteMedia(id: string) {
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error || 'Failed to delete media');
+  return body.media as WebsiteMedia;
+}
+
+export async function restoreWebsiteMedia(id: string) {
+  const res = await fetch(apiUrl(`/website/media/${id}/restore`), {
+    method: 'POST',
+    headers: headers(),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || 'Failed to restore media');
   return body.media as WebsiteMedia;
 }
 
