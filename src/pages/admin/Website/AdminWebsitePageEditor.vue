@@ -14,6 +14,7 @@ import { fetchWebsitePages, upsertWebsitePage, type WebsitePage } from '../../..
 import { clearWebsiteCache } from '../../../composables/useWebsite';
 import MediaPicker from '../../../components/website/MediaPicker.vue';
 import { formatWebsiteHours } from '../../../utils/websiteHours';
+import { fetchV2Categories, fetchV2CategoryWithServices } from '../../../api/servicesV2';
 import {
   DEFAULT_WEBSITE_HOME_SECTION_CONFIG,
   DEFAULT_WEBSITE_SERVICES_PAGE_CONFIG,
@@ -32,13 +33,38 @@ const saving = ref(false);
 const page = ref<WebsitePage | null>(null);
 const PAGE_GALLERY_MAX_COUNT = 18;
 
+type EditableWebsiteService = {
+  serviceId: string;
+  title: string;
+  description: string;
+  image: string[];
+};
+
+const normalizeServiceName = (value: unknown) =>
+  String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+
+const loadServiceCatalog = async () => {
+  try {
+    const categories = await fetchV2Categories();
+    const groups = await Promise.all(
+      categories.map((category) => fetchV2CategoryWithServices(category.id)),
+    );
+    return groups.flatMap((group) => group.services || []);
+  } catch {
+    return [];
+  }
+};
+
 const form = ref({
   heroHeadline: '',
   heroSubheadline: '',
   heroPhone: '',
   ctaText: '',
   heroImage: [] as string[],
-  services: [{ title: '', description: '', image: [] as string[] }],
+  services: [{ serviceId: '', title: '', description: '', image: [] }] as EditableWebsiteService[],
   servicesMode: 'auto',
   servicesIntro: '',
   valueProps: [''],
@@ -65,7 +91,13 @@ const form = ref({
 const load = async () => {
   loading.value = true;
   try {
-    const pages = await fetchWebsitePages(locale.value as 'en' | 'es');
+    const [pages, serviceCatalog] = await Promise.all([
+      fetchWebsitePages(locale.value as 'en' | 'es'),
+      loadServiceCatalog(),
+    ]);
+    const serviceIdsByName = new Map(
+      serviceCatalog.map((service) => [normalizeServiceName(service.name), service.id]),
+    );
     const match = pages.find((p) => p.slug === slug.value);
     if (match) {
       page.value = match;
@@ -77,10 +109,15 @@ const load = async () => {
       form.value.heroImage = c.hero?.image ? [c.hero.image] : [];
       form.value.services =
         c.services?.map((s: any) => ({
-          title: s?.title || s || '',
+          serviceId:
+            s?.serviceId ||
+            s?.service_id ||
+            serviceIdsByName.get(normalizeServiceName(s?.title || s?.name || s)) ||
+            '',
+          title: s?.title || s?.name || s || '',
           description: s?.description || '',
           image: s?.image ? [s.image] : [],
-        })) || [{ title: '', description: '', image: [] }];
+        })) || [{ serviceId: '', title: '', description: '', image: [] }];
       form.value.servicesMode = c.servicesMode || c.services_mode || 'auto';
       form.value.servicesIntro = c.servicesIntro || c.services_intro || '';
       form.value.valueProps = Array.isArray(c.valueProps || c.value_props)
@@ -126,6 +163,7 @@ onMounted(load);
 const sanitizeServices = () =>
   form.value.services
     .map((s) => ({
+      serviceId: s.serviceId.trim() || null,
       title: (s.title || '').trim(),
       description: (s.description || '').trim() || null,
       image: (s.image || []).find(Boolean) || null,
@@ -192,6 +230,7 @@ const save = async (publish: boolean) => {
       },
       faq: sanitizeFaq(),
       services: sanitizeServices().map((svc: any) => ({
+        serviceId: svc.serviceId,
         title: svc.title,
         description: svc.description,
         image: svc.image,
@@ -264,7 +303,7 @@ const moveHomeSection = (idx: number, dir: -1 | 1) => {
   [arr[idx], arr[next]] = [arr[next], arr[idx]];
 };
 
-const addService = () => form.value.services.push({ title: '', description: '', image: [] });
+const addService = () => form.value.services.push({ serviceId: '', title: '', description: '', image: [] });
 const removeService = (idx: number) => {
   if (form.value.services.length <= 1) return;
   form.value.services.splice(idx, 1);

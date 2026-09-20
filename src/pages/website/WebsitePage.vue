@@ -470,6 +470,11 @@ const serviceCards = computed(() => {
         : haveLive
           ? liveServices.value
           : customServices;
+  const customServiceById = new Map(
+    customServices
+      .map((service: any) => [String(service?.serviceId || service?.service_id || ''), service] as const)
+      .filter(([id]) => Boolean(id)),
+  );
   const customServiceByName = new Map(
     customServices
       .map((service: any) => [normalizeServiceName(service?.title || service?.name), service] as const)
@@ -477,7 +482,9 @@ const serviceCards = computed(() => {
   );
   const itemsWithPageMedia = items.map((service: any) => {
     if (mode === 'custom' || !haveLive || service?.image) return service;
-    const pageService = customServiceByName.get(normalizeServiceName(service?.name));
+    const pageService =
+      customServiceById.get(String(service?.id || '')) ||
+      customServiceByName.get(normalizeServiceName(service?.name));
     return pageService?.image ? { ...service, image: pageService.image } : service;
   });
   const galleryImages = resolvedGallery.value;
