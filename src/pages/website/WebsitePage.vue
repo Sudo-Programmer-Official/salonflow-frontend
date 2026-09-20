@@ -573,7 +573,7 @@ const enableServiceModal = computed(() => servicesPageConfig.value.enableService
 
 const showServicesSection = computed(
   () =>
-    !isContactPage.value &&
+    (isHomePage.value || isServicesPage.value) &&
     serviceCards.value.length > 0 &&
     (!isHomePage.value || homeSectionVisibility.value.services),
 );

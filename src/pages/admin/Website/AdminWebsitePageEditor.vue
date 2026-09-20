@@ -246,6 +246,7 @@ const HOME_SECTION_COPY: Record<
 
 const isHomeEditor = computed(() => slug.value === 'home');
 const isServicesEditor = computed(() => slug.value === 'services');
+const isServiceContentEditor = computed(() => isHomeEditor.value || isServicesEditor.value);
 
 const homeSectionOrderRows = computed(() =>
   form.value.homeSectionConfig.order.map((sectionId) => ({
@@ -337,18 +338,18 @@ const goBack = () =>
           <ElSwitch v-model="form.published" disabled />
         </ElFormItem>
 
-        <ElFormItem label="Services mode" class="md:col-span-2">
+        <ElFormItem v-if="isServiceContentEditor" label="Services mode" class="md:col-span-2">
           <ElInput v-model="form.servicesMode" placeholder="auto | live | custom" />
           <p class="text-xs text-slate-500 mt-1">
             auto = prefer live catalog fallback to custom; live = force live catalog; custom = only use cards below.
           </p>
         </ElFormItem>
 
-        <ElFormItem label="Services intro" class="md:col-span-2">
+        <ElFormItem v-if="isServiceContentEditor" label="Services intro" class="md:col-span-2">
           <ElInput v-model="form.servicesIntro" type="textarea" :rows="2" placeholder="Short paragraph above services" />
         </ElFormItem>
 
-        <ElFormItem label="Value props (bullets)" class="md:col-span-2">
+        <ElFormItem v-if="isServiceContentEditor" label="Value props (bullets)" class="md:col-span-2">
           <div class="space-y-2">
             <div v-for="(_, idx) in form.valueProps" :key="idx" class="flex gap-2">
               <ElInput v-model="form.valueProps[idx]" placeholder="e.g. Medical-grade sanitation" />
@@ -358,18 +359,18 @@ const goBack = () =>
           </div>
         </ElFormItem>
 
-        <ElFormItem label="Hygiene note" class="md:col-span-2">
+        <ElFormItem v-if="isServiceContentEditor" label="Hygiene note" class="md:col-span-2">
           <ElInput v-model="form.hygieneNote" type="textarea" :rows="2" />
         </ElFormItem>
 
-        <ElFormItem label="Social proof" class="md:col-span-2">
+        <ElFormItem v-if="isServiceContentEditor" label="Social proof" class="md:col-span-2">
           <div class="grid gap-2 md:grid-cols-2">
             <ElInput v-model="form.socialProofHeadline" placeholder="Headline e.g. 4.8★ from 500+ reviews" />
             <ElInput v-model="form.socialProofBody" placeholder="Short supporting line" />
           </div>
         </ElFormItem>
 
-        <ElFormItem label="Promo banner" class="md:col-span-2">
+        <ElFormItem v-if="isServiceContentEditor" label="Promo banner" class="md:col-span-2">
           <div class="grid gap-2 md:grid-cols-[1fr,180px,240px] items-center">
             <ElInput v-model="form.promoText" placeholder="Promo text" />
             <ElInput v-model="form.promoCta" placeholder="CTA text" />
@@ -377,7 +378,7 @@ const goBack = () =>
           </div>
         </ElFormItem>
 
-        <ElFormItem label="Booking note" class="md:col-span-2">
+        <ElFormItem v-if="isServiceContentEditor" label="Booking note" class="md:col-span-2">
           <ElInput v-model="form.bookingNote" type="textarea" :rows="2" placeholder="e.g. Prefer to talk? Call 361‑986‑1555." />
         </ElFormItem>
 
@@ -456,7 +457,7 @@ const goBack = () =>
           </div>
         </ElFormItem>
 
-        <ElFormItem label="Services" class="md:col-span-2">
+        <ElFormItem v-if="isServiceContentEditor" label="Services" class="md:col-span-2">
           <div class="space-y-3 w-full">
             <div
               v-for="(svc, idx) in form.services"
