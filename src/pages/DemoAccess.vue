@@ -53,7 +53,9 @@ onMounted(async () => {
     } else {
       localStorage.removeItem('demoTemplateKey');
     }
-    await router.replace(defaultRouteForRole(result.user.role, { preferAdminQueue: true }));
+    // Demo visitors should get the product overview first. Live tenant owners
+    // keep their existing queue-first behavior through the normal login flow.
+    await router.replace(defaultRouteForRole(result.user.role));
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : 'This demo access link is no longer available.';
   } finally {

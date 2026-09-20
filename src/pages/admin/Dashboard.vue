@@ -13,6 +13,7 @@ import { fetchReviewSmsSettings, type ReviewSettingsResponse } from '../../api/r
 import { useRouter } from 'vue-router';
 import { refreshBusinessDayClock } from '../../composables/useBusinessDayClock';
 import { dayjs, nowInBusinessTz, setBusinessTimezone, DEFAULT_TIMEZONE } from '../../utils/dates';
+import { buildTenantKioskUrl, buildTenantUrl } from '../../utils/tenantUrls';
 
 const router = useRouter();
 
@@ -34,12 +35,15 @@ const queueSummary = ref<{ waiting: number; inService: number; completed: number
 const loading = ref(true);
 const error = ref('');
 const businessTimezone = ref(DEFAULT_TIMEZONE);
+const onboardingStatus = ref<Awaited<ReturnType<typeof fetchOnboardingStatus>> | null>(null);
+const isDemoSession = typeof window !== 'undefined' && localStorage.getItem('demoAccessSession') === 'true';
 
 const load = async () => {
   loading.value = true;
   error.value = '';
   try {
-    const [onboardingRes] = await Promise.all([fetchOnboardingStatus(true)]);
+    const onboardingRes = await fetchOnboardingStatus(true);
+    onboardingStatus.value = onboardingRes;
     const tz = onboardingRes?.timezone?.trim() || DEFAULT_TIMEZONE;
     businessTimezone.value = tz;
     setBusinessTimezone(tz);
@@ -114,6 +118,21 @@ const billingLocked = computed(
 
 const navigate = (name: string) => {
   router.push({ name });
+};
+
+const demoWebsiteUrl = computed(() => {
+  const subdomain = onboardingStatus.value?.subdomain?.trim();
+  return subdomain ? buildTenantUrl(subdomain) : '';
+});
+
+const demoKioskUrl = computed(() => {
+  const subdomain = onboardingStatus.value?.subdomain?.trim();
+  return subdomain ? buildTenantKioskUrl(subdomain) : '';
+});
+
+const openExternal = (url: string) => {
+  if (!url) return;
+  window.open(url, '_blank', 'noopener,noreferrer');
 };
 
 const needsAttention = computed(() => {
@@ -218,6 +237,56 @@ const attentionToneClass = (tone: 'danger' | 'warning' | 'info') => {
     </ElAlert>
 
     <ElAlert v-if="error" :title="error" type="error" :closable="false" />
+
+    <ElCard v-if="isDemoSession" class="dashboard-surface-card dashboard-explore-card">
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <div class="text-base font-semibold text-slate-900">Explore the SalonFlow demo</div>
+          <p class="mt-1 text-sm text-slate-600">
+            See the customer website and tablet kiosk flow without hunting through the menu.
+          </p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <ElButton
+            type="primary"
+            class="sf-btn"
+            :disabled="!demoWebsiteUrl"
+            @click="openExternal(demoWebsiteUrl)"
+          >
+            Open website ↗
+          </ElButton>
+          <ElButton
+            type="primary"
+            plain
+            class="sf-btn"
+            :disabled="!demoKioskUrl"
+            @click="openExternal(demoKioskUrl)"
+          >
+            Open kiosk ↗
+          </ElButton>
+        </div>
+      </div>
+      <div class="mt-4 grid gap-2 text-xs text-slate-500 md:grid-cols-2">
+        <a
+          v-if="demoWebsiteUrl"
+          :href="demoWebsiteUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="break-all rounded-lg bg-slate-50 px-3 py-2 hover:text-blue-600"
+        >
+          Website: {{ demoWebsiteUrl }}
+        </a>
+        <a
+          v-if="demoKioskUrl"
+          :href="demoKioskUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="break-all rounded-lg bg-slate-50 px-3 py-2 hover:text-blue-600"
+        >
+          Kiosk: {{ demoKioskUrl }}
+        </a>
+      </div>
+    </ElCard>
 
     <div v-if="loading" class="space-y-3">
       <ElSkeleton :rows="4" animated />
