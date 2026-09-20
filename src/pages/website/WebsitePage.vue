@@ -7,6 +7,7 @@ import { apiUrl } from '../../api/client';
 import ServiceDetailModal from '../../components/website/ServiceDetailModal.vue';
 import GalleryLightbox from '../../components/website/GalleryLightbox.vue';
 import { FALLBACK_IMAGE, resolveMedia, type ResolvedMedia } from '../../utils/resolveMedia';
+import { formatWebsiteHours } from '../../utils/websiteHours';
 import {
   DEFAULT_WEBSITE_HOME_SECTION_CONFIG,
   normalizeWebsiteHomeSectionConfig,
@@ -275,41 +276,10 @@ const contactPolicies = computed(() => {
   return c.policies || c.policy || null;
 });
 
-const formatHoursLines = (value: unknown): string[] => {
-  if (!value) return [];
-  if (typeof value === 'string') {
-    return value.split(/\n+/).map((line) => line.trim()).filter(Boolean);
-  }
-  if (Array.isArray(value)) {
-    return value
-      .map((line) => (typeof line === 'string' ? line.trim() : ''))
-      .filter(Boolean);
-  }
-  if (typeof value !== 'object') return [];
-
-  const dayLabels: Record<string, string> = {
-    sun: 'Sun', sunday: 'Sun', mon: 'Mon', monday: 'Mon', tue: 'Tue', tues: 'Tue',
-    tuesday: 'Tue', wed: 'Wed', wednesday: 'Wed', thu: 'Thu', thurs: 'Thu',
-    thursday: 'Thu', fri: 'Fri', friday: 'Fri', sat: 'Sat', saturday: 'Sat',
-  };
-
-  return Object.entries(value as Record<string, unknown>)
-    .map(([day, hours]) => {
-      const label = dayLabels[day.toLowerCase()] || day;
-      if (typeof hours === 'string') return `${label}: ${hours}`;
-      if (!hours || typeof hours !== 'object') return '';
-      const range = hours as Record<string, unknown>;
-      if (range.closed === true || range.isClosed === true) return `${label}: Closed`;
-      const open = String(range.open ?? range.opens ?? '').trim();
-      const close = String(range.close ?? range.closes ?? '').trim();
-      if (open || close) return `${label}: ${open || '—'} - ${close || '—'}`;
-      return '';
-    })
-    .filter(Boolean);
-};
-
 const contactHoursLines = computed(() => {
-  return formatHoursLines(contact.value?.hours);
+  const direct = formatWebsiteHours(contact.value?.hours);
+  if (direct.length) return direct;
+  return formatWebsiteHours(data.value?.businessHours);
 });
 const contactHoursSummary = computed(() => contactHoursLines.value.join(' · '));
 const contactEmail = computed(() => contact.value?.email || null);
@@ -1621,7 +1591,7 @@ const footerView = computed(() => {
                   <div v-if="contactHoursLines.length" class="text-base text-text space-y-1">
                     <div v-for="(line, idx) in contactHoursLines" :key="idx">{{ line }}</div>
                   </div>
-                  <div v-else class="text-base text-text">Set your business hours</div>
+                  <div v-else class="text-base text-text">Call for current hours</div>
                 </div>
               </div>
               <div v-if="contactNotes || contactPolicies" class="grid gap-3 lg:grid-cols-2">

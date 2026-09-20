@@ -13,6 +13,7 @@ import {
 import { fetchWebsitePages, upsertWebsitePage, type WebsitePage } from '../../../api/website';
 import { clearWebsiteCache } from '../../../composables/useWebsite';
 import MediaPicker from '../../../components/website/MediaPicker.vue';
+import { formatWebsiteHours } from '../../../utils/websiteHours';
 import {
   DEFAULT_WEBSITE_HOME_SECTION_CONFIG,
   DEFAULT_WEBSITE_SERVICES_PAGE_CONFIG,
@@ -107,7 +108,7 @@ const load = async () => {
       form.value.address = c.contact?.address || '';
       form.value.phone = c.contact?.phone || '';
       form.value.email = c.contact?.email || '';
-      form.value.hours = c.contact?.hours || '';
+      form.value.hours = formatWebsiteHours(c.contact?.hours).join('\n');
       form.value.contactNotes = c.contact?.notes || c.contact?.parking || '';
       form.value.contactPolicies = c.contact?.policies || c.contact?.policy || '';
       form.value.gallery = Array.isArray(c.gallery) ? c.gallery : [];
@@ -244,6 +245,7 @@ const HOME_SECTION_COPY: Record<
 };
 
 const isHomeEditor = computed(() => slug.value === 'home');
+const isServicesEditor = computed(() => slug.value === 'services');
 
 const homeSectionOrderRows = computed(() =>
   form.value.homeSectionConfig.order.map((sectionId) => ({
@@ -413,7 +415,7 @@ const goBack = () =>
           </div>
         </ElFormItem>
 
-        <ElFormItem label="Services page display" class="md:col-span-2">
+        <ElFormItem v-if="isServicesEditor" label="Services page display" class="md:col-span-2">
           <div class="grid gap-3 md:grid-cols-2">
             <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
               <div class="flex items-center justify-between gap-3">
