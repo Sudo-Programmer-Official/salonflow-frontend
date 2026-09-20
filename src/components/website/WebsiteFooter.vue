@@ -443,12 +443,9 @@ function formatRange(days: string[]) {
 }
 
 .sf-footer__strip {
-  position: sticky;
-  bottom: 0;
   padding: 12px 0 14px;
   border-top: 1px solid color-mix(in srgb, var(--sf-border, #f4d9e7) 70%, transparent);
   background: linear-gradient(90deg, rgba(255, 247, 251, 0.92), rgba(255, 241, 245, 0.9));
-  backdrop-filter: blur(4px);
 }
 
 .sf-footer__strip-inner {
