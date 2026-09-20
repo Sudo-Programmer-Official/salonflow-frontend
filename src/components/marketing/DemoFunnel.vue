@@ -230,11 +230,6 @@ watch([step, name, businessName, businessType, templateKey, email, phone, intere
   <div class="demo-funnel min-h-full bg-white text-slate-950">
     <section class="mx-auto max-w-6xl px-4 pb-16 pt-8 sm:px-6 sm:pt-12 lg:px-8 lg:pb-20">
       <div v-if="!submitted" class="mx-auto max-w-5xl">
-        <div class="flex items-center justify-between gap-4">
-          <div class="text-sm font-medium text-slate-500">A simple way to see SalonFlow in action.</div>
-          <div class="hidden text-xs font-medium text-slate-400 sm:block">Takes less than a minute</div>
-        </div>
-
         <div class="relative mx-auto mt-10 max-w-3xl px-2 sm:mt-14">
           <div class="absolute left-[16.5%] right-[16.5%] top-5 h-px bg-slate-200" />
           <div
