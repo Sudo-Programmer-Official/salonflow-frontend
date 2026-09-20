@@ -71,7 +71,13 @@ export async function login(
     throw new Error(err.error || 'Invalid credentials');
   }
 
-  return res.json();
+  const result = await res.json();
+  localStorage.removeItem('demoAccessSession');
+  localStorage.removeItem('demoProspectName');
+  localStorage.removeItem('demoProspectBusinessName');
+  localStorage.removeItem('demoTemplateLabel');
+  localStorage.removeItem('demoTemplateKey');
+  return result;
 }
 
 export async function magicLogin(token: string): Promise<LoginResponse> {
@@ -86,7 +92,13 @@ export async function magicLogin(token: string): Promise<LoginResponse> {
     throw new Error(err.error || 'Magic login failed');
   }
 
-  return res.json();
+  const result = await res.json();
+  localStorage.removeItem('demoAccessSession');
+  localStorage.removeItem('demoProspectName');
+  localStorage.removeItem('demoProspectBusinessName');
+  localStorage.removeItem('demoTemplateLabel');
+  localStorage.removeItem('demoTemplateKey');
+  return result;
 }
 
 export async function fetchCurrentAccount(): Promise<CurrentAccountResponse> {

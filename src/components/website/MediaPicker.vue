@@ -1,8 +1,14 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { ElButton, ElCard, ElDialog, ElImage, ElMessage, ElUpload, ElMessageBox } from 'element-plus';
 import type { UploadRequestOptions } from 'element-plus';
-import { deleteWebsiteMedia, listWebsiteMedia, uploadWebsiteMedia, type WebsiteMedia } from '../../api/website';
+import {
+  deleteWebsiteMedia,
+  listWebsiteMedia,
+  restoreWebsiteMedia,
+  uploadWebsiteMedia,
+  type WebsiteMedia,
+} from '../../api/website';
 
 const props = defineProps<{
   modelValue: string[];
@@ -18,9 +24,12 @@ const emit = defineEmits(['update:modelValue']);
 
 const open = ref(false);
 const uploading = ref(false);
+const libraryLoading = ref(false);
 const media = ref<WebsiteMedia[]>([]);
 const inflight = ref(0);
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB each
+const imageCandidateIndex = ref<Record<string, number>>({});
+const imageUnavailable = ref<Record<string, boolean>>({});
 
 const selectedCount = computed(() => props.modelValue?.length || 0);
 const isAtMaxCount = computed(
@@ -36,16 +45,40 @@ const selectionSummary = computed(() => {
 });
 const ruleHints = computed(() => (props.rules || []).filter(Boolean));
 
+let loadRequestId = 0;
+
 const load = async () => {
+  const requestId = ++loadRequestId;
+  libraryLoading.value = true;
   try {
     const items = await listWebsiteMedia();
+    if (requestId !== loadRequestId) return;
     media.value = items;
+    imageCandidateIndex.value = {};
+    imageUnavailable.value = {};
   } catch (err: any) {
-    ElMessage.error(err?.message || 'Failed to load media');
+    if (requestId === loadRequestId) {
+      ElMessage.error(err?.message || 'Failed to load media');
+    }
+  } finally {
+    if (requestId === loadRequestId) {
+      libraryLoading.value = false;
+    }
   }
 };
 
-onMounted(load);
+onMounted(() => {
+  // Keep selected-media thumbnails available before the dialog is opened.
+  void load();
+});
+
+watch(open, (isOpen) => {
+  if (isOpen) {
+    // The dialog is intentionally kept mounted, so refresh whenever it opens.
+    // This prevents uploads made by another picker/page from appearing stale.
+    void load();
+  }
+});
 
 const showMaxCountMessage = () => {
   if (!props.maxCount || props.maxCount <= 0) return;
@@ -54,6 +87,8 @@ const showMaxCountMessage = () => {
 
 const toggle = (id: string) => {
   const current = props.modelValue || [];
+  const item = getMediaById(id);
+  if (item?.archived_at && !current.includes(id)) return;
   if (current.includes(id)) {
     emit('update:modelValue', current.filter((m) => m !== id));
     return;
@@ -67,6 +102,41 @@ const toggle = (id: string) => {
     return;
   }
   emit('update:modelValue', [...current, id]);
+};
+
+const mediaCandidates = (item?: WebsiteMedia | null): string[] => {
+  if (!item || isVideo(item)) return [];
+  const variants = item.variants || {};
+  const values = [
+    variants.thumbnail?.url,
+    variants.md?.url,
+    variants.sm?.url,
+    variants.lg?.url,
+    variants.xl?.url,
+    item.original_url,
+  ];
+  return [...new Set(values.filter((value): value is string => Boolean(value)))];
+};
+
+const mediaSource = (item?: WebsiteMedia | null) => {
+  const candidates = mediaCandidates(item);
+  if (!item || !candidates.length || imageUnavailable.value[item.id]) return '';
+  const index = imageCandidateIndex.value[item.id] || 0;
+  return candidates[Math.min(index, candidates.length - 1)] || '';
+};
+
+const handleImageError = (item?: WebsiteMedia | null) => {
+  if (!item) return;
+  const candidates = mediaCandidates(item);
+  const currentIndex = imageCandidateIndex.value[item.id] || 0;
+  if (currentIndex + 1 < candidates.length) {
+    imageCandidateIndex.value = {
+      ...imageCandidateIndex.value,
+      [item.id]: currentIndex + 1,
+    };
+    return;
+  }
+  imageUnavailable.value = { ...imageUnavailable.value, [item.id]: true };
 };
 
 const remove = (index: number) => {
@@ -92,7 +162,9 @@ const handleUpload = async (opts: UploadRequestOptions) => {
   uploading.value = true;
   try {
     const uploaded = await uploadWebsiteMedia(form);
-    media.value = [uploaded, ...media.value];
+    media.value = [uploaded, ...media.value.filter((item) => item.id !== uploaded.id)];
+    imageCandidateIndex.value = { ...imageCandidateIndex.value, [uploaded.id]: 0 };
+    imageUnavailable.value = { ...imageUnavailable.value, [uploaded.id]: false };
     ElMessage.success('Uploaded');
     opts.onSuccess?.(uploaded as any);
   } catch (err: any) {
@@ -113,10 +185,10 @@ const deleteItem = async (item: WebsiteMedia, evt: Event) => {
   evt.stopPropagation();
   try {
     await ElMessageBox.confirm(
-      'This will permanently remove the media from your library. It will not affect already published posts.',
-      'Delete image?',
+      'This will archive the media from the picker. Existing pages keep working and the image remains recoverable.',
+      'Archive image?',
       {
-        confirmButtonText: 'Delete',
+        confirmButtonText: 'Archive',
         cancelButtonText: 'Cancel',
         type: 'warning',
         confirmButtonClass: 'el-button--danger',
@@ -127,31 +199,26 @@ const deleteItem = async (item: WebsiteMedia, evt: Event) => {
   }
   try {
     await deleteWebsiteMedia(item.id);
-    media.value = media.value.filter((m) => m.id !== item.id);
-    if (isSelected(item.id)) {
-      emit('update:modelValue', (props.modelValue || []).filter((id) => id !== item.id));
-    }
-    ElMessage.success('Deleted');
+    media.value = media.value.map((m) => (m.id === item.id ? { ...m, archived_at: new Date().toISOString() } : m));
+    ElMessage.success('Archived');
   } catch (err: any) {
     ElMessage.error(err?.message || 'Delete failed');
   }
 };
 
-const toUrl = (
-  input?:
-    | string
-    | { url: string; width?: number; height?: number; mimeType?: string }
-    | { original_url?: string; originalUrl?: string }
-    | null,
-): string | undefined => {
-  if (!input) return undefined;
-  if (typeof input === 'string') return input;
-  // prefer explicit url field if present
-  if ('url' in input && input.url) return input.url;
-  if ('original_url' in input && input.original_url) return input.original_url as string;
-  if ('originalUrl' in input && input.originalUrl) return input.originalUrl as string;
-  return undefined;
+const restoreItem = async (item: WebsiteMedia, evt: Event) => {
+  evt.stopPropagation();
+  try {
+    const restored = await restoreWebsiteMedia(item.id);
+    media.value = media.value.map((m) => (m.id === item.id ? restored : m));
+    imageCandidateIndex.value = { ...imageCandidateIndex.value, [item.id]: 0 };
+    imageUnavailable.value = { ...imageUnavailable.value, [item.id]: false };
+    ElMessage.success('Restored');
+  } catch (err: any) {
+    ElMessage.error(err?.message || 'Restore failed');
+  }
 };
+
 </script>
 
 <template>
@@ -170,8 +237,13 @@ const toUrl = (
           </div>
         </template>
         <template v-else>
+          <div v-if="imageUnavailable[id]" class="media-selected-unavailable">
+            Image unavailable
+          </div>
           <ElImage
-            :src="toUrl(getMediaById(id)?.variants?.thumbnail) || toUrl(getMediaById(id)?.original_url)"
+            v-else
+            :src="mediaSource(getMediaById(id))"
+            @error="handleImageError(getMediaById(id))"
             style="width: 96px; height: 96px; object-fit: cover; border-radius: 8px;"
           />
         </template>
@@ -190,15 +262,18 @@ const toUrl = (
             <div v-for="(hint, idx) in ruleHints" :key="idx">• {{ hint }}</div>
           </div>
         </div>
-        <ElUpload
-          :http-request="handleUpload"
-          :show-file-list="false"
-          accept="image/*,video/*"
-          multiple
-          :disabled="uploading"
-        >
-          <ElButton :loading="uploading" type="primary">Upload</ElButton>
-        </ElUpload>
+        <div class="flex items-center gap-2">
+          <ElButton :loading="libraryLoading" plain @click="void load()">Refresh</ElButton>
+          <ElUpload
+            :http-request="handleUpload"
+            :show-file-list="false"
+            accept="image/*,video/*"
+            multiple
+            :disabled="uploading"
+          >
+            <ElButton :loading="uploading" type="primary">Upload</ElButton>
+          </ElUpload>
+        </div>
       </div>
       <div class="grid gap-3 sm:grid-cols-4 md:grid-cols-5">
         <ElCard
@@ -208,15 +283,25 @@ const toUrl = (
           :class="[
             isSelected(item.id) ? 'media-card--selected' : 'border-transparent hover:border-slate-200',
             !isSelected(item.id) && isAtMaxCount ? 'media-card--disabled' : '',
+            item.archived_at ? 'media-card--archived' : '',
           ]"
           @click="toggle(item.id)"
         >
           <button
+            v-if="!item.archived_at"
             class="media-card__delete"
             title="Delete media"
             @click.stop="deleteItem(item, $event)"
           >
             ✕
+          </button>
+          <button
+            v-else
+            class="media-card__restore"
+            title="Restore media"
+            @click.stop="restoreItem(item, $event)"
+          >
+            Restore
           </button>
 
           <template v-if="isVideo(item)">
@@ -227,12 +312,18 @@ const toUrl = (
             </div>
           </template>
           <template v-else>
+            <div v-if="imageUnavailable[item.id]" class="media-card__unavailable">
+              Image unavailable
+            </div>
             <ElImage
-              :src="toUrl(item.variants?.thumbnail) || toUrl(item.original_url)"
+              v-else
+              :src="mediaSource(item)"
+              @error="handleImageError(item)"
               style="width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 10px;"
             />
           </template>
           <div v-if="isSelected(item.id)" class="media-card__check">✓</div>
+          <div v-if="item.archived_at" class="media-card__archived-label">Archived</div>
           <div v-else-if="isVideo(item)" class="media-card__badge">Video</div>
         </ElCard>
       </div>
@@ -258,6 +349,50 @@ const toUrl = (
 }
 .media-card--disabled {
   opacity: 0.7;
+}
+.media-card--archived {
+  opacity: 0.62;
+  cursor: default;
+}
+.media-card__archived-label,
+.media-card__unavailable,
+.media-selected-unavailable {
+  display: grid;
+  place-items: center;
+  color: #64748b;
+  font-size: 0.75rem;
+  text-align: center;
+  background: #f8fafc;
+  border-radius: 10px;
+}
+.media-card__archived-label {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  padding: 3px 7px;
+  background: rgba(255, 255, 255, 0.92);
+}
+.media-card__unavailable {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+}
+.media-selected-unavailable {
+  width: 96px;
+  height: 96px;
+}
+.media-card__restore {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  border: 0;
+  border-radius: 9999px;
+  padding: 5px 8px;
+  color: #0369a1;
+  background: rgba(255, 255, 255, 0.94);
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
 }
 .media-card__check {
   position: absolute;

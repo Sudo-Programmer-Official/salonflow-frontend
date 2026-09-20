@@ -7,6 +7,7 @@ import { apiUrl } from '../../api/client';
 import ServiceDetailModal from '../../components/website/ServiceDetailModal.vue';
 import GalleryLightbox from '../../components/website/GalleryLightbox.vue';
 import { FALLBACK_IMAGE, resolveMedia, type ResolvedMedia } from '../../utils/resolveMedia';
+import { formatWebsiteHours } from '../../utils/websiteHours';
 import {
   DEFAULT_WEBSITE_HOME_SECTION_CONFIG,
   normalizeWebsiteHomeSectionConfig,
@@ -274,14 +275,13 @@ const contactPolicies = computed(() => {
   const c = contact.value || {};
   return c.policies || c.policy || null;
 });
+
 const contactHoursLines = computed(() => {
-  const h = contact.value?.hours;
-  if (!h) return [];
-  return String(h)
-    .split(/\n+/)
-    .map((line) => line.trim())
-    .filter(Boolean);
+  const direct = formatWebsiteHours(contact.value?.hours);
+  if (direct.length) return direct;
+  return formatWebsiteHours(data.value?.businessHours);
 });
+const contactHoursSummary = computed(() => contactHoursLines.value.join(' · '));
 const contactEmail = computed(() => contact.value?.email || null);
 const mapEmbedSrc = computed(() => {
   const c = contact.value || {};
@@ -349,7 +349,7 @@ const aboutParagraphs = computed(() => {
   const copy =
     (page.value?.content?.about as any)?.copy ||
     hero.value?.subheadline ||
-    contact.value?.hours ||
+    contactHoursSummary.value ||
     '';
   return String(copy)
     .split(/\n+/)
@@ -573,7 +573,7 @@ const enableServiceModal = computed(() => servicesPageConfig.value.enableService
 
 const showServicesSection = computed(
   () =>
-    !isContactPage.value &&
+    (isHomePage.value || isServicesPage.value) &&
     serviceCards.value.length > 0 &&
     (!isHomePage.value || homeSectionVisibility.value.services),
 );
@@ -653,6 +653,23 @@ const stepServiceModal = (direction: -1 | 1) => {
 const onImageError = (event: Event) => {
   const target = event.target;
   if (!(target instanceof HTMLImageElement)) return;
+  const candidates = (() => {
+    try {
+      return JSON.parse(target.dataset.fallbackCandidates || '[]') as string[];
+    } catch {
+      return [];
+    }
+  })();
+  const tried = new Set((target.dataset.fallbackTried || '').split('|').filter(Boolean));
+  const failedSource = target.currentSrc || target.src;
+  if (failedSource && failedSource !== FALLBACK_IMAGE) tried.add(failedSource);
+  const next = candidates.find((candidate) => !tried.has(candidate));
+  if (next) {
+    target.closest('picture')?.querySelectorAll('source').forEach((source) => source.remove());
+    target.dataset.fallbackTried = [...tried, next].join('|');
+    target.src = next;
+    return;
+  }
   if (target.dataset.fallbackApplied === '1') return;
   target.dataset.fallbackApplied = '1';
   console.warn('Image failed:', {
@@ -661,6 +678,9 @@ const onImageError = (event: Event) => {
   });
   target.src = FALLBACK_IMAGE;
 };
+
+const fallbackCandidatesAttr = (image: WebsiteImage | null | undefined) =>
+  JSON.stringify(image?.candidates || []);
 
 const resetCategoriesState = () => {
   categories.value = [];
@@ -864,7 +884,7 @@ const injectHead = () => {
         }
       : undefined,
     image: firstGalleryImage.value,
-    openingHours: contactData.hours ? [contactData.hours] : undefined,
+    openingHours: contactHoursLines.value.length ? contactHoursLines.value : undefined,
   };
   const ldScript = document.createElement('script');
   ldScript.id = scriptId;
@@ -1046,7 +1066,7 @@ const footerView = computed(() => {
     ...footerConfig.value,
     contact: contactInfo,
     hours: footerConfig.value?.hours ?? hoursManual,
-    fallbackHoursText: contact.value?.hours || null,
+    fallbackHoursText: contactHoursSummary.value || null,
   };
 });
 </script>
@@ -1094,6 +1114,7 @@ const footerView = computed(() => {
             <img
               :src="currentServicesHero.src"
               :alt="hero.headline || 'Services hero image'"
+              :data-fallback-candidates="fallbackCandidatesAttr(currentServicesHero)"
               class="h-full w-full object-cover"
               loading="lazy"
               @error="onImageError"
@@ -1140,6 +1161,7 @@ const footerView = computed(() => {
                     <img
                       :src="currentServicesHero.src"
                       :alt="hero.headline || 'Services hero image'"
+                      :data-fallback-candidates="fallbackCandidatesAttr(currentServicesHero)"
                       class="w-full h-full object-cover services-hero__img"
                       loading="lazy"
                       @error="onImageError"
@@ -1267,6 +1289,7 @@ const footerView = computed(() => {
                 :key="heroSlideIndex"
                 :src="currentHeroSlide?.src || heroMedia?.src"
                 :alt="hero.headline || 'Salon hero image'"
+                :data-fallback-candidates="fallbackCandidatesAttr(currentHeroSlide || heroMedia)"
                 class="w-full h-full object-cover aspect-[5/4] md:min-h-[360px] hero-slide"
                 loading="lazy"
                 @error="onImageError"
@@ -1295,7 +1318,7 @@ const footerView = computed(() => {
           }"
         >
           <div class="text-sm uppercase tracking-wide text-white/70">Hours</div>
-          <p class="mt-2 text-lg font-semibold">{{ contact.hours || 'Open daily' }}</p>
+          <p class="mt-2 text-lg font-semibold">{{ contactHoursSummary || 'Open daily' }}</p>
             <div class="mt-6 text-sm uppercase tracking-wide text-white/70">Call</div>
             <a
               :href="contact.phone ? `tel:${contact.phone}` : undefined"
@@ -1339,6 +1362,7 @@ const footerView = computed(() => {
               <img
                 :src="aboutImage.src"
                 :alt="hero.headline || 'About image'"
+                :data-fallback-candidates="fallbackCandidatesAttr(aboutImage)"
                 class="w-full h-full object-cover aspect-[5/4]"
                 loading="lazy"
                 @error="onImageError"
@@ -1445,6 +1469,7 @@ const footerView = computed(() => {
                 <img
                   :src="card.image.src"
                   :alt="card.name"
+                  :data-fallback-candidates="fallbackCandidatesAttr(card.image)"
                   class="w-full h-36 object-cover"
                   loading="lazy"
                   @error="onImageError"
@@ -1566,7 +1591,7 @@ const footerView = computed(() => {
                   <div v-if="contactHoursLines.length" class="text-base text-text space-y-1">
                     <div v-for="(line, idx) in contactHoursLines" :key="idx">{{ line }}</div>
                   </div>
-                  <div v-else class="text-base text-text">Set your business hours</div>
+                  <div v-else class="text-base text-text">Call for current hours</div>
                 </div>
               </div>
               <div v-if="contactNotes || contactPolicies" class="grid gap-3 lg:grid-cols-2">
@@ -1659,6 +1684,7 @@ const footerView = computed(() => {
                 class="w-full rounded-xl border border-border object-cover aspect-[4/3]"
                 loading="lazy"
                 :alt="img.alt || ''"
+                :data-fallback-candidates="fallbackCandidatesAttr(img)"
                 @error="onImageError"
               />
             </picture>

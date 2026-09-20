@@ -10,6 +10,12 @@ export type DemoAccessExchangeResponse = {
   token: string;
   expiresAt: string;
   tenantSubdomain: string;
+  demoContext?: {
+    prospectName?: string | null;
+    businessName?: string | null;
+    templateKey: string;
+    templateLabel: string;
+  };
   user: {
     id: string;
     businessId: string;

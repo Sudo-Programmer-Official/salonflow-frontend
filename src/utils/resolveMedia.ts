@@ -9,6 +9,8 @@ export type ResolvedMedia = {
   src: string;
   alt: string;
   sources: Array<{ srcset: string; type?: string; media?: string }>;
+  /** Ordered URLs used by the image error handler before the final placeholder. */
+  candidates?: string[];
 };
 
 export const FALLBACK_IMAGE =
@@ -59,16 +61,16 @@ const asVariant = (value: any): MediaVariant | null => {
  * Falls back to original_url/url if variants are missing.
  */
 export function resolveMedia(media: any, alt = ''): ResolvedMedia {
-  if (!media) return { src: FALLBACK_IMAGE, alt, sources: [] };
+  if (!media) return { src: FALLBACK_IMAGE, alt, sources: [], candidates: [] };
 
+  const storedVariants = media.variants || {};
   const variants: Record<string, MediaVariant | undefined> = {
-    ...(media.variants || {}),
-    thumbnail: asVariant(media.thumbnail) || undefined,
-    sm: asVariant(media.sm) || undefined,
-    md: asVariant(media.md) || undefined,
-    lg: asVariant(media.lg) || undefined,
-    xl: asVariant(media.xl) || undefined,
-    original: asVariant(media.original) || undefined,
+    thumbnail: asVariant(media.thumbnail) || asVariant(storedVariants.thumbnail) || undefined,
+    sm: asVariant(media.sm) || asVariant(storedVariants.sm) || undefined,
+    md: asVariant(media.md) || asVariant(storedVariants.md) || undefined,
+    lg: asVariant(media.lg) || asVariant(storedVariants.lg) || undefined,
+    xl: asVariant(media.xl) || asVariant(storedVariants.xl) || undefined,
+    original: asVariant(media.original) || asVariant(storedVariants.original) || undefined,
   };
 
   const orderedKeys = ['thumbnail', 'sm', 'md', 'lg', 'xl'];
@@ -93,7 +95,8 @@ export function resolveMedia(media: any, alt = ''): ResolvedMedia {
     asVariant(media.url),
   ].filter((candidate): candidate is MediaVariant => Boolean(candidate?.url));
 
-  const src = fallbackCandidates[0]?.url || FALLBACK_IMAGE;
+  const candidates = [...new Set(fallbackCandidates.map((candidate) => candidate.url))];
+  const src = candidates[0] || FALLBACK_IMAGE;
 
   const sources: ResolvedMedia['sources'] = [];
   if (variantList.length) {
@@ -106,5 +109,5 @@ export function resolveMedia(media: any, alt = ''): ResolvedMedia {
     }
   }
 
-  return { src, alt, sources };
+  return { src, alt, sources, candidates };
 }
