@@ -451,6 +451,12 @@ const formatMoney = (cents?: number | null, currency = 'USD') => {
   }).format(cents / 100);
 };
 
+const normalizeServiceName = (value: unknown) =>
+  String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+
 const serviceCards = computed(() => {
   const customServices = Array.isArray(services.value) ? services.value : [];
   const haveLive = liveServices.value.length > 0;
@@ -464,10 +470,20 @@ const serviceCards = computed(() => {
         : haveLive
           ? liveServices.value
           : customServices;
+  const customServiceByName = new Map(
+    customServices
+      .map((service: any) => [normalizeServiceName(service?.title || service?.name), service] as const)
+      .filter(([name]) => Boolean(name)),
+  );
+  const itemsWithPageMedia = items.map((service: any) => {
+    if (mode === 'custom' || !haveLive || service?.image) return service;
+    const pageService = customServiceByName.get(normalizeServiceName(service?.name));
+    return pageService?.image ? { ...service, image: pageService.image } : service;
+  });
   const galleryImages = resolvedGallery.value;
   const defaultImg = galleryImages.length ? galleryImages[0] : null;
 
-  return items
+  return itemsWithPageMedia
     .map((svc: any, idx: number) => {
       const title = svc?.title || svc?.name || svc;
       if (!title) return null;
