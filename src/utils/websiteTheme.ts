@@ -1,6 +1,7 @@
 import type { ThemeTokens } from '../api/settings';
 
 export const DEFAULT_WEBSITE_THEME: ThemeTokens = {
+  presetKey: 'legacy',
   colors: {
     primary: '#0ea5e9',
     secondary: '#22c55e',

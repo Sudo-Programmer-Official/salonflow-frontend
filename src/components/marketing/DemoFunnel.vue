@@ -328,9 +328,6 @@ watch([step, name, businessName, businessType, templateKey, email, phone, intere
                 </span>
                 <span class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border" :class="selectedTemplate?.templateKey === option.templateKey ? 'border-blue-600 bg-blue-600 text-xs text-white' : 'border-slate-300'">{{ selectedTemplate?.templateKey === option.templateKey ? '✓' : '' }}</span>
               </button>
-              <div v-if="!templateCatalogLoading && businessTypeOptions.length <= 1" class="flex min-h-24 items-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-500">
-                More business types coming soon.
-              </div>
               </div>
 
               <div class="mt-10">

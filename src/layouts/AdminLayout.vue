@@ -477,6 +477,7 @@ const sidebarGroups = computed(() => [
     defaultOpen: false,
     items: [
       { label: 'Website', name: 'admin-website', icon: '🌐', roles: ['OWNER'] },
+      { label: 'Website Theme', name: 'admin-website-theme', icon: '🎨', roles: ['OWNER'] },
       { label: 'Website Navigation', name: 'admin-website-navigation', icon: '🧭', roles: ['OWNER'] },
       { label: 'Website Analytics', name: 'admin-website-analytics', icon: '📊', roles: ['OWNER'] },
       { label: 'Website Leads (Legacy)', name: 'admin-website-leads', icon: '📨', roles: ['OWNER'] },

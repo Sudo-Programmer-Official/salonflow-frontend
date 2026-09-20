@@ -10,6 +10,7 @@ export type DefaultBookingRules = {
 };
 
 export type ThemeTokens = {
+  presetKey?: 'legacy' | 'soft-luxe' | 'editorial' | 'calm-spa' | 'modern-dark' | 'clean-neutral';
   colors: {
     primary: string;
     secondary: string;

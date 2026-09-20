@@ -13,6 +13,7 @@ import {
   ElSlider,
   ElButton,
   ElColorPicker,
+  ElInput,
   ElTimePicker,
 } from 'element-plus';
 import {
@@ -33,6 +34,11 @@ import { fetchOnboardingStatus } from '../../api/onboarding';
 import type { BusinessHours } from '../../api/settings';
 import { applyThemeFromSettings, defaultUiPreferences, fontFamilyOptions, themeBounds } from '../../utils/theme';
 import { DEFAULT_WEBSITE_THEME } from '../../utils/websiteTheme';
+import {
+  WEBSITE_THEME_PRESETS,
+  mergeWebsiteThemeTokens,
+  type WebsiteThemeTokensPatch,
+} from '../../utils/websiteThemePresets';
 import type { ThemeTokens } from '../../api/settings';
 import { buildTenantKioskUrl } from '../../utils/tenantUrls';
 import {
@@ -118,6 +124,14 @@ const showPointsValue = computed(
   () => settings.value?.showPointsPreview ?? settings.value?.showPointsOnKiosk ?? true,
 );
 const themeTokens = computed<ThemeTokens>(() => settings.value?.themeTokens ?? DEFAULT_WEBSITE_THEME);
+const websiteColorFields: Array<{ key: keyof ThemeTokens['colors']; label: string; detail: string }> = [
+  { key: 'primary', label: 'Primary', detail: 'Buttons & accents' },
+  { key: 'secondary', label: 'Secondary', detail: 'Subtle highlights' },
+  { key: 'background', label: 'Background', detail: 'Page base' },
+  { key: 'surface', label: 'Surface', detail: 'Cards' },
+  { key: 'textPrimary', label: 'Text primary', detail: 'Headings/body' },
+  { key: 'textMuted', label: 'Muted', detail: 'Subtext' },
+];
 const kioskShowStepperHeader = computed(
   () =>
     settings.value?.kiosk?.showStepperHeader ??
@@ -299,67 +313,18 @@ const resetAppearance = () => {
   });
 };
 
-type ThemeTokensPatch = {
-  colors?: Partial<ThemeTokens['colors']>;
-  typography?: Partial<ThemeTokens['typography']>;
-  radii?: Partial<ThemeTokens['radii']>;
-  shadows?: Partial<ThemeTokens['shadows']>;
-  spacing?: Partial<ThemeTokens['spacing']>;
-  gradients?: Partial<ThemeTokens['gradients']>;
-};
+const themePresets = WEBSITE_THEME_PRESETS;
 
-const themePresets: Array<{ label: string; tokens: Partial<ThemeTokens> }> = [
-  {
-    label: 'Light',
-    tokens: {
-      colors: {
-        ...DEFAULT_WEBSITE_THEME.colors,
-        primary: '#0ea5e9',
-        secondary: '#22c55e',
-        background: '#f8fafc',
-        surface: '#ffffff',
-        surfaceMuted: '#f1f5f9',
-        textPrimary: '#0f172a',
-        textMuted: '#475569',
-        border: '#e2e8f0',
-        accent: DEFAULT_WEBSITE_THEME.colors.accent,
-      },
-    },
-  },
-  {
-    label: 'Luxury Dark',
-    tokens: {
-      colors: {
-        ...DEFAULT_WEBSITE_THEME.colors,
-        primary: '#d6b25e',
-        secondary: '#7dd3fc',
-        background: '#0b0f17',
-        surface: '#0f172a',
-        surfaceMuted: '#1f2937',
-        textPrimary: '#f8fafc',
-        textMuted: '#cbd5e1',
-        border: '#1f2937',
-        accent: '#d97757',
-      },
-      shadows: {
-        ...DEFAULT_WEBSITE_THEME.shadows,
-        card: '0 20px 60px rgba(0,0,0,0.35)',
-      },
-      gradients: {
-        hero: 'linear-gradient(120deg, rgba(0,0,0,0.82), rgba(16,24,40,0.72))',
-      },
-    },
-  },
-];
+const resetWebsiteTheme = () => scheduleSave({ themeTokens: { ...DEFAULT_WEBSITE_THEME, presetKey: 'legacy' } });
 
-const applyThemePreset = (tokens: ThemeTokensPatch) => {
-  const next = mergeThemeTokens(themeTokens.value, tokens);
+const applyThemePreset = (tokens: WebsiteThemeTokensPatch) => {
+  const next = mergeWebsiteThemeTokens(themeTokens.value, tokens);
   scheduleSave({ themeTokens: next });
 };
 
 const setThemeColor = (key: keyof ThemeTokens['colors'], value: string | null) => {
   if (!value) return;
-  const next = mergeThemeTokens(themeTokens.value, { colors: { [key]: value } as Partial<ThemeTokens['colors']> });
+  const next = mergeWebsiteThemeTokens(themeTokens.value, { colors: { [key]: value } as Partial<ThemeTokens['colors']> });
   scheduleSave({ themeTokens: next });
 };
 
@@ -370,38 +335,6 @@ const mergeRules = (
   ...defaultRules,
   ...(base ?? {}),
   ...(patch ?? {}),
-});
-
-const mergeThemeTokens = (
-  base: ThemeTokens | undefined,
-  patch?: ThemeTokensPatch,
-): ThemeTokens => ({
-  ...(base ?? DEFAULT_WEBSITE_THEME),
-  ...(patch ?? {}),
-  colors: {
-    ...(base?.colors ?? DEFAULT_WEBSITE_THEME.colors),
-    ...(patch?.colors ?? {}),
-  },
-  typography: {
-    ...(base?.typography ?? DEFAULT_WEBSITE_THEME.typography),
-    ...(patch?.typography ?? {}),
-  },
-  radii: {
-    ...(base?.radii ?? DEFAULT_WEBSITE_THEME.radii),
-    ...(patch?.radii ?? {}),
-  },
-  shadows: {
-    ...(base?.shadows ?? DEFAULT_WEBSITE_THEME.shadows),
-    ...(patch?.shadows ?? {}),
-  },
-  spacing: {
-    ...(base?.spacing ?? DEFAULT_WEBSITE_THEME.spacing),
-    ...(patch?.spacing ?? {}),
-  },
-  gradients: {
-    ...(base?.gradients ?? DEFAULT_WEBSITE_THEME.gradients),
-    ...(patch?.gradients ?? {}),
-  },
 });
 
 const mergePaymentMethods = (
@@ -427,7 +360,7 @@ const mergeSettings = (current: BusinessSettings, patch: SettingsPatch): Busines
     ? mergeRules(current.defaultBookingRules, patch.defaultBookingRules)
     : current.defaultBookingRules,
   themeTokens: patch.themeTokens
-    ? mergeThemeTokens(current.themeTokens ?? DEFAULT_WEBSITE_THEME, patch.themeTokens)
+    ? mergeWebsiteThemeTokens(current.themeTokens ?? DEFAULT_WEBSITE_THEME, patch.themeTokens)
     : current.themeTokens ?? DEFAULT_WEBSITE_THEME,
   paymentMethods: patch.paymentMethods
     ? mergePaymentMethods(current.paymentMethods, patch.paymentMethods)
@@ -447,7 +380,7 @@ const mergePending = (current: SettingsPatch, patch: SettingsPatch): SettingsPat
     );
   }
   if (patch.themeTokens) {
-    next.themeTokens = mergeThemeTokens(
+    next.themeTokens = mergeWebsiteThemeTokens(
       current.themeTokens as ThemeTokens | undefined ??
         settings.value?.themeTokens ??
         DEFAULT_WEBSITE_THEME,
@@ -916,78 +849,38 @@ onMounted(loadSettings);
             <div class="flex items-center justify-between">
               <div>
                 <div class="text-sm font-semibold text-slate-900">Website theme tokens</div>
-                <div class="text-xs text-slate-600">Colors power the public site + booking. Safe presets only.</div>
+                <div class="text-xs text-slate-600">Colors power the public website. Kiosk appearance is configured separately below.</div>
               </div>
-              <div class="flex gap-2">
-                <ElButton size="small" @click="applyThemePreset(themePresets[0]?.tokens ?? DEFAULT_WEBSITE_THEME)">Light</ElButton>
-                <ElButton size="small" @click="applyThemePreset(themePresets[1]?.tokens ?? DEFAULT_WEBSITE_THEME)">Luxury Dark</ElButton>
+              <div class="flex flex-wrap justify-end gap-2">
+                <ElButton
+                  v-for="preset in themePresets"
+                  :key="preset.label"
+                  size="small"
+                  :type="themeTokens.presetKey === preset.tokens.presetKey ? 'primary' : 'default'"
+                  @click="applyThemePreset(preset.tokens)"
+                >
+                  {{ preset.label }}
+                </ElButton>
+                <ElButton size="small" plain @click="resetWebsiteTheme">Reset</ElButton>
               </div>
             </div>
             <div class="grid gap-3 md:grid-cols-3">
-              <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
-                <div>
-                  <div class="text-sm font-semibold text-slate-900">Primary</div>
-                  <div class="text-xs text-slate-600">Buttons & accents</div>
+              <div v-for="color in websiteColorFields" :key="color.key" class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
+                <div class="min-w-0">
+                  <div class="text-sm font-semibold text-slate-900">{{ color.label }}</div>
+                  <div class="text-xs text-slate-600">{{ color.detail }}</div>
                 </div>
                 <ElColorPicker
-                  :model-value="themeTokens.colors.primary"
+                  :model-value="themeTokens.colors[color.key]"
                   :show-alpha="false"
-                  @change="(val: string | null) => setThemeColor('primary', val)"
+                  @change="(val: string | null) => setThemeColor(color.key, val)"
                 />
-              </div>
-              <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
-                <div>
-                  <div class="text-sm font-semibold text-slate-900">Secondary</div>
-                  <div class="text-xs text-slate-600">Subtle highlights</div>
-                </div>
-                <ElColorPicker
-                  :model-value="themeTokens.colors.secondary"
-                  :show-alpha="false"
-                  @change="(val: string | null) => setThemeColor('secondary', val)"
-                />
-              </div>
-              <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
-                <div>
-                  <div class="text-sm font-semibold text-slate-900">Background</div>
-                  <div class="text-xs text-slate-600">Page base</div>
-                </div>
-                <ElColorPicker
-                  :model-value="themeTokens.colors.background"
-                  :show-alpha="false"
-                  @change="(val: string | null) => setThemeColor('background', val)"
-                />
-              </div>
-              <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
-                <div>
-                  <div class="text-sm font-semibold text-slate-900">Surface</div>
-                  <div class="text-xs text-slate-600">Cards</div>
-                </div>
-                <ElColorPicker
-                  :model-value="themeTokens.colors.surface"
-                  :show-alpha="false"
-                  @change="(val: string | null) => setThemeColor('surface', val)"
-                />
-              </div>
-              <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
-                <div>
-                  <div class="text-sm font-semibold text-slate-900">Text primary</div>
-                  <div class="text-xs text-slate-600">Headings/body</div>
-                </div>
-                <ElColorPicker
-                  :model-value="themeTokens.colors.textPrimary"
-                  :show-alpha="false"
-                  @change="(val: string | null) => setThemeColor('textPrimary', val)"
-                />
-              </div>
-              <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
-                <div>
-                  <div class="text-sm font-semibold text-slate-900">Muted</div>
-                  <div class="text-xs text-slate-600">Subtext</div>
-                </div>
-                <ElColorPicker
-                  :model-value="themeTokens.colors.textMuted"
-                  :show-alpha="false"
-                  @change="(val: string | null) => setThemeColor('textMuted', val)"
+                <ElInput
+                  class="w-28"
+                  size="small"
+                  :model-value="themeTokens.colors[color.key]"
+                  maxlength="7"
+                  @change="(val: string) => setThemeColor(color.key, val)"
                 />
               </div>
             </div>
