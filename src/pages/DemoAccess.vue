@@ -32,6 +32,27 @@ onMounted(async () => {
     localStorage.setItem('tenantId', result.user.businessId);
     localStorage.setItem('tenantSubdomain', result.tenantSubdomain);
     localStorage.setItem('client', result.user.client || 'salonflow_admin');
+    localStorage.setItem('demoAccessSession', 'true');
+    if (result.demoContext?.prospectName) {
+      localStorage.setItem('demoProspectName', result.demoContext.prospectName);
+    } else {
+      localStorage.removeItem('demoProspectName');
+    }
+    if (result.demoContext?.businessName) {
+      localStorage.setItem('demoProspectBusinessName', result.demoContext.businessName);
+    } else {
+      localStorage.removeItem('demoProspectBusinessName');
+    }
+    if (result.demoContext?.templateLabel) {
+      localStorage.setItem('demoTemplateLabel', result.demoContext.templateLabel);
+    } else {
+      localStorage.removeItem('demoTemplateLabel');
+    }
+    if (result.demoContext?.templateKey) {
+      localStorage.setItem('demoTemplateKey', result.demoContext.templateKey);
+    } else {
+      localStorage.removeItem('demoTemplateKey');
+    }
     await router.replace(defaultRouteForRole(result.user.role, { preferAdminQueue: true }));
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : 'This demo access link is no longer available.';

@@ -238,7 +238,10 @@ export async function updateWebsiteLeadStatus(
 }
 
 export async function listWebsiteMedia(limit = 50) {
-  const res = await fetch(apiUrl(`/website/media?limit=${limit}`), { headers: headers() });
+  const res = await fetch(apiUrl(`/website/media?limit=${limit}`), {
+    headers: headers(),
+    cache: 'no-store',
+  });
   const body = await res.json();
   if (!res.ok) throw new Error(body.error || 'Failed to load media');
   return body.media as WebsiteMedia[];

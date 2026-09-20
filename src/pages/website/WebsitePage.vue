@@ -274,14 +274,44 @@ const contactPolicies = computed(() => {
   const c = contact.value || {};
   return c.policies || c.policy || null;
 });
-const contactHoursLines = computed(() => {
-  const h = contact.value?.hours;
-  if (!h) return [];
-  return String(h)
-    .split(/\n+/)
-    .map((line) => line.trim())
+
+const formatHoursLines = (value: unknown): string[] => {
+  if (!value) return [];
+  if (typeof value === 'string') {
+    return value.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+  }
+  if (Array.isArray(value)) {
+    return value
+      .map((line) => (typeof line === 'string' ? line.trim() : ''))
+      .filter(Boolean);
+  }
+  if (typeof value !== 'object') return [];
+
+  const dayLabels: Record<string, string> = {
+    sun: 'Sun', sunday: 'Sun', mon: 'Mon', monday: 'Mon', tue: 'Tue', tues: 'Tue',
+    tuesday: 'Tue', wed: 'Wed', wednesday: 'Wed', thu: 'Thu', thurs: 'Thu',
+    thursday: 'Thu', fri: 'Fri', friday: 'Fri', sat: 'Sat', saturday: 'Sat',
+  };
+
+  return Object.entries(value as Record<string, unknown>)
+    .map(([day, hours]) => {
+      const label = dayLabels[day.toLowerCase()] || day;
+      if (typeof hours === 'string') return `${label}: ${hours}`;
+      if (!hours || typeof hours !== 'object') return '';
+      const range = hours as Record<string, unknown>;
+      if (range.closed === true || range.isClosed === true) return `${label}: Closed`;
+      const open = String(range.open ?? range.opens ?? '').trim();
+      const close = String(range.close ?? range.closes ?? '').trim();
+      if (open || close) return `${label}: ${open || '—'} - ${close || '—'}`;
+      return '';
+    })
     .filter(Boolean);
+};
+
+const contactHoursLines = computed(() => {
+  return formatHoursLines(contact.value?.hours);
 });
+const contactHoursSummary = computed(() => contactHoursLines.value.join(' · '));
 const contactEmail = computed(() => contact.value?.email || null);
 const mapEmbedSrc = computed(() => {
   const c = contact.value || {};
@@ -349,7 +379,7 @@ const aboutParagraphs = computed(() => {
   const copy =
     (page.value?.content?.about as any)?.copy ||
     hero.value?.subheadline ||
-    contact.value?.hours ||
+    contactHoursSummary.value ||
     '';
   return String(copy)
     .split(/\n+/)
@@ -884,7 +914,7 @@ const injectHead = () => {
         }
       : undefined,
     image: firstGalleryImage.value,
-    openingHours: contactData.hours ? [contactData.hours] : undefined,
+    openingHours: contactHoursLines.value.length ? contactHoursLines.value : undefined,
   };
   const ldScript = document.createElement('script');
   ldScript.id = scriptId;
@@ -1066,7 +1096,7 @@ const footerView = computed(() => {
     ...footerConfig.value,
     contact: contactInfo,
     hours: footerConfig.value?.hours ?? hoursManual,
-    fallbackHoursText: contact.value?.hours || null,
+    fallbackHoursText: contactHoursSummary.value || null,
   };
 });
 </script>
@@ -1318,7 +1348,7 @@ const footerView = computed(() => {
           }"
         >
           <div class="text-sm uppercase tracking-wide text-white/70">Hours</div>
-          <p class="mt-2 text-lg font-semibold">{{ contact.hours || 'Open daily' }}</p>
+          <p class="mt-2 text-lg font-semibold">{{ contactHoursSummary || 'Open daily' }}</p>
             <div class="mt-6 text-sm uppercase tracking-wide text-white/70">Call</div>
             <a
               :href="contact.phone ? `tel:${contact.phone}` : undefined"

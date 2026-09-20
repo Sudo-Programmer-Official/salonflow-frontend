@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { ElButton, ElCard, ElDialog, ElImage, ElMessage, ElUpload, ElMessageBox } from 'element-plus';
 import type { UploadRequestOptions } from 'element-plus';
 import {
@@ -24,6 +24,7 @@ const emit = defineEmits(['update:modelValue']);
 
 const open = ref(false);
 const uploading = ref(false);
+const libraryLoading = ref(false);
 const media = ref<WebsiteMedia[]>([]);
 const inflight = ref(0);
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB each
@@ -44,16 +45,40 @@ const selectionSummary = computed(() => {
 });
 const ruleHints = computed(() => (props.rules || []).filter(Boolean));
 
+let loadRequestId = 0;
+
 const load = async () => {
+  const requestId = ++loadRequestId;
+  libraryLoading.value = true;
   try {
     const items = await listWebsiteMedia();
+    if (requestId !== loadRequestId) return;
     media.value = items;
+    imageCandidateIndex.value = {};
+    imageUnavailable.value = {};
   } catch (err: any) {
-    ElMessage.error(err?.message || 'Failed to load media');
+    if (requestId === loadRequestId) {
+      ElMessage.error(err?.message || 'Failed to load media');
+    }
+  } finally {
+    if (requestId === loadRequestId) {
+      libraryLoading.value = false;
+    }
   }
 };
 
-onMounted(load);
+onMounted(() => {
+  // Keep selected-media thumbnails available before the dialog is opened.
+  void load();
+});
+
+watch(open, (isOpen) => {
+  if (isOpen) {
+    // The dialog is intentionally kept mounted, so refresh whenever it opens.
+    // This prevents uploads made by another picker/page from appearing stale.
+    void load();
+  }
+});
 
 const showMaxCountMessage = () => {
   if (!props.maxCount || props.maxCount <= 0) return;
@@ -137,7 +162,9 @@ const handleUpload = async (opts: UploadRequestOptions) => {
   uploading.value = true;
   try {
     const uploaded = await uploadWebsiteMedia(form);
-    media.value = [uploaded, ...media.value];
+    media.value = [uploaded, ...media.value.filter((item) => item.id !== uploaded.id)];
+    imageCandidateIndex.value = { ...imageCandidateIndex.value, [uploaded.id]: 0 };
+    imageUnavailable.value = { ...imageUnavailable.value, [uploaded.id]: false };
     ElMessage.success('Uploaded');
     opts.onSuccess?.(uploaded as any);
   } catch (err: any) {
@@ -235,15 +262,18 @@ const restoreItem = async (item: WebsiteMedia, evt: Event) => {
             <div v-for="(hint, idx) in ruleHints" :key="idx">• {{ hint }}</div>
           </div>
         </div>
-        <ElUpload
-          :http-request="handleUpload"
-          :show-file-list="false"
-          accept="image/*,video/*"
-          multiple
-          :disabled="uploading"
-        >
-          <ElButton :loading="uploading" type="primary">Upload</ElButton>
-        </ElUpload>
+        <div class="flex items-center gap-2">
+          <ElButton :loading="libraryLoading" plain @click="void load()">Refresh</ElButton>
+          <ElUpload
+            :http-request="handleUpload"
+            :show-file-list="false"
+            accept="image/*,video/*"
+            multiple
+            :disabled="uploading"
+          >
+            <ElButton :loading="uploading" type="primary">Upload</ElButton>
+          </ElUpload>
+        </div>
       </div>
       <div class="grid gap-3 sm:grid-cols-4 md:grid-cols-5">
         <ElCard

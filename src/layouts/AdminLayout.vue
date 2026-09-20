@@ -95,6 +95,11 @@ const isImpersonating = computed(() => localStorage.getItem('impersonationActive
 const impersonationName = computed(
   () => localStorage.getItem('impersonationBusinessName') || 'this tenant',
 );
+const isDemoSession = computed(() => localStorage.getItem('demoAccessSession') === 'true');
+const demoProspectBusinessName = computed(
+  () => localStorage.getItem('demoProspectBusinessName') || '',
+);
+const demoTemplateLabel = computed(() => localStorage.getItem('demoTemplateLabel') || 'Salon');
 
 const exitImpersonation = () => {
   const originalToken = localStorage.getItem('impersonationOriginalToken') || '';
@@ -886,6 +891,14 @@ const toggleSidebarCollapse = () => {
               Exit impersonation
             </button>
           </div>
+        </div>
+
+        <div
+          v-if="isDemoSession && demoProspectBusinessName"
+          class="flex flex-col gap-1 rounded-lg border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900"
+        >
+          <div class="font-semibold">Demo prepared for {{ demoProspectBusinessName }}</div>
+          <div class="text-xs text-violet-800">{{ demoTemplateLabel }} experience · Sample data</div>
         </div>
 
         <div

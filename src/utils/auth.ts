@@ -11,6 +11,11 @@ export const clearAuthState = () => {
     'impersonationOriginalToken',
     'impersonationOriginalRole',
     'impersonationOriginalTenant',
+    'demoAccessSession',
+    'demoProspectName',
+    'demoProspectBusinessName',
+    'demoTemplateLabel',
+    'demoTemplateKey',
   ];
 
   keys.forEach((key) => localStorage.removeItem(key));
