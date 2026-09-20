@@ -125,6 +125,44 @@ export async function fetchDemoTenants(): Promise<DemoTenantCatalogResponse> {
   return body as DemoTenantCatalogResponse;
 }
 
+export async function provisionDemoTenant(
+  templateKey: string,
+  payload: { confirmed: boolean },
+): Promise<{
+  tenant: DemoTenantCatalogItem;
+  result: {
+    businessId: string;
+    subdomain: string;
+    templateKey: string;
+    businessCreated: boolean;
+    userCreated: boolean;
+    seedVersion: string;
+    counts: Record<string, number>;
+  };
+}> {
+  const res = await fetch(apiUrl('/platform/demo-tenants/provision'), {
+    method: 'POST',
+    headers: buildHeaders({ auth: true, json: true }),
+    body: JSON.stringify({ templateKey, ...payload }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(body.error || 'Failed to register demo tenant');
+  }
+  return body as {
+    tenant: DemoTenantCatalogItem;
+    result: {
+      businessId: string;
+      subdomain: string;
+      templateKey: string;
+      businessCreated: boolean;
+      userCreated: boolean;
+      seedVersion: string;
+      counts: Record<string, number>;
+    };
+  };
+}
+
 export async function updateDemoTenantMetadata(
   businessId: string,
   payload: DemoTenantMetadataPatch,
@@ -212,4 +250,3 @@ export async function generateDemoTenantMagicLink(
   }
   return body as { magicUrl: string; ownerEmail: string; subdomain: string };
 }
-

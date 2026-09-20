@@ -35,6 +35,7 @@ import {
 import {
   fetchDemoTenants,
   generateDemoTenantMagicLink,
+  provisionDemoTenant,
   refreshDemoTenant,
   resetDemoTenant,
   updateDemoTenantMetadata,
@@ -97,6 +98,7 @@ const copyText = async (value: string, message: string) => {
 const catalogLoading = ref(false);
 const requestsLoading = ref(false);
 const actionLoading = ref(false);
+const provisionLoading = ref<string | null>(null);
 const saveLoading = ref(false);
 const sendLoading = ref(false);
 const convertLoading = ref(false);
@@ -350,6 +352,37 @@ const generateTenantLink = async (tenant: DemoTenantCatalogItem) => {
   }
 };
 
+const isTemplateRegistered = (templateId: string) =>
+  Boolean(catalog.value?.tenants.some((tenant) => tenant.templateId === templateId));
+
+const provisionTenant = async (template: DemoTenantCatalogResponse['templates'][number]) => {
+  if (isTemplateRegistered(template.templateId)) {
+    ElMessage.info(`${template.displayName} is already registered.`);
+    return;
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      `Register and seed the production ${template.displayName} demo tenant? This creates only the canonical synthetic tenant for this template.`,
+      'Register production demo tenant',
+      { type: 'warning', confirmButtonText: 'Register and seed', cancelButtonText: 'Cancel' },
+    );
+  } catch {
+    return;
+  }
+
+  provisionLoading.value = template.templateId;
+  try {
+    const result = await provisionDemoTenant(template.templateId, { confirmed: true });
+    ElMessage.success(`${result.tenant.slug} registered and seeded`);
+    await fetchCatalog();
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'Failed to register demo tenant');
+  } finally {
+    provisionLoading.value = null;
+  }
+};
+
 const copyTenantUrl = async (tenant: DemoTenantCatalogItem) =>
   copyText(tenant.demoUrl, 'Demo URL copied');
 
@@ -545,6 +578,39 @@ const requestTotals = computed(() => ({
               <ElTag type="success">Ready: {{ catalogTotals.ready }}</ElTag>
               <ElTag type="warning">Needs attention: {{ catalogTotals.warnings }}</ElTag>
               <ElTag type="info">Validated: {{ catalogTotals.validated }}</ElTag>
+            </div>
+          </div>
+
+          <div class="mb-5 rounded-lg border border-blue-100 bg-blue-50/50 p-4">
+            <div class="mb-3">
+              <div class="font-semibold text-slate-900">Register canonical demo tenants</div>
+              <div class="mt-1 text-sm text-slate-600">
+                Provision a missing production demo from its template. The action is guarded and seeds the tenant, access user, website, and sample data.
+              </div>
+            </div>
+            <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <div
+                v-for="template in templateOptions"
+                :key="template.templateId"
+                class="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-white p-3"
+              >
+                <div class="min-w-0">
+                  <div class="font-medium text-slate-900">{{ template.displayName }}</div>
+                  <div class="truncate text-xs text-slate-500">{{ template.templateId }}</div>
+                </div>
+                <ElTag v-if="isTemplateRegistered(template.templateId)" type="success" size="small">
+                  Registered
+                </ElTag>
+                <ElButton
+                  v-else
+                  size="small"
+                  type="primary"
+                  :loading="provisionLoading === template.templateId"
+                  @click="provisionTenant(template)"
+                >
+                  Register
+                </ElButton>
+              </div>
             </div>
           </div>
 

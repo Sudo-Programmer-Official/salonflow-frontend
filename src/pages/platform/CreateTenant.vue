@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { createTenant, type CreateTenantPayload } from '../../api/superadmin';
+import {
+  createTenant,
+  type CreateTenantPayload,
+  type RealBusinessType,
+} from '../../api/superadmin';
 import {
   buildTenantCheckInUrl,
   buildTenantLoginUrl,
@@ -14,6 +18,7 @@ const subdomain = ref('');
 const ownerName = ref('');
 const ownerEmail = ref('');
 const tempPassword = ref('');
+const businessType = ref<RealBusinessType>('nail_salon');
 const loading = ref(false);
 const error = ref('');
 const success = ref<{
@@ -21,7 +26,21 @@ const success = ref<{
   ownerEmail: string;
   tempPassword: string;
   onboardingProjectId?: string;
+  businessType: RealBusinessType;
+  themePreset: string;
+  tenantUrl: string;
+  bookingUrl: string;
+  loginUrl: string;
+  checkInUrl: string;
 } | null>(null);
+
+const businessTypeOptions: Array<{ value: RealBusinessType; label: string; detail: string }> = [
+  { value: 'nail_salon', label: 'Nail salon', detail: 'Nail services and appointment defaults' },
+  { value: 'hair_salon', label: 'Hair salon', detail: 'Stylist terminology and editorial website theme' },
+  { value: 'spa', label: 'Spa', detail: 'Wellness terminology and calm website theme' },
+  { value: 'barbershop', label: 'Barbershop', detail: 'Barber terminology and modern dark website theme' },
+  { value: 'other', label: 'Other', detail: 'Neutral SalonFlow defaults' },
+];
 
 const loginUrl = computed(() =>
   subdomain.value ? buildTenantLoginUrl(subdomain.value) : '',
@@ -75,6 +94,7 @@ const submit = async () => {
       subdomain: subdomain.value,
       ownerName: ownerName.value.trim(),
       ownerEmail: ownerEmail.value.trim(),
+      businessType: businessType.value,
     };
     if (tempPassword.value.trim()) {
       payload.tempPassword = tempPassword.value.trim();
@@ -100,7 +120,7 @@ const openOnboarding = () => {
       <h1 class="text-2xl font-semibold text-slate-900">Onboard Salon</h1>
     </div>
     <p class="mt-2 max-w-3xl text-slate-600">
-      Provision a new salon tenant, create the owner account, and kick off the onboarding project in one place.
+      Provision a real customer tenant, choose sensible business defaults, create the owner account, and kick off onboarding in one place.
     </p>
 
     <div class="mt-8 grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr,0.85fr]">
@@ -115,6 +135,27 @@ const openOnboarding = () => {
                 class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none"
                 placeholder="MTV Nails"
               />
+            </div>
+            <div class="md:col-span-2">
+              <div class="flex items-center justify-between gap-3">
+                <label class="text-sm font-medium text-slate-800">Business type</label>
+                <span class="text-xs text-slate-500">Defaults only — no synthetic demo data is copied</span>
+              </div>
+              <div class="mt-2 grid gap-2 sm:grid-cols-2">
+                <button
+                  v-for="option in businessTypeOptions"
+                  :key="option.value"
+                  type="button"
+                  class="rounded-xl border px-4 py-3 text-left transition"
+                  :class="businessType === option.value
+                    ? 'border-sky-500 bg-sky-50 ring-1 ring-sky-500'
+                    : 'border-slate-200 bg-white hover:border-sky-300'"
+                  @click="businessType = option.value"
+                >
+                  <div class="text-sm font-semibold text-slate-900">{{ option.label }}</div>
+                  <div class="mt-1 text-xs leading-5 text-slate-500">{{ option.detail }}</div>
+                </button>
+              </div>
             </div>
             <div class="md:col-span-2">
               <label class="text-sm font-medium text-slate-800">Subdomain</label>
@@ -207,6 +248,10 @@ const openOnboarding = () => {
               <div class="mt-1 text-sm text-slate-900">{{ success.ownerEmail }}</div>
             </div>
             <div class="rounded-xl border border-emerald-200 bg-white px-4 py-3">
+              <div class="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Business defaults</div>
+              <div class="mt-1 text-sm text-slate-900">{{ success.businessType }} · {{ success.themePreset }}</div>
+            </div>
+            <div class="rounded-xl border border-emerald-200 bg-white px-4 py-3">
               <div class="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Temporary password</div>
               <div class="mt-1 font-mono text-sm text-slate-900">{{ success.tempPassword }}</div>
             </div>
@@ -223,8 +268,10 @@ const openOnboarding = () => {
           </div>
 
           <div class="mt-4 flex flex-col gap-2 text-sm text-slate-700">
-            <a v-if="loginUrl" :href="loginUrl" target="_blank" class="text-sky-600 hover:text-sky-700">Open login</a>
-            <a v-if="checkInUrl" :href="checkInUrl" target="_blank" class="text-sky-600 hover:text-sky-700">Open check-in</a>
+            <a v-if="success.tenantUrl" :href="success.tenantUrl" target="_blank" class="text-sky-600 hover:text-sky-700">Open public website</a>
+            <a v-if="success.bookingUrl" :href="success.bookingUrl" target="_blank" class="text-sky-600 hover:text-sky-700">Open booking</a>
+            <a v-if="success.loginUrl || loginUrl" :href="success.loginUrl || loginUrl" target="_blank" class="text-sky-600 hover:text-sky-700">Open login</a>
+            <a v-if="success.checkInUrl || checkInUrl" :href="success.checkInUrl || checkInUrl" target="_blank" class="text-sky-600 hover:text-sky-700">Open check-in</a>
           </div>
         </div>
       </div>
@@ -251,8 +298,10 @@ const openOnboarding = () => {
             <li>Business record</li>
             <li>Owner account</li>
             <li>Default website and booking path</li>
+            <li>Business-type theme and terminology defaults</li>
             <li>Initial onboarding project</li>
             <li>Lifecycle state for the platform dashboard</li>
+            <li>No synthetic demo data</li>
           </ul>
         </div>
       </div>

@@ -28,12 +28,15 @@ export type PlatformAverages = {
   avgSmsPerSalon: number;
 };
 
+export type RealBusinessType = 'nail_salon' | 'hair_salon' | 'spa' | 'barbershop' | 'other';
+
 export type CreateTenantPayload = {
   name: string;
   subdomain: string;
   ownerName: string;
   ownerEmail: string;
   tempPassword?: string;
+  businessType: RealBusinessType;
 };
 
 export async function createTenant(payload: CreateTenantPayload): Promise<{
@@ -41,6 +44,12 @@ export async function createTenant(payload: CreateTenantPayload): Promise<{
   ownerEmail: string;
   tempPassword: string;
   onboardingProjectId?: string;
+  businessType: RealBusinessType;
+  themePreset: string;
+  tenantUrl: string;
+  bookingUrl: string;
+  loginUrl: string;
+  checkInUrl: string;
 }> {
   const res = await fetch(apiUrl('/superadmin/tenants'), {
     method: 'POST',
