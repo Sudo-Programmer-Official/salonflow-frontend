@@ -204,8 +204,8 @@ onBeforeUnmount(() => {
   width: 40px;
   height: 40px;
   border-radius: var(--sf-radius, 14px);
-  background: linear-gradient(135deg, #f472b6 0%, #ec4899 60%, #db2777 100%);
-  color: #fff;
+  background: var(--sf-header-brand-mark-background, linear-gradient(135deg, #f472b6 0%, #ec4899 60%, #db2777 100%));
+  color: var(--sf-header-brand-mark-text, #fff);
   font-weight: 700;
   display: inline-flex;
   align-items: center;
@@ -294,8 +294,8 @@ onBeforeUnmount(() => {
   transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease, filter 160ms ease;
 }
 .sf-button.solid {
-  background: linear-gradient(120deg, color-mix(in srgb, var(--sf-primary, #ec4899) 92%, #fff 8%), color-mix(in srgb, #db2777 90%, #fff 10%));
-  color: #fff;
+  background: var(--sf-header-solid-background, linear-gradient(120deg, color-mix(in srgb, var(--sf-primary, #ec4899) 92%, #fff 8%), color-mix(in srgb, #db2777 90%, #fff 10%)));
+  color: var(--sf-header-solid-text, #fff);
   box-shadow: 0 12px 30px rgba(236, 72, 153, 0.28);
 }
 .sf-button.solid:hover {
@@ -304,9 +304,9 @@ onBeforeUnmount(() => {
   filter: saturate(1.02);
 }
 .sf-button.ghost {
-  border: 1px solid color-mix(in srgb, var(--sf-primary, #ec4899) 35%, transparent);
-  background: color-mix(in srgb, var(--sf-primary, #ec4899) 10%, #fff);
-  color: var(--sf-primary, #ec4899);
+  border: 1px solid var(--sf-header-ghost-border, color-mix(in srgb, var(--sf-primary, #ec4899) 35%, transparent));
+  background: var(--sf-header-ghost-background, color-mix(in srgb, var(--sf-primary, #ec4899) 10%, #fff));
+  color: var(--sf-header-ghost-text, var(--sf-primary, #ec4899));
 }
 .sf-button.ghost:hover {
   transform: translateY(-1px) scale(1.01);

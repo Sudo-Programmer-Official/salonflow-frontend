@@ -538,14 +538,31 @@ const visibleServicesPageCategories = computed(() =>
   servicesPageCategories.value.filter((category) => category.services.length > 0),
 );
 
-const catalogModalItems = computed<ServiceModalItem[]>(() =>
-  visibleServicesPageCategories.value.flatMap((category) =>
+const catalogModalItems = computed<ServiceModalItem[]>(() => {
+  const pageServices = Array.isArray(services.value) ? services.value : [];
+  const pageServiceById = new Map(
+    pageServices
+      .map((service: any) => [String(service?.serviceId || service?.service_id || ''), service] as const)
+      .filter(([id]) => Boolean(id)),
+  );
+  const pageServiceByName = new Map(
+    pageServices
+      .map((service: any) => [normalizeServiceName(service?.title || service?.name), service] as const)
+      .filter(([name]) => Boolean(name)),
+  );
+
+  return visibleServicesPageCategories.value.flatMap((category) =>
     category.services.map((service) => {
+      const pageService =
+        pageServiceById.get(String(service.id)) ||
+        pageServiceByName.get(normalizeServiceName(service.name));
+      const imageRef = (service as any)?.image || pageService?.image || category.heroImage;
       const primaryImage =
-        resolveImageRef(category.heroImage, service.name, {
-          type: 'service_category_hero',
+        resolveImageRef(imageRef, service.name, {
+          type: imageRef === pageService?.image ? 'service_page_image' : 'service_category_hero',
           categoryId: category.id,
           serviceId: service.id,
+          imageRef,
         }) || resolvedGallery.value[0] || null;
       const images = buildModalImages(primaryImage, resolvedGallery.value);
       const resolvedImage = primaryImage || images[0] || makeImage(null, { alt: service.name });
@@ -568,8 +585,8 @@ const catalogModalItems = computed<ServiceModalItem[]>(() =>
           : [],
       };
     }),
-  ),
-);
+  );
+});
 
 const galleryPreview = computed(() => resolvedGallery.value.slice(0, GALLERY_PREVIEW_LIMIT));
 const hasMoreGalleryImages = computed(() => resolvedGallery.value.length > GALLERY_PREVIEW_LIMIT);

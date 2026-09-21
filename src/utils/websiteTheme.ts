@@ -126,6 +126,19 @@ export function applyWebsiteTheme(tokens?: Partial<ThemeTokens> | null) {
   set('--sf-header-nav-hover', isModernDark ? theme.colors.surface : 'rgba(15, 23, 42, 0.05)');
   set('--sf-header-active-text', isModernDark ? theme.colors.textPrimary : 'var(--sf-primary, #ec4899)');
   set('--sf-header-active-background', isModernDark ? theme.colors.surface : 'color-mix(in srgb, var(--sf-primary, #ec4899) 12%, #fff)');
+  set('--sf-header-brand-mark-background', isModernDark
+    ? `linear-gradient(135deg, ${theme.colors.accent}, ${theme.colors.primary})`
+    : 'linear-gradient(135deg, #f472b6 0%, #ec4899 60%, #db2777 100%)');
+  set('--sf-header-brand-mark-text', isModernDark ? '#1c1917' : '#fff');
+  set('--sf-header-solid-background', isModernDark
+    ? `linear-gradient(120deg, ${theme.colors.primary}, color-mix(in srgb, ${theme.colors.primary} 65%, ${theme.colors.accent}))`
+    : 'linear-gradient(120deg, color-mix(in srgb, var(--sf-primary, #ec4899) 92%, #fff 8%), color-mix(in srgb, #db2777 90%, #fff 10%))');
+  set('--sf-header-solid-text', isModernDark ? theme.colors.background : '#fff');
+  set('--sf-header-ghost-border', isModernDark
+    ? `color-mix(in srgb, ${theme.colors.primary} 58%, ${theme.colors.border})`
+    : 'color-mix(in srgb, var(--sf-primary, #ec4899) 35%, transparent)');
+  set('--sf-header-ghost-background', isModernDark ? 'transparent' : 'color-mix(in srgb, var(--sf-primary, #ec4899) 10%, #fff)');
+  set('--sf-header-ghost-text', isModernDark ? theme.colors.textPrimary : 'var(--sf-primary, #ec4899)');
 
   set('--sf-footer-background', isModernDark ? theme.colors.background : 'linear-gradient(180deg, #fff7fb 0%, #ffeef7 100%)');
   set('--sf-footer-card-background', isModernDark ? theme.colors.surface : 'rgba(255, 255, 255, 0.94)');
