@@ -34,7 +34,12 @@ type ServiceGroup = {
 };
 
 const route = useRoute();
-const { data: websiteData, fetchSite: fetchWebsite } = useWebsite('en');
+const {
+  data: websiteData,
+  loading: websiteLoading,
+  error: websiteError,
+  fetchSite: fetchWebsite,
+} = useWebsite('en');
 const useWebsiteShell = computed(() => typeof window !== 'undefined' && !isPlatformHost());
 const pageToPath = (page: string) => {
   switch (page) {
@@ -576,6 +581,7 @@ const selectService = (serviceId: string) => {
 
 <template>
   <component
+    v-if="!useWebsiteShell || websiteData"
     :is="useWebsiteShell ? PublicWebsiteLayout : 'div'"
     v-bind="useWebsiteShell ? { header: websiteHeader, footer: websiteFooter, activePath: route.path } : {}"
   >
@@ -972,9 +978,26 @@ const selectService = (serviceId: string) => {
     </div>
   </div>
   </component>
+
+  <div v-else class="website-boot-screen" role="status" aria-live="polite">
+    <span v-if="websiteLoading">Loading website…</span>
+    <span v-else class="website-boot-screen--error">{{ websiteError || 'Unable to load website.' }}</span>
+  </div>
 </template>
 
 <style scoped>
+.website-boot-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.website-boot-screen--error {
+  color: #b91c1c;
+}
 .booking-page {
   min-width: 0;
 }

@@ -1112,7 +1112,12 @@ const footerView = computed(() => {
 </script>
 
 <template>
-  <PublicWebsiteLayout :header="headerView" :footer="footerView" :active-path="route.path">
+  <PublicWebsiteLayout
+    v-if="data"
+    :header="headerView"
+    :footer="footerView"
+    :active-path="route.path"
+  >
     <div class="space-y-12">
       <div v-if="isPreview" class="sf-container mt-8">
         <div
@@ -1773,9 +1778,26 @@ const footerView = computed(() => {
       @close="closeGalleryLightbox"
     />
   </PublicWebsiteLayout>
+
+  <div v-else class="website-boot-screen" role="status" aria-live="polite">
+    <span v-if="loading">Loading website…</span>
+    <span v-else class="website-boot-screen--error">{{ error || 'Unable to load website.' }}</span>
+  </div>
 </template>
 
 <style scoped>
+.website-boot-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.website-boot-screen--error {
+  color: #b91c1c;
+}
 .services-hero {
   background: var(--sf-hero-gradient);
   box-shadow: var(--sf-shadow-overlay, 0 30px 80px rgba(0, 0, 0, 0.25));

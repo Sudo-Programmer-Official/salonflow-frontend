@@ -52,7 +52,9 @@ type WebsitePayload = {
 };
 
 export function useWebsite(locale: 'en' | 'es') {
-  const loading = ref(false);
+  // Public pages should not render the shared fallback theme while the
+  // tenant-specific website payload is being resolved.
+  const loading = ref(true);
   const error = ref<string | null>(null);
   const data = ref<WebsitePayload | null>(null);
 
