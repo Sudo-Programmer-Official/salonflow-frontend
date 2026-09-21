@@ -459,6 +459,51 @@ function formatRange(days: string[]) {
   gap: 14px;
 }
 
+/* Modern Dark uses the same footer layout with theme-owned surfaces. The
+   legacy footer styles remain the fallback for existing websites. */
+:global(html[data-website-theme='modern-dark']) .sf-footer {
+  background: var(--sf-bg);
+  color: var(--sf-text);
+  border-top-color: var(--sf-border);
+}
+:global(html[data-website-theme='modern-dark']) .sf-footer__card {
+  background: var(--sf-surface);
+  border-color: var(--sf-border);
+  box-shadow: var(--sf-shadow-card);
+}
+:global(html[data-website-theme='modern-dark']) .sf-footer__label,
+:global(html[data-website-theme='modern-dark']) .sf-icon,
+:global(html[data-website-theme='modern-dark']) .sf-icon-inline {
+  color: var(--sf-primary);
+}
+:global(html[data-website-theme='modern-dark']) .sf-footer__hour .day,
+:global(html[data-website-theme='modern-dark']) .sf-footer__note,
+:global(html[data-website-theme='modern-dark']) .sf-footer__copy,
+:global(html[data-website-theme='modern-dark']) .sf-footer__links a {
+  color: var(--sf-text-muted);
+}
+:global(html[data-website-theme='modern-dark']) .sf-footer__hour.is-today {
+  background: color-mix(in srgb, var(--sf-primary) 14%, var(--sf-surface));
+  color: var(--sf-primary);
+}
+:global(html[data-website-theme='modern-dark']) .sf-footer__link,
+:global(html[data-website-theme='modern-dark']) .sf-footer__social a,
+:global(html[data-website-theme='modern-dark']) .sf-footer__text {
+  color: var(--sf-text);
+}
+:global(html[data-website-theme='modern-dark']) .sf-footer__link:hover,
+:global(html[data-website-theme='modern-dark']) .sf-footer__social a:hover {
+  color: var(--sf-primary);
+}
+:global(html[data-website-theme='modern-dark']) .sf-footer__pill {
+  background: color-mix(in srgb, var(--sf-primary) 18%, var(--sf-surface));
+  color: var(--sf-primary);
+}
+:global(html[data-website-theme='modern-dark']) .sf-footer__strip {
+  background: var(--sf-surface);
+  border-top-color: var(--sf-border);
+}
+
 @media (min-width: 640px) {
   .sf-footer__shell {
     grid-template-columns: repeat(2, minmax(0, 1fr));

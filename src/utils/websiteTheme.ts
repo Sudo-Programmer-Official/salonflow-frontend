@@ -55,6 +55,7 @@ const mergeTheme = (incoming?: Partial<ThemeTokens> | null): ThemeTokens => {
   const gradients = isObject(src.gradients) ? { ...base.gradients, ...src.gradients } : base.gradients;
 
   return {
+    presetKey: (src.presetKey as ThemeTokens['presetKey']) || base.presetKey,
     colors,
     typography,
     radii,
@@ -116,6 +117,27 @@ export function applyWebsiteTheme(tokens?: Partial<ThemeTokens> | null) {
   set('--sf-muted-rgb', rgbMuted);
   set('--sf-border', theme.colors.border);
   set('--sf-border-rgb', rgbBorder);
+
+  // Keep the active preset available to shared website components. The
+  // renderer uses this marker for contrast-sensitive details (for example,
+  // a dark service card needs light text while legacy stays unchanged).
+  root.dataset.websiteTheme = theme.presetKey || 'legacy';
+
+  // Image-backed hero sections need a darkening overlay, not an overlay made
+  // from the text color. Using the text color on Modern Dark produces a white
+  // wash over the image because the text token is intentionally near-white.
+  set(
+    '--sf-hero-overlay',
+    theme.presetKey === 'modern-dark'
+      ? 'linear-gradient(110deg, rgba(0, 0, 0, 0.76) 0%, rgba(0, 0, 0, 0.46) 52%, rgba(0, 0, 0, 0.16) 100%)'
+      : 'linear-gradient(135deg, rgba(20, 10, 18, 0.82), rgba(20, 10, 18, 0.48))',
+  );
+  set(
+    '--sf-services-hero-overlay',
+    theme.presetKey === 'modern-dark'
+      ? 'linear-gradient(110deg, rgba(0, 0, 0, 0.76) 0%, rgba(0, 0, 0, 0.46) 52%, rgba(0, 0, 0, 0.16) 100%)'
+      : 'linear-gradient(110deg, color-mix(in srgb, var(--sf-text, #0f172a) 92%, transparent) 0%, color-mix(in srgb, var(--sf-text, #0f172a) 75%, transparent) 45%, color-mix(in srgb, var(--sf-text, #0f172a) 28%, transparent) 100%)',
+  );
 
   set('--sf-font-family', theme.typography.fontFamily);
   set('--sf-font-size-base', `${theme.typography.baseSize}px`);

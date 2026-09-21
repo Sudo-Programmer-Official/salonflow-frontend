@@ -472,4 +472,66 @@ onBeforeUnmount(() => {
     opacity: 0;
   }
 }
+
+/* Modern Dark keeps the same shared header structure, but every surface and
+   control must follow the active website theme instead of the legacy blush
+   defaults above. */
+:global(html[data-website-theme='modern-dark']) .sf-header {
+  background: color-mix(in srgb, var(--sf-surface) 94%, var(--sf-bg) 6%);
+  border-bottom-color: var(--sf-border);
+}
+:global(html[data-website-theme='modern-dark']) .sf-header__brand-mark {
+  background: linear-gradient(135deg, var(--sf-primary), var(--sf-accent));
+  color: var(--sf-bg);
+  box-shadow: 0 10px 26px rgb(var(--sf-primary-rgb) / 0.25);
+}
+:global(html[data-website-theme='modern-dark']) .sf-header__brand-tag,
+:global(html[data-website-theme='modern-dark']) .sf-header__link {
+  color: var(--sf-text-muted);
+}
+:global(html[data-website-theme='modern-dark']) .sf-header__menu {
+  border-color: var(--sf-border);
+}
+:global(html[data-website-theme='modern-dark']) .sf-header__link:hover {
+  color: var(--sf-text);
+  background: var(--sf-surface-muted);
+}
+:global(html[data-website-theme='modern-dark']) .sf-header__link.active {
+  color: var(--sf-primary);
+  background: color-mix(in srgb, var(--sf-primary) 18%, var(--sf-surface));
+}
+:global(html[data-website-theme='modern-dark']) .sf-button.solid {
+  background: linear-gradient(120deg, var(--sf-primary), color-mix(in srgb, var(--sf-primary) 65%, var(--sf-accent)));
+  color: var(--sf-bg);
+  box-shadow: 0 12px 30px rgb(var(--sf-primary-rgb) / 0.25);
+}
+:global(html[data-website-theme='modern-dark']) .sf-button.solid:hover {
+  box-shadow: 0 16px 40px rgb(var(--sf-primary-rgb) / 0.32);
+}
+:global(html[data-website-theme='modern-dark']) .sf-button.ghost {
+  border-color: color-mix(in srgb, var(--sf-primary) 58%, var(--sf-border));
+  background: color-mix(in srgb, var(--sf-primary) 12%, var(--sf-surface));
+  color: var(--sf-primary);
+}
+:global(html[data-website-theme='modern-dark']) .sf-header__mobile-close {
+  background: var(--sf-surface);
+  border-color: var(--sf-border);
+  color: var(--sf-text);
+}
+:global(html[data-website-theme='modern-dark']) .mobile-nav-btn {
+  border-color: var(--sf-border);
+  background: var(--sf-surface-muted);
+  color: var(--sf-text);
+}
+:global(html[data-website-theme='modern-dark']) .mobile-nav-btn.active {
+  border-color: var(--sf-primary);
+  background: color-mix(in srgb, var(--sf-primary) 16%, var(--sf-surface-muted));
+}
+:global(html[data-website-theme='modern-dark']) .mobile-nav-btn.primary {
+  background: var(--sf-primary);
+  color: var(--sf-bg);
+}
+:global(html[data-website-theme='modern-dark']) .mobile-nav-btn.ghost {
+  background: color-mix(in srgb, var(--sf-primary) 14%, var(--sf-surface));
+}
 </style>

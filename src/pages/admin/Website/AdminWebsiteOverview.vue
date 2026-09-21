@@ -39,9 +39,17 @@ const go = (name: string) => {
   window.location.href = `/admin/${name}`;
 };
 
-const previewUrl = computed(() =>
-  primaryDomain.value ? `https://${primaryDomain.value}` : 'https://salonflow.studio',
-);
+const normalizePreviewUrl = (domain: string) => {
+  const value = domain.trim();
+  if (!value) return 'https://salonflow.studio';
+
+  // The API may return either a hostname or an already-qualified domain.
+  // Strip repeated protocols before adding the single canonical protocol.
+  const host = value.replace(/^(?:https?:\/\/)+/i, '');
+  return `https://${host}`;
+};
+
+const previewUrl = computed(() => normalizePreviewUrl(primaryDomain.value));
 
 const openPreview = () => window.open(previewUrl.value, '_blank');
 </script>
