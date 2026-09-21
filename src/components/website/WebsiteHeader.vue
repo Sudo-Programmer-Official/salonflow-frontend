@@ -477,8 +477,8 @@ onBeforeUnmount(() => {
    control must follow the active website theme instead of the legacy blush
    defaults above. */
 :global(html[data-website-theme='modern-dark']) .sf-header {
-  background: #fff;
-  border-bottom-color: #e7e5e4;
+  background: var(--sf-bg);
+  border-bottom-color: var(--sf-border);
 }
 :global(html[data-website-theme='modern-dark']) .sf-header__brand-mark {
   background: linear-gradient(135deg, var(--sf-primary), var(--sf-accent));
@@ -486,25 +486,25 @@ onBeforeUnmount(() => {
   box-shadow: 0 10px 26px rgb(var(--sf-primary-rgb) / 0.25);
 }
 :global(html[data-website-theme='modern-dark']) .sf-header__brand-name {
-  color: #111111;
+  color: var(--sf-text-primary);
 }
 :global(html[data-website-theme='modern-dark']) .sf-header__brand-tag,
 :global(html[data-website-theme='modern-dark']) .sf-header__link {
-  color: #57534e;
+  color: var(--sf-text-muted);
 }
 :global(html[data-website-theme='modern-dark']) .sf-header__menu {
-  border-color: #d6d3d1;
+  border-color: var(--sf-border);
 }
 :global(html[data-website-theme='modern-dark']) .sf-header__menu span {
-  background: #111111;
+  background: var(--sf-text-primary);
 }
 :global(html[data-website-theme='modern-dark']) .sf-header__link:hover {
-  color: #111111;
-  background: #f5f5f4;
+  color: var(--sf-text-primary);
+  background: var(--sf-surface);
 }
 :global(html[data-website-theme='modern-dark']) .sf-header__link.active {
-  color: #111111;
-  background: #f5f5f4;
+  color: var(--sf-text-primary);
+  background: var(--sf-surface);
 }
 :global(html[data-website-theme='modern-dark']) .sf-button.solid {
   background: linear-gradient(120deg, var(--sf-primary), color-mix(in srgb, var(--sf-primary) 65%, var(--sf-accent)));
@@ -516,28 +516,29 @@ onBeforeUnmount(() => {
 }
 :global(html[data-website-theme='modern-dark']) .sf-button.ghost {
   border-color: color-mix(in srgb, var(--sf-primary) 58%, var(--sf-border));
-  background: #fff;
-  color: #8a5e2c;
+  background: transparent;
+  color: var(--sf-text-primary);
 }
 :global(html[data-website-theme='modern-dark']) .sf-header__mobile-close {
-  background: #fff;
-  border-color: #d6d3d1;
-  color: #111111;
+  background: var(--sf-surface);
+  border-color: var(--sf-border);
+  color: var(--sf-text-primary);
 }
 :global(html[data-website-theme='modern-dark']) .mobile-nav-btn {
-  border-color: #d6d3d1;
-  background: #f5f5f4;
-  color: #111111;
+  border-color: var(--sf-border);
+  background: var(--sf-surface);
+  color: var(--sf-text-primary);
 }
 :global(html[data-website-theme='modern-dark']) .mobile-nav-btn.active {
   border-color: var(--sf-primary);
-  background: #f5f5f4;
+  background: var(--sf-surface);
 }
 :global(html[data-website-theme='modern-dark']) .mobile-nav-btn.primary {
   background: var(--sf-primary);
   color: #1c1917;
 }
 :global(html[data-website-theme='modern-dark']) .mobile-nav-btn.ghost {
-  background: #fff;
+  background: color-mix(in srgb, var(--sf-primary) 14%, var(--sf-surface));
+  color: var(--sf-text-primary);
 }
 </style>

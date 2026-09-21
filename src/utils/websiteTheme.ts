@@ -119,13 +119,13 @@ export function applyWebsiteTheme(tokens?: Partial<ThemeTokens> | null) {
   set('--sf-border-rgb', rgbBorder);
 
   const isModernDark = theme.presetKey === 'modern-dark';
-  set('--sf-header-background', isModernDark ? '#ffffff' : 'linear-gradient(90deg, rgba(255, 247, 251, 0.95), rgba(255, 241, 245, 0.92))');
-  set('--sf-header-brand-name', isModernDark ? '#111111' : 'var(--sf-text, #0f172a)');
-  set('--sf-header-brand-tag', isModernDark ? '#57534e' : 'rgba(15, 23, 42, 0.6)');
-  set('--sf-header-nav-text', isModernDark ? '#57534e' : 'rgba(15, 23, 42, 0.8)');
-  set('--sf-header-nav-hover', isModernDark ? '#f5f5f4' : 'rgba(15, 23, 42, 0.05)');
-  set('--sf-header-active-text', isModernDark ? '#111111' : 'var(--sf-primary, #ec4899)');
-  set('--sf-header-active-background', isModernDark ? '#f5f5f4' : 'color-mix(in srgb, var(--sf-primary, #ec4899) 12%, #fff)');
+  set('--sf-header-background', isModernDark ? theme.colors.background : 'linear-gradient(90deg, rgba(255, 247, 251, 0.95), rgba(255, 241, 245, 0.92))');
+  set('--sf-header-brand-name', isModernDark ? theme.colors.textPrimary : 'var(--sf-text, #0f172a)');
+  set('--sf-header-brand-tag', isModernDark ? theme.colors.textMuted : 'rgba(15, 23, 42, 0.6)');
+  set('--sf-header-nav-text', isModernDark ? theme.colors.textMuted : 'rgba(15, 23, 42, 0.8)');
+  set('--sf-header-nav-hover', isModernDark ? theme.colors.surface : 'rgba(15, 23, 42, 0.05)');
+  set('--sf-header-active-text', isModernDark ? theme.colors.textPrimary : 'var(--sf-primary, #ec4899)');
+  set('--sf-header-active-background', isModernDark ? theme.colors.surface : 'color-mix(in srgb, var(--sf-primary, #ec4899) 12%, #fff)');
 
   set('--sf-footer-background', isModernDark ? theme.colors.background : 'linear-gradient(180deg, #fff7fb 0%, #ffeef7 100%)');
   set('--sf-footer-card-background', isModernDark ? theme.colors.surface : 'rgba(255, 255, 255, 0.94)');
