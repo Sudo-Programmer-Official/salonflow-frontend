@@ -286,8 +286,8 @@ function formatRange(days: string[]) {
 
 <style scoped>
 .sf-footer {
-  background: linear-gradient(180deg, #fff7fb 0%, #ffeef7 100%);
-  color: var(--sf-text, #0f172a);
+  background: var(--sf-footer-background, linear-gradient(180deg, #fff7fb 0%, #ffeef7 100%));
+  color: var(--sf-footer-text, var(--sf-text, #0f172a));
   border-top: 1px solid color-mix(in srgb, var(--sf-border, #f4d9e7) 70%, transparent);
   margin-top: 64px;
 }
@@ -299,7 +299,7 @@ function formatRange(days: string[]) {
   align-items: stretch;
 }
 .sf-footer__card {
-  background: rgba(255, 255, 255, 0.94);
+  background: var(--sf-footer-card-background, rgba(255, 255, 255, 0.94));
   border: 1px solid color-mix(in srgb, var(--sf-border, #f4d9e7) 75%, #fff);
   border-radius: var(--sf-radius, 14px);
   padding: 18px;
@@ -316,7 +316,7 @@ function formatRange(days: string[]) {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-weight: 700;
-  color: color-mix(in srgb, var(--sf-primary, #ec4899) 55%, #0f172a 45%);
+  color: var(--sf-footer-label, color-mix(in srgb, var(--sf-primary, #ec4899) 55%, #0f172a 45%));
   margin-bottom: 10px;
 }
 .sf-icon {
@@ -334,7 +334,7 @@ function formatRange(days: string[]) {
   margin: 0;
   font-weight: 600;
   font-size: 15px;
-  color: var(--sf-text, #0f172a);
+  color: var(--sf-footer-text, var(--sf-text, #0f172a));
 }
 .sf-footer__hours {
   display: grid;
@@ -344,32 +344,32 @@ function formatRange(days: string[]) {
   display: flex;
   justify-content: space-between;
   font-weight: 600;
-  color: var(--sf-text, #0f172a);
+  color: var(--sf-footer-text, var(--sf-text, #0f172a));
   padding: 6px 8px;
   border-radius: 10px;
   transition: background 0.2s ease, color 0.2s ease;
   font-size: 14px;
 }
 .sf-footer__hour .day {
-  color: rgba(15, 23, 42, 0.68);
+  color: var(--sf-footer-muted, rgba(15, 23, 42, 0.68));
 }
 .sf-footer__hour .time {
-  color: var(--sf-text, #0f172a);
+  color: var(--sf-footer-text, var(--sf-text, #0f172a));
 }
 .sf-footer__hour.is-today {
-  background: rgba(236, 72, 153, 0.08);
-  color: #c02679;
+  background: color-mix(in srgb, var(--sf-primary, #ec4899) 14%, var(--sf-footer-card-background, #fff));
+  color: var(--sf-primary, #c02679);
 }
 .sf-footer__note {
   margin-top: 6px;
   font-size: 12px;
-  color: rgba(15, 23, 42, 0.6);
+  color: var(--sf-footer-muted, rgba(15, 23, 42, 0.6));
 }
 .sf-footer__link {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: var(--sf-text, #0f172a);
+  color: var(--sf-footer-text, var(--sf-text, #0f172a));
   font-weight: 600;
   text-decoration: none;
   padding: 4px 0;
@@ -382,7 +382,7 @@ function formatRange(days: string[]) {
   gap: 10px;
 }
 .sf-footer__link:hover {
-  color: #0f172a;
+  color: var(--sf-footer-text, #0f172a);
 }
 .sf-footer__social {
   display: flex;
@@ -391,7 +391,7 @@ function formatRange(days: string[]) {
   gap: 10px;
 }
 .sf-footer__social a {
-  color: var(--sf-text, #0f172a);
+  color: var(--sf-footer-text, var(--sf-text, #0f172a));
   font-weight: 600;
   text-decoration: none;
   display: inline-flex;
@@ -399,7 +399,7 @@ function formatRange(days: string[]) {
   gap: 8px;
 }
 .sf-footer__social a:hover {
-  color: color-mix(in srgb, var(--sf-primary, #ec4899) 60%, #0f172a 40%);
+  color: var(--sf-primary, #ec4899);
 }
 .sf-footer__facebook-btn {
   color: #fff !important;
@@ -411,14 +411,14 @@ function formatRange(days: string[]) {
   width: 24px;
   height: 24px;
   border-radius: 9999px;
-  background: color-mix(in srgb, var(--sf-primary, #ec4899) 18%, #fff);
+  background: color-mix(in srgb, var(--sf-primary, #ec4899) 18%, var(--sf-footer-card-background, #fff));
   font-size: 12px;
   margin-right: 6px;
   color: var(--sf-primary, #ec4899);
 }
 .sf-footer__review {
   font-weight: 700;
-  color: var(--sf-text, #0f172a);
+  color: var(--sf-footer-text, var(--sf-text, #0f172a));
   gap: 10px;
 }
 .sf-footer__review .sf-icon-inline {
@@ -435,17 +435,17 @@ function formatRange(days: string[]) {
   font-weight: 700;
 }
 .sf-footer__links a {
-  color: rgba(15, 23, 42, 0.78);
+  color: var(--sf-footer-muted, rgba(15, 23, 42, 0.78));
 }
 .sf-footer__copy {
   font-size: 12px;
-  color: rgba(15, 23, 42, 0.7);
+  color: var(--sf-footer-muted, rgba(15, 23, 42, 0.7));
 }
 
 .sf-footer__strip {
   padding: 12px 0 14px;
   border-top: 1px solid color-mix(in srgb, var(--sf-border, #f4d9e7) 70%, transparent);
-  background: linear-gradient(90deg, rgba(255, 247, 251, 0.92), rgba(255, 241, 245, 0.9));
+  background: var(--sf-footer-strip-background, linear-gradient(90deg, rgba(255, 247, 251, 0.92), rgba(255, 241, 245, 0.9)));
 }
 
 .sf-footer__strip-inner {

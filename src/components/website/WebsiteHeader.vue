@@ -184,7 +184,7 @@ onBeforeUnmount(() => {
   position: sticky;
   top: 0;
   z-index: 40;
-  background: linear-gradient(90deg, rgba(255, 247, 251, 0.95), rgba(255, 241, 245, 0.92));
+  background: var(--sf-header-background, linear-gradient(90deg, rgba(255, 247, 251, 0.95), rgba(255, 241, 245, 0.92)));
   backdrop-filter: blur(12px);
   border-bottom: 1px solid color-mix(in srgb, var(--sf-border, #f4d9e7) 65%, transparent);
 }
@@ -219,7 +219,7 @@ onBeforeUnmount(() => {
 .sf-header__brand-name {
   display: block;
   font-weight: 700;
-  color: var(--sf-text, #0f172a);
+  color: var(--sf-header-brand-name, var(--sf-text, #0f172a));
   max-width: min(52vw, 240px);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -227,7 +227,7 @@ onBeforeUnmount(() => {
 }
 .sf-header__brand-tag {
   font-size: 12px;
-  color: rgba(15, 23, 42, 0.6);
+  color: var(--sf-header-brand-tag, rgba(15, 23, 42, 0.6));
   max-width: min(48vw, 220px);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -264,18 +264,18 @@ onBeforeUnmount(() => {
 .sf-header__link {
   font-weight: 600;
   font-size: 14px;
-  color: rgba(15, 23, 42, 0.8);
+  color: var(--sf-header-nav-text, rgba(15, 23, 42, 0.8));
   padding: 8px 10px;
   border-radius: 12px;
   transition: color 150ms ease, background 150ms ease;
 }
 .sf-header__link:hover {
-  color: var(--sf-text, #0f172a);
-  background: rgba(15, 23, 42, 0.05);
+  color: var(--sf-header-brand-name, var(--sf-text, #0f172a));
+  background: var(--sf-header-nav-hover, rgba(15, 23, 42, 0.05));
 }
 .sf-header__link.active {
-  color: var(--sf-primary, #ec4899);
-  background: color-mix(in srgb, var(--sf-primary, #ec4899) 12%, #fff);
+  color: var(--sf-header-active-text, var(--sf-primary, #ec4899));
+  background: var(--sf-header-active-background, color-mix(in srgb, var(--sf-primary, #ec4899) 12%, #fff));
 }
 .sf-header__ctas {
   display: inline-flex;
