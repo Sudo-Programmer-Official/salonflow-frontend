@@ -149,6 +149,16 @@ export function applyWebsiteTheme(tokens?: Partial<ThemeTokens> | null) {
   set('--sf-booking-submit-shadow-hover', isModernDark
     ? `0 22px 46px rgb(${rgbAccent} / 0.42), inset 0 1px 0 rgb(255 255 255 / 0.34)`
     : '0 22px 44px color-mix(in srgb, var(--sf-primary, #0ea5e9) 26%, transparent)');
+  set('--sf-website-primary-button-background', isModernDark
+    ? `linear-gradient(135deg, color-mix(in srgb, ${theme.colors.accent} 86%, #fff 14%), ${theme.colors.accent} 52%, color-mix(in srgb, ${theme.colors.accent} 72%, ${theme.colors.primary} 28%))`
+    : 'linear-gradient(to right, #f43f5e, #db2777)');
+  set('--sf-website-primary-button-text', isModernDark ? theme.colors.background : '#fff');
+  set('--sf-website-primary-button-shadow', isModernDark
+    ? `0 14px 30px rgb(${rgbAccent} / 0.32), inset 0 1px 0 rgb(255 255 255 / 0.24)`
+    : '0 14px 30px rgb(236 72 153 / 0.28)');
+  set('--sf-website-primary-button-shadow-hover', isModernDark
+    ? `0 18px 38px rgb(${rgbAccent} / 0.42), inset 0 1px 0 rgb(255 255 255 / 0.3)`
+    : '0 18px 38px rgb(236 72 153 / 0.32)');
 
   set('--sf-footer-background', isModernDark ? theme.colors.background : 'linear-gradient(180deg, #fff7fb 0%, #ffeef7 100%)');
   set('--sf-footer-card-background', isModernDark ? theme.colors.surface : 'rgba(255, 255, 255, 0.94)');

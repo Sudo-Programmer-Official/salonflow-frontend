@@ -1900,13 +1900,13 @@ const footerView = computed(() => {
 }
 
 .website-primary-button {
-  background: linear-gradient(to right, #f43f5e, #db2777);
-  color: #fff;
-  box-shadow: 0 14px 30px rgb(236 72 153 / 0.28);
+  background: var(--sf-website-primary-button-background, linear-gradient(to right, #f43f5e, #db2777));
+  color: var(--sf-website-primary-button-text, #fff);
+  box-shadow: var(--sf-website-primary-button-shadow, 0 14px 30px rgb(236 72 153 / 0.28));
 }
 .website-primary-button:hover {
-  background: linear-gradient(to right, #e11d48, #db2777);
-  box-shadow: 0 18px 38px rgb(236 72 153 / 0.32);
+  background: var(--sf-website-primary-button-background, linear-gradient(to right, #e11d48, #db2777));
+  box-shadow: var(--sf-website-primary-button-shadow-hover, 0 18px 38px rgb(236 72 153 / 0.32));
 }
 .website-secondary-button {
   border: 1px solid rgb(255 255 255 / 0.7);
@@ -1951,5 +1951,14 @@ const footerView = computed(() => {
   background: color-mix(in srgb, var(--sf-accent) 18%, var(--sf-surface));
   border-color: color-mix(in srgb, var(--sf-accent) 48%, var(--sf-border));
   color: var(--sf-accent);
+}
+:global(html[data-website-theme='modern-dark']) .website-primary-button {
+  background: var(--sf-website-primary-button-background);
+  color: var(--sf-website-primary-button-text);
+  box-shadow: var(--sf-website-primary-button-shadow);
+}
+:global(html[data-website-theme='modern-dark']) .website-primary-button:hover {
+  background: var(--sf-website-primary-button-background);
+  box-shadow: var(--sf-website-primary-button-shadow-hover);
 }
 </style>
