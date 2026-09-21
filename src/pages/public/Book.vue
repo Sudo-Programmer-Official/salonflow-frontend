@@ -1034,17 +1034,21 @@ const selectService = (serviceId: string) => {
 
 .booking-submit {
   border-radius: 1rem;
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--sf-primary, #0ea5e9) 90%, white 10%),
-    color-mix(in srgb, var(--sf-primary, #0284c7) 78%, #0f172a 22%)
+  background: var(
+    --sf-booking-submit-background,
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--sf-primary, #0ea5e9) 90%, white 10%),
+      color-mix(in srgb, var(--sf-primary, #0284c7) 78%, #0f172a 22%)
+    )
   );
-  box-shadow: 0 18px 40px color-mix(in srgb, var(--sf-primary, #0ea5e9) 22%, transparent);
+  color: var(--sf-booking-submit-text, #fff);
+  box-shadow: var(--sf-booking-submit-shadow, 0 18px 40px color-mix(in srgb, var(--sf-primary, #0ea5e9) 22%, transparent));
 }
 
 .booking-submit:hover {
   transform: translateY(-1px);
-  box-shadow: 0 22px 44px color-mix(in srgb, var(--sf-primary, #0ea5e9) 26%, transparent);
+  box-shadow: var(--sf-booking-submit-shadow-hover, 0 22px 44px color-mix(in srgb, var(--sf-primary, #0ea5e9) 26%, transparent));
 }
 
 .booking-submit:active {
