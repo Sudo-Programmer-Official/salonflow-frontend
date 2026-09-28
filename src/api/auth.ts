@@ -1,5 +1,12 @@
 import { buildHeaders } from './client';
 import { isPlatformHost, tenantFromHost } from '../utils/tenantDomains';
+import {
+  clearNativeRefreshToken,
+  getNativeInstallationInfo,
+  getNativeRefreshToken,
+  isNativeRuntime,
+  setNativeRefreshToken,
+} from '../utils/nativeRuntime';
 
 type LoginResponse = {
   token: string;
@@ -12,6 +19,10 @@ type LoginResponse = {
     email?: string;
     passwordChangedAt?: string | null;
   };
+  refreshToken?: string;
+  refreshTokenExpiresAt?: string;
+  accessTokenExpiresAt?: string;
+  device?: { id: string };
 };
 
 type CurrentAccountResponse = {
@@ -60,10 +71,19 @@ export async function login(
     localStorage.setItem('tenantSubdomain', tenantId);
   }
 
+  let nativeDevice;
+  if (isNativeRuntime()) {
+    nativeDevice = await getNativeInstallationInfo();
+    if (!nativeDevice) {
+      throw new Error('Native installation identity is unavailable. Please restart the SalonFlow app.');
+    }
+    headers['x-salonflow-native'] = 'true';
+  }
+
   const res = await fetch(`${apiBase}/api/auth/login`, {
     method: 'POST',
     headers,
-    body: JSON.stringify(input),
+    body: JSON.stringify({ ...input, ...(nativeDevice ? { nativeDevice } : {}) }),
   });
 
   if (!res.ok) {
@@ -72,6 +92,13 @@ export async function login(
   }
 
   const result = await res.json();
+  if (isNativeRuntime()) {
+    if (!result.refreshToken) {
+      throw new Error('Native sign-in did not establish a secure session');
+    }
+    await setNativeRefreshToken(result.refreshToken);
+    if (result.device?.id) localStorage.setItem('salonflow:nativeDeviceId', result.device.id);
+  }
   localStorage.removeItem('demoAccessSession');
   localStorage.removeItem('demoProspectName');
   localStorage.removeItem('demoProspectBusinessName');
@@ -80,11 +107,93 @@ export async function login(
   return result;
 }
 
+const persistRefreshedAuth = (result: LoginResponse) => {
+  localStorage.setItem('token', result.token);
+  localStorage.setItem('role', result.user.role);
+  localStorage.setItem('tenantId', result.user.businessId);
+  localStorage.setItem('client', result.user.client || 'salonflow_admin');
+  if (result.user.email) localStorage.setItem('email', result.user.email);
+  if (result.device?.id) localStorage.setItem('salonflow:nativeDeviceId', result.device.id);
+};
+
+export async function refreshNativeSession(): Promise<LoginResponse | null> {
+  if (!isNativeRuntime()) return null;
+  const refreshToken = await getNativeRefreshToken();
+  if (!refreshToken) return null;
+  let res: Response;
+  try {
+    res = await fetch(`${apiBase}/api/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-salonflow-native': 'true' },
+      body: JSON.stringify({ refreshToken }),
+    });
+  } catch (_error) {
+    return null;
+  }
+  if (!res.ok) {
+    await clearNativeRefreshToken().catch(() => undefined);
+    return null;
+  }
+  const result = await res.json() as LoginResponse;
+  if (!result.refreshToken) {
+    await clearNativeRefreshToken().catch(() => undefined);
+    return null;
+  }
+  await setNativeRefreshToken(result.refreshToken);
+  persistRefreshedAuth(result);
+  return result;
+}
+
+export async function restoreNativeSession(): Promise<boolean> {
+  if (!isNativeRuntime()) return Boolean(localStorage.getItem('token'));
+  const token = localStorage.getItem('token');
+  const tokenExpired = token ? (() => {
+    try {
+      const encoded = token.split('.')[1];
+      if (!encoded) return true;
+      const normalized = encoded.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), '=');
+      const payload = JSON.parse(atob(padded));
+      return typeof payload.exp === 'number' && payload.exp * 1000 <= Date.now();
+    } catch (_error) {
+      return true;
+    }
+  })() : true;
+  if (!tokenExpired && localStorage.getItem('role')) return true;
+  const result = await refreshNativeSession();
+  if (!result) {
+    ['token', 'role', 'client', 'email', 'salonflow:nativeDeviceId'].forEach((key) =>
+      localStorage.removeItem(key),
+    );
+  }
+  return Boolean(result?.token && result.user?.role);
+}
+
+export async function revokeNativeSession(): Promise<void> {
+  if (!isNativeRuntime()) return;
+  const refreshToken = await getNativeRefreshToken().catch(() => null);
+  if (refreshToken) {
+    await fetch(`${apiBase}/api/auth/logout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-salonflow-native': 'true' },
+      body: JSON.stringify({ refreshToken }),
+    }).catch(() => undefined);
+  }
+  await clearNativeRefreshToken().catch(() => undefined);
+}
+
 export async function magicLogin(token: string): Promise<LoginResponse> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  let nativeDevice;
+  if (isNativeRuntime()) {
+    nativeDevice = await getNativeInstallationInfo();
+    if (!nativeDevice) throw new Error('Native installation identity is unavailable');
+    headers['x-salonflow-native'] = 'true';
+  }
   const res = await fetch(`${apiBase}/api/auth/magic-login`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token }),
+    headers,
+    body: JSON.stringify({ token, ...(nativeDevice ? { nativeDevice } : {}) }),
   });
 
   if (!res.ok) {
@@ -93,6 +202,11 @@ export async function magicLogin(token: string): Promise<LoginResponse> {
   }
 
   const result = await res.json();
+  if (isNativeRuntime()) {
+    if (!result.refreshToken) throw new Error('Native sign-in did not establish a secure session');
+    await setNativeRefreshToken(result.refreshToken);
+    if (result.device?.id) localStorage.setItem('salonflow:nativeDeviceId', result.device.id);
+  }
   localStorage.removeItem('demoAccessSession');
   localStorage.removeItem('demoProspectName');
   localStorage.removeItem('demoProspectBusinessName');

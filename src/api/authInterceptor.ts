@@ -1,6 +1,14 @@
 import { clearAuthState } from "../utils/auth";
+import { isNativeRuntime } from "../utils/nativeRuntime";
+import { refreshNativeSession } from "./auth";
 
 let installed = false;
+let nativeRefreshPromise: Promise<unknown> | null = null;
+
+const isAuthEndpoint = (input: RequestInfo | URL) => {
+  const raw = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+  return raw.includes('/api/auth/login') || raw.includes('/api/auth/refresh') || raw.includes('/api/auth/logout');
+};
 
 export const setupAuthInterceptor = () => {
   if (installed || typeof window === "undefined" || typeof window.fetch !== "function") return;
@@ -11,6 +19,20 @@ export const setupAuthInterceptor = () => {
     const response = await originalFetch(input, init);
 
     if (response.status === 401) {
+      if (isNativeRuntime() && !isAuthEndpoint(input)) {
+        nativeRefreshPromise ??= refreshNativeSession().finally(() => {
+          nativeRefreshPromise = null;
+        });
+        const refreshed = await nativeRefreshPromise;
+        if (refreshed) {
+          const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
+          const token = localStorage.getItem('token');
+          if (token) {
+            headers.set('Authorization', `Bearer ${token}`);
+            return originalFetch(input, { ...init, headers });
+          }
+        }
+      }
       const isLoginPage =
         window.location.pathname === "/app/login" ||
         window.location.pathname.startsWith("/login");
