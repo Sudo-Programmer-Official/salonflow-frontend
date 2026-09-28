@@ -518,6 +518,7 @@ const sidebarGroups = computed(() => [
     items: [
       { label: 'Analytics', name: 'admin-analytics', icon: '📊', roles: ['OWNER'] },
       { label: 'Reports', name: 'admin-reports', icon: '📈', roles: ['OWNER'] },
+      { label: 'Payroll', name: 'admin-payroll', icon: '💵', roles: ['OWNER'] },
     ],
   },
   {
