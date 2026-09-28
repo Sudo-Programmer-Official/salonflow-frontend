@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import dayjs from 'dayjs';
-import { ElAlert, ElButton, ElCard, ElEmpty, ElInput, ElMessage, ElOption, ElSelect, ElSkeleton } from 'element-plus';
+import { ElAlert, ElButton, ElCard, ElEmpty, ElInput, ElMessage, ElOption, ElPagination, ElSelect, ElSkeleton } from 'element-plus';
 import {
   fetchPayroll,
   fetchPayrollCompensation,
@@ -19,6 +19,8 @@ const settings = ref<BusinessSettings | null>(null);
 const loading = ref(true);
 const error = ref('');
 const savingStaffId = ref<string | null>(null);
+const unassignedPage = ref(1);
+const unassignedPageSize = ref(10);
 
 const money = (value: number) =>
   Intl.NumberFormat('en-US', {
@@ -45,6 +47,21 @@ const staffRows = computed(() => {
     }),
   }));
 });
+
+const visibleUnassigned = computed(() => {
+  const rows = payroll.value?.unassigned ?? [];
+  const start = (unassignedPage.value - 1) * unassignedPageSize.value;
+  return rows.slice(start, start + unassignedPageSize.value);
+});
+
+const resetUnassignedPage = () => {
+  unassignedPage.value = 1;
+};
+
+watch(
+  () => [payroll.value?.unassigned.length, from.value, to.value],
+  resetUnassignedPage,
+);
 
 const load = async () => {
   loading.value = true;
@@ -195,18 +212,38 @@ onMounted(load);
           </div>
           <RouterLink class="payroll-queue-link" :to="{ name: 'admin-queue' }">Open Queue →</RouterLink>
         </div>
-        <div v-if="payroll.unassigned.length" class="payroll-table-wrap">
-          <table class="payroll-table">
-            <thead><tr><th>Service</th><th>Performed</th><th>Revenue</th><th>Tips</th></tr></thead>
-            <tbody>
-              <tr v-for="row in payroll.unassigned" :key="row.id">
-                <td class="font-semibold">{{ row.serviceName }}</td>
-                <td>{{ dayjs(row.performedAt).format('MMM D, YYYY h:mm A') }}</td>
-                <td>{{ money(row.grossAmount) }}</td>
-                <td>{{ money(row.tipAmount) }}</td>
-              </tr>
-            </tbody>
-          </table>
+        <div v-if="payroll.unassigned.length" class="payroll-unassigned-table">
+          <div class="payroll-unassigned-toolbar">
+            <span>{{ payroll.unassigned.length }} service line{{ payroll.unassigned.length === 1 ? '' : 's' }} need assignment</span>
+            <ElSelect v-model="unassignedPageSize" size="small" class="payroll-page-size" @change="resetUnassignedPage">
+              <ElOption label="10 per page" :value="10" />
+              <ElOption label="25 per page" :value="25" />
+              <ElOption label="50 per page" :value="50" />
+            </ElSelect>
+          </div>
+          <div class="payroll-unassigned-table-wrap">
+            <table class="payroll-table">
+              <thead><tr><th>Service</th><th>Performed</th><th>Revenue</th><th>Tips</th></tr></thead>
+              <tbody>
+                <tr v-for="row in visibleUnassigned" :key="row.id">
+                  <td class="font-semibold">{{ row.serviceName }}</td>
+                  <td>{{ dayjs(row.performedAt).format('MMM D, YYYY h:mm A') }}</td>
+                  <td>{{ money(row.grossAmount) }}</td>
+                  <td>{{ money(row.tipAmount) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div v-if="payroll.unassigned.length > unassignedPageSize" class="payroll-pagination">
+            <ElPagination
+              background
+              layout="prev, pager, next"
+              :current-page="unassignedPage"
+              :page-size="unassignedPageSize"
+              :total="payroll.unassigned.length"
+              @current-change="(page: number) => (unassignedPage = page)"
+            />
+          </div>
         </div>
         <ElEmpty v-else description="All service lines are assigned." />
       </ElCard>
@@ -240,6 +277,12 @@ onMounted(load);
 .payroll-section-subtitle { margin-top: .25rem; color: #64748b; font-size: .86rem; }
 .payroll-status { border-radius: 999px; padding: .4rem .7rem; background: #eff6ff; color: #2563eb; font-size: .75rem; font-weight: 700; }
 .payroll-table-wrap { overflow-x: auto; }
+.payroll-unassigned-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: .75rem; color: #64748b; font-size: .82rem; font-weight: 600; }
+.payroll-page-size { width: 8.5rem; }
+.payroll-unassigned-table-wrap { max-height: 28rem; overflow: auto; border: 1px solid #e2e8f0; border-radius: 12px; }
+.payroll-unassigned-table-wrap .payroll-table { min-width: 620px; }
+.payroll-unassigned-table-wrap .payroll-table th { position: sticky; top: 0; z-index: 1; background: #f8fafc; }
+.payroll-pagination { display: flex; justify-content: flex-end; margin-top: 1rem; }
 .payroll-table { width: 100%; min-width: 680px; border-collapse: collapse; color: #334155; font-size: .9rem; }
 .payroll-table th { padding: .75rem; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: .72rem; letter-spacing: .05em; text-align: left; text-transform: uppercase; }
 .payroll-table td { padding: .9rem .75rem; border-bottom: 1px solid #f1f5f9; }
