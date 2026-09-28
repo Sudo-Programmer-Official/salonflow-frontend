@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { magicLogin } from '../api/auth';
+import { registerNativeDevice } from '../api/nativeDevices';
 import { defaultRouteForRole } from '../utils/navigation';
 
 const route = useRoute();
@@ -32,6 +33,7 @@ onMounted(async () => {
     if (result.user.email) {
       localStorage.setItem('email', result.user.email);
     }
+    void registerNativeDevice().catch(() => undefined);
     ElMessage.success('Logged in.');
     redirectByRole(result.user.role);
   } catch (err) {

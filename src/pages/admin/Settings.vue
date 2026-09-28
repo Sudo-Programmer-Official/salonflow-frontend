@@ -47,6 +47,20 @@ import {
   formatBusinessHoursRange,
   parseBusinessTime,
 } from '../../utils/businessTime';
+import {
+  browserNativePaymentStatus,
+  readNativePaymentStatus,
+  type NativePaymentStatus,
+} from '../../utils/nativePayments';
+import {
+  authorizeSquare,
+  createSquareDeviceCode,
+  fetchSquareStatus,
+  syncSquareDevices,
+  testSquareConnection,
+  type SquareConnection,
+  type SquareDevice,
+} from '../../api/square';
 
 const loading = ref(false);
 const saving = ref(false);
@@ -56,6 +70,12 @@ const currentSettings = computed(() => settings.value as BusinessSettings);
 const pendingPatch = ref<SettingsPatch>({});
 const saveTimer = ref<number | null>(null);
 const messaging = ref<MessagingSettings | null>(null);
+const nativePaymentStatus = ref<NativePaymentStatus>(browserNativePaymentStatus());
+const testingPaymentConnection = ref(false);
+const squareConnection = ref<SquareConnection | null>(null);
+const squareDevices = ref<SquareDevice[]>([]);
+const squareActionLoading = ref(false);
+const squarePairingCode = ref('');
 const kioskSubdomain = ref('');
 const account = ref<{
   id: string;
@@ -453,6 +473,76 @@ const handlePointsToggle = (value: boolean) => {
   scheduleSave({ showPointsPreview: value, showPointsOnKiosk: value });
 };
 
+const refreshNativePaymentStatus = async () => {
+  nativePaymentStatus.value = await readNativePaymentStatus();
+};
+
+const testPaymentConnection = async () => {
+  testingPaymentConnection.value = true;
+  try {
+    if (settings.value?.paymentProvider === 'square') {
+      const result = await testSquareConnection();
+      const status = await fetchSquareStatus();
+      squareConnection.value = status.connection;
+      squareDevices.value = status.devices;
+      if (result.ready) ElMessage.success('Square Terminal connection is ready');
+      else ElMessage.warning('Square is connected, but no ready default terminal is configured');
+      return;
+    }
+
+    await refreshNativePaymentStatus();
+    if (settings.value?.paymentProvider === 'none') {
+      ElMessage.warning('Select a payment provider before testing the payment connection.');
+    } else if (nativePaymentStatus.value.terminalReady) {
+      ElMessage.success('Payment terminal is ready');
+    } else if (!nativePaymentStatus.value.nativeAvailable) {
+      ElMessage.info('This provider uses a server-terminal path; provider readiness will appear after its adapter is connected.');
+    } else {
+      ElMessage.warning(nativePaymentStatus.value.message);
+    }
+  } finally {
+    testingPaymentConnection.value = false;
+  }
+};
+
+const connectSquare = async () => {
+  squareActionLoading.value = true;
+  try {
+    const result = await authorizeSquare();
+    window.location.assign(result.url);
+  } catch (err: any) {
+    ElMessage.error(err?.message || 'Failed to start Square connection');
+  } finally {
+    squareActionLoading.value = false;
+  }
+};
+
+const pairSquareTerminal = async () => {
+  squareActionLoading.value = true;
+  try {
+    const result = await createSquareDeviceCode();
+    squarePairingCode.value = result.deviceCode.code || '';
+    ElMessage.success(`Enter code ${result.deviceCode.code || 'shown in Square'} on the Square Terminal`);
+  } catch (err: any) {
+    ElMessage.error(err?.message || 'Failed to create Square pairing code');
+  } finally {
+    squareActionLoading.value = false;
+  }
+};
+
+const syncSquareTerminalDevices = async () => {
+  squareActionLoading.value = true;
+  try {
+    const result = await syncSquareDevices();
+    squareDevices.value = result.devices;
+    ElMessage.success('Square Terminal devices refreshed');
+  } catch (err: any) {
+    ElMessage.error(err?.message || 'Failed to refresh Square devices');
+  } finally {
+    squareActionLoading.value = false;
+  }
+};
+
 const handleKioskResetChange = (value: number | null) => {
   if (value === null || value === undefined) {
     scheduleSave({ kioskAutoResetSeconds: null });
@@ -556,11 +646,15 @@ const loadSettings = async () => {
     );
     businessHoursDraft.value = hydrateBusinessHoursDraft(settings.value.businessHours ?? null);
     applyThemeFromSettings(settings.value);
-    const [messagingData, onboardingStatus, accountData] = await Promise.all([
+    await refreshNativePaymentStatus();
+    const [messagingData, onboardingStatus, accountData, squareStatus] = await Promise.all([
       fetchMessagingSettings(),
       fetchOnboardingStatus(true).catch(() => null),
       fetchCurrentAccount().catch(() => null),
+      settings.value.paymentProvider === 'square' ? fetchSquareStatus().catch(() => null) : Promise.resolve(null),
     ]);
+    squareConnection.value = squareStatus?.connection ?? null;
+    squareDevices.value = squareStatus?.devices ?? [];
     messaging.value = messagingData;
     account.value = accountData?.user ?? null;
     kioskSubdomain.value =
@@ -1038,6 +1132,150 @@ onMounted(loadSettings);
       </ElCard>
 
       <ElCard class="bg-white">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <div class="text-lg font-semibold text-slate-900">Payments & Hardware</div>
+            <div class="text-sm text-slate-600">
+              Choose whether SalonFlow records payments manually or uses a supported native terminal.
+            </div>
+          </div>
+          <div class="text-xs text-slate-500" v-if="saving">Saving…</div>
+        </div>
+
+        <ElDivider />
+
+        <ElAlert
+          type="info"
+          :closable="false"
+          title="Manual / External Payments is the safe default. Existing tenants are not automatically moved to hardware payments."
+        />
+
+        <div class="mt-4 grid gap-4 md:grid-cols-2">
+          <div class="space-y-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+            <div class="text-sm font-semibold text-slate-900">Payment mode</div>
+            <div class="text-xs text-slate-600">
+              Manual keeps the current checkout behavior. Integrated follows the selected provider path; Square V1 uses a server terminal and can run from browser/PWA or Capacitor.
+            </div>
+            <ElSelect
+              class="w-full"
+              :model-value="settings.paymentMode || 'manual'"
+              @change="(val: 'manual' | 'integrated') => scheduleSave({ paymentMode: val })"
+            >
+              <ElOption label="Manual / External Payments" value="manual" />
+              <ElOption label="Integrated Card Terminal" value="integrated" />
+            </ElSelect>
+          </div>
+
+          <div class="space-y-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+            <div class="text-sm font-semibold text-slate-900">Payment provider</div>
+            <div class="text-xs text-slate-600">Provider selection is stored per tenant and does not enable hardware by itself.</div>
+            <ElSelect
+              class="w-full"
+              :model-value="settings.paymentProvider || 'none'"
+              @change="(val: 'none' | 'stripe_terminal' | 'square' | 'clover') => scheduleSave({ paymentProvider: val })"
+            >
+              <ElOption label="None / not configured" value="none" />
+              <ElOption label="Stripe Terminal" value="stripe_terminal" />
+              <ElOption label="Square" value="square" />
+              <ElOption label="Clover" value="clover" />
+            </ElSelect>
+          </div>
+        </div>
+
+        <div class="mt-4 grid gap-3 md:grid-cols-2">
+          <div class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+            <div>
+              <div class="text-sm font-semibold text-slate-900">Require terminal ready</div>
+              <div class="text-xs text-slate-600">Only allow integrated checkout after the terminal reports READY.</div>
+            </div>
+            <ElSwitch
+              :model-value="settings.requireTerminalReady !== false"
+              @change="(val) => handleToggle('requireTerminalReady', val as boolean)"
+            />
+          </div>
+
+          <div class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+            <div>
+              <div class="text-sm font-semibold text-slate-900">Allow manual fallback</div>
+              <div class="text-xs text-slate-600">Keep card checkout available when the integrated provider or terminal is unavailable.</div>
+            </div>
+            <ElSwitch
+              :model-value="settings.allowManualPaymentFallback !== false"
+              @change="(val) => handleToggle('allowManualPaymentFallback', val as boolean)"
+            />
+          </div>
+        </div>
+
+        <div class="mt-4 grid gap-3 md:grid-cols-2">
+          <div class="rounded-lg border border-slate-200 bg-white px-3 py-3">
+            <div class="text-xs uppercase tracking-wide text-slate-500">Native capability (native-device mode)</div>
+            <div class="mt-1 text-sm font-semibold text-slate-900">
+              {{ nativePaymentStatus.pluginAvailable ? 'SalonFlow payment bridge detected' : 'Not available' }}
+            </div>
+            <div class="mt-1 text-xs text-slate-600">{{ nativePaymentStatus.message }}</div>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-white px-3 py-3">
+            <div class="text-xs uppercase tracking-wide text-slate-500">Native terminal connection</div>
+            <div class="mt-1 text-sm font-semibold" :class="nativePaymentStatus.terminalReady ? 'text-emerald-700' : 'text-slate-900'">
+              {{ nativePaymentStatus.terminalReady ? 'Ready' : 'Not ready' }}
+            </div>
+            <div class="mt-1 text-xs text-slate-600">Native status is read from the explicit Capacitor bridge. Server-terminal providers report status through the API and do not require Capacitor.</div>
+          </div>
+        </div>
+
+        <div v-if="settings.paymentProvider === 'square'" class="mt-4 rounded-lg border border-blue-200 bg-blue-50/50 px-4 py-4">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div class="text-sm font-semibold text-slate-900">Square Terminal</div>
+              <div class="mt-1 text-xs text-slate-600">
+                {{ squareConnection?.connected ? `Connected (${squareConnection.environment})` : 'Not connected' }}
+                <span v-if="squareConnection?.locationName"> · {{ squareConnection.locationName }}</span>
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <ElButton size="small" :loading="squareActionLoading" @click="connectSquare">
+                {{ squareConnection?.connected ? 'Reconnect Square' : 'Connect Square' }}
+              </ElButton>
+              <ElButton v-if="squareConnection?.connected" size="small" :loading="squareActionLoading" @click="pairSquareTerminal">
+                Pair terminal
+              </ElButton>
+              <ElButton v-if="squareConnection?.connected" size="small" :loading="squareActionLoading" @click="syncSquareTerminalDevices">
+                Refresh devices
+              </ElButton>
+            </div>
+          </div>
+          <div v-if="squarePairingCode" class="mt-3 rounded-md bg-white px-3 py-2 text-sm text-slate-700">
+            Enter pairing code <span class="font-bold tracking-widest">{{ squarePairingCode }}</span> on the Square Terminal, then refresh devices.
+          </div>
+          <div class="mt-3 space-y-2">
+            <div v-for="device in squareDevices" :key="device.id" class="flex flex-wrap items-center justify-between gap-2 rounded-md bg-white px-3 py-2 text-sm">
+              <div>
+                <span class="font-semibold text-slate-900">{{ device.displayName || device.providerDeviceId }}</span>
+                <span class="ml-2 text-xs text-slate-500">{{ device.status }}</span>
+              </div>
+              <span v-if="device.isDefault" class="text-xs font-semibold text-emerald-700">Default terminal</span>
+            </div>
+            <div v-if="squareConnection?.connected && squareDevices.length === 0" class="text-xs text-slate-600">
+              No paired Square Terminal is registered yet.
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <div
+            v-if="settings.paymentMode === 'integrated' && settings.paymentProvider === 'none'"
+            class="text-sm text-amber-700"
+          >
+            Integrated mode is selected, but no payment provider is configured. Manual fallback remains {{ settings.allowManualPaymentFallback !== false ? 'enabled' : 'disabled' }}.
+          </div>
+          <div v-else class="text-sm text-slate-600">Cash payments and browser/PWA checkout remain unaffected. Server-terminal providers do not require native capability detection.</div>
+          <ElButton :loading="testingPaymentConnection" @click="testPaymentConnection">
+            Test Connection
+          </ElButton>
+        </div>
+      </ElCard>
+
+      <ElCard class="bg-white">
         <div class="flex items-center justify-between">
           <div>
             <div class="text-lg font-semibold text-slate-900">Kiosk / Public Check-In</div>
@@ -1371,15 +1609,18 @@ onMounted(loadSettings);
               />
             </div>
 
-            <div class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-              <div>
-                <div class="text-sm font-semibold text-slate-900">Tip tracking</div>
-                <div class="text-xs text-slate-600">Show a tip amount field in checkout.</div>
-              </div>
-              <ElSwitch
-                :model-value="currentSettings.enableTips"
-                @change="(val) => scheduleSave({ enableTips: val as boolean })"
-              />
+            <div class="space-y-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+              <div class="text-sm font-semibold text-slate-900">Tip collection</div>
+              <div class="text-xs text-slate-600">Choose where the customer is asked for a tip during an integrated payment.</div>
+              <ElSelect
+                class="w-full"
+                :model-value="currentSettings.tipCollectionMode || (currentSettings.enableTips ? 'salonflow' : 'disabled')"
+                @change="(val: 'disabled' | 'salonflow' | 'terminal') => scheduleSave({ tipCollectionMode: val })"
+              >
+                <ElOption label="Disabled" value="disabled" />
+                <ElOption label="Ask on SalonFlow" value="salonflow" />
+                <ElOption label="Ask on payment terminal" value="terminal" />
+              </ElSelect>
             </div>
 
             <div class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">

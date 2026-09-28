@@ -76,10 +76,13 @@ import { clearAuthState } from "../utils/auth";
 import { defaultRouteForRole } from "../utils/navigation";
 import { orderTenantHostRoutes } from "../utils/tenantRoutePolicy";
 import { isDemoGatewayHost, isPlatformAdminHost, isPlatformHost, isStagingEnvironment } from "../utils/tenantDomains";
+import { isNativeRuntime } from "../utils/nativeRuntime";
+import { restoreNativeSession } from "../api/auth";
 
 const LOGIN_ROUTE: RouteLocationRaw = { name: "login" };
 
 const isBrowser = typeof window !== "undefined";
+const isNativeShell = isNativeRuntime();
 const PWA_LAUNCH_MODE_KEY = "sf_pwa_launch_mode";
 const PWA_PUBLIC_PATH_KEY = "sf_pwa_public_path";
 
@@ -682,6 +685,9 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to, _from, next) => {
+  if (isNativeShell) {
+    await restoreNativeSession();
+  }
   const authed = hasValidSession();
   const storedRole = getStoredRole();
 
@@ -711,6 +717,13 @@ router.beforeEach(async (to, _from, next) => {
 
   if (isStagingReservedNonTenantHost && isTenantSurfacePath(to.path)) {
     return next({ path: '/' });
+  }
+
+  // Capacitor starts from its local web origin, which has no tenant
+  // subdomain. Keep the same Vue auth flow, but send a fresh native launch to
+  // tenant selection instead of exposing the public marketing home.
+  if (isNativeShell && to.name === 'marketing-home') {
+    return next(authed ? { name: 'pwa-entry' } : { name: 'salon-login' });
   }
 
   if (to.path.startsWith("/kiosk")) {
