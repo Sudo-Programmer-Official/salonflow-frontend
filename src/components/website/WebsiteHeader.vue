@@ -184,7 +184,7 @@ onBeforeUnmount(() => {
   position: sticky;
   top: 0;
   z-index: 40;
-  background: linear-gradient(90deg, rgba(255, 247, 251, 0.95), rgba(255, 241, 245, 0.92));
+  background: var(--sf-header-background, linear-gradient(90deg, rgba(255, 247, 251, 0.95), rgba(255, 241, 245, 0.92)));
   backdrop-filter: blur(12px);
   border-bottom: 1px solid color-mix(in srgb, var(--sf-border, #f4d9e7) 65%, transparent);
 }
@@ -204,8 +204,8 @@ onBeforeUnmount(() => {
   width: 40px;
   height: 40px;
   border-radius: var(--sf-radius, 14px);
-  background: linear-gradient(135deg, #f472b6 0%, #ec4899 60%, #db2777 100%);
-  color: #fff;
+  background: var(--sf-header-brand-mark-background, linear-gradient(135deg, #f472b6 0%, #ec4899 60%, #db2777 100%));
+  color: var(--sf-header-brand-mark-text, #fff);
   font-weight: 700;
   display: inline-flex;
   align-items: center;
@@ -219,7 +219,7 @@ onBeforeUnmount(() => {
 .sf-header__brand-name {
   display: block;
   font-weight: 700;
-  color: var(--sf-text, #0f172a);
+  color: var(--sf-header-brand-name, var(--sf-text, #0f172a));
   max-width: min(52vw, 240px);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -227,7 +227,7 @@ onBeforeUnmount(() => {
 }
 .sf-header__brand-tag {
   font-size: 12px;
-  color: rgba(15, 23, 42, 0.6);
+  color: var(--sf-header-brand-tag, rgba(15, 23, 42, 0.6));
   max-width: min(48vw, 220px);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -264,18 +264,18 @@ onBeforeUnmount(() => {
 .sf-header__link {
   font-weight: 600;
   font-size: 14px;
-  color: rgba(15, 23, 42, 0.8);
+  color: var(--sf-header-nav-text, rgba(15, 23, 42, 0.8));
   padding: 8px 10px;
   border-radius: 12px;
   transition: color 150ms ease, background 150ms ease;
 }
 .sf-header__link:hover {
-  color: var(--sf-text, #0f172a);
-  background: rgba(15, 23, 42, 0.05);
+  color: var(--sf-header-brand-name, var(--sf-text, #0f172a));
+  background: var(--sf-header-nav-hover, rgba(15, 23, 42, 0.05));
 }
 .sf-header__link.active {
-  color: var(--sf-primary, #ec4899);
-  background: color-mix(in srgb, var(--sf-primary, #ec4899) 12%, #fff);
+  color: var(--sf-header-active-text, var(--sf-primary, #ec4899));
+  background: var(--sf-header-active-background, color-mix(in srgb, var(--sf-primary, #ec4899) 12%, #fff));
 }
 .sf-header__ctas {
   display: inline-flex;
@@ -294,8 +294,8 @@ onBeforeUnmount(() => {
   transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease, filter 160ms ease;
 }
 .sf-button.solid {
-  background: linear-gradient(120deg, color-mix(in srgb, var(--sf-primary, #ec4899) 92%, #fff 8%), color-mix(in srgb, #db2777 90%, #fff 10%));
-  color: #fff;
+  background: var(--sf-header-solid-background, linear-gradient(120deg, color-mix(in srgb, var(--sf-primary, #ec4899) 92%, #fff 8%), color-mix(in srgb, #db2777 90%, #fff 10%)));
+  color: var(--sf-header-solid-text, #fff);
   box-shadow: 0 12px 30px rgba(236, 72, 153, 0.28);
 }
 .sf-button.solid:hover {
@@ -304,9 +304,9 @@ onBeforeUnmount(() => {
   filter: saturate(1.02);
 }
 .sf-button.ghost {
-  border: 1px solid color-mix(in srgb, var(--sf-primary, #ec4899) 35%, transparent);
-  background: color-mix(in srgb, var(--sf-primary, #ec4899) 10%, #fff);
-  color: var(--sf-primary, #ec4899);
+  border: 1px solid var(--sf-header-ghost-border, color-mix(in srgb, var(--sf-primary, #ec4899) 35%, transparent));
+  background: var(--sf-header-ghost-background, color-mix(in srgb, var(--sf-primary, #ec4899) 10%, #fff));
+  color: var(--sf-header-ghost-text, var(--sf-primary, #ec4899));
 }
 .sf-button.ghost:hover {
   transform: translateY(-1px) scale(1.01);
@@ -471,5 +471,74 @@ onBeforeUnmount(() => {
     transform: translateY(-100%);
     opacity: 0;
   }
+}
+
+/* Modern Dark keeps the same shared header structure, but every surface and
+   control must follow the active website theme instead of the legacy blush
+   defaults above. */
+:global(html[data-website-theme='modern-dark']) .sf-header {
+  background: var(--sf-bg);
+  border-bottom-color: var(--sf-border);
+}
+:global(html[data-website-theme='modern-dark']) .sf-header__brand-mark {
+  background: linear-gradient(135deg, var(--sf-primary), var(--sf-accent));
+  color: #1c1917;
+  box-shadow: 0 10px 26px rgb(var(--sf-primary-rgb) / 0.25);
+}
+:global(html[data-website-theme='modern-dark']) .sf-header__brand-name {
+  color: var(--sf-text-primary);
+}
+:global(html[data-website-theme='modern-dark']) .sf-header__brand-tag,
+:global(html[data-website-theme='modern-dark']) .sf-header__link {
+  color: var(--sf-text-muted);
+}
+:global(html[data-website-theme='modern-dark']) .sf-header__menu {
+  border-color: var(--sf-border);
+}
+:global(html[data-website-theme='modern-dark']) .sf-header__menu span {
+  background: var(--sf-text-primary);
+}
+:global(html[data-website-theme='modern-dark']) .sf-header__link:hover {
+  color: var(--sf-text-primary);
+  background: var(--sf-surface);
+}
+:global(html[data-website-theme='modern-dark']) .sf-header__link.active {
+  color: var(--sf-text-primary);
+  background: var(--sf-surface);
+}
+:global(html[data-website-theme='modern-dark']) .sf-button.solid {
+  background: linear-gradient(120deg, var(--sf-primary), color-mix(in srgb, var(--sf-primary) 65%, var(--sf-accent)));
+  color: var(--sf-bg);
+  box-shadow: 0 12px 30px rgb(var(--sf-primary-rgb) / 0.25);
+}
+:global(html[data-website-theme='modern-dark']) .sf-button.solid:hover {
+  box-shadow: 0 16px 40px rgb(var(--sf-primary-rgb) / 0.32);
+}
+:global(html[data-website-theme='modern-dark']) .sf-button.ghost {
+  border-color: color-mix(in srgb, var(--sf-primary) 58%, var(--sf-border));
+  background: transparent;
+  color: var(--sf-text-primary);
+}
+:global(html[data-website-theme='modern-dark']) .sf-header__mobile-close {
+  background: var(--sf-surface);
+  border-color: var(--sf-border);
+  color: var(--sf-text-primary);
+}
+:global(html[data-website-theme='modern-dark']) .mobile-nav-btn {
+  border-color: var(--sf-border);
+  background: var(--sf-surface);
+  color: var(--sf-text-primary);
+}
+:global(html[data-website-theme='modern-dark']) .mobile-nav-btn.active {
+  border-color: var(--sf-primary);
+  background: var(--sf-surface);
+}
+:global(html[data-website-theme='modern-dark']) .mobile-nav-btn.primary {
+  background: var(--sf-primary);
+  color: #1c1917;
+}
+:global(html[data-website-theme='modern-dark']) .mobile-nav-btn.ghost {
+  background: color-mix(in srgb, var(--sf-primary) 14%, var(--sf-surface));
+  color: var(--sf-text-primary);
 }
 </style>

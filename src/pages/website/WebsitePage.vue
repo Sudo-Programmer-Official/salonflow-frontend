@@ -451,6 +451,12 @@ const formatMoney = (cents?: number | null, currency = 'USD') => {
   }).format(cents / 100);
 };
 
+const normalizeServiceName = (value: unknown) =>
+  String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+
 const serviceCards = computed(() => {
   const customServices = Array.isArray(services.value) ? services.value : [];
   const haveLive = liveServices.value.length > 0;
@@ -464,10 +470,27 @@ const serviceCards = computed(() => {
         : haveLive
           ? liveServices.value
           : customServices;
+  const customServiceById = new Map(
+    customServices
+      .map((service: any) => [String(service?.serviceId || service?.service_id || ''), service] as const)
+      .filter(([id]) => Boolean(id)),
+  );
+  const customServiceByName = new Map(
+    customServices
+      .map((service: any) => [normalizeServiceName(service?.title || service?.name), service] as const)
+      .filter(([name]) => Boolean(name)),
+  );
+  const itemsWithPageMedia = items.map((service: any) => {
+    if (mode === 'custom' || !haveLive || service?.image) return service;
+    const pageService =
+      customServiceById.get(String(service?.id || '')) ||
+      customServiceByName.get(normalizeServiceName(service?.name));
+    return pageService?.image ? { ...service, image: pageService.image } : service;
+  });
   const galleryImages = resolvedGallery.value;
   const defaultImg = galleryImages.length ? galleryImages[0] : null;
 
-  return items
+  return itemsWithPageMedia
     .map((svc: any, idx: number) => {
       const title = svc?.title || svc?.name || svc;
       if (!title) return null;
@@ -515,14 +538,31 @@ const visibleServicesPageCategories = computed(() =>
   servicesPageCategories.value.filter((category) => category.services.length > 0),
 );
 
-const catalogModalItems = computed<ServiceModalItem[]>(() =>
-  visibleServicesPageCategories.value.flatMap((category) =>
+const catalogModalItems = computed<ServiceModalItem[]>(() => {
+  const pageServices = Array.isArray(services.value) ? services.value : [];
+  const pageServiceById = new Map(
+    pageServices
+      .map((service: any) => [String(service?.serviceId || service?.service_id || ''), service] as const)
+      .filter(([id]) => Boolean(id)),
+  );
+  const pageServiceByName = new Map(
+    pageServices
+      .map((service: any) => [normalizeServiceName(service?.title || service?.name), service] as const)
+      .filter(([name]) => Boolean(name)),
+  );
+
+  return visibleServicesPageCategories.value.flatMap((category) =>
     category.services.map((service) => {
+      const pageService =
+        pageServiceById.get(String(service.id)) ||
+        pageServiceByName.get(normalizeServiceName(service.name));
+      const imageRef = (service as any)?.image || pageService?.image || category.heroImage;
       const primaryImage =
-        resolveImageRef(category.heroImage, service.name, {
-          type: 'service_category_hero',
+        resolveImageRef(imageRef, service.name, {
+          type: imageRef === pageService?.image ? 'service_page_image' : 'service_category_hero',
           categoryId: category.id,
           serviceId: service.id,
+          imageRef,
         }) || resolvedGallery.value[0] || null;
       const images = buildModalImages(primaryImage, resolvedGallery.value);
       const resolvedImage = primaryImage || images[0] || makeImage(null, { alt: service.name });
@@ -545,8 +585,8 @@ const catalogModalItems = computed<ServiceModalItem[]>(() =>
           : [],
       };
     }),
-  ),
-);
+  );
+});
 
 const galleryPreview = computed(() => resolvedGallery.value.slice(0, GALLERY_PREVIEW_LIMIT));
 const hasMoreGalleryImages = computed(() => resolvedGallery.value.length > GALLERY_PREVIEW_LIMIT);
@@ -1072,7 +1112,12 @@ const footerView = computed(() => {
 </script>
 
 <template>
-  <PublicWebsiteLayout :header="headerView" :footer="footerView" :active-path="route.path">
+  <PublicWebsiteLayout
+    v-if="data"
+    :header="headerView"
+    :footer="footerView"
+    :active-path="route.path"
+  >
     <div class="space-y-12">
       <div v-if="isPreview" class="sf-container mt-8">
         <div
@@ -1192,7 +1237,7 @@ const footerView = computed(() => {
         :class="{ 'page-hero--bg': !!heroBg }"
         :style="
           heroBg
-            ? { backgroundImage: `linear-gradient(135deg, rgba(20,10,18,0.82), rgba(20,10,18,0.48)), url(${heroBg})` }
+            ? { backgroundImage: `var(--sf-hero-overlay), url(${heroBg})` }
             : undefined
         "
       >
@@ -1210,7 +1255,7 @@ const footerView = computed(() => {
                   rel="noopener noreferrer"
                   class="inline-flex items-center gap-2 text-base sm:text-lg font-medium text-white/90 hover:text-white transition"
                 >
-                  <svg class="w-5 h-5 text-pink-200" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <svg class="website-hero-icon w-5 h-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                     <path
                       d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11Z"
                       stroke="currentColor"
@@ -1225,10 +1270,10 @@ const footerView = computed(() => {
                 <a
                   v-if="heroPhoneHref"
                   :href="heroPhoneHref"
-                  class="inline-flex items-center gap-2 text-base sm:text-lg font-semibold text-white hover:text-pink-200 transition"
+                  class="inline-flex items-center gap-2 text-base sm:text-lg font-semibold text-white hover:text-white transition"
                   @click="trackEvent('click_call')"
                 >
-                  <svg class="w-5 h-5 text-pink-200" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <svg class="website-hero-icon w-5 h-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                     <path
                       d="M8.5 3.5 6 6c.5 4 3.5 7 7.5 7.5l2.5-2.5 3 3-1.8 1.8c-.4.4-1 .6-1.6.6-6 0-11-5-11-11 0-.6.2-1.2.6-1.6Z"
                       stroke="currentColor"
@@ -1242,7 +1287,7 @@ const footerView = computed(() => {
               <div class="flex flex-col gap-4">
                 <div class="flex flex-wrap items-center gap-3">
                   <a
-                    class="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-rose-500 to-pink-600 px-9 py-4 text-white text-lg font-semibold shadow-[0_14px_30px_rgba(236,72,153,0.28)] transition-all duration-200 hover:from-rose-600 hover:to-pink-600 hover:shadow-[0_18px_38px_rgba(236,72,153,0.32)] hover:scale-105 hover:-translate-y-1 active:scale-100 focus-visible:ring-2 focus-visible:ring-rose-100 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
+                    class="website-primary-button inline-flex items-center justify-center gap-2 rounded-full px-9 py-4 text-lg font-semibold transition-all duration-200 hover:scale-105 hover:-translate-y-1 active:scale-100 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
                     :href="bookingPath"
                   >
                     <span class="text-xl leading-none">📅</span>
@@ -1250,7 +1295,7 @@ const footerView = computed(() => {
                   </a>
                   <a
                     v-if="showServicesSection"
-                    class="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/10 px-7 py-3.5 text-base font-semibold text-white hover:bg-white/15 hover:-translate-y-1 hover:shadow-lg transition"
+                    class="website-secondary-button inline-flex items-center gap-2 rounded-full px-7 py-3.5 text-base font-semibold transition hover:-translate-y-1 hover:shadow-lg"
                     href="#services"
                   >
                     {{ hero.ctaSecondary || 'Our services' }}
@@ -1309,14 +1354,7 @@ const footerView = computed(() => {
             />
           </div>
         </div>
-        <div
-          v-else
-          class="rounded-2xl text-white p-6 shadow-xl"
-          :style="{
-            background:
-              'linear-gradient(135deg, color-mix(in srgb, var(--sf-text, #0f172a) 90%, transparent) 0%, color-mix(in srgb, var(--sf-text, #0f172a) 68%, transparent) 100%)',
-          }"
-        >
+        <div v-else class="hero-fallback-panel rounded-2xl text-white p-6 shadow-xl">
           <div class="text-sm uppercase tracking-wide text-white/70">Hours</div>
           <p class="mt-2 text-lg font-semibold">{{ contactHoursSummary || 'Open daily' }}</p>
             <div class="mt-6 text-sm uppercase tracking-wide text-white/70">Call</div>
@@ -1381,7 +1419,7 @@ const footerView = computed(() => {
             </p>
             <div class="flex flex-wrap gap-3">
               <a
-                class="inline-flex items-center gap-2 rounded-full bg-text px-4 py-2 text-white text-sm font-semibold hover:bg-text/90"
+                class="website-primary-button inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold"
                 :href="bookingPath"
               >
                 Book Appointment
@@ -1449,7 +1487,7 @@ const footerView = computed(() => {
             <div
               v-for="(card, idx) in serviceCards"
               :key="card.id"
-              class="relative overflow-hidden rounded-2xl border border-border bg-white shadow-lg service-tilt"
+              class="relative overflow-hidden rounded-2xl border border-border bg-surface shadow-lg service-tilt"
               :class="enableServiceModal ? 'cursor-pointer' : ''"
               :role="enableServiceModal ? 'button' : undefined"
               :tabindex="enableServiceModal ? 0 : undefined"
@@ -1492,7 +1530,7 @@ const footerView = computed(() => {
                     </span>
                   </div>
                 </div>
-                <span class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-text text-white text-sm font-semibold shadow-md">
+                <span class="website-service-index-badge inline-flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold shadow-md">
                   {{ idx + 1 }}
                 </span>
               </div>
@@ -1513,7 +1551,7 @@ const footerView = computed(() => {
               <div
                 v-for="cat in visibleServicesPageCategories"
                 :key="cat.id"
-                class="rounded-2xl border border-border bg-white shadow-sm overflow-hidden"
+                class="rounded-2xl border border-border bg-surface shadow-sm overflow-hidden"
               >
                 <div class="flex items-center justify-between px-4 py-3 border-b border-border bg-surface-muted">
                   <div>
@@ -1553,7 +1591,7 @@ const footerView = computed(() => {
                         </div>
                       </div>
                     </div>
-                    <div v-if="svc.featured" class="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-800 border border-amber-200">
+                    <div v-if="svc.featured" class="website-featured-badge mt-2 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold">
                       Featured
                     </div>
                   </div>
@@ -1649,7 +1687,7 @@ const footerView = computed(() => {
                 </label>
                 <input v-model="leadForm.website" class="hidden" aria-hidden="true" />
                 <div class="flex items-center gap-3">
-                  <button :disabled="leadSubmitting" type="submit" class="inline-flex items-center gap-2 rounded-full bg-text px-4 py-2 text-white text-sm font-semibold hover:bg-text/90 disabled:opacity-60">
+                  <button :disabled="leadSubmitting" type="submit" class="website-primary-button inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold disabled:opacity-60">
                     {{ leadSubmitting ? 'Sending…' : 'Send message' }}
                   </button>
                   <p class="text-sm text-muted" v-if="leadSuccess">Thanks! We received your message.</p>
@@ -1692,7 +1730,7 @@ const footerView = computed(() => {
           <div v-if="showGalleryViewMore" class="flex justify-center">
             <button
               type="button"
-              class="inline-flex items-center gap-2 rounded-full border border-border bg-white px-4 py-2 text-sm font-semibold text-text shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
+              class="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-sm font-semibold text-text shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
               @click="openGalleryLightbox(galleryViewMoreStartIndex)"
             >
               View More
@@ -1740,9 +1778,26 @@ const footerView = computed(() => {
       @close="closeGalleryLightbox"
     />
   </PublicWebsiteLayout>
+
+  <div v-else class="website-boot-screen" role="status" aria-live="polite">
+    <span v-if="loading">Loading website…</span>
+    <span v-else class="website-boot-screen--error">{{ error || 'Unable to load website.' }}</span>
+  </div>
 </template>
 
 <style scoped>
+.website-boot-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.website-boot-screen--error {
+  color: #b91c1c;
+}
 .services-hero {
   background: var(--sf-hero-gradient);
   box-shadow: var(--sf-shadow-overlay, 0 30px 80px rgba(0, 0, 0, 0.25));
@@ -1756,11 +1811,9 @@ const footerView = computed(() => {
   filter: saturate(1.05);
 }
 .services-hero__overlay {
-  background: linear-gradient(
-    110deg,
-    color-mix(in srgb, var(--sf-text, #0f172a) 92%, transparent) 0%,
-    color-mix(in srgb, var(--sf-text, #0f172a) 75%, transparent) 45%,
-    color-mix(in srgb, var(--sf-text, #0f172a) 28%, transparent) 100%
+  background: var(
+    --sf-services-hero-overlay,
+    linear-gradient(110deg, rgba(20, 10, 18, 0.92) 0%, rgba(20, 10, 18, 0.75) 45%, rgba(20, 10, 18, 0.28) 100%)
   );
 }
 .services-hero__frame {
@@ -1833,6 +1886,9 @@ const footerView = computed(() => {
   background: linear-gradient(135deg, #1a0f1c, #120914);
   overflow: hidden;
 }
+.hero-fallback-panel {
+  background: var(--sf-hero-gradient, linear-gradient(135deg, #1c111d, #130a14));
+}
 .home-hero--bg {
   background-size: cover;
   background-position: center;
@@ -1863,5 +1919,68 @@ const footerView = computed(() => {
 .page-hero--bg .hero-frame {
   border-color: rgba(255, 255, 255, 0.12);
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+}
+
+.website-primary-button {
+  background: var(--sf-website-primary-button-background, linear-gradient(to right, #f43f5e, #db2777));
+  color: var(--sf-website-primary-button-text, #fff);
+  box-shadow: var(--sf-website-primary-button-shadow, 0 14px 30px rgb(236 72 153 / 0.28));
+}
+.website-primary-button:hover {
+  background: var(--sf-website-primary-button-background, linear-gradient(to right, #e11d48, #db2777));
+  box-shadow: var(--sf-website-primary-button-shadow-hover, 0 18px 38px rgb(236 72 153 / 0.32));
+}
+.website-secondary-button {
+  border: 1px solid rgb(255 255 255 / 0.7);
+  background: rgb(255 255 255 / 0.1);
+  color: #fff;
+}
+.website-secondary-button:hover {
+  background: rgb(255 255 255 / 0.15);
+}
+.website-hero-icon {
+  color: #fbcfe8;
+}
+.website-service-index-badge {
+  background: var(--sf-text, #0f172a);
+  color: #fff;
+}
+.website-featured-badge {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+}
+
+/* Explicit presets opt into token-driven accents. Legacy keeps the existing
+   Nail/live-site treatment even though the renderer is shared. */
+:global(html[data-website-theme]:not([data-website-theme='legacy'])) .website-primary-button {
+  background: var(--sf-primary);
+  color: var(--sf-bg);
+  box-shadow: 0 14px 30px rgb(var(--sf-primary-rgb) / 0.28);
+}
+:global(html[data-website-theme]:not([data-website-theme='legacy'])) .website-primary-button:hover {
+  background: color-mix(in srgb, var(--sf-primary) 82%, var(--sf-accent));
+  box-shadow: 0 18px 38px rgb(var(--sf-primary-rgb) / 0.32);
+}
+:global(html[data-website-theme]:not([data-website-theme='legacy'])) .website-hero-icon {
+  color: var(--sf-primary);
+}
+:global(html[data-website-theme]:not([data-website-theme='legacy'])) .website-service-index-badge {
+  background: var(--sf-primary);
+  color: var(--sf-bg);
+}
+:global(html[data-website-theme]:not([data-website-theme='legacy'])) .website-featured-badge {
+  background: color-mix(in srgb, var(--sf-accent) 18%, var(--sf-surface));
+  border-color: color-mix(in srgb, var(--sf-accent) 48%, var(--sf-border));
+  color: var(--sf-accent);
+}
+:global(html[data-website-theme='modern-dark']) .website-primary-button {
+  background: var(--sf-website-primary-button-background);
+  color: var(--sf-website-primary-button-text);
+  box-shadow: var(--sf-website-primary-button-shadow);
+}
+:global(html[data-website-theme='modern-dark']) .website-primary-button:hover {
+  background: var(--sf-website-primary-button-background);
+  box-shadow: var(--sf-website-primary-button-shadow-hover);
 }
 </style>

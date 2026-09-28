@@ -55,6 +55,7 @@ const mergeTheme = (incoming?: Partial<ThemeTokens> | null): ThemeTokens => {
   const gradients = isObject(src.gradients) ? { ...base.gradients, ...src.gradients } : base.gradients;
 
   return {
+    presetKey: (src.presetKey as ThemeTokens['presetKey']) || base.presetKey,
     colors,
     typography,
     radii,
@@ -116,6 +117,76 @@ export function applyWebsiteTheme(tokens?: Partial<ThemeTokens> | null) {
   set('--sf-muted-rgb', rgbMuted);
   set('--sf-border', theme.colors.border);
   set('--sf-border-rgb', rgbBorder);
+
+  const isModernDark = theme.presetKey === 'modern-dark';
+  set('--sf-header-background', isModernDark ? theme.colors.background : 'linear-gradient(90deg, rgba(255, 247, 251, 0.95), rgba(255, 241, 245, 0.92))');
+  set('--sf-header-brand-name', isModernDark ? theme.colors.textPrimary : 'var(--sf-text, #0f172a)');
+  set('--sf-header-brand-tag', isModernDark ? theme.colors.textMuted : 'rgba(15, 23, 42, 0.6)');
+  set('--sf-header-nav-text', isModernDark ? theme.colors.textMuted : 'rgba(15, 23, 42, 0.8)');
+  set('--sf-header-nav-hover', isModernDark ? theme.colors.surface : 'rgba(15, 23, 42, 0.05)');
+  set('--sf-header-active-text', isModernDark ? theme.colors.textPrimary : 'var(--sf-primary, #ec4899)');
+  set('--sf-header-active-background', isModernDark ? theme.colors.surface : 'color-mix(in srgb, var(--sf-primary, #ec4899) 12%, #fff)');
+  set('--sf-header-brand-mark-background', isModernDark
+    ? `linear-gradient(135deg, ${theme.colors.accent}, ${theme.colors.primary})`
+    : 'linear-gradient(135deg, #f472b6 0%, #ec4899 60%, #db2777 100%)');
+  set('--sf-header-brand-mark-text', isModernDark ? '#1c1917' : '#fff');
+  set('--sf-header-solid-background', isModernDark
+    ? `linear-gradient(120deg, ${theme.colors.primary}, color-mix(in srgb, ${theme.colors.primary} 65%, ${theme.colors.accent}))`
+    : 'linear-gradient(120deg, color-mix(in srgb, var(--sf-primary, #ec4899) 92%, #fff 8%), color-mix(in srgb, #db2777 90%, #fff 10%))');
+  set('--sf-header-solid-text', isModernDark ? theme.colors.background : '#fff');
+  set('--sf-header-ghost-border', isModernDark
+    ? `color-mix(in srgb, ${theme.colors.primary} 58%, ${theme.colors.border})`
+    : 'color-mix(in srgb, var(--sf-primary, #ec4899) 35%, transparent)');
+  set('--sf-header-ghost-background', isModernDark ? 'transparent' : 'color-mix(in srgb, var(--sf-primary, #ec4899) 10%, #fff)');
+  set('--sf-header-ghost-text', isModernDark ? theme.colors.textPrimary : 'var(--sf-primary, #ec4899)');
+  set('--sf-booking-submit-background', isModernDark
+    ? `linear-gradient(135deg, color-mix(in srgb, ${theme.colors.accent} 86%, #fff 14%), ${theme.colors.accent} 52%, color-mix(in srgb, ${theme.colors.accent} 72%, ${theme.colors.primary} 28%))`
+    : 'linear-gradient(135deg, color-mix(in srgb, var(--sf-primary, #0ea5e9) 90%, white 10%), color-mix(in srgb, var(--sf-primary, #0284c7) 78%, #0f172a 22%))');
+  set('--sf-booking-submit-text', isModernDark ? theme.colors.background : '#fff');
+  set('--sf-booking-submit-shadow', isModernDark
+    ? `0 18px 40px rgb(${rgbAccent} / 0.32), inset 0 1px 0 rgb(255 255 255 / 0.28)`
+    : '0 18px 40px color-mix(in srgb, var(--sf-primary, #0ea5e9) 22%, transparent)');
+  set('--sf-booking-submit-shadow-hover', isModernDark
+    ? `0 22px 46px rgb(${rgbAccent} / 0.42), inset 0 1px 0 rgb(255 255 255 / 0.34)`
+    : '0 22px 44px color-mix(in srgb, var(--sf-primary, #0ea5e9) 26%, transparent)');
+  set('--sf-website-primary-button-background', isModernDark
+    ? `linear-gradient(135deg, color-mix(in srgb, ${theme.colors.accent} 86%, #fff 14%), ${theme.colors.accent} 52%, color-mix(in srgb, ${theme.colors.accent} 72%, ${theme.colors.primary} 28%))`
+    : 'linear-gradient(to right, #f43f5e, #db2777)');
+  set('--sf-website-primary-button-text', isModernDark ? theme.colors.background : '#fff');
+  set('--sf-website-primary-button-shadow', isModernDark
+    ? `0 14px 30px rgb(${rgbAccent} / 0.32), inset 0 1px 0 rgb(255 255 255 / 0.24)`
+    : '0 14px 30px rgb(236 72 153 / 0.28)');
+  set('--sf-website-primary-button-shadow-hover', isModernDark
+    ? `0 18px 38px rgb(${rgbAccent} / 0.42), inset 0 1px 0 rgb(255 255 255 / 0.3)`
+    : '0 18px 38px rgb(236 72 153 / 0.32)');
+
+  set('--sf-footer-background', isModernDark ? theme.colors.background : 'linear-gradient(180deg, #fff7fb 0%, #ffeef7 100%)');
+  set('--sf-footer-card-background', isModernDark ? theme.colors.surface : 'rgba(255, 255, 255, 0.94)');
+  set('--sf-footer-text', isModernDark ? theme.colors.textPrimary : 'var(--sf-text, #0f172a)');
+  set('--sf-footer-muted', isModernDark ? theme.colors.textMuted : 'rgba(15, 23, 42, 0.68)');
+  set('--sf-footer-label', isModernDark ? theme.colors.primary : 'color-mix(in srgb, var(--sf-primary, #ec4899) 55%, #0f172a 45%)');
+  set('--sf-footer-strip-background', isModernDark ? theme.colors.surface : 'linear-gradient(90deg, rgba(255, 247, 251, 0.92), rgba(255, 241, 245, 0.9))');
+
+  // Keep the active preset available to shared website components. The
+  // renderer uses this marker for contrast-sensitive details (for example,
+  // a dark service card needs light text while legacy stays unchanged).
+  root.dataset.websiteTheme = theme.presetKey || 'legacy';
+
+  // Image-backed hero sections need a darkening overlay, not an overlay made
+  // from the text color. Using the text color on Modern Dark produces a white
+  // wash over the image because the text token is intentionally near-white.
+  set(
+    '--sf-hero-overlay',
+    theme.presetKey === 'modern-dark'
+      ? 'linear-gradient(110deg, rgba(0, 0, 0, 0.76) 0%, rgba(0, 0, 0, 0.46) 52%, rgba(0, 0, 0, 0.16) 100%)'
+      : 'linear-gradient(135deg, rgba(20, 10, 18, 0.82), rgba(20, 10, 18, 0.48))',
+  );
+  set(
+    '--sf-services-hero-overlay',
+    theme.presetKey === 'modern-dark'
+      ? 'linear-gradient(110deg, rgba(0, 0, 0, 0.76) 0%, rgba(0, 0, 0, 0.46) 52%, rgba(0, 0, 0, 0.16) 100%)'
+      : 'linear-gradient(110deg, color-mix(in srgb, var(--sf-text, #0f172a) 92%, transparent) 0%, color-mix(in srgb, var(--sf-text, #0f172a) 75%, transparent) 45%, color-mix(in srgb, var(--sf-text, #0f172a) 28%, transparent) 100%)',
+  );
 
   set('--sf-font-family', theme.typography.fontFamily);
   set('--sf-font-size-base', `${theme.typography.baseSize}px`);
