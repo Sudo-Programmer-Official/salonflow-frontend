@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { login } from '../api/auth';
+import { registerNativeDevice } from '../api/nativeDevices';
 import { defaultRouteForRole } from '../utils/navigation';
 import { isStagingEnvironment, tenantFromHost } from '../utils/tenantDomains';
 import logo from '../assets/images/salonflow-logo.png';
@@ -45,6 +46,7 @@ const handleSubmit = async () => {
     if (result.user.email) {
       localStorage.setItem('email', result.user.email);
     }
+    void registerNativeDevice().catch(() => undefined);
     redirectByRole(result.user.role);
   } catch (err: unknown) {
     const message =

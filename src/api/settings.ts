@@ -9,6 +9,10 @@ export type DefaultBookingRules = {
   allow_walkins_outside_availability: boolean;
 };
 
+export type PaymentMode = 'manual' | 'integrated';
+export type PaymentProvider = 'none' | 'stripe_terminal' | 'square' | 'clover';
+export type TipCollectionMode = 'disabled' | 'salonflow' | 'terminal';
+
 export type ThemeTokens = {
   presetKey?: 'legacy' | 'soft-luxe' | 'editorial' | 'calm-spa' | 'modern-dark' | 'clean-neutral';
   colors: {
@@ -78,6 +82,7 @@ export type BusinessSettings = {
   requireStaffSelection: boolean;
   requireStaffBeforeCheckout?: boolean;
   enableTips: boolean;
+  tipCollectionMode: TipCollectionMode;
   enableTax: boolean;
   taxMode: 'disabled' | 'manual' | 'configured_rate';
   taxRatePercent: number | null;
@@ -88,6 +93,10 @@ export type BusinessSettings = {
     check: boolean;
     other: boolean;
   };
+  paymentMode: PaymentMode;
+  paymentProvider: PaymentProvider;
+  requireTerminalReady: boolean;
+  allowManualPaymentFallback: boolean;
   enableGiftCards: boolean;
   enableLoyaltyRedemption: boolean;
   enablePromotions: boolean;
@@ -140,10 +149,15 @@ export type SettingsPatch = Partial<
     | 'requireStaffSelection'
     | 'requireStaffBeforeCheckout'
     | 'enableTips'
+    | 'tipCollectionMode'
     | 'enableTax'
     | 'taxMode'
     | 'taxRatePercent'
     | 'paymentMethods'
+    | 'paymentMode'
+    | 'paymentProvider'
+    | 'requireTerminalReady'
+    | 'allowManualPaymentFallback'
     | 'enableGiftCards'
     | 'enableLoyaltyRedemption'
     | 'enablePromotions'

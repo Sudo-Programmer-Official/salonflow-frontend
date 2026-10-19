@@ -12,6 +12,7 @@ import { isPlatformHost } from './api/client';
 import { refreshBusinessDayClock } from './composables/useBusinessDayClock';
 import { setBusinessTimezone } from './utils/dates';
 import { applyThemeFromSettings } from './utils/theme';
+import { registerNativeDevice } from './api/nativeDevices';
 
 const app = createApp(App);
 
@@ -53,6 +54,10 @@ if (typeof document !== 'undefined') {
   } catch {
     // best-effort only; ignore errors on bootstrap
   }
+
+  // Device registration is deliberately best-effort. A missing bridge or
+  // unavailable hardware must never destroy a valid SalonFlow session.
+  void registerNativeDevice().catch(() => undefined);
 })();
 
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {

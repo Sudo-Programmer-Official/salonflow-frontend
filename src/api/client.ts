@@ -2,6 +2,7 @@ const resolvedApiBase =
   (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/+$/, '') || '';
 
 import { isDemoGatewayHost, isPlatformHost, tenantFromHost } from '../utils/tenantDomains';
+import { isNativeRuntime } from '../utils/nativeRuntime';
 
 const authHeader = (): Record<string, string> => {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -10,9 +11,15 @@ const authHeader = (): Record<string, string> => {
 
 const clientHeader = (): Record<string, string> => {
   if (typeof window === 'undefined') return {};
-  return localStorage.getItem('client') === 'salonflow_pos'
+  const headers: Record<string, string> = localStorage.getItem('client') === 'salonflow_pos'
     ? { 'x-pos-client': 'true' }
     : {};
+  if (isNativeRuntime()) {
+    headers['x-salonflow-native'] = 'true';
+    const deviceId = localStorage.getItem('salonflow:nativeDeviceId');
+    if (deviceId) headers['x-salonflow-device-id'] = deviceId;
+  }
+  return headers;
 };
 
 const websiteHostHeader = (): Record<string, string> => {
