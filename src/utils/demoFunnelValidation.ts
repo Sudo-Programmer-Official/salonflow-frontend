@@ -1,3 +1,5 @@
+import { DEFAULT_DEMO_PHONE_COUNTRY, normalizeDemoPhone } from './demoPhone';
+
 const EMAIL_PATTERN = /^\S+@\S+\.\S+$/;
 
 export type DemoFunnelAnswers = {
@@ -6,6 +8,7 @@ export type DemoFunnelAnswers = {
   businessType: string;
   email: string;
   phone: string;
+  phoneCountry?: import('libphonenumber-js').CountryCode;
 };
 
 export type DemoDeliveryStatus = { status?: string | null } | null | undefined;
@@ -42,8 +45,8 @@ export const validateDemoFunnelStep = (step: number, answers: DemoFunnelAnswers)
   }
 
   if (step === 2) {
-    if (!answers.phone.replace(/\D/g, '').match(/^\d{10,15}$/)) {
-      return 'Enter a valid mobile phone number.';
+    if (!normalizeDemoPhone(answers.phone, answers.phoneCountry ?? DEFAULT_DEMO_PHONE_COUNTRY)) {
+      return 'Enter a valid mobile phone number for the selected country.';
     }
     if (!EMAIL_PATTERN.test(answers.email.trim())) return 'Enter a valid email address.';
   }

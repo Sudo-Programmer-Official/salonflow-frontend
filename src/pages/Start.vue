@@ -4,11 +4,18 @@ import DemoFunnel from '../components/marketing/DemoFunnel.vue';
 import LeadAssistant from '../components/marketing/LeadAssistant.vue';
 import { trackMarketingEvent } from '@/api/marketing';
 import { getDemoAccessConfig } from '@/api/demoAccess';
+import { applyMarketingSeo } from '@/utils/marketingSeo';
 
 const demoAccessEnabled = ref(false);
 const configLoaded = ref(false);
 
 onMounted(async () => {
+  applyMarketingSeo({
+    path: '/start',
+    title: 'Request a SalonFlow demo | Salon management software',
+    description: 'Request a personalized SalonFlow demo for your salon. No credit card required and setup is included.',
+    noindex: true,
+  });
   const config = await getDemoAccessConfig().catch(() => ({ enabled: false }));
   demoAccessEnabled.value = config.enabled;
   configLoaded.value = true;

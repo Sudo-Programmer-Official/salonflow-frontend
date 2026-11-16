@@ -1,6 +1,4 @@
 import { createApp } from 'vue';
-import ElementPlus from 'element-plus';
-import 'element-plus/dist/index.css';
 import './style.css';
 import App from './App.vue';
 import router from './router';
@@ -19,11 +17,26 @@ setupAuthInterceptor();
 setupTrialInterceptor();
 setupMaintenanceInterceptor();
 app.use(router);
-app.use(ElementPlus);
 
 applyThemeFromSettings();
 
-app.mount('#app');
+const shouldLoadElementPlus = () => {
+  if (typeof window === 'undefined') return true;
+  const path = window.location.pathname;
+  return !isPlatformHost() || !['/', '/contact'].includes(path);
+};
+
+void (async () => {
+  await router.isReady();
+  if (shouldLoadElementPlus()) {
+    const [{ default: ElementPlus }] = await Promise.all([
+      import('element-plus'),
+      import('element-plus/dist/index.css'),
+    ]);
+    app.use(ElementPlus);
+  }
+  app.mount('#app');
+})();
 
 if (typeof document !== 'undefined') {
   let lastTouchEnd = 0;

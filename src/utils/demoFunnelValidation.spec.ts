@@ -25,8 +25,18 @@ describe('demo funnel validation', () => {
   it('requires a valid email and phone on step two', () => {
     expect(validateDemoFunnelStep(2, { ...completeAnswers, email: '' })).toBe('Enter a valid email address.');
     expect(validateDemoFunnelStep(2, { ...completeAnswers, phone: '555-0184' })).toBe(
-      'Enter a valid mobile phone number.',
+      'Enter a valid mobile phone number for the selected country.',
     );
+  });
+
+  it('accepts a valid Spanish mobile number with the selected country', () => {
+    expect(
+      validateDemoFunnelStep(2, {
+        ...completeAnswers,
+        phone: '643 438 933',
+        phoneCountry: 'ES',
+      }),
+    ).toBeNull();
   });
 
   it('requires a business type on the final step', () => {

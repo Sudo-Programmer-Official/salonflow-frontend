@@ -6,18 +6,24 @@
           <img :src="logo" alt="SalonFlow" class="brand-logo" />
           <div class="hidden font-['Space_Grotesk'] text-lg font-semibold text-slate-900 sm:inline">SalonFlow</div>
         </RouterLink>
-        <nav class="flex items-center gap-2 text-sm font-medium text-slate-700 sm:gap-3">
-          <RouterLink class="rounded-full px-3 py-2 transition-colors hover:bg-slate-100 hover:text-slate-900" to="/">
-            Home
-          </RouterLink>
+        <nav class="flex items-center gap-1.5 text-sm font-medium text-slate-700 sm:gap-2 lg:gap-3">
+          <a class="hidden rounded-full px-3 py-2 transition-colors hover:bg-slate-100 hover:text-slate-900 lg:inline-flex" href="/#features">
+            Features
+          </a>
+          <a class="hidden rounded-full px-3 py-2 transition-colors hover:bg-slate-100 hover:text-slate-900 lg:inline-flex" href="/#workflow">
+            How It Works
+          </a>
+          <a class="hidden rounded-full px-3 py-2 transition-colors hover:bg-slate-100 hover:text-slate-900 lg:inline-flex" href="/#pricing">
+            Pricing
+          </a>
           <RouterLink class="rounded-full px-3 py-2 transition-colors hover:bg-slate-100 hover:text-slate-900" to="/salon-login">
             Login
           </RouterLink>
           <RouterLink
-            class="inline-flex items-center justify-center rounded-full bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+            class="inline-flex items-center justify-center rounded-full bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 sm:px-5"
             to="/start"
           >
-            Get Demo
+            Try the Demo
           </RouterLink>
         </nav>
       </div>
