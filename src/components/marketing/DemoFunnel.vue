@@ -14,6 +14,14 @@ import {
   validateDemoFunnelStep,
   validateDemoFunnelSubmission,
 } from '@/utils/demoFunnelValidation';
+import {
+  DEFAULT_DEMO_PHONE_COUNTRY,
+  demoPhoneCountryOptions,
+  detectDemoPhoneCountry,
+  normalizeDemoPhone,
+  type DemoPhoneCountryOption,
+} from '@/utils/demoPhone';
+import type { CountryCode } from 'libphonenumber-js';
 
 const steps = [
   { number: 1, label: 'About you' },
@@ -37,6 +45,7 @@ const businessType = ref('');
 const templateKey = ref('');
 const email = ref('');
 const phone = ref('');
+const phoneCountry = ref<CountryCode>(DEFAULT_DEMO_PHONE_COUNTRY);
 const interests = ref<string[]>([]);
 const draftToken = ref<string | null>(null);
 const errorMessage = ref('');
@@ -54,7 +63,15 @@ const answers = computed(() => ({
   businessType: businessType.value,
   email: email.value,
   phone: phone.value,
+  phoneCountry: phoneCountry.value,
 }));
+
+const selectedPhoneCountry = computed<DemoPhoneCountryOption>(
+  () =>
+    demoPhoneCountryOptions.find((option) => option.code === phoneCountry.value) ??
+    demoPhoneCountryOptions[0]!,
+);
+const normalizedPhone = computed(() => normalizeDemoPhone(phone.value, phoneCountry.value));
 
 const selectedTemplate = computed(() =>
   businessTypeOptions.value.find(
@@ -80,6 +97,7 @@ const saveDraft = async () => {
       templateKey: templateKey.value || undefined,
       email: email.value || undefined,
       phone: phone.value || undefined,
+      phoneCountry: phoneCountry.value,
       interests: interests.value,
       progressStep: step.value,
     });
@@ -159,6 +177,11 @@ const submit = async () => {
   }
   submitting.value = true;
   try {
+    const phoneE164 = normalizedPhone.value;
+    if (!phoneE164) {
+      errorMessage.value = 'Enter a valid mobile phone number for the selected country.';
+      return;
+    }
     const lead = await savePublicDemoLead({
       draftToken: draftToken.value,
       mode: 'final',
@@ -167,7 +190,8 @@ const submit = async () => {
       businessType: businessType.value,
       templateKey: selectedTemplate.value.templateKey,
       email: email.value,
-      phone: phone.value,
+      phone: phoneE164,
+      phoneCountry: phoneCountry.value,
       interests: interests.value,
       progressStep: 3,
     });
@@ -182,6 +206,12 @@ const submit = async () => {
   } finally {
     submitting.value = false;
   }
+};
+
+const handlePhoneInput = () => {
+  if (!phone.value.trim().startsWith('+')) return;
+  const detectedCountry = detectDemoPhoneCountry(phone.value);
+  if (detectedCountry) phoneCountry.value = detectedCountry;
 };
 
 const copyText = async (value: string) => {
@@ -223,7 +253,7 @@ onMounted(async () => {
   }
 });
 
-watch([step, name, businessName, businessType, templateKey, email, phone, interests], queueDraftSave, { deep: true });
+watch([step, name, businessName, businessType, templateKey, email, phone, phoneCountry, interests], queueDraftSave, { deep: true });
 </script>
 
 <template>
@@ -299,11 +329,31 @@ watch([step, name, businessName, businessType, templateKey, email, phone, intere
             </div>
 
             <div v-else-if="step === 2" class="space-y-5">
-              <label class="block">
-                <span class="text-sm font-semibold text-slate-900">Mobile phone <span class="text-pink-500">*</span></span>
-                <input v-model="phone" autocomplete="tel" type="tel" placeholder="e.g. (361) 555-0184" class="demo-input mt-2" />
-                <span class="mt-2 block text-xs text-slate-500">We’ll send your demo details by SMS.</span>
-              </label>
+              <div class="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.45fr)]">
+                <label class="block">
+                  <span class="text-sm font-semibold text-slate-900">Country/region <span class="text-pink-500">*</span></span>
+                  <select v-model="phoneCountry" autocomplete="tel-country-code" class="demo-input mt-2">
+                    <option v-for="option in demoPhoneCountryOptions" :key="option.code" :value="option.code">
+                      {{ option.name }} ({{ option.dialCode }})
+                    </option>
+                  </select>
+                  <span class="mt-2 block text-xs text-slate-500">We’ll add {{ selectedPhoneCountry.dialCode }} automatically.</span>
+                </label>
+                <label class="block">
+                  <span class="text-sm font-semibold text-slate-900">Mobile phone <span class="text-pink-500">*</span></span>
+                  <input
+                    v-model="phone"
+                    autocomplete="tel-national"
+                    type="tel"
+                    placeholder="e.g. 555 0184"
+                    class="demo-input mt-2"
+                    @input="handlePhoneInput"
+                  />
+                  <span class="mt-2 block text-xs text-slate-500">
+                    {{ normalizedPhone ? `We’ll save it as ${normalizedPhone}.` : 'We’ll send your demo details by SMS.' }}
+                  </span>
+                </label>
+              </div>
               <label class="block">
                 <span class="text-sm font-semibold text-slate-900">Email address <span class="text-pink-500">*</span></span>
                 <input v-model="email" autocomplete="email" type="email" placeholder="e.g. natalie@glowhouse.com" class="demo-input mt-2" />

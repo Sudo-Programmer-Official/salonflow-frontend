@@ -1,78 +1,80 @@
 import { createRouter, createWebHistory, type RouteLocationRaw } from "vue-router";
-import PublicLayout from "../layouts/PublicLayout.vue";
-import KioskLayout from "../layouts/KioskLayout.vue";
-import CheckInPage from "../pages/public/CheckIn.vue";
-import KioskStepperPage from "../pages/public/KioskStepper.vue";
-import AdminLayout from "../layouts/AdminLayout.vue";
-import PlatformLayout from "../layouts/PlatformLayout.vue";
-import AdminQRCodePage from "../pages/admin/QRCode.vue";
-import AdminDashboardPage from "../pages/admin/Dashboard.vue";
-import AdminServicesPage from "../pages/admin/Services.vue";
-import AdminStaffPage from "../pages/admin/Staff.vue";
-import AdminAppointmentsPage from "../pages/admin/Appointments.vue";
-import AdminSMSPage from "../pages/admin/SMS.vue";
-import AdminBillingPage from "../pages/admin/Billing.vue";
-import AdminReviewSMSPage from "../pages/admin/ReviewSMS.vue";
-import PublicBookPage from "../pages/public/Book.vue";
-import AdminAppointmentRemindersPage from "../pages/admin/AppointmentReminders.vue";
-import PlatformDashboardPage from "../pages/platform/Dashboard.vue";
-import PlatformOnboardingPage from "../pages/platform/Onboarding.vue";
-import PlatformTenantDetailPage from "../pages/platform/TenantDetail.vue";
-import PlatformCreateTenantPage from "../pages/platform/CreateTenant.vue";
-import PlatformDemoRequestsPage from "../pages/platform/DemoRequests.vue";
-import PlatformNumbersPage from "../pages/platform/Numbers.vue";
-import PlatformFeatureFlagsPage from "../pages/platform/PlatformFeatureFlags.vue";
-import PlatformUsagePage from "../pages/platform/PlatformUsage.vue";
-import PlatformPlansPage from "../pages/platform/PlatformPlans.vue";
-import PlatformUpgradeRequestsPage from "../pages/platform/PlatformUpgradeRequests.vue";
-import PlatformSettingsAlertsPage from "../pages/platform/PlatformSettingsAlerts.vue";
-import PlatformInvoicePreviewPage from "../pages/platform/PlatformInvoicePreview.vue";
-import CustomerProfilePage from "../pages/admin/CustomerProfile.vue";
-import AdminOnboardingPage from "../pages/admin/Onboarding.vue";
-import AdminDemoRequestsPage from "../pages/admin/DemoRequests.vue";
-import AdminCustomersPage from "../pages/admin/Customers.vue";
-import AdminQueuePage from "../pages/admin/Queue.vue";
-import AdminBillingSuccessPage from "../pages/admin/BillingSuccess.vue";
-import AdminSettingsPage from "../pages/admin/Settings.vue";
-import AdminCategoriesPage from "../pages/admin/Categories.vue";
-import AdminAnalyticsPage from "../pages/admin/Analytics.vue";
-import AdminReportsPage from "../pages/admin/Reports.vue";
-import AdminPayrollPage from "../pages/admin/Payroll.vue";
-import AdminGiftCardsPage from "../pages/admin/GiftCards.vue";
-import AdminPromotionsPage from "../pages/admin/Promotions.vue";
-import AdminInboxPage from "../pages/admin/Inbox.vue";
-import AdminSmartRemindersPage from "../pages/admin/SmartReminders.vue";
-import AdminNotificationsPage from "../pages/admin/Notifications.vue";
-import AdminWebsiteOverviewPage from "../pages/admin/Website/AdminWebsiteOverview.vue";
-import AdminWebsitePagesPage from "../pages/admin/Website/AdminWebsitePages.vue";
-import AdminWebsitePageEditorPage from "../pages/admin/Website/AdminWebsitePageEditor.vue";
-import AdminWebsiteDomainsPage from "../pages/admin/Website/AdminWebsiteDomains.vue";
-import AdminWebsiteLeadsPage from "../pages/admin/Website/AdminWebsiteLeads.vue";
-import AdminWebsiteAnalyticsPage from "../pages/admin/Website/AdminWebsiteAnalytics.vue";
-import AdminWebsiteNavigationPage from "../pages/admin/Website/AdminWebsiteNavigation.vue";
-import AdminWebsiteFooterPage from "../pages/admin/Website/AdminWebsiteFooter.vue";
-import AdminWebsiteThemePage from "../pages/admin/Website/AdminWebsiteTheme.vue";
-import AdminServicesV2Page from "../pages/admin/ServicesV2/ServicesIndex.vue";
-import AdminReviewsSettingsPage from "../pages/admin/Reviews/AdminReviewsSettings.vue";
-import AdminReviewsRequestsPage from "../pages/admin/Reviews/AdminReviewsRequests.vue";
-import AdminReviewsFeedbackPage from "../pages/admin/Reviews/AdminReviewsFeedback.vue";
-import AdminSocialPostsPage from "../pages/admin/Social/AdminSocialPosts.vue";
-import AdminGoogleBusinessPage from "../pages/admin/Integrations/AdminGoogleBusiness.vue";
-import AdminGrowthPage from "../pages/admin/Growth/AdminGrowth.vue";
-import AdminCheckoutPage from "../pages/admin/Checkout.vue";
-import WebsitePage from "../pages/website/WebsitePage.vue";
+const PublicLayout = () => import("../layouts/PublicLayout.vue");
+const KioskLayout = () => import("../layouts/KioskLayout.vue");
+const CheckInPage = () => import("../pages/public/CheckIn.vue");
+const KioskStepperPage = () => import("../pages/public/KioskStepper.vue");
+const AdminLayout = () => import("../layouts/AdminLayout.vue");
+const PlatformLayout = () => import("../layouts/PlatformLayout.vue");
+const AdminQRCodePage = () => import("../pages/admin/QRCode.vue");
+const AdminDashboardPage = () => import("../pages/admin/Dashboard.vue");
+const AdminServicesPage = () => import("../pages/admin/Services.vue");
+const AdminStaffPage = () => import("../pages/admin/Staff.vue");
+const AdminAppointmentsPage = () => import("../pages/admin/Appointments.vue");
+const AdminSMSPage = () => import("../pages/admin/SMS.vue");
+const AdminBillingPage = () => import("../pages/admin/Billing.vue");
+const AdminReviewSMSPage = () => import("../pages/admin/ReviewSMS.vue");
+const PublicBookPage = () => import("../pages/public/Book.vue");
+const AdminAppointmentRemindersPage = () => import("../pages/admin/AppointmentReminders.vue");
+const PlatformDashboardPage = () => import("../pages/platform/Dashboard.vue");
+const PlatformOnboardingPage = () => import("../pages/platform/Onboarding.vue");
+const PlatformTenantDetailPage = () => import("../pages/platform/TenantDetail.vue");
+const PlatformCreateTenantPage = () => import("../pages/platform/CreateTenant.vue");
+const PlatformDemoRequestsPage = () => import("../pages/platform/DemoRequests.vue");
+const PlatformNumbersPage = () => import("../pages/platform/Numbers.vue");
+const PlatformFeatureFlagsPage = () => import("../pages/platform/PlatformFeatureFlags.vue");
+const PlatformUsagePage = () => import("../pages/platform/PlatformUsage.vue");
+const PlatformPlansPage = () => import("../pages/platform/PlatformPlans.vue");
+const PlatformUpgradeRequestsPage = () => import("../pages/platform/PlatformUpgradeRequests.vue");
+const PlatformSettingsAlertsPage = () => import("../pages/platform/PlatformSettingsAlerts.vue");
+const PlatformInvoicePreviewPage = () => import("../pages/platform/PlatformInvoicePreview.vue");
+const CustomerProfilePage = () => import("../pages/admin/CustomerProfile.vue");
+const AdminOnboardingPage = () => import("../pages/admin/Onboarding.vue");
+const AdminDemoRequestsPage = () => import("../pages/admin/DemoRequests.vue");
+const AdminCustomersPage = () => import("../pages/admin/Customers.vue");
+const AdminQueuePage = () => import("../pages/admin/Queue.vue");
+const AdminBillingSuccessPage = () => import("../pages/admin/BillingSuccess.vue");
+const AdminSettingsPage = () => import("../pages/admin/Settings.vue");
+const AdminCategoriesPage = () => import("../pages/admin/Categories.vue");
+const AdminAnalyticsPage = () => import("../pages/admin/Analytics.vue");
+const AdminReportsPage = () => import("../pages/admin/Reports.vue");
+const AdminPayrollPage = () => import("../pages/admin/Payroll.vue");
+const AdminGiftCardsPage = () => import("../pages/admin/GiftCards.vue");
+const AdminPromotionsPage = () => import("../pages/admin/Promotions.vue");
+const AdminInboxPage = () => import("../pages/admin/Inbox.vue");
+const AdminSmartRemindersPage = () => import("../pages/admin/SmartReminders.vue");
+const AdminNotificationsPage = () => import("../pages/admin/Notifications.vue");
+const AdminWebsiteOverviewPage = () => import("../pages/admin/Website/AdminWebsiteOverview.vue");
+const AdminWebsitePagesPage = () => import("../pages/admin/Website/AdminWebsitePages.vue");
+const AdminWebsitePageEditorPage = () => import("../pages/admin/Website/AdminWebsitePageEditor.vue");
+const AdminWebsiteDomainsPage = () => import("../pages/admin/Website/AdminWebsiteDomains.vue");
+const AdminWebsiteLeadsPage = () => import("../pages/admin/Website/AdminWebsiteLeads.vue");
+const AdminWebsiteAnalyticsPage = () => import("../pages/admin/Website/AdminWebsiteAnalytics.vue");
+const AdminWebsiteNavigationPage = () => import("../pages/admin/Website/AdminWebsiteNavigation.vue");
+const AdminWebsiteFooterPage = () => import("../pages/admin/Website/AdminWebsiteFooter.vue");
+const AdminWebsiteThemePage = () => import("../pages/admin/Website/AdminWebsiteTheme.vue");
+const AdminServicesV2Page = () => import("../pages/admin/ServicesV2/ServicesIndex.vue");
+const AdminReviewsSettingsPage = () => import("../pages/admin/Reviews/AdminReviewsSettings.vue");
+const AdminReviewsRequestsPage = () => import("../pages/admin/Reviews/AdminReviewsRequests.vue");
+const AdminReviewsFeedbackPage = () => import("../pages/admin/Reviews/AdminReviewsFeedback.vue");
+const AdminSocialPostsPage = () => import("../pages/admin/Social/AdminSocialPosts.vue");
+const AdminGoogleBusinessPage = () => import("../pages/admin/Integrations/AdminGoogleBusiness.vue");
+const AdminGrowthPage = () => import("../pages/admin/Growth/AdminGrowth.vue");
+const AdminCheckoutPage = () => import("../pages/admin/Checkout.vue");
+const WebsitePage = () => import("../pages/website/WebsitePage.vue");
 import MarketingLayout from "../layouts/MarketingLayout.vue";
 import MarketingHome from "../pages/MarketingHome.vue";
-import PosDownloadPage from "../pages/PosDownload.vue";
-import SalonLoginPage from "../pages/SalonLogin.vue";
-import StartPage from "../pages/Start.vue";
-import LoginPage from "../pages/Login.vue";
-import MagicLoginPage from "../pages/MagicLogin.vue";
-import PasswordResetPage from "../pages/PasswordReset.vue";
-import PrivacyPage from "../pages/Privacy.vue";
-import TermsPage from "../pages/Terms.vue";
-import DataDeletionPage from "../pages/DataDeletion.vue";
-import DemoAccessPage from "../pages/DemoAccess.vue";
+import MarketingContact from "../pages/MarketingContact.vue";
+const MarketingProductPage = () => import("../pages/MarketingProductPage.vue");
+const PosDownloadPage = () => import("../pages/PosDownload.vue");
+const SalonLoginPage = () => import("../pages/SalonLogin.vue");
+const StartPage = () => import("../pages/Start.vue");
+const LoginPage = () => import("../pages/Login.vue");
+const MagicLoginPage = () => import("../pages/MagicLogin.vue");
+const PasswordResetPage = () => import("../pages/PasswordReset.vue");
+const PrivacyPage = () => import("../pages/Privacy.vue");
+const TermsPage = () => import("../pages/Terms.vue");
+const DataDeletionPage = () => import("../pages/DataDeletion.vue");
+const DemoAccessPage = () => import("../pages/DemoAccess.vue");
 import { clearAuthState } from "../utils/auth";
 import { defaultRouteForRole } from "../utils/navigation";
 import { orderTenantHostRoutes } from "../utils/tenantRoutePolicy";
@@ -229,6 +231,21 @@ const appRoutes = [
         path: "start",
         name: "start",
         component: StartPage,
+      },
+      {
+        path: "contact",
+        name: "marketing-contact",
+        component: MarketingContact,
+      },
+      {
+        path: "salon-management-software",
+        name: "salon-management-software",
+        component: MarketingProductPage,
+      },
+      {
+        path: "salon-booking-software",
+        name: "salon-booking-software",
+        component: MarketingProductPage,
       },
       {
         path: "downloads/pos",

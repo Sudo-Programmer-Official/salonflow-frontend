@@ -1,5 +1,26 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
+    {
+      "source": "/sitemap.xml",
+      "has": [{ "type": "host", "value": "www.salonflow.studio" }],
+      "destination": "https://api.salonflow.studio/api/marketing/sitemap.xml"
+    },
+    {
+      "source": "/sitemap.xml",
+      "has": [{ "type": "host", "value": "salonflow.studio" }],
+      "destination": "https://api.salonflow.studio/api/marketing/sitemap.xml"
+    },
+    {
+      "source": "/robots.txt",
+      "has": [{ "type": "host", "value": "www.salonflow.studio" }],
+      "destination": "https://api.salonflow.studio/api/marketing/robots.txt"
+    },
+    {
+      "source": "/robots.txt",
+      "has": [{ "type": "host", "value": "salonflow.studio" }],
+      "destination": "https://api.salonflow.studio/api/marketing/robots.txt"
+    },
     {
       "source": "/(.*)",
       "destination": "/index.html"

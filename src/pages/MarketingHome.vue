@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue';
-import { RouterLink, useRoute, useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { trackMarketingEvent } from '@/api/marketing';
+import { applyMarketingSeo } from '@/utils/marketingSeo';
 
 const route = useRoute();
 const router = useRouter();
-const firstWeekSection = ref<HTMLElement | null>(null);
+const workflowSection = ref<HTMLElement | null>(null);
 const firstWeekPulse = ref(false);
 
 const trackHomeEvent = (eventType: 'page_view' | 'cta_click' | 'request_start', payload: Record<string, any> = {}) =>
@@ -22,9 +23,9 @@ const goToDemo = (placement = 'guided-demo-funnel') => {
   void router.push('/start');
 };
 
-const jumpToFirstWeek = () => {
-  void trackHomeEvent('cta_click', { placement: 'hero-see-first-week', target: '#first-week' });
-  firstWeekSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+const jumpToWorkflow = () => {
+  void trackHomeEvent('cta_click', { placement: 'hero-see-how-it-works', target: '#workflow' });
+  workflowSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   firstWeekPulse.value = true;
   window.setTimeout(() => {
     firstWeekPulse.value = false;
@@ -41,6 +42,10 @@ const openDemoFromRoute = async () => {
 };
 
 onMounted(() => {
+  applyMarketingSeo({
+    path: '/',
+    faqs: faqItems,
+  });
   void trackHomeEvent('page_view', { page: 'home' });
   void openDemoFromRoute();
 });
@@ -398,46 +403,43 @@ const faqItems = [
       </div>
 
       <div class="relative mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
-        <div class="grid gap-12 lg:grid-cols-[1.02fr,0.98fr] lg:items-center">
+        <div class="grid gap-12 lg:grid-cols-[0.86fr,1.14fr] lg:items-center">
           <div>
             <div class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-600 shadow-sm">
-              Built with real salons in Corpus Christi
+              Salon management, simplified
             </div>
 
             <h1 class="sf-display mt-6 max-w-3xl text-4xl font-semibold leading-[1.05] text-slate-950 sm:text-5xl lg:text-6xl">
-              Get more customers, bookings, and repeat visits without hiring more staff.
+              Run your salon. Grow repeat visits. Stay in control.
             </h1>
 
             <p class="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
-              SalonFlow runs your website, bookings, reminders, customer follow-up, and growth workflow in one system
-              built for salons. No contract. Setup included.
+              Manage bookings, walk-ins, customer follow-ups, and staff earnings in one simple workspace.
             </p>
 
             <div class="mt-8 flex flex-col gap-3 sm:flex-row">
-              <RouterLink
-                to="/start"
+              <button
+                type="button"
                 class="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_16px_40px_rgba(15,23,42,0.2)] transition hover:-translate-y-0.5 hover:bg-slate-800"
-                @click="handleDemoRequestClick('hero-request-demo')"
+                @click="goToDemo('hero-try-demo')"
               >
-                Request My Demo
-              </RouterLink>
+                Try the Demo
+              </button>
               <button
                 type="button"
                 class="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white/75 px-6 py-3.5 text-sm font-semibold text-slate-800 transition hover:-translate-y-0.5 hover:border-slate-400 hover:bg-white"
-                @click="jumpToFirstWeek"
+                @click="jumpToWorkflow"
               >
-                See Your First Week →
+                See How It Works →
               </button>
             </div>
 
             <p class="mt-4 text-sm font-medium text-slate-500">
-              Takes about 60 seconds • Setup included • No credit card
+              Setup included • No credit card • No long-term contract
             </p>
 
-            <div class="mt-4 flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
-              <span class="rounded-full border border-slate-200 bg-white/80 px-3 py-2 shadow-sm">Setup included</span>
-              <span class="rounded-full border border-slate-200 bg-white/80 px-3 py-2 shadow-sm">Personalized demo</span>
-              <span class="rounded-full border border-slate-200 bg-white/80 px-3 py-2 shadow-sm">No long-term contract</span>
+            <div class="hero-price-pill mt-6 inline-flex items-center rounded-full px-5 py-3 text-base font-semibold text-slate-950 shadow-sm">
+              Core plan · $65/month
             </div>
 
             <div class="mt-8 grid gap-4 sm:grid-cols-3">
@@ -455,34 +457,29 @@ const faqItems = [
           <div class="relative">
             <div class="hero-media-card relative overflow-hidden rounded-[34px] border border-white/70 bg-slate-950 p-3 shadow-[0_28px_100px_rgba(15,23,42,0.22)]">
               <img
-                src="/images/landing/marketing-hero.jpg"
-                alt="SalonFlow hero"
-                class="h-[520px] w-full rounded-[28px] object-cover"
+                src="/images/landing/marketing-dashboard.png"
+                alt="Sanitized SalonFlow admin dashboard preview showing sample appointments, queue status, customer experience links, attention items, and quick actions."
+                width="1600"
+                height="980"
+                fetchpriority="high"
+                class="hero-dashboard-image aspect-[16/10] w-full rounded-[28px] object-cover object-top"
               />
-              <div class="absolute inset-3 rounded-[28px] bg-[linear-gradient(180deg,rgba(15,23,42,0.02),rgba(15,23,42,0.66))]" />
-              <div class="absolute inset-x-10 bottom-10 rounded-[26px] border border-white/15 bg-white/10 p-5 text-white backdrop-blur-md">
-                <div class="text-[11px] font-semibold uppercase tracking-[0.32em] text-white/70">
-                  SalonFlow Positioning
-                </div>
-                <div class="sf-display mt-3 text-2xl font-semibold leading-tight">
-                  All-in-one salon growth system
-                </div>
-                <p class="mt-3 max-w-md text-sm leading-6 text-white/78">
-                  Website, bookings, reminders, client retention, and POS rollout under one product built with salons.
-                </p>
-              </div>
             </div>
 
-            <div class="hero-plan-card ml-4 mt-5 max-w-[280px] rounded-[28px] p-5 text-white">
-              <div class="text-[11px] font-semibold uppercase tracking-[0.3em] text-emerald-300">Founding plan</div>
-              <div class="hero-plan-card__price mt-3 sf-display text-4xl font-semibold">
-                $65<span class="hero-plan-card__unit ml-1 text-lg">/mo</span>
-              </div>
-              <p class="hero-plan-card__copy mt-3 text-sm leading-6">
-                Less than the cost of one extra appointment a week for most salons.
-              </p>
+            <div class="mt-5 flex flex-wrap justify-center gap-3 text-sm font-semibold text-slate-800 sm:justify-end">
+              <span class="hero-feature-chip inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/90 px-4 py-2.5 shadow-sm">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4 w-4 text-slate-900" aria-hidden="true">
+                  <path d="M7 3v4M17 3v4M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                Bookings &amp; walk-ins
+              </span>
+              <span class="hero-feature-chip inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/90 px-4 py-2.5 shadow-sm">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4 w-4 text-slate-900" aria-hidden="true">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M9.5 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM21 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                Customer follow-ups
+              </span>
             </div>
-
           </div>
         </div>
       </div>
@@ -538,7 +535,7 @@ const faqItems = [
       </div>
     </section>
 
-    <section class="border-b border-black/5 bg-white/72">
+    <section id="features" class="border-b border-black/5 bg-white/72">
       <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
         <div class="mx-auto max-w-3xl text-center">
           <div class="text-[11px] font-semibold uppercase tracking-[0.32em] text-slate-500">What you get</div>
@@ -694,7 +691,13 @@ const faqItems = [
             class="overflow-hidden rounded-[30px] border border-white/10 bg-white/6 shadow-[0_24px_80px_rgba(0,0,0,0.18)]"
           >
             <div class="relative h-64 overflow-hidden">
-              <img :src="card.image" :alt="card.title" class="h-full w-full object-cover transition duration-500 hover:scale-105" />
+              <img
+                :src="card.image.replace(/\.jpg$/, '.webp')"
+                :alt="card.title"
+                loading="lazy"
+                decoding="async"
+                class="h-full w-full object-cover transition duration-500 hover:scale-105"
+              />
               <div class="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,23,42,0.02),rgba(15,23,42,0.62))]" />
             </div>
             <div class="p-6">
@@ -719,8 +722,10 @@ const faqItems = [
 
           <div class="mt-8 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
             <img
-              src="/images/landing/marketing-proof.jpg"
-              alt="SalonFlow proof"
+              src="/images/landing/marketing-proof.webp"
+              alt="SalonFlow salon booking and growth workflow proof"
+              loading="lazy"
+              decoding="async"
               class="h-[360px] w-full object-cover"
             />
           </div>
@@ -745,7 +750,7 @@ const faqItems = [
       </div>
     </section>
 
-    <section ref="firstWeekSection" class="border-b border-black/5 bg-white/76" :class="{ 'first-week-pulse': firstWeekPulse }">
+    <section id="workflow" ref="workflowSection" class="border-b border-black/5 bg-white/76" :class="{ 'first-week-pulse': firstWeekPulse }">
       <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
         <div class="grid gap-10 lg:grid-cols-[0.82fr,1.18fr] lg:items-start">
           <div>
@@ -897,8 +902,10 @@ const faqItems = [
                 <div class="grid lg:grid-cols-[1.08fr,0.92fr]">
                   <div class="relative min-h-[560px] overflow-hidden">
                     <img
-                      src="/images/landing/marketing-proof.jpg"
+                      src="/images/landing/marketing-proof.webp"
                       :alt="`${featuredClient.name} client spotlight`"
+                      loading="lazy"
+                      decoding="async"
                       class="h-full w-full object-cover"
                     />
                     <div class="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,21,40,0.12),rgba(12,21,40,0.74))]" />
@@ -981,7 +988,7 @@ const faqItems = [
       </div>
     </section>
 
-    <section class="border-t border-black/5 bg-[linear-gradient(180deg,#fffdf9_0%,#eef6f1_100%)]">
+    <section id="pricing" class="border-t border-black/5 bg-[linear-gradient(180deg,#fffdf9_0%,#eef6f1_100%)]">
       <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
         <div class="mx-auto max-w-3xl text-center">
           <div class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/85 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.32em] text-slate-600 shadow-sm">
@@ -1080,12 +1087,13 @@ const faqItems = [
             </p>
 
             <div class="mt-8 flex flex-col gap-3 sm:flex-row">
-              <RouterLink
-                to="/start"
+              <button
+                type="button"
                 class="inline-flex items-center justify-center rounded-full bg-slate-950 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_16px_40px_rgba(15,23,42,0.2)] transition hover:-translate-y-0.5 hover:bg-slate-800"
+                @click="goToDemo('qualify-salon-request-demo')"
               >
-                Request Demo
-              </RouterLink>
+                Try the Demo
+              </button>
               <button
                 type="button"
                 class="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white/75 px-6 py-3.5 text-sm font-semibold text-slate-800 transition hover:-translate-y-0.5 hover:border-slate-400 hover:bg-white"
@@ -1173,8 +1181,13 @@ const faqItems = [
 }
 
 .hero-media-card {
-  transform: perspective(1600px) rotateY(-5deg) rotateX(1.8deg);
+  transform: perspective(1600px) rotateY(-2.5deg) rotateX(1.2deg);
   transform-style: preserve-3d;
+}
+
+.hero-price-pill {
+  border: 1px solid rgba(125, 211, 252, 0.42);
+  background: linear-gradient(135deg, rgba(224, 242, 254, 0.94), rgba(207, 250, 254, 0.8));
 }
 
 .hero-plan-card {
@@ -1454,6 +1467,11 @@ const faqItems = [
 }
 
 @media (max-width: 640px) {
+  .hero-dashboard-image {
+    aspect-ratio: 4 / 3;
+    object-position: 56% top;
+  }
+
   .hero-plan-card {
     margin-left: 0;
     max-width: none;

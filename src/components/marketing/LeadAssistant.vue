@@ -4,6 +4,13 @@ import { useRoute } from 'vue-router';
 import { apiUrl, buildHeaders } from '@/api/client';
 import { trackMarketingEvent } from '@/api/marketing';
 import { validateDemoLeadContact } from '@/utils/demoLeadValidation';
+import {
+  DEFAULT_DEMO_PHONE_COUNTRY,
+  demoPhoneCountryOptions,
+  detectDemoPhoneCountry,
+  normalizeDemoPhone,
+} from '@/utils/demoPhone';
+import type { CountryCode } from 'libphonenumber-js';
 
 type StepId =
   | 'name'
@@ -43,6 +50,7 @@ type AssistantAnswers = {
   preferredContact: string;
   email: string;
   phone: string;
+  phoneCountry: CountryCode;
 };
 
 type SaveMode = 'draft' | 'final';
@@ -156,6 +164,7 @@ const answers = reactive<AssistantAnswers>({
   preferredContact: 'Email',
   email: '',
   phone: '',
+  phoneCountry: DEFAULT_DEMO_PHONE_COUNTRY,
 });
 
 const stepIndex = ref(0);
@@ -172,7 +181,11 @@ const trackedRequestStart = ref(false);
 const storageKey = computed(() => `lead-assistant:${props.source}`);
 const activeStep = computed(() => steps[stepIndex.value] ?? null);
 const progress = computed(() => (success.value ? 100 : Math.round((stepIndex.value / TOTAL_STEPS) * 100)));
-const phoneDigits = computed(() => answers.phone.replace(/\D/g, ''));
+const normalizedPhone = computed(() => normalizeDemoPhone(answers.phone, answers.phoneCountry));
+const phoneDigits = computed(() => normalizedPhone.value ?? answers.phone.replace(/\D/g, ''));
+const selectedPhoneCountry = computed(
+  () => demoPhoneCountryOptions.find((option) => option.code === answers.phoneCountry) ?? demoPhoneCountryOptions[0]!,
+);
 const canPersistRemotely = computed(() => answers.name.trim().length > 0);
 const hasAnyProgress = computed(
   () =>
@@ -388,6 +401,7 @@ const buildDetails = (mode: SaveMode) => ({
   timeline: answers.timeline.trim(),
   currentSoftware: answers.currentSoftware.trim(),
   preferredContact: answers.preferredContact,
+  phoneCountry: answers.phoneCountry,
   sourcePath: route.fullPath,
   progressStep: mode === 'final' ? TOTAL_STEPS : stepIndex.value + 1,
   summary:
@@ -400,7 +414,8 @@ const buildPayload = (mode: SaveMode) => ({
   mode,
   name: answers.name.trim(),
   email: answers.email.trim() || undefined,
-  phone: phoneDigits.value || undefined,
+  phone: (normalizedPhone.value ?? answers.phone.trim()) || undefined,
+  phoneCountry: answers.phoneCountry,
   message: buildLeadSummary() || undefined,
   source: props.source,
   progressStep: mode === 'final' ? TOTAL_STEPS : stepIndex.value + 1,
@@ -534,7 +549,7 @@ const validateStep = (): boolean => {
   }
 
   if (id === 'contact') {
-    const contactError = validateDemoLeadContact(answers.email, answers.phone);
+    const contactError = validateDemoLeadContact(answers.email, answers.phone, answers.phoneCountry);
     if (contactError) {
       error.value = contactError;
       return false;
@@ -569,6 +584,12 @@ const setChoice = (
   }
 };
 
+const handleAssistantPhoneInput = () => {
+  if (!answers.phone.trim().startsWith('+')) return;
+  const detectedCountry = detectDemoPhoneCountry(answers.phone);
+  if (detectedCountry) answers.phoneCountry = detectedCountry;
+};
+
 const extractFirstMatch = (value: string, patterns: RegExp[]) => {
   for (const pattern of patterns) {
     const match = value.match(pattern);
@@ -600,7 +621,10 @@ const applyQuickLeadText = () => {
   }
 
   const email = raw.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] ?? '';
-  const phone = raw.match(/(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}/)?.[0] ?? '';
+  const phone =
+    raw.match(/\+\d[\d\s().-]{7,}/)?.[0] ??
+    raw.match(/(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}/)?.[0] ??
+    '';
   const name = extractFirstMatch(raw, [
     /(?:my name is|i am|i'm)\s+([a-z][a-z\s.'-]{1,60})(?=,|\.|;|\band\b|\bfrom\b|\bat\b|\bwith\b|$)/i,
     /^([a-z][a-z\s.'-]{1,60})(?=,|\.|;|\s+-\s+)/i,
@@ -617,6 +641,10 @@ const applyQuickLeadText = () => {
 
   if (email) answers.email = email;
   if (phone) answers.phone = phone;
+  if (phone) {
+    const detectedCountry = detectDemoPhoneCountry(phone);
+    if (detectedCountry) answers.phoneCountry = detectedCountry;
+  }
   if (name && !answers.name.trim()) answers.name = name;
   if (businessName && !answers.businessName.trim()) answers.businessName = businessName;
   if (businessType && !answers.businessType.trim()) {
@@ -658,7 +686,7 @@ const submitQuickLead = async () => {
     error.value = 'Add your name in the message or the name field below.';
     return;
   }
-  const contactError = validateDemoLeadContact(answers.email, answers.phone);
+  const contactError = validateDemoLeadContact(answers.email, answers.phone, answers.phoneCountry);
   if (contactError) {
     error.value = contactError;
     return;
@@ -725,6 +753,7 @@ watch(
     () => answers.preferredContact,
     () => answers.email,
     () => answers.phone,
+    () => answers.phoneCountry,
     () => quickLeadText.value,
   ],
   () => {
@@ -1052,15 +1081,31 @@ onBeforeUnmount(() => {
                   placeholder="Square, Fresha, GlossGenius, Booksy..."
                 />
               </label>
-              <label class="block">
-                <span class="text-sm font-medium text-slate-800">Phone</span>
-                <input
-                  v-model="answers.phone"
-                  type="tel"
-                  class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
-                  placeholder="361 555 0184"
-                />
-              </label>
+              <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.45fr)]">
+                <label class="block">
+                  <span class="text-sm font-medium text-slate-800">Phone country/region</span>
+                  <select v-model="answers.phoneCountry" autocomplete="tel-country-code" class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100">
+                    <option v-for="option in demoPhoneCountryOptions" :key="option.code" :value="option.code">
+                      {{ option.name }} ({{ option.dialCode }})
+                    </option>
+                  </select>
+                  <span class="mt-2 block text-xs text-slate-500">We’ll add {{ selectedPhoneCountry.dialCode }} automatically.</span>
+                </label>
+                <label class="block">
+                  <span class="text-sm font-medium text-slate-800">Phone</span>
+                  <input
+                    v-model="answers.phone"
+                    type="tel"
+                    autocomplete="tel-national"
+                    class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                    placeholder="555 0184"
+                    @input="handleAssistantPhoneInput"
+                  />
+                  <span class="mt-2 block text-xs text-slate-500">
+                    {{ normalizedPhone ? `We’ll save it as ${normalizedPhone}.` : 'Used for SMS or phone follow-up.' }}
+                  </span>
+                </label>
+              </div>
               <div>
                 <div class="text-sm font-medium text-slate-800">Preferred follow-up</div>
                 <div class="mt-2 grid gap-3 sm:grid-cols-3">

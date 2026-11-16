@@ -9,6 +9,7 @@ export type PublicDemoRequestInput = {
   templateKey?: string | null;
   email?: string;
   phone?: string;
+  phoneCountry?: string;
   interests?: string[];
   progressStep: number;
 };
@@ -71,6 +72,7 @@ export const savePublicDemoLead = (input: PublicDemoRequestInput) =>
     name: input.name,
     email: input.email,
     phone: input.phone,
+    phoneCountry: input.phoneCountry,
     source: 'marketing-demo-funnel',
     progressStep: input.progressStep,
     details: {
