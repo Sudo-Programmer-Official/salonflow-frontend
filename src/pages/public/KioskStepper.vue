@@ -109,6 +109,7 @@ const defaultSettings: BusinessSettings = {
   enablePromotions: true,
   kioskWelcomeStyle: "classic",
   kioskShowRewardsCard: true,
+  kioskRewardsText: "300 points = $5 off",
   kioskShowPrice: true,
   kiosk: {
     showStepperHeader: true,
@@ -213,6 +214,9 @@ const welcomeStyle = computed(
 const useClassicWelcome = computed(() => welcomeStyle.value === "classic");
 const showRewardsCard = computed(
   () => settings.value?.kioskShowRewardsCard !== false,
+);
+const kioskRewardsText = computed(
+  () => settings.value?.kioskRewardsText?.trim() || "300 points = $5 off",
 );
 const currentPointsBalance = computed(() => {
   const num = Number(pointsAtCheckin.value);
@@ -1020,7 +1024,7 @@ watch(useClassicWelcome, (isClassic) => {
                     class="text-2xl font-semibold"
                     :style="{ color: 'var(--kiosk-text-primary)' }"
                   >
-                    300 points = $5 off
+                    {{ kioskRewardsText }}
                   </div>
                   <div
                     class="text-sm"
@@ -1065,7 +1069,7 @@ watch(useClassicWelcome, (isClassic) => {
                     <div class="loyalty-box glass-card" aria-label="Loyalty teaser">
                       <div class="loyalty-title">LOYALTY</div>
                       <div class="loyalty-value">
-                        300 points = $5 off
+                        {{ kioskRewardsText }}
                         <span class="loyalty-emoji" aria-hidden="true">💵</span>
                       </div>
                     </div>

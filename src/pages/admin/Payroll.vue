@@ -145,10 +145,18 @@ onMounted(load);
 
       <ElAlert
         v-if="payroll.summary.unassignedServiceCount"
-        title="Some completed services are not assigned to a staff member. Review them before finalizing this pay period."
         type="warning"
         :closable="false"
-      />
+      >
+        <template #title>
+          <span v-if="payroll.summary.totalPay === 0">
+            Total staff pay is currently $0 because these services are unassigned and compensation rates are not configured yet. Assign staff in Queue and set compensation rates below.
+          </span>
+          <span v-else>
+            Some completed services are not assigned to a staff member. Review them before finalizing this pay period.
+          </span>
+        </template>
+      </ElAlert>
 
       <ElCard class="payroll-surface-card">
         <div class="payroll-section-head">
@@ -176,7 +184,12 @@ onMounted(load);
             </tbody>
           </table>
         </div>
-        <ElEmpty v-else description="No staff earnings in this period." />
+        <ElEmpty
+          v-else
+          :description="payroll.summary.unassignedServiceCount
+            ? 'No staff earnings are attributable yet. Resolve the unassigned service lines below.'
+            : 'No staff earnings in this period.'"
+        />
       </ElCard>
 
       <ElCard class="payroll-surface-card">
