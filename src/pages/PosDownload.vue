@@ -1,6 +1,16 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import { RouterLink } from 'vue-router';
+import { applyMarketingSeo } from '@/utils/marketingSeo';
+
+onMounted(() => {
+  applyMarketingSeo({
+    path: '/downloads/pos',
+    title: 'Salon POS for Windows | SalonFlow',
+    description:
+      'Download SalonFlow POS for Windows and keep salon checkout, receipts, printers, and front-desk operations in one local-first workspace.',
+  });
+});
 
 const normalizeUrl = (value: string | undefined) => {
   const trimmed = value?.trim();
