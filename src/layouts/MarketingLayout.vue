@@ -1,30 +1,17 @@
 <template>
   <div class="marketing-shell flex flex-col bg-slate-50 text-slate-900">
-    <header class="border-b border-slate-200/80 bg-white/85 backdrop-blur-xl">
-      <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-        <RouterLink to="/" class="flex items-center gap-1.5">
-          <img :src="logo" alt="SalonFlow" class="brand-logo" />
-          <div class="hidden font-['Space_Grotesk'] text-lg font-semibold text-slate-900 sm:inline">SalonFlow</div>
+    <header class="marketing-header">
+      <div class="marketing-header__inner">
+        <RouterLink to="/" class="marketing-brand">
+          <img src="/images/landing/marketing-mark.webp" alt="" class="marketing-brand__icon" />
+          <span>SalonFlow</span>
         </RouterLink>
-        <nav class="flex items-center gap-1.5 text-sm font-medium text-slate-700 sm:gap-2 lg:gap-3">
-          <a class="hidden rounded-full px-3 py-2 transition-colors hover:bg-slate-100 hover:text-slate-900 lg:inline-flex" href="/#features">
-            Features
-          </a>
-          <a class="hidden rounded-full px-3 py-2 transition-colors hover:bg-slate-100 hover:text-slate-900 lg:inline-flex" href="/#workflow">
-            How It Works
-          </a>
-          <a class="hidden rounded-full px-3 py-2 transition-colors hover:bg-slate-100 hover:text-slate-900 lg:inline-flex" href="/#pricing">
-            Pricing
-          </a>
-          <RouterLink class="rounded-full px-3 py-2 transition-colors hover:bg-slate-100 hover:text-slate-900" to="/salon-login">
-            Login
-          </RouterLink>
-          <RouterLink
-            class="inline-flex items-center justify-center rounded-full bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 sm:px-5"
-            to="/start"
-          >
-            Try the Demo
-          </RouterLink>
+        <nav class="marketing-nav" aria-label="Main navigation">
+          <a href="/#features">Features</a>
+          <a href="/#workflow">How It Works</a>
+          <a href="/#pricing">Pricing</a>
+          <RouterLink to="/salon-login">Login</RouterLink>
+          <RouterLink class="marketing-nav__cta" to="/start">Try the Demo</RouterLink>
         </nav>
       </div>
     </header>
@@ -38,10 +25,76 @@
 <script setup lang="ts">
 import { RouterLink, RouterView } from 'vue-router';
 import SiteFooter from '../components/SiteFooter.vue';
-import logo from '../assets/images/salonflow-logo.png';
 </script>
 
 <style scoped>
+.marketing-header {
+  position: relative;
+  z-index: 2;
+  border-bottom: 1px solid rgba(214, 223, 231, 0.72);
+  background: rgba(252, 250, 247, 0.92);
+  backdrop-filter: blur(18px);
+}
+
+.marketing-header__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: min(100% - 48px, 1280px);
+  min-height: 86px;
+  margin: 0 auto;
+  gap: 28px;
+}
+
+.marketing-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: #0a1833;
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.marketing-brand__icon {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+}
+
+.marketing-nav {
+  display: flex;
+  align-items: center;
+  gap: 38px;
+  color: #0d1b35;
+  font-size: 0.96rem;
+  font-weight: 600;
+}
+
+.marketing-nav a {
+  transition: color 160ms ease, transform 160ms ease;
+}
+
+.marketing-nav a:hover {
+  color: #2d8e72;
+}
+
+.marketing-nav__cta {
+  display: inline-flex;
+  align-items: center;
+  min-height: 49px;
+  padding: 0 24px;
+  border-radius: 999px;
+  background: #07172f;
+  color: #fff !important;
+  box-shadow: 0 10px 22px rgba(7, 23, 47, 0.16);
+}
+
+.marketing-nav__cta:hover {
+  transform: translateY(-2px);
+}
+
 .marketing-shell {
   height: 100vh;
   min-height: 0;
@@ -51,5 +104,26 @@ import logo from '../assets/images/salonflow-logo.png';
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+}
+
+@media (max-width: 720px) {
+  .marketing-header__inner {
+    width: min(100% - 32px, 1280px);
+    min-height: 72px;
+  }
+
+  .marketing-nav {
+    gap: 12px;
+    font-size: 0.78rem;
+  }
+
+  .marketing-nav > a:not(.marketing-nav__cta) {
+    display: none;
+  }
+
+  .marketing-nav__cta {
+    min-height: 42px;
+    padding: 0 15px;
+  }
 }
 </style>
