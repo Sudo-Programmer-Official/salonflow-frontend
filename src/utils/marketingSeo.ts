@@ -1,4 +1,4 @@
-export const MARKETING_SITE_ORIGIN = 'https://www.salonflow.studio';
+export const MARKETING_SITE_ORIGIN = 'https://salonflow.studio';
 
 export const MARKETING_SEO = {
   title: 'Salon Management Software for More Bookings | SalonFlow',

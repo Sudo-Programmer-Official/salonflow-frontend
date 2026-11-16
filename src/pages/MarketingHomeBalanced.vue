@@ -172,7 +172,6 @@ const faqItems = [
                 fetchpriority="high"
               />
             </div>
-            <div class="balanced-dashboard-caption">Demo workspace · Sample data</div>
           </div>
         </div>
 
@@ -261,10 +260,22 @@ const faqItems = [
           <a :href="featuredClient.website" target="_blank" rel="noreferrer" class="balanced-text-button">Visit {{ featuredClient.websiteLabel }} <span aria-hidden="true">↗</span></a>
         </div>
         <div class="balanced-proof-card">
-          <div class="balanced-proof-card__label">Live customer website</div>
-          <div class="balanced-proof-card__name">{{ featuredClient.name }}</div>
-          <div class="balanced-proof-card__location">{{ featuredClient.location }}</div>
-          <div class="balanced-proof-card__line">Public proof · Built with SalonFlow</div>
+          <a :href="featuredClient.website" target="_blank" rel="noreferrer" class="balanced-proof-card__image-link" :aria-label="`Visit ${featuredClient.name} customer website`">
+            <img
+              src="/images/landing/mtv-nails-proof.jpg"
+              :alt="`${featuredClient.name} in ${featuredClient.location}`"
+              class="balanced-proof-card__image"
+              width="800"
+              height="600"
+              loading="lazy"
+            />
+            <span class="balanced-proof-card__image-label">Live customer website <span aria-hidden="true">↗</span></span>
+          </a>
+          <div class="balanced-proof-card__content">
+            <div class="balanced-proof-card__name">{{ featuredClient.name }}</div>
+            <div class="balanced-proof-card__location">{{ featuredClient.location }}</div>
+            <div class="balanced-proof-card__line">Public proof · Built with SalonFlow</div>
+          </div>
         </div>
       </div>
     </section>
@@ -377,12 +388,15 @@ const faqItems = [
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: 0 0 auto;
   min-height: 52px;
+  min-width: max-content;
   padding: 0 28px;
   border: 1px solid transparent;
   border-radius: 999px;
   font-size: 1rem;
   font-weight: 700;
+  white-space: nowrap;
   transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
 }
 
@@ -403,6 +417,7 @@ const faqItems = [
 }
 
 .balanced-button--light {
+  min-width: 164px;
   background: #fff;
   color: #0a1833;
 }
@@ -440,13 +455,6 @@ const faqItems = [
   display: block;
   width: 100%;
   height: auto;
-}
-
-.balanced-dashboard-caption {
-  margin-top: 17px;
-  color: #4a6280;
-  font-size: 0.93rem;
-  text-align: center;
 }
 
 .balanced-rail {
@@ -726,13 +734,56 @@ const faqItems = [
 }
 
 .balanced-proof-card {
-  padding: 34px;
+  overflow: hidden;
   border: 1px solid rgba(183, 240, 217, 0.35);
   border-radius: 24px;
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
 }
 
-.balanced-proof-card__label,
+.balanced-proof-card__image-link {
+  position: relative;
+  display: block;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: #1b2b47;
+}
+
+.balanced-proof-card__image-link::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(13, 27, 53, 0.04) 30%, rgba(13, 27, 53, 0.74) 100%);
+  content: '';
+}
+
+.balanced-proof-card__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 220ms ease;
+}
+
+.balanced-proof-card__image-link:hover .balanced-proof-card__image,
+.balanced-proof-card__image-link:focus-visible .balanced-proof-card__image {
+  transform: scale(1.03);
+}
+
+.balanced-proof-card__image-label {
+  position: absolute;
+  z-index: 1;
+  right: 22px;
+  bottom: 18px;
+  left: 22px;
+  color: #dce7f2;
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.balanced-proof-card__content {
+  padding: 26px 30px 30px;
+}
+
 .balanced-proof-card__line {
   color: #9fb0c4;
   font-size: 0.75rem;
@@ -741,10 +792,9 @@ const faqItems = [
 }
 
 .balanced-proof-card__name {
-  margin-top: 72px;
   color: #fff;
   font-family: 'Space Grotesk', 'Inter', sans-serif;
-  font-size: 2.5rem;
+  font-size: clamp(2rem, 3vw, 2.5rem);
   font-weight: 700;
 }
 
@@ -755,7 +805,7 @@ const faqItems = [
 }
 
 .balanced-proof-card__line {
-  margin-top: 72px;
+  margin-top: 34px;
 }
 
 .balanced-faq {
@@ -785,6 +835,10 @@ const faqItems = [
   justify-content: space-between;
   gap: 48px;
   padding: 82px 0;
+}
+
+.balanced-cta__inner > div {
+  min-width: 0;
 }
 
 @media (max-width: 1050px) {
