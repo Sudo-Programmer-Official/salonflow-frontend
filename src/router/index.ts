@@ -62,7 +62,7 @@ const AdminGrowthPage = () => import("../pages/admin/Growth/AdminGrowth.vue");
 const AdminCheckoutPage = () => import("../pages/admin/Checkout.vue");
 const WebsitePage = () => import("../pages/website/WebsitePage.vue");
 import MarketingLayout from "../layouts/MarketingLayout.vue";
-import MarketingHome from "../pages/MarketingHome.vue";
+import MarketingHome from "../pages/MarketingHomeBalanced.vue";
 import MarketingContact from "../pages/MarketingContact.vue";
 const MarketingProductPage = () => import("../pages/MarketingProductPage.vue");
 const PosDownloadPage = () => import("../pages/PosDownload.vue");
