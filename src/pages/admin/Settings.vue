@@ -153,6 +153,10 @@ const kioskBusinessNameValue = computed({
   get: () => settings.value?.kioskBusinessName || settings.value?.businessName || '',
   set: (val: string) => scheduleSave({ kioskBusinessName: val?.trim() || null }),
 });
+const kioskRewardsTextValue = computed({
+  get: () => settings.value?.kioskRewardsText || '300 points = $5 off',
+  set: (val: string) => scheduleSave({ kioskRewardsText: val?.trim() || null }),
+});
 const businessPhoneValue = computed({
   get: () => settings.value?.businessPhone || '',
   set: (val: string) => scheduleSave({ businessPhone: val?.trim() || null }),
@@ -1171,7 +1175,7 @@ onMounted(loadSettings);
               <div class="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-3 py-2">
                 <div>
                   <div class="text-sm font-semibold text-slate-900">Show rewards card</div>
-                  <div class="text-xs text-slate-600">Display the 300 pts = $5 teaser.</div>
+                  <div class="text-xs text-slate-600">Display the configured loyalty teaser.</div>
                 </div>
                 <ElSwitch
                   :model-value="settings.kioskShowRewardsCard !== false"
@@ -1200,6 +1204,18 @@ onMounted(loadSettings);
                   @change="(val) => handleKioskToggle('showStepperHeader', val as boolean)"
                 />
               </div>
+            </div>
+            <div class="flex flex-col gap-1 rounded-md border border-slate-200 bg-white px-3 py-2">
+              <div class="text-sm font-semibold text-slate-900">Kiosk loyalty message</div>
+              <div class="text-xs text-slate-600">
+                Customize the text shown in this tenant's kiosk rewards card. Leave the default if no change is needed.
+              </div>
+              <ElInput
+                v-model="kioskRewardsTextValue"
+                maxlength="120"
+                show-word-limit
+                placeholder="300 points = $5 off"
+              />
             </div>
           </div>
 

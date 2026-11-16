@@ -89,6 +89,7 @@ const defaultSettings: BusinessSettings = {
   enablePromotions: true,
   kioskWelcomeStyle: 'classic',
   kioskShowRewardsCard: true,
+  kioskRewardsText: '300 points = $5 off',
   kiosk: {
     showStepperHeader: true,
   },

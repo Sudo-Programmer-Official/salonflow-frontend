@@ -93,6 +93,7 @@ export type BusinessSettings = {
   enablePromotions: boolean;
   kioskWelcomeStyle: 'classic' | 'modern';
   kioskShowRewardsCard: boolean;
+  kioskRewardsText: string | null;
   kioskAllowSkipService: boolean;
   kioskAllowSkipStaff: boolean;
   kioskAutoResetSeconds: number | null;
@@ -170,6 +171,7 @@ export type SettingsPatch = Partial<
     | 'themeTokens'
   >
 > & {
+  kioskRewardsText?: string | null;
   defaultBookingRules?: Partial<DefaultBookingRules>;
   themeTokens?: Partial<ThemeTokens> | ThemeTokens;
 };
