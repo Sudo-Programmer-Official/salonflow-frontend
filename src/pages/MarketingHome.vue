@@ -8,6 +8,19 @@ const route = useRoute();
 const router = useRouter();
 const workflowSection = ref<HTMLElement | null>(null);
 const firstWeekPulse = ref(false);
+const FRONTDESKWISE_SCRIPT_ID = 'frontdeskwise-marketing-widget';
+
+const installFrontDeskWiseWidget = () => {
+  if (typeof document === 'undefined' || document.getElementById(FRONTDESKWISE_SCRIPT_ID)) return;
+
+  const script = document.createElement('script');
+  script.id = FRONTDESKWISE_SCRIPT_ID;
+  script.async = true;
+  script.src = 'https://frontdeskwise.com/widget.js';
+  script.dataset.site = 'fdw_25acd50ba0d63c806e58ea8e5d2d8c85bec2';
+  script.dataset.api = 'https://api.frontdeskwise.com';
+  document.body.appendChild(script);
+};
 
 const trackHomeEvent = (eventType: 'page_view' | 'cta_click' | 'request_start', payload: Record<string, any> = {}) =>
   trackMarketingEvent({
@@ -46,6 +59,7 @@ onMounted(() => {
     path: '/',
     faqs: faqItems,
   });
+  installFrontDeskWiseWidget();
   void trackHomeEvent('page_view', { page: 'home' });
   void openDemoFromRoute();
 });
