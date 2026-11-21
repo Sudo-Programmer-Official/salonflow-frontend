@@ -56,6 +56,7 @@ import {
   authorizeSquare,
   createSquareDeviceCode,
   fetchSquareStatus,
+  registerSandboxSquareDevice,
   syncSquareDevices,
   testSquareConnection,
   type SquareConnection,
@@ -76,6 +77,7 @@ const squareConnection = ref<SquareConnection | null>(null);
 const squareDevices = ref<SquareDevice[]>([]);
 const squareActionLoading = ref(false);
 const squarePairingCode = ref('');
+const squareSandboxDeviceId = ref('9fa747a2-25ff-48ee-b078-04381f7c828f');
 const kioskSubdomain = ref('');
 const account = ref<{
   id: string;
@@ -538,6 +540,27 @@ const syncSquareTerminalDevices = async () => {
     ElMessage.success('Square Terminal devices refreshed');
   } catch (err: any) {
     ElMessage.error(err?.message || 'Failed to refresh Square devices');
+  } finally {
+    squareActionLoading.value = false;
+  }
+};
+
+const registerSandboxSquareTerminal = async () => {
+  const providerDeviceId = squareSandboxDeviceId.value.trim();
+  if (!providerDeviceId) {
+    ElMessage.warning('Enter a Square sandbox device ID first');
+    return;
+  }
+  squareActionLoading.value = true;
+  try {
+    const result = await registerSandboxSquareDevice(providerDeviceId);
+    squareDevices.value = [
+      result.device,
+      ...squareDevices.value.filter((device) => device.id !== result.device.id),
+    ];
+    ElMessage.success('Square sandbox terminal registered as the default device');
+  } catch (err: any) {
+    ElMessage.error(err?.message || 'Failed to register the Square sandbox terminal');
   } finally {
     squareActionLoading.value = false;
   }
@@ -1136,7 +1159,7 @@ onMounted(loadSettings);
           <div>
             <div class="text-lg font-semibold text-slate-900">Payments & Hardware</div>
             <div class="text-sm text-slate-600">
-              Choose whether SalonFlow records payments manually or uses a supported native terminal.
+              Choose how this salon collects payments. Manual external-terminal entry is the default.
             </div>
           </div>
           <div class="text-xs text-slate-500" v-if="saving">Saving…</div>
@@ -1147,28 +1170,28 @@ onMounted(loadSettings);
         <ElAlert
           type="info"
           :closable="false"
-          title="Manual / External Payments is the safe default. Existing tenants are not automatically moved to hardware payments."
+          title="Manual / External Terminal is the default. Existing salons are never moved to integrated payments automatically."
         />
 
         <div class="mt-4 grid gap-4 md:grid-cols-2">
           <div class="space-y-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
             <div class="text-sm font-semibold text-slate-900">Payment mode</div>
             <div class="text-xs text-slate-600">
-              Manual keeps the current checkout behavior. Integrated follows the selected provider path; Square V1 uses a server terminal and can run from browser/PWA or Capacitor.
+              Manual keeps the current flow: take payment on any external terminal, then enter the amount in SalonFlow. Integrated is an explicit opt-in for a connected provider; Square uses a server terminal and can run from browser/PWA or Capacitor.
             </div>
             <ElSelect
               class="w-full"
               :model-value="settings.paymentMode || 'manual'"
               @change="(val: 'manual' | 'integrated') => scheduleSave({ paymentMode: val })"
             >
-              <ElOption label="Manual / External Payments" value="manual" />
-              <ElOption label="Integrated Card Terminal" value="integrated" />
+              <ElOption label="Manual / External Terminal (Default)" value="manual" />
+              <ElOption label="Integrated Card Terminal (Opt-in)" value="integrated" />
             </ElSelect>
           </div>
 
           <div class="space-y-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
             <div class="text-sm font-semibold text-slate-900">Payment provider</div>
-            <div class="text-xs text-slate-600">Provider selection is stored per tenant and does not enable hardware by itself.</div>
+            <div class="text-xs text-slate-600">Provider selection is stored per salon and is used only when Integrated mode is selected. Choosing a provider does not change the current manual flow by itself.</div>
             <ElSelect
               class="w-full"
               :model-value="settings.paymentProvider || 'none'"
@@ -1186,7 +1209,7 @@ onMounted(loadSettings);
           <div class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
             <div>
               <div class="text-sm font-semibold text-slate-900">Require terminal ready</div>
-              <div class="text-xs text-slate-600">Only allow integrated checkout after the terminal reports READY.</div>
+              <div class="text-xs text-slate-600">Only affects integrated checkout. Manual external-terminal checkout is not blocked by this setting.</div>
             </div>
             <ElSwitch
               :model-value="settings.requireTerminalReady !== false"
@@ -1197,7 +1220,7 @@ onMounted(loadSettings);
           <div class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
             <div>
               <div class="text-sm font-semibold text-slate-900">Allow manual fallback</div>
-              <div class="text-xs text-slate-600">Keep card checkout available when the integrated provider or terminal is unavailable.</div>
+              <div class="text-xs text-slate-600">When integrated mode is enabled, keep the existing manual card-entry flow available if the provider or terminal is unavailable.</div>
             </div>
             <ElSwitch
               :model-value="settings.allowManualPaymentFallback !== false"
@@ -1236,11 +1259,23 @@ onMounted(loadSettings);
               <ElButton size="small" :loading="squareActionLoading" @click="connectSquare">
                 {{ squareConnection?.connected ? 'Reconnect Square' : 'Connect Square' }}
               </ElButton>
-              <ElButton v-if="squareConnection?.connected" size="small" :loading="squareActionLoading" @click="pairSquareTerminal">
+              <ElButton v-if="squareConnection?.connected && squareConnection.environment !== 'sandbox'" size="small" :loading="squareActionLoading" @click="pairSquareTerminal">
                 Pair terminal
               </ElButton>
-              <ElButton v-if="squareConnection?.connected" size="small" :loading="squareActionLoading" @click="syncSquareTerminalDevices">
+              <ElButton v-if="squareConnection?.connected && squareConnection.environment !== 'sandbox'" size="small" :loading="squareActionLoading" @click="syncSquareTerminalDevices">
                 Refresh devices
+              </ElButton>
+            </div>
+          </div>
+          <div v-if="squareConnection?.environment === 'sandbox'" class="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-3">
+            <div class="text-sm font-semibold text-amber-900">Sandbox terminal simulator</div>
+            <div class="mt-1 text-xs text-amber-800">
+              Sandbox does not connect to physical Square hardware. Register a Square test device ID to simulate terminal results.
+            </div>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <ElInput v-model="squareSandboxDeviceId" class="min-w-[22rem] flex-1" placeholder="Square sandbox device ID" />
+              <ElButton size="small" :loading="squareActionLoading" @click="registerSandboxSquareTerminal">
+                Register sandbox terminal
               </ElButton>
             </div>
           </div>

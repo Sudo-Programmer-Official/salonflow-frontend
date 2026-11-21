@@ -22,6 +22,13 @@ import { fetchCategories, type ServiceCategory } from '@/api/serviceCategories';
 import { fetchGiftCard, addLegacyGiftCard, type GiftCard } from '@/api/giftCards';
 import { fetchAvailablePromotions, type AvailablePromotion } from '@/api/promotions';
 import { fetchSettings, type BusinessSettings } from '@/api/settings';
+import {
+  createServerTerminalPayment,
+  fetchPaymentIntent,
+  prepareServerTerminalPayment,
+  reconcilePaymentIntent,
+  type PaymentIntent,
+} from '@/api/paymentIntents';
 import { fetchStaff, type StaffMember } from '@/api/staff';
 import { deriveStaffWorkload } from '@/utils/staffAvailability';
 import { type RedeemStatus } from '@/utils/redeemStatus';
@@ -102,6 +109,9 @@ const promotionsLoading = ref(false);
 const promotionsError = ref('');
 const selectedPromotionId = ref('');
 const manualDiscountValue = ref('');
+const integratedPaymentBusy = ref(false);
+const integratedPaymentIntent = ref<PaymentIntent | null>(null);
+const integratedPaymentError = ref('');
 const REDEEM_REQUIRED_POINTS = 300;
 const REDEEM_DOLLAR_VALUE = 5;
 let loyaltyRequestId = 0;
@@ -158,6 +168,9 @@ const resetCheckoutForRouteChange = () => {
   redeemPoints.value = reset.redeemPoints;
   checkoutCompleted.value = reset.checkoutCompleted;
   checkoutStep.value = reset.checkoutStep;
+  integratedPaymentBusy.value = false;
+  integratedPaymentIntent.value = null;
+  integratedPaymentError.value = '';
   applyCheckoutDraftState(reset.draft);
 };
 
@@ -407,6 +420,38 @@ const staffSelectionRequired = computed(
     settings.value?.requireStaffBeforeCheckout &&
     unassignedServiceLines.value.length > 0,
   ),
+);
+const integratedSquareEnabled = computed(
+  () => settings.value?.paymentMode === 'integrated' && settings.value?.paymentProvider === 'square',
+);
+const integratedSquareSelected = computed(
+  () => integratedSquareEnabled.value && paymentOptions.value.card && !paymentOptions.value.cash && !paymentOptions.value.gift,
+);
+const integratedTipAmountCents = computed(() => {
+  if (settings.value?.tipCollectionMode === 'terminal') return 0;
+  return Math.max(0, Math.round(tipAmount.value * 100));
+});
+const integratedCheckoutBlockReason = computed(() => {
+  if (!integratedSquareSelected.value) return null;
+  if (customTotalMode.value || customTotalValid.value) return 'Custom totals use the manual checkout flow.';
+  if (customAddIns.value.length > 0) return 'Custom line items use the manual checkout flow.';
+  if (checkoutDiscount.value > 0) return 'Discounts use the manual checkout flow until checkout totals are server-authoritative.';
+  if (taxAmount.value > 0) return 'Tax adjustments use the manual checkout flow until checkout totals are server-authoritative.';
+  if (redeemPoints.value) return 'Point redemption uses the manual checkout flow.';
+  if (!hasBillItems.value || subtotal.value <= 0) return 'Add a standard service before sending payment to Square.';
+  return null;
+});
+const integratedSquareFallbackEligible = computed(
+  () => settings.value?.allowManualPaymentFallback !== false && (
+    !integratedPaymentIntent.value ||
+    ['DECLINED', 'CANCELLED', 'FAILED'].includes(integratedPaymentIntent.value.status)
+  ),
+);
+const integratedSquareCheckoutReady = computed(
+  () => integratedSquareSelected.value && !integratedCheckoutBlockReason.value && !integratedPaymentError.value,
+);
+const integratedManualCheckoutAllowed = computed(
+  () => !integratedSquareSelected.value || Boolean(integratedCheckoutBlockReason.value) || integratedSquareFallbackEligible.value,
 );
 const staffDisplayName = (member: StaffMember) => member.nickname || member.name;
 const staffWorkload = computed(() => deriveStaffWorkload(inServiceQueue.value));
@@ -713,6 +758,7 @@ onMounted(() => {
   document.body.style.overflow = 'hidden';
 
   loadDrafts();
+  void restoreIntegratedPaymentIntent();
   Promise.all([
     fetchSettings().catch(() => null),
     fetchStaff(1, 200).catch(() => ({ items: [], total: 0 })),
@@ -737,6 +783,7 @@ watch(
   () => {
     resetCheckoutForRouteChange();
     loadDrafts();
+    void restoreIntegratedPaymentIntent();
     void loadCheckin();
   },
 );
@@ -1259,6 +1306,147 @@ const validateGiftCards = () => {
   return true;
 };
 
+const integratedPaymentStorageKey = () => `checkoutIntegratedPayment:${checkinId.value}`;
+
+const persistIntegratedPaymentIntent = (intent: PaymentIntent) => {
+  try {
+    sessionStorage.setItem(integratedPaymentStorageKey(), intent.id);
+  } catch {
+    // Session storage is a convenience for recovery, not a checkout dependency.
+  }
+};
+
+const clearPersistedIntegratedPaymentIntent = () => {
+  try {
+    sessionStorage.removeItem(integratedPaymentStorageKey());
+  } catch {
+    // Session storage may be unavailable in a restricted browser context.
+  }
+};
+
+const restoreIntegratedPaymentIntent = async () => {
+  let paymentIntentId: string | null = null;
+  try {
+    paymentIntentId = sessionStorage.getItem(integratedPaymentStorageKey());
+  } catch {
+    return;
+  }
+  if (!paymentIntentId) return;
+
+  try {
+    const intent = await fetchPaymentIntent(paymentIntentId);
+    if (
+      intent.checkInId !== checkinId.value ||
+      ['DECLINED', 'CANCELLED', 'FAILED', 'REFUNDED', 'VOIDED'].includes(intent.status)
+    ) {
+      clearPersistedIntegratedPaymentIntent();
+      return;
+    }
+    integratedPaymentIntent.value = intent;
+  } catch {
+    // Keep the id so the next attempt can reconcile after a temporary API failure.
+  }
+};
+
+const delay = (milliseconds: number) => new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
+
+const integratedCheckoutContext = () => {
+  const hasDurableServiceLines = Boolean(item.value?.services?.length);
+  const requestOnlyContext = !hasDurableServiceLines && Boolean(item.value?.requestedServices?.length);
+  const legacyStaffId = hasDurableServiceLines || requestOnlyContext ? null : selectedStaffId.value || null;
+  const legacyStaffName = hasDurableServiceLines || requestOnlyContext ? null : selectedStaffName.value || null;
+
+  return {
+    reviewSmsConsent: true,
+    staffId: legacyStaffId,
+    staffName: legacyStaffName,
+    source: 'admin_checkout' as const,
+    createdFrom: 'queue',
+    operatorId: null,
+    locationId: null,
+    servedByName: legacyStaffName,
+    redeemPoints: false,
+    promotionId: null,
+  };
+};
+
+const startIntegratedSquarePayment = async () => {
+  if (!item.value || !integratedSquareSelected.value) return;
+  if (integratedCheckoutBlockReason.value) {
+    ElMessage.warning(integratedCheckoutBlockReason.value);
+    return;
+  }
+
+  integratedPaymentBusy.value = true;
+  integratedPaymentError.value = '';
+  completing.value = true;
+
+  try {
+    let intent = integratedPaymentIntent.value;
+    if (!intent) {
+      const idempotencyKey = typeof globalThis.crypto?.randomUUID === 'function'
+        ? globalThis.crypto.randomUUID()
+        : `${Date.now()}-${item.value.id}`;
+      const created = await createServerTerminalPayment({
+        checkInId: item.value.id,
+        idempotencyKey,
+        tipAmountCents: integratedTipAmountCents.value,
+        checkoutContext: integratedCheckoutContext(),
+      });
+      intent = created.intent;
+      integratedPaymentIntent.value = intent;
+      persistIntegratedPaymentIntent(intent);
+    }
+
+    if (intent.status === 'PENDING') {
+      await prepareServerTerminalPayment(intent.id);
+    }
+
+    for (let attempt = 0; attempt < 60; attempt += 1) {
+      intent = await fetchPaymentIntent(intent.id);
+      integratedPaymentIntent.value = intent;
+      persistIntegratedPaymentIntent(intent);
+
+      if (intent.status === 'APPROVED') {
+        clearPersistedIntegratedPaymentIntent();
+        clearDraftForCurrent();
+        ElMessage.success('Payment approved on the Square Terminal');
+        router.push({ name: 'admin-queue' });
+        return;
+      }
+      if (['DECLINED', 'CANCELLED', 'FAILED'].includes(intent.status)) {
+        throw new Error(intent.failureMessage || `Terminal payment ${intent.status.toLowerCase()}.`);
+      }
+
+      await delay(1500);
+    }
+
+    const reconciled = await reconcilePaymentIntent(intent.id);
+    integratedPaymentIntent.value = reconciled;
+    persistIntegratedPaymentIntent(reconciled);
+    if (reconciled.status === 'APPROVED') {
+      clearPersistedIntegratedPaymentIntent();
+      clearDraftForCurrent();
+      ElMessage.success('Payment approved on the Square Terminal');
+      router.push({ name: 'admin-queue' });
+      return;
+    }
+    throw new Error('The terminal payment is still processing. Do not start another charge; refresh this checkout to reconcile it.');
+  } catch (error) {
+    if (
+      integratedPaymentIntent.value &&
+      ['DECLINED', 'CANCELLED', 'FAILED'].includes(integratedPaymentIntent.value.status)
+    ) {
+      clearPersistedIntegratedPaymentIntent();
+    }
+    integratedPaymentError.value = error instanceof Error ? error.message : 'Terminal payment failed';
+    ElMessage.error(integratedPaymentError.value);
+  } finally {
+    integratedPaymentBusy.value = false;
+    completing.value = false;
+  }
+};
+
 const submitCheckout = async () => {
   if (completing.value) return;
   if (!item.value) return;
@@ -1266,7 +1454,8 @@ const submitCheckout = async () => {
     settings.value = await fetchSettings().catch(() => null);
   }
   await loadCheckin({ silent: true });
-  if (!canCompleteCheckout.value) {
+  const integratedCardSelected = settings.value?.paymentMode === 'integrated' && paymentOptions.value.card;
+  if (!integratedSquareCheckoutReady.value && !canCompleteCheckout.value) {
     ElMessage.warning('Add a total (services or custom) and payments before checkout.');
     return;
   }
@@ -1287,6 +1476,23 @@ const submitCheckout = async () => {
     return;
   }
   if (!validateGiftCards()) return;
+
+  if (integratedCardSelected && integratedSquareCheckoutReady.value) {
+    await startIntegratedSquarePayment();
+    return;
+  }
+  if (integratedCardSelected && !integratedManualCheckoutAllowed.value) {
+    ElMessage.warning('The terminal payment is still processing. Do not start another charge; refresh this checkout to reconcile it.');
+    return;
+  }
+  if (integratedCardSelected && settings.value?.allowManualPaymentFallback === false) {
+    ElMessage.warning(
+      integratedSquareEnabled.value
+        ? integratedCheckoutBlockReason.value || 'Complete this card payment on the connected terminal.'
+        : 'Integrated card payments are not ready for this provider, and manual fallback is disabled.',
+    );
+    return;
+  }
   try {
     await ensureLegacyCards();
   } catch (err) {
@@ -2039,28 +2245,50 @@ onBeforeUnmount(() => {
               </div>
             </div>
 
+            <div
+              v-if="integratedSquareEnabled && paymentOptions.card"
+              class="mt-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-3 text-sm text-blue-900"
+            >
+              <div class="font-semibold">Square Terminal payment</div>
+              <div v-if="integratedCheckoutBlockReason" class="mt-1 text-xs text-blue-800">
+                {{ integratedCheckoutBlockReason }} Manual checkout remains available{{ settings?.allowManualPaymentFallback === false ? ' only when enabled in Settings.' : '.' }}
+              </div>
+              <div v-else-if="integratedPaymentError" class="mt-1 text-xs text-blue-800">
+                The terminal payment did not complete.{{ !integratedSquareFallbackEligible ? ' Do not start another charge; refresh this checkout to reconcile it.' : settings?.allowManualPaymentFallback === false ? ' Manual fallback is disabled in Settings.' : ' Enter the card amount below to use manual checkout.' }}
+              </div>
+              <div v-else class="mt-1 text-xs text-blue-800">
+                SalonFlow will send the standard service total to the paired terminal. No card amount entry is needed here.
+                <span v-if="settings?.tipCollectionMode === 'terminal'">The customer can choose a tip on the terminal.</span>
+              </div>
+              <div v-if="integratedPaymentError" class="mt-2 text-xs font-semibold text-red-700">
+                {{ integratedPaymentError }}
+              </div>
+            </div>
+
             <div class="payments-fields">
-              <div class="payments-section-title">Enter amount</div>
-              <div v-if="paymentOptions.cash" class="pay-row">
-                <span>Cash</span>
-                <ElInput
-                  v-model="paymentAmounts.cash"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="0.00"
-                />
-              </div>
-              <div v-if="paymentOptions.card" class="pay-row">
-                <span>Card</span>
-                <ElInput
-                  v-model="paymentAmounts.card"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="0.00"
-                />
-              </div>
+              <template v-if="!integratedSquareCheckoutReady && integratedManualCheckoutAllowed">
+                <div class="payments-section-title">Enter amount</div>
+                <div v-if="paymentOptions.cash" class="pay-row">
+                  <span>Cash</span>
+                  <ElInput
+                    v-model="paymentAmounts.cash"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div v-if="paymentOptions.card" class="pay-row">
+                  <span>Card</span>
+                  <ElInput
+                    v-model="paymentAmounts.card"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                  />
+                </div>
+              </template>
               <div v-if="paymentOptions.gift" class="gift-block">
                 <div class="gift-header">
                   <div class="flex flex-col gap-1">
@@ -2170,11 +2398,11 @@ onBeforeUnmount(() => {
           <ElButton
             class="checkout-primary"
             type="primary"
-            :disabled="!canCompleteCheckout"
+            :disabled="integratedSquareCheckoutReady ? false : !integratedManualCheckoutAllowed || !canCompleteCheckout"
             :loading="completing"
             @click="submitCheckout"
           >
-            Checkout
+            {{ integratedSquareCheckoutReady ? 'Send to Square Terminal' : 'Checkout' }}
           </ElButton>
         </div>
       </template>

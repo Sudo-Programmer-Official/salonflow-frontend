@@ -63,6 +63,15 @@ export async function syncSquareDevices() {
   return handleResponse<{ devices: SquareDevice[] }>(response, 'Failed to sync Square devices');
 }
 
+export async function registerSandboxSquareDevice(providerDeviceId: string) {
+  const response = await fetch(apiUrl('/integrations/square/devices/sandbox'), {
+    method: 'POST',
+    headers: buildHeaders({ auth: true, tenant: true, json: true }),
+    body: JSON.stringify({ providerDeviceId: providerDeviceId.trim() }),
+  });
+  return handleResponse<{ device: SquareDevice }>(response, 'Failed to register the Square sandbox terminal');
+}
+
 export async function testSquareConnection() {
   const response = await fetch(apiUrl('/integrations/square/test'), {
     method: 'POST',
